@@ -1,0 +1,20 @@
+export const environment = {
+  production: true,
+  apiUrl: 'http://localhost:8000/api/v1',
+  ssoConfig: {
+    issuer: 'http://localhost:8000/o',
+    redirectUri: window.location.origin + '/auth/callback',
+    clientId: 'hcs-cms-frontend',
+    responseType: 'code',
+    scope: 'openid read write',
+    useSilentRefresh: false,
+    showDebugInformation: false,
+    requireHttps: true,
+    pkce: true,
+    clearHashAfterLogin: false,
+    tokenEndpoint: 'http://localhost:8000/o/token/',
+    userinfoEndpoint: 'http://localhost:8000/o/userinfo/',
+    logoutUrl: 'http://localhost:8000/o/revoke_token/',
+    oidc: true,
+  },
+};

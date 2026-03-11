@@ -1,0 +1,54 @@
+<div class="login-container">
+  <mat-card class="login-card" appearance="raised">
+    <mat-card-header class="login-header">
+      <div class="court-emblem">
+        <mat-icon class="emblem-icon">gavel</mat-icon>
+      </div>
+      <div class="header-text">
+        <mat-card-title>High Court of Sikkim</mat-card-title>
+        <mat-card-subtitle>Case Management System</mat-card-subtitle>
+      </div>
+    </mat-card-header>
+
+    <mat-divider></mat-divider>
+
+    <mat-card-content class="login-content">
+      <p class="welcome-text">
+        Welcome to the HCS CMS portal. Please sign in with your
+        institutional account to access the system.
+      </p>
+
+      <div class="features">
+        <div class="feature-item">
+          <mat-icon color="primary">folder_open</mat-icon>
+          <span>Manage Court Cases</span>
+        </div>
+        <div class="feature-item">
+          <mat-icon color="primary">schedule</mat-icon>
+          <span>Track Hearing Schedules</span>
+        </div>
+        <div class="feature-item">
+          <mat-icon color="primary">description</mat-icon>
+          <span>Access Case Documents</span>
+        </div>
+      </div>
+    </mat-card-content>
+
+    <mat-card-actions class="login-actions">
+      <button
+        mat-raised-button
+        color="primary"
+        (click)="loginWithSSO()"
+        class="sso-btn"
+        aria-label="Login with SSO"
+      >
+        <mat-icon>lock_open</mat-icon>
+        Login with SSO
+      </button>
+    </mat-card-actions>
+
+    <mat-card-footer class="login-footer">
+      <p>High Court of Sikkim &copy; {{ currentYear }}</p>
+    </mat-card-footer>
+  </mat-card>
+</div>
