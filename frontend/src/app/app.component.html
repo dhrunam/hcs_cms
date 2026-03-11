@@ -1,0 +1,40 @@
+<mat-toolbar color="primary" class="app-toolbar">
+  <button mat-icon-button aria-label="Menu">
+    <mat-icon>gavel</mat-icon>
+  </button>
+  <span class="app-title">{{ title }}</span>
+  <span class="subtitle">High Court of Sikkim – Case Management System</span>
+
+  <span class="spacer"></span>
+
+  @if (isAuthenticated) {
+    <span class="user-name">
+      <mat-icon>account_circle</mat-icon>
+      {{ userName }}
+    </span>
+    <button mat-button (click)="logout()" class="logout-btn" aria-label="Logout">
+      <mat-icon>logout</mat-icon>
+      Logout
+    </button>
+  }
+</mat-toolbar>
+
+<mat-sidenav-container class="sidenav-container">
+  <mat-sidenav
+    #sidenav
+    mode="side"
+    [opened]="isAuthenticated"
+    class="app-sidenav"
+  >
+    <mat-nav-list>
+      <a mat-list-item routerLink="/cases" aria-label="Cases">
+        <mat-icon matListItemIcon>folder_open</mat-icon>
+        <span matListItemTitle>Cases</span>
+      </a>
+    </mat-nav-list>
+  </mat-sidenav>
+
+  <mat-sidenav-content class="main-content">
+    <router-outlet></router-outlet>
+  </mat-sidenav-content>
+</mat-sidenav-container>
