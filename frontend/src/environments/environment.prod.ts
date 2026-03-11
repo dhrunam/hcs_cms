@@ -1,8 +1,8 @@
 export const environment = {
   production: true,
-  apiUrl: 'http://localhost:8000/api/v1',
+  apiUrl: 'https://your-production-domain.com/api/v1',
   ssoConfig: {
-    issuer: 'http://localhost:8000/o',
+    issuer: 'https://your-production-domain.com/o',
     redirectUri: window.location.origin + '/auth/callback',
     clientId: 'hcs-cms-frontend',
     responseType: 'code',
@@ -12,9 +12,9 @@ export const environment = {
     requireHttps: true,
     pkce: true,
     clearHashAfterLogin: false,
-    tokenEndpoint: 'http://localhost:8000/o/token/',
-    userinfoEndpoint: 'http://localhost:8000/o/userinfo/',
-    logoutUrl: 'http://localhost:8000/o/revoke_token/',
+    tokenEndpoint: 'https://your-production-domain.com/o/token/',
+    userinfoEndpoint: 'https://your-production-domain.com/o/userinfo/',
+    logoutUrl: 'https://your-production-domain.com/o/revoke_token/',
     oidc: true,
   },
 };
