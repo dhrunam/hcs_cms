@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     # Local
     "apps.accounts",
     "apps.cases",
+    "apps.cis",
 ]
 
 MIDDLEWARE = [
@@ -83,9 +84,16 @@ ASGI_APPLICATION = "config.asgi.application"
 # Database
 # ---------------------------------------------------------------------------
 DATABASES = {
+    # "default": dj_database_url.config(
+    #     env="DATABASE_URL",
+    #     default="postgresql://postgres:postgres@localhost:5432/hcs_cms_db",
+    #     conn_max_age=600,
+    #     conn_health_checks=True,
+    # )
+
     "default": dj_database_url.config(
         env="DATABASE_URL",
-        default="postgresql://postgres:postgres@localhost:5432/hcs_cms_db",
+        default="postgresql://root:ecourt@10.182.144.243:5432/sikkimhc_pg",
         conn_max_age=600,
         conn_health_checks=True,
     )
