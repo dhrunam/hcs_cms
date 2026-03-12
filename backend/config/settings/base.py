@@ -96,7 +96,17 @@ DATABASES = {
         default="postgresql://root:ecourt@10.182.144.243:5432/sikkimhc_pg",
         conn_max_age=600,
         conn_health_checks=True,
-    )
+    ),
+    # CIS 1.0 Legacy Database (for inspectdb introspection only)
+    "cis_legacy": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("CIS_LEGACY_DB_NAME", "sikkimhc_pg"),
+        "USER": os.environ.get("CIS_LEGACY_DB_USER", "root"),
+        "PASSWORD": os.environ.get("CIS_LEGACY_DB_PASSWORD", "ecourt"),
+        "HOST": os.environ.get("CIS_LEGACY_DB_HOST", "10.182.144.243"),
+        "PORT": os.environ.get("CIS_LEGACY_DB_PORT", "5432"),
+        "CONN_MAX_AGE": 0,  # No connection pooling for read-only legacy DB
+    },
 }
 
 # ---------------------------------------------------------------------------
