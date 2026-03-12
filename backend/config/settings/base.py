@@ -40,7 +40,6 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Third-party
     "rest_framework",
-    "oauth2_provider",
     "corsheaders",
     # Local
     "apps.accounts",
@@ -57,7 +56,6 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "oauth2_provider.middleware.OAuth2TokenMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -87,7 +85,7 @@ ASGI_APPLICATION = "config.asgi.application"
 DATABASES = {
     "default": dj_database_url.config(
         env="DATABASE_URL",
-        default="postgresql://hcs_user:hcs_password@localhost:5432/hcs_cms_db",
+        default="postgresql://postgres:postgres@localhost:5432/hcs_cms_db",
         conn_max_age=600,
         conn_health_checks=True,
     )
@@ -106,7 +104,6 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 AUTHENTICATION_BACKENDS = [
-    "oauth2_provider.backends.OAuth2Backend",
     "django.contrib.auth.backends.ModelBackend",
 ]
 
@@ -115,7 +112,7 @@ AUTHENTICATION_BACKENDS = [
 # ---------------------------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "oauth2_provider.contrib.rest_framework.OAuth2Authentication",
+        "apps.accounts.authentication.SSOIntrospectionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
@@ -133,28 +130,12 @@ REST_FRAMEWORK = {
 }
 
 # ---------------------------------------------------------------------------
-# OAuth2 / Django OAuth Toolkit
+# External SSO / Resource Server
 # ---------------------------------------------------------------------------
-OAUTH2_PROVIDER = {
-    "SCOPES": {
-        "read": "Read scope",
-        "write": "Write scope",
-        "openid": "OpenID Connect scope",
-    },
-    "DEFAULT_SCOPES": ["read"],
-    "ACCESS_TOKEN_EXPIRE_SECONDS": 3600,  # 1 hour
-    "REFRESH_TOKEN_EXPIRE_SECONDS": 86400 * 7,  # 7 days
-    "ROTATE_REFRESH_TOKEN": True,
-    "ALLOWED_REDIRECT_URI_SCHEMES": ["http", "https"],
-    "OIDC_ENABLED": True,
-    "PKCE_REQUIRED": True,
-    # Secure grant types only; implicit and password grants are deprecated (RFC 6749 §10)
-    "ALLOWED_GRANT_TYPES": [
-        "authorization_code",
-        "client_credentials",
-        "refresh_token",
-    ],
-}
+SSO_INTROSPECTION_URL = os.environ.get("SSO_INTROSPECTION_URL", "").strip()
+SSO_CLIENT_ID = os.environ.get("SSO_CLIENT_ID", "").strip()
+SSO_CLIENT_SECRET = os.environ.get("SSO_CLIENT_SECRET", "").strip()
+SSO_VERIFY_SSL = os.environ.get("SSO_VERIFY_SSL", "True").lower() in ("1", "true", "yes")
 
 # ---------------------------------------------------------------------------
 # CORS
