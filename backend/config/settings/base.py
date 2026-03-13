@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "apps.cis",
     "apps.core",
     "apps.efiliing",
+    "apps.master",
 ]
 
 MIDDLEWARE = [
