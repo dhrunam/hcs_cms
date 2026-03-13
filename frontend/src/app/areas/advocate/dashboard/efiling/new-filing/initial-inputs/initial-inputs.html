@@ -1,0 +1,211 @@
+<form [formGroup]="form" class="form-wrapper">
+  <!-- GROUP 1 -->
+  <div class="form-group-block">
+    <div class="section-title">District Establishment</div>
+
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label"> Bench <small class="text-danger">*</small> </label>
+        <select
+          class="form-control form-select"
+          formControlName="bench"
+          [class.is-invalid]="form.get('bench')?.invalid && form.get('bench')?.touched"
+        >
+          <option value="">Select Bench</option>
+          <option>High Court of Sikkim</option>
+        </select>
+
+        <small class="text-danger" *ngIf="form.get('bench')?.invalid && form.get('bench')?.touched">
+          Bench is required
+        </small>
+      </div>
+    </div>
+  </div>
+
+  <!-- GROUP 2 -->
+  <div class="form-group-block">
+    <div class="section-title">Case Types</div>
+
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label"> Nature <small class="text-danger">*</small> </label>
+        <select
+          class="form-control form-select"
+          formControlName="nature"
+          [class.is-invalid]="form.get('nature')?.invalid && form.get('nature')?.touched"
+        >
+          <option value="">Select</option>
+          <option>Civil</option>
+          <option>Criminal</option>
+        </select>
+
+        <small
+          class="text-danger"
+          *ngIf="form.get('nature')?.invalid && form.get('nature')?.touched"
+        >
+          Nature is required
+        </small>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label"> Relief Sought <small class="text-danger">*</small> </label>
+        <select
+          class="form-control form-select"
+          formControlName="relief"
+          [class.is-invalid]="form.get('relief')?.invalid && form.get('relief')?.touched"
+        >
+          <option value="">Select</option>
+          <option>Interim Relief</option>
+          <option>Final Relief</option>
+        </select>
+
+        <small
+          class="text-danger"
+          *ngIf="form.get('relief')?.invalid && form.get('relief')?.touched"
+        >
+          Relief sought is required
+        </small>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label"> Case Type <small class="text-danger">*</small> </label>
+        <input
+          class="form-control"
+          formControlName="caseType"
+          [class.is-invalid]="form.get('caseType')?.invalid && form.get('caseType')?.touched"
+        />
+
+        <small
+          class="text-danger"
+          *ngIf="form.get('caseType')?.invalid && form.get('caseType')?.touched"
+        >
+          Case type is required
+        </small>
+      </div>
+    </div>
+  </div>
+
+  <!-- GROUP 3 -->
+  <div class="form-group-block">
+    <div class="section-title">Main Case Details</div>
+
+    <div class="mb-3">
+      <label class="form-label"> Case Status <small class="text-danger">*</small> </label>
+
+      <div class="toggle-group">
+        <button
+          type="button"
+          class="toggle-btn"
+          (click)="form.get('status')?.setValue('registered')"
+        >
+          Registered
+        </button>
+
+        <button
+          type="button"
+          class="toggle-btn"
+          (click)="form.get('status')?.setValue('unregistered')"
+        >
+          Unregistered
+        </button>
+      </div>
+
+      <small class="text-danger" *ngIf="form.get('status')?.invalid && form.get('status')?.touched">
+        Case status is required
+      </small>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label"> Case Type <small class="text-danger">*</small> </label>
+        <input
+          class="form-control"
+          formControlName="mainCaseType"
+          [class.is-invalid]="
+            form.get('mainCaseType')?.invalid && form.get('mainCaseType')?.touched
+          "
+        />
+
+        <small
+          class="text-danger"
+          *ngIf="form.get('mainCaseType')?.invalid && form.get('mainCaseType')?.touched"
+        >
+          Case type is required
+        </small>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label"> Case No <small class="text-danger">*</small> </label>
+        <input
+          class="form-control"
+          formControlName="caseNo"
+          [class.is-invalid]="form.get('caseNo')?.invalid && form.get('caseNo')?.touched"
+        />
+
+        <small
+          class="text-danger"
+          *ngIf="form.get('caseNo')?.invalid && form.get('caseNo')?.touched"
+        >
+          Case number is required
+        </small>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label"> Year <small class="text-danger">*</small> </label>
+        <input
+          type="number"
+          class="form-control"
+          formControlName="year"
+          [class.is-invalid]="form.get('year')?.invalid && form.get('year')?.touched"
+        />
+
+        <small class="text-danger" *ngIf="form.get('year')?.invalid && form.get('year')?.touched">
+          Year is required
+        </small>
+      </div>
+    </div>
+  </div>
+
+  <!-- GROUP 4 -->
+  <div class="form-group-block">
+    <div class="section-title">Party Details</div>
+
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label"> Party Type <small class="text-danger">*</small> </label>
+        <select
+          class="form-control"
+          formControlName="partyType"
+          [class.is-invalid]="form.get('partyType')?.invalid && form.get('partyType')?.touched"
+        >
+          <option value="">Select</option>
+          <option>Petitioner</option>
+          <option>Respondent</option>
+        </select>
+
+        <small
+          class="text-danger"
+          *ngIf="form.get('partyType')?.invalid && form.get('partyType')?.touched"
+        >
+          Party type is required
+        </small>
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label"> Mobile No <small class="text-danger">*</small> </label>
+        <input
+          class="form-control"
+          formControlName="mobile"
+          [class.is-invalid]="form.get('mobile')?.invalid && form.get('mobile')?.touched"
+        />
+
+        <small
+          class="text-danger"
+          *ngIf="form.get('mobile')?.invalid && form.get('mobile')?.touched"
+        >
+          Mobile number is required
+        </small>
+      </div>
+    </div>
+  </div>
+</form>
