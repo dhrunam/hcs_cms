@@ -1,0 +1,19 @@
+from django.urls import path
+
+from apps.efiling.views.efiling_acts_views import EfilingActsListCreateView, EfilingActsRetrieveUpdateDestroyView
+from apps.efiling.views.efiling_case_details_views import EfilingCaseDetailsListCreateView, EfilingCaseDetailsRetrieveUpdateDestroyView
+from apps.efiling.views.efiling_litigant_views import EfilingLitigantListCreateView, EfilingLitigantRetrieveUpdateDestroyView
+from apps.efiling.views.efiling_views import EfilingListCreateView, EfilingRetrieveUpdateDestroyView
+
+app_name = "efiling"
+
+urlpatterns = [
+    path("efilings/", EfilingListCreateView.as_view(), name="efiling-list-create"),
+    path("efilings/<int:pk>/", EfilingRetrieveUpdateDestroyView.as_view(), name="efiling-detail"),
+    path("efiling-litigants/", EfilingLitigantListCreateView.as_view(), name="efiling-litigant-list-create"),
+    path("efiling-litigants/<int:pk>/", EfilingLitigantRetrieveUpdateDestroyView.as_view(), name="efiling-litigant-detail"),
+    path("efiling-case-details/", EfilingCaseDetailsListCreateView.as_view(), name="efiling-case-details-list-create"),
+    path("efiling-case-details/<int:pk>/", EfilingCaseDetailsRetrieveUpdateDestroyView.as_view(), name="efiling-case-details-detail"),
+    path("efiling-acts/", EfilingActsListCreateView.as_view(), name="efiling-acts-list-create"),
+    path("efiling-acts/<int:pk>/", EfilingActsRetrieveUpdateDestroyView.as_view(), name="efiling-acts-detail"),
+]

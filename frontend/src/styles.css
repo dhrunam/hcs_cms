@@ -1,4 +1,38 @@
 /* You can add global styles to this file, and also import other style files */
+@import 'ngx-toastr/toastr';
 body {
   font-family: Poppins !important;
+}
+
+/* Bottom middle position */
+.toast-container.toast-top-right {
+  top: auto !important;
+  bottom: 40px !important;
+  right: 50% !important;
+  transform: translateX(50%);
+  width: 420px;
+}
+
+/* Card style toast */
+.ngx-toastr {
+  width: 100% !important;
+  border-radius: 12px !important;
+  padding: 18px 22px !important;
+
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18) !important;
+  font-size: 15px !important;
+}
+
+/* Green success style */
+.toast-success {
+  background: #22c55e !important;
+}
+
+/* Text */
+.toast-title {
+  font-weight: 600;
+}
+
+.toast-message {
+  font-size: 14px;
 }

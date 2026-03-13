@@ -1,1 +1,72 @@
-<p>new-filing works!</p>
+<div class="dashboard-header mb-4">
+  <!-- <div>
+    <h3 class="page-title mb-1"></h3>
+    <p class="text-muted small mb-0">Manage your advocate filings easily</p>
+  </div>
+  <button class="btn create-filing-btn" routerLink="/advocate/dashboard/efiling/new-filing">
+    <i class="fa-solid fa-plus me-2"></i>
+    Create New Filing
+  </button> -->
+
+  <div class="container py-4">
+    <!-- Chevron Progress -->
+    <div class="chevron-container mb-4">
+      <div class="chevron" [class.active]="step >= 1" (click)="goToStep(1)">
+        <span><i class="fa-solid fa-pen-to-square me-2"></i> Initial Inputs</span>
+      </div>
+
+      <div class="chevron" [class.active]="step >= 2" (click)="goToStep(2)">
+        <span><i class="fa-solid fa-users me-2"></i> Litigant</span>
+      </div>
+
+      <div class="chevron" [class.active]="step >= 3" (click)="goToStep(3)">
+        <span><i class="fa-solid fa-file-lines me-2"></i> Fact Details</span>
+      </div>
+
+      <div class="chevron" [class.active]="step >= 4" (click)="goToStep(4)">
+        <span><i class="fa-solid fa-scale-balanced me-2"></i> Case Details</span>
+      </div>
+
+      <div class="chevron" [class.active]="step >= 5" (click)="goToStep(5)">
+        <span><i class="fa-solid fa-paper-plane me-2"></i> eFile</span>
+      </div>
+    </div>
+
+    <div class="card border-0 p-4">
+      <!-- Step 1 -->
+      <div *ngIf="step === 1">
+        <app-initial-inputs [form]="step1"></app-initial-inputs>
+
+        <div class="text-end mt-4">
+          <button class="btn btn-primary" (click)="next()" [disabled]="step1.invalid">Next</button>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div *ngIf="step === 2">
+        <app-litigant></app-litigant>
+
+        <div class="d-flex justify-content-between mt-4">
+          <button class="btn btn-light border" (click)="prev()">Back</button>
+
+          <button class="btn btn-primary" (click)="next()" [disabled]="step2.invalid">Next</button>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div *ngIf="step === 3">
+        <form [formGroup]="step3">
+          <div class="mb-3">
+            <label class="form-label">Address</label>
+            <input class="form-control form-control-lg" formControlName="address" />
+          </div>
+        </form>
+
+        <div class="d-flex justify-content-between mt-4">
+          <button class="btn btn-light border" (click)="prev()">Back</button>
+          <button class="btn btn-success">Submit</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
