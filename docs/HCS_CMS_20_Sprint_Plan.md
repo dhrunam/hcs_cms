@@ -7,6 +7,14 @@
 - Core architecture model: Core-Periphery (CIS 1.0 core + indigenous CMS periphery)
 - Stack baseline: Angular + Django + PostgreSQL
 
+## Current Delivery Snapshot (As of 13 Mar 2026)
+- Backend module structure and routing are in place.
+- Efiling CRUD APIs are implemented for core efiling entities.
+- Master lookup APIs are implemented for current reference models.
+- Authentication integration with external SSO introspection is implemented.
+- Temporary development mode is enabled for unauthenticated CRUD/API verification.
+- Milestones requiring OTP/Aadhaar, payment gateway, full role dashboards, and registry AI features remain planned.
+
 ## Phase and Sprint Mapping
 
 ### Phase I: Core Filing & Foundation (10.03.2026 - 30.04.2026)

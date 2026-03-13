@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0004_alter_efilingacts_table_alter_efiling_table_and_more'),
+        ('core', '0004_alter_efiliingacts_table_alter_efiling_table_and_more'),
     ]
 
     operations = [

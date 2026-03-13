@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import urljoin
 
 import requests
 from django.conf import settings
@@ -39,38 +40,70 @@ class SSOIntrospectionAuthentication(BaseAuthentication):
         return f'Bearer realm="{self.www_authenticate_realm}"'
 
     def _introspect_token(self, token: str) -> dict[str, Any]:
-        introspection_url = settings.SSO_INTROSPECTION_URL
-        if not introspection_url:
+        candidates = self._introspection_candidates()
+        if not candidates:
             raise exceptions.AuthenticationFailed("SSO introspection is not configured.")
 
-        try:
-            response = requests.post(
-                introspection_url,
-                data={"token": token},
-                auth=(settings.SSO_CLIENT_ID, settings.SSO_CLIENT_SECRET)
-                if settings.SSO_CLIENT_ID and settings.SSO_CLIENT_SECRET
-                else None,
-                timeout=5,
-                verify=settings.SSO_VERIFY_SSL,
-            )
-        except requests.RequestException as exc:
-            raise exceptions.AuthenticationFailed(
-                "Unable to connect to SSO introspection service."
-            ) from exc
+        client_id = settings.SSO_CLIENT_ID
+        client_secret = settings.SSO_CLIENT_SECRET
+        received_error_response = False
 
-        if response.status_code >= 400:
+        for introspection_url in candidates:
+            try:
+                response = requests.post(
+                    introspection_url,
+                    data={
+                        "token": token,
+                        "client_id": client_id,
+                        "client_secret": client_secret,
+                    },
+                    auth=(client_id, client_secret) if client_id and client_secret else None,
+                    timeout=5,
+                    verify=settings.SSO_VERIFY_SSL,
+                )
+            except requests.RequestException:
+                continue
+
+            if response.status_code == 404:
+                continue
+
+            if response.status_code >= 400:
+                received_error_response = True
+                continue
+
+            try:
+                return response.json()
+            except ValueError as exc:
+                raise exceptions.AuthenticationFailed(
+                    "Invalid response from SSO introspection service."
+                ) from exc
+
+        if received_error_response:
             raise exceptions.AuthenticationFailed(
                 "Unable to validate access token with SSO provider."
             )
 
-        try:
-            payload = response.json()
-        except ValueError as exc:
-            raise exceptions.AuthenticationFailed(
-                "Invalid response from SSO introspection service."
-            ) from exc
+        raise exceptions.AuthenticationFailed("Unable to connect to SSO introspection service.")
 
-        return payload
+    def _introspection_candidates(self) -> list[str]:
+        urls: list[str] = []
+
+        configured = (getattr(settings, "SSO_INTROSPECTION_URL", "") or "").strip()
+        if configured:
+            urls.append(configured)
+
+        base = (getattr(settings, "SSO_BASE_URL", "") or "").strip().rstrip("/")
+        if base:
+            urls.append(urljoin(f"{base}/", "api/oidc/introspect/"))
+            urls.append(urljoin(f"{base}/", "o/introspect/"))
+
+        # Preserve order but remove duplicates.
+        unique_urls: list[str] = []
+        for url in urls:
+            if url and url not in unique_urls:
+                unique_urls.append(url)
+
+        return unique_urls
 
     def _get_or_create_user(self, claims: dict[str, Any]):
         user_model = get_user_model()

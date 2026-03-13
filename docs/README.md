@@ -4,9 +4,9 @@ A **monolithic-repository** web application for managing court cases at the High
 
 | Layer | Technology | Port |
 |-------|-----------|------|
-| Frontend | Angular 21 (public OAuth2 client) | 4200 |
-| Backend API | Django 6 + Django REST Framework (confidential OAuth2 client + resource server) | 8000 |
-| OAuth2 / SSO | Django OAuth Toolkit (embedded in the backend) | 8000 |
+| Frontend | Angular 21 | 4200 |
+| Backend API | Django 6 + Django REST Framework | 8002 (dev example) |
+| OAuth2 / SSO | External OIDC/OAuth2 service (`hcs_sso_with_oidc`) | 8000 |
 | Database | PostgreSQL 16 | 5432 |
 
 ---
@@ -14,44 +14,19 @@ A **monolithic-repository** web application for managing court cases at the High
 ## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Browser / Client                         │
-└─────────────────┬───────────────────────────────────────────────┘
-                  │  HTTP
-                  ▼
-┌─────────────────────────────────────────────────────────────────┐
-│          Angular 21 Frontend  (PUBLIC OAuth2 client)            │
-│  • Authorization Code flow + PKCE                               │
-│  • angular-oauth2-oidc  •  Angular Material  •  Port 4200       │
-└────────────────────────────┬────────────────────────────────────┘
-                             │  REST API  +  Bearer token
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│     Django 6 Backend  (CONFIDENTIAL OAuth2 client + server)     │
-│  ┌─────────────────────────┐  ┌───────────────────────────────┐ │
-│  │  Django REST Framework  │  │   Django OAuth Toolkit        │ │
-│  │  /api/v1/               │  │   /o/  (Authorization Server) │ │
-│  │  • cases                │  │   • /authorize/               │ │
-│  │  • accounts             │  │   • /token/                   │ │
-│  └─────────────────────────┘  │   • /userinfo/                │ │
-│                               │   • /revoke_token/            │ │
-│                               └───────────────────────────────┘ │
-│  Port 8000                                                      │
-└─────────────────────────────┬───────────────────────────────────┘
-                              │  SQL
-                              ▼
-                  ┌─────────────────────┐
-                  │   PostgreSQL 16      │
-                  │   Port 5432          │
-                  └─────────────────────┘
+Browser/Client -> Angular (4200) -> Django API (8002)
+                                   |\
+                                   | \-> PostgreSQL (5432)
+                                   \
+                                    -> External SSO/OIDC (8000) via token introspection
 ```
 
-### OAuth2 / SSO Flow
+### External SSO Flow (Current)
 
 ```
-Angular (public client)                 Django Backend (Authorization Server)
+Angular (public client)                 External SSO (Authorization Server)
        │                                              │
-       │──── GET /o/authorize/?response_type=code ───▶│
+   │──── GET /o/authorize/?response_type=code ───▶│
        │         &client_id=hcs-cms-frontend           │
        │         &code_challenge=<PKCE>                │
        │◀──── 302 Redirect (login page) ──────────────│
@@ -65,10 +40,15 @@ Angular (public client)                 Django Backend (Authorization Server)
        │         code_verifier=<PKCE verifier>         │
        │◀──── { access_token, id_token, ... } ────────│
        │                                              │
-       │──── GET /api/v1/cases/                       │
+       │──── GET /api/v1/...                          │
        │     Authorization: Bearer <access_token> ───▶│
-       │◀──── 200 { cases: [...] } ───────────────────│
+       │◀──── 200 { data: [...] } ────────────────────│
 ```
+
+### Development Mode Note (Current)
+
+- For active API development/testing, DRF defaults are currently open (`AllowAny`) and default authentication is disabled.
+- This is temporary and should be reverted before staging/production hardening.
 
 ---
 
@@ -76,10 +56,14 @@ Angular (public client)                 Django Backend (Authorization Server)
 
 ```
 hcs_cms/
-├── backend/                    # Django DRF + OAuth2 server
+├── backend/                    # Django DRF API
 │   ├── apps/
 │   │   ├── accounts/           # Custom User model + API
-│   │   └── cases/              # Case management API
+│   │   ├── cases/              # Cases API (router scaffold)
+│   │   ├── cis/                # CIS integration scaffold
+│   │   ├── core/               # Legacy mapped/core models
+│   │   ├── efiling/            # Efiling CRUD APIs
+│   │   └── master/             # Master data list APIs
 │   ├── config/
 │   │   ├── settings/
 │   │   │   ├── base.py
@@ -103,6 +87,9 @@ hcs_cms/
 │   └── package.json
 ├── docker-compose.yml
 └── README.md
+
+# External SSO project is maintained separately:
+# hcs_sso_with_oidc/
 ```
 
 ---
@@ -130,8 +117,8 @@ docker compose exec backend python manage.py createsuperuser
 ```
 
 - **Frontend**: http://localhost:4200
-- **Backend API**: http://localhost:8000/api/v1/
-- **Admin panel**: http://localhost:8000/admin/
+- **Backend API**: http://localhost:8002/api/v1/
+- **Admin panel**: http://localhost:8002/admin/
 - **OAuth2 / SSO**: http://localhost:8000/o/
 
 ### Option B – Manual Setup
@@ -148,7 +135,7 @@ cp .env.example .env               # Edit DATABASE_URL and SECRET_KEY
 
 python manage.py migrate
 python manage.py createsuperuser
-python manage.py runserver 8000
+python manage.py runserver 8002
 ```
 
 #### Frontend
@@ -163,7 +150,7 @@ npm start                          # http://localhost:4200
 
 ## Registering the Angular App as an OAuth2 Client
 
-1. Go to **http://localhost:8000/admin/** → **Django OAuth Toolkit → Applications → Add Application**
+1. Go to SSO admin **http://localhost:8000/admin/** → **Django OAuth Toolkit → Applications → Add Application**
 2. Fill in:
    - **Client id**: `hcs-cms-frontend`
    - **Client type**: `Public`
@@ -174,22 +161,40 @@ npm start                          # http://localhost:4200
 
 ---
 
-## API Endpoints
+## API Endpoints (Current Implemented)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/v1/cases/` | List cases |
-| POST | `/api/v1/cases/` | Create case |
-| GET | `/api/v1/cases/{id}/` | Get case detail |
-| PUT/PATCH | `/api/v1/cases/{id}/` | Update case |
-| DELETE | `/api/v1/cases/{id}/` | Delete case |
+| GET | `/api/v1/master/states/` | List states |
+| GET | `/api/v1/master/districts/` | List districts |
+| GET | `/api/v1/master/case-types/` | List case types |
+| GET | `/api/v1/master/courts/` | List courts |
+| GET | `/api/v1/master/acts/` | List acts |
+| GET | `/api/v1/master/org-types/` | List organization types |
+| GET | `/api/v1/master/org-names/` | List organization names |
+| GET/POST | `/api/v1/efiling/efilings/` | List/create efilings |
+| GET/PUT/PATCH/DELETE | `/api/v1/efiling/efilings/{id}/` | Efiling detail/update/delete |
+| GET/POST | `/api/v1/efiling/efiling-litigants/` | List/create litigants |
+| GET/PUT/PATCH/DELETE | `/api/v1/efiling/efiling-litigants/{id}/` | Litigant detail/update/delete |
+| GET/POST | `/api/v1/efiling/efiling-case-details/` | List/create case details |
+| GET/PUT/PATCH/DELETE | `/api/v1/efiling/efiling-case-details/{id}/` | Case details detail/update/delete |
+| GET/POST | `/api/v1/efiling/efiling-acts/` | List/create efiling acts |
+| GET/PUT/PATCH/DELETE | `/api/v1/efiling/efiling-acts/{id}/` | Efiling acts detail/update/delete |
 | GET | `/api/v1/accounts/users/` | List users |
 | GET | `/api/v1/accounts/users/me/` | Current user profile |
-| POST | `/o/token/` | Get / refresh token |
-| POST | `/o/revoke_token/` | Revoke token |
-| GET | `/o/userinfo/` | OIDC user info |
 
-All `/api/v1/` endpoints require a valid Bearer token.
+Authentication behavior depends on environment:
+- Development (current): open access for CRUD testing
+- Hardened environments: Bearer token validation via external SSO introspection
+
+## Progress Snapshot (As of 13 Mar 2026)
+
+- Core app added under backend apps and migrations stabilized.
+- Efiling APIs implemented for `Efiling`, `EfilingLitigant`, `EfilingCaseDetails`, and `EfilingActs`.
+- Master data list APIs implemented for case types, states, districts, courts, org types, acts, and org names.
+- URL tests and serializer/view tests were added across active apps.
+- External SSO token introspection integration completed with endpoint fallback support.
+- Temporary development mode enabled to test CRUD APIs without authentication.
 
 ---
 

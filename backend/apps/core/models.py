@@ -218,8 +218,8 @@ class Efiling(BaseModel):
     bench = models.CharField(max_length=200, blank=True, null=True)
     petitioner_name = models.CharField(max_length=300, blank=True, null=True)
     petitioner_contact = models.CharField(max_length=10, blank=True, null=True)
-    e_filing_number = models.CharField(max_length=100, unique=True, blank=True, null=True)
-    
+    e_filing_number = models.CharField(max_length=100, unique=True, blank=True, null=True) # Should be genrated at last submission step and should be unique.
+    is_draft = models.BooleanField(default=False)
 
     class Meta:
         
