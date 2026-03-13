@@ -13,6 +13,7 @@ class EfilingSerializer(serializers.ModelSerializer):
             'petitioner_name',
             'petitioner_contact',
             'e_filing_number',
+            'is_draft',
             'is_active',
             'created_at',
             'updated_at',

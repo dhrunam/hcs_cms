@@ -1,8 +1,8 @@
 Task ID,Task Name,Phase,Start Date,End Date,Duration (Days),Dependency,Owner,Critical,Deliverable,Status
-P1-T1,SRS traceability and scope lock,Phase I,2026-03-10,2026-03-16,7,,PM + All Devs,Yes,SRS-to-backlog mapping and frozen scope,Planned
-P1-T2,CIS 1.0 inspectdb mapping and adapter contracts,Phase I,2026-03-17,2026-03-31,15,P1-T1,Dev 1 + Dev 3,Yes,Legacy schema mapping + data consuming API contracts,Planned
-P1-T3,Angular-Django foundation with RBAC and MFA,Phase I,2026-03-17,2026-04-07,22,P1-T1,Dev 1 + Dev 2,Yes,Base application shell with secure access controls,Planned
-P1-T4,4-step eFiling workflow + searchable PDF upload,Phase I,2026-03-24,2026-04-15,23,P1-T3,Dev 2,Yes,Metadata->Upload->ePayment->OTP/Aadhaar flow,Planned
+P1-T1,SRS traceability and scope lock,Phase I,2026-03-10,2026-03-16,7,,PM + All Devs,Yes,SRS-to-backlog mapping and frozen scope,Completed
+P1-T2,CIS 1.0 inspectdb mapping and adapter contracts,Phase I,2026-03-17,2026-03-31,15,P1-T1,Dev 1 + Dev 3,Yes,Legacy schema mapping + data consuming API contracts,In Progress
+P1-T3,Angular-Django foundation with RBAC and MFA,Phase I,2026-03-17,2026-04-07,22,P1-T1,Dev 1 + Dev 2,Yes,Base application shell with secure access controls,In Progress
+P1-T4,4-step eFiling workflow + searchable PDF upload,Phase I,2026-03-24,2026-04-15,23,P1-T3,Dev 2,Yes,Metadata->Upload->ePayment->OTP/Aadhaar flow,In Progress
 P1-T5,Basic judge advocate and scrutiny dashboards,Phase I,2026-04-01,2026-04-22,22,P1-T3,Dev 4,Yes,Role-wise baseline dashboards,Planned
 P1-T6,EC-prefixed filing number trigger in CIS 1.0,Phase I,2026-04-10,2026-04-24,15,P1-T2;P1-T4,Dev 1 + Dev 3,Yes,Accepted scrutiny generates EC filing numbers,Planned
 P1-T7,Phase I migration and acceptance closure,Phase I,2026-04-20,2026-04-30,11,P1-T5;P1-T6,All Devs,Yes,Phase I sign-off by 30.04.2026,Planned
