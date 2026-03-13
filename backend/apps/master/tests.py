@@ -1,3 +1,1 @@
-from django.test import TestCase
-
-# Create your tests here.
+"""Master app tests are organized under apps/master/test/."""

@@ -7,4 +7,5 @@ urlpatterns = [
     path('api/v1/cases/', include('apps.cases.urls', namespace='cases')),
     path('api/v1/cis/', include('apps.cis.urls', namespace='cis')),
     path('api/v1/efiliing/', include('apps.efiliing.urls', namespace='efiliing')),
+    path('api/v1/master/', include('apps.master.urls', namespace='master')),
 ]
