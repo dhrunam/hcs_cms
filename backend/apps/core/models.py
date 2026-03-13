@@ -261,7 +261,7 @@ class EfilingCaseDetails(BaseModel):
     class Meta:
         db_table = 'e_filing_case_details'
 
-class EfiliingActs(BaseModel):
+class EfilingActs(BaseModel):
     e_filing = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name='efiling_acts')
     e_filing_number = models.CharField(max_length=100, unique=True, blank=True, null=True)
     act = models.ForeignKey(ActT, on_delete=models.SET_NULL, null=True, blank=True, related_name='efiling_acts')
