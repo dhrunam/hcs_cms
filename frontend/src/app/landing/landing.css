@@ -1,0 +1,157 @@
+body {
+  background: linear-gradient(135deg, #f9fbff, #eef4ff);
+  color: #334155;
+}
+
+/* NAVBAR */
+
+.navbar {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e9eef6;
+  backdrop-filter: blur(10px);
+}
+
+.navbar-brand {
+  font-weight: 700;
+  color: #4f46e5 !important;
+  font-size: 20px;
+}
+
+/* SIDEBAR */
+
+.sidebar {
+  height: 100vh;
+  background: #ffffff;
+  border-right: 1px solid #edf2f7;
+  padding-top: 10px;
+}
+
+.sidebar-header {
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: #94a3b8;
+}
+
+.navbar .dropdown-menu {
+  z-index: 1055;
+}
+
+.navbar {
+  position: relative;
+  z-index: 1050;
+}
+
+.sidebar .nav-link {
+  color: #475569;
+  padding: 12px 18px;
+  margin: 6px 12px;
+  border-radius: 10px;
+  font-weight: 300;
+  transition: all 0.25s ease;
+}
+
+.sidebar .nav-link i {
+  margin-right: 10px;
+  width: 18px;
+}
+
+.sidebar .nav-link:hover {
+  background: linear-gradient(135deg, #eef2ff, #f5f3ff);
+  color: #4f46e5;
+  transform: translateX(4px);
+}
+
+.sidebar .nav-link.active {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: white;
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);
+}
+
+/* MAIN */
+
+.main-content {
+  background: transparent;
+  min-height: 100vh;
+}
+
+/* DASHBOARD CARDS */
+
+.dashboard-card {
+  border: none;
+  border-radius: 16px;
+  background: white;
+  padding: 5px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.dashboard-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, #6366f1, #06b6d4);
+}
+
+.dashboard-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+}
+
+.dashboard-card h5 {
+  font-size: 14px;
+  color: #64748b;
+}
+
+.dashboard-card h3 {
+  font-weight: 700;
+  margin-top: 5px;
+}
+
+/* TABLE */
+
+.card {
+  border: none;
+  border-radius: 16px;
+}
+
+.card-header {
+  background: #ffffff;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.table {
+  margin: 0;
+}
+
+.table thead {
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.table tbody tr {
+  transition: 0.2s;
+}
+
+.table tbody tr:hover {
+  background: #f1f5ff;
+}
+
+/* BADGES */
+
+.badge {
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+/* FOOTER */
+
+.footer {
+  background: white;
+  border-top: 1px solid #e9eef6;
+  color: #94a3b8;
+}
