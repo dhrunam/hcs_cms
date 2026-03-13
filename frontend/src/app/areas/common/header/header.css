@@ -1,0 +1,17 @@
+.navbar {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e9eef6;
+  backdrop-filter: blur(10px);
+  position: relative;
+  z-index: 1050;
+}
+
+.navbar-brand {
+  font-weight: 700;
+  color: #4f46e5 !important;
+  font-size: 20px;
+}
+
+.navbar .dropdown-menu {
+  z-index: 1055;
+}

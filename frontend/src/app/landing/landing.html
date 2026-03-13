@@ -1,0 +1,221 @@
+<nav class="navbar navbar-dark bg-dark shadow-sm pe-2">
+  <div class="d-flex align-items-center">
+    <!-- SIDEBAR TOGGLE BUTTON -->
+    <button
+      class="btn d-md-none me-1 text-"
+      type="button"
+      data-bs-toggle="offcanvas"
+      data-bs-target="#mobileSidebar"
+    >
+      <i class="fa-solid fa-bars"></i>
+    </button>
+
+    <!-- TITLE -->
+    <a class="navbar-brand fw-bold mb-0 ps-d-2" href="#">
+      <i class="fa-solid fa-layer-group me-2"></i>Admin CMS
+    </a>
+  </div>
+
+  <div class="d-flex align-items-center">
+    <div class="me-4 text-white">
+      <i class="fa-solid fa-bell"></i>
+    </div>
+
+    <div class="dropdown">
+      <a
+        class="d-flex align-items-center text-decoration-none dropdown-toggle"
+        href="#"
+        role="button"
+        data-bs-toggle="dropdown"
+      >
+        <i class="fa-solid fa-user-circle me-2 fs-5"></i>
+        Admin
+      </a>
+
+      <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+        <li>
+          <a class="dropdown-item" href="#"> <i class="fa-solid fa-user me-2"></i>View Profile </a>
+        </li>
+
+        <li>
+          <a class="dropdown-item" href="#"> <i class="fa-solid fa-gear me-2"></i>Settings </a>
+        </li>
+
+        <li><hr class="dropdown-divider" /></li>
+
+        <li>
+          <a class="dropdown-item text-danger" href="#">
+            <i class="fa-solid fa-right-from-bracket me-2"></i>Logout
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="container-fluid">
+  <div class="row">
+    <!-- MOBILE SIDEBAR -->
+    <div
+      class="offcanvas offcanvas-start sidebar-mobile d-md-none"
+      tabindex="-1"
+      id="mobileSidebar"
+    >
+      <div class="offcanvas-header">
+        <h5 class="offcanvas-title fw-bold">
+          <i class="fa-solid fa-layer-group me-2"></i>Admin CMS
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+      </div>
+
+      <div class="offcanvas-body p-0">
+        <ul class="nav flex-column">
+          <li class="nav-item">
+            <a class="nav-link active" href="#">
+              <i class="fa-solid fa-chart-line"></i> Dashboard
+            </a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="#"> <i class="fa-solid fa-file"></i> Pages </a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="#"> <i class="fa-solid fa-newspaper"></i> Posts </a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="#"> <i class="fa-solid fa-users"></i> Users </a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="#"> <i class="fa-solid fa-gear"></i> Settings </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- DESKTOP SIDEBAR -->
+    <div class="col-md-2 sidebar d-none d-md-block p-0">
+      <div class="sidebar-header">
+        <h6 class="text-uppercase text-muted px-3 pt-3">Navigation</h6>
+      </div>
+
+      <ul class="nav flex-column">
+        <li class="nav-item">
+          <a class="nav-link active" href="#"> <i class="fa-solid fa-chart-line"></i> Dashboard </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link" href="#"> <i class="fa-solid fa-file"></i> Pages </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link" href="#"> <i class="fa-solid fa-newspaper"></i> Posts </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link" href="#"> <i class="fa-solid fa-users"></i> Users </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="nav-link" href="#"> <i class="fa-solid fa-gear"></i> Settings </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="col-md-10 main-content">
+      <div class="container-fluid py-4">
+        <h3 class="mb-4 fw-bold">Dashboard</h3>
+
+        <div class="row g-4">
+          <div class="col-md-3">
+            <div class="card dashboard-card shadow-sm">
+              <div class="card-body">
+                <i class="fa-solid fa-users fa-2x text-primary mb-3"></i>
+                <h5>Total Users</h5>
+                <h3>1,245</h3>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-3">
+            <div class="card dashboard-card shadow-sm">
+              <div class="card-body">
+                <i class="fa-solid fa-file fa-2x text-success mb-3"></i>
+                <h5>Pages</h5>
+                <h3>42</h3>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-3">
+            <div class="card dashboard-card shadow-sm">
+              <div class="card-body">
+                <i class="fa-solid fa-newspaper fa-2x text-warning mb-3"></i>
+                <h5>Posts</h5>
+                <h3>320</h3>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-3">
+            <div class="card dashboard-card shadow-sm">
+              <div class="card-body">
+                <i class="fa-solid fa-comments fa-2x text-danger mb-3"></i>
+                <h5>Comments</h5>
+                <h3>89</h3>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Table Section -->
+
+        <div class="card mt-5 shadow-sm">
+          <div class="card-header bg-white fw-bold">Recent Activity</div>
+
+          <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>User</th>
+                  <th>Action</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                <tr>
+                  <td>Sagar</td>
+                  <td>Created Page</td>
+                  <td>12 Mar 2026</td>
+                  <td><span class="badge bg-success">Completed</span></td>
+                </tr>
+
+                <tr>
+                  <td>Admin</td>
+                  <td>Updated Post</td>
+                  <td>11 Mar 2026</td>
+                  <td><span class="badge bg-primary">Updated</span></td>
+                </tr>
+
+                <tr>
+                  <td>Editor</td>
+                  <td>Deleted Comment</td>
+                  <td>10 Mar 2026</td>
+                  <td><span class="badge bg-danger">Deleted</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
+<footer class="footer text-center py-3">© 2026 Admin CMS</footer>
