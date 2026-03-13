@@ -86,8 +86,12 @@ export class NewFiling {
 
       this.toastr.success('Changes saved successfully', '', {
         timeOut: 2000,
-        closeButton: false,
+        closeButton: true,
         progressBar: true,
+      });
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth',
       });
     }
   }
