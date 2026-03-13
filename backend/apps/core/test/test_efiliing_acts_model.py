@@ -1,12 +1,12 @@
 from django.test import SimpleTestCase
 
-from apps.core.models import ActT, Efiling, EfiliingActs
+from apps.core.models import ActT, Efiling, EfilingActs
 
 
-class EfiliingActsModelTest(SimpleTestCase):
+class EfilingActsModelTest(SimpleTestCase):
     def test_db_table(self):
-        self.assertEqual(EfiliingActs._meta.db_table, "e_filing_acts")
+        self.assertEqual(EfilingActs._meta.db_table, "e_filing_acts")
 
     def test_foreign_keys(self):
-        self.assertEqual(EfiliingActs._meta.get_field("e_filing").related_model, Efiling)
-        self.assertEqual(EfiliingActs._meta.get_field("act").related_model, ActT)
+        self.assertEqual(EfilingActs._meta.get_field("e_filing").related_model, Efiling)
+        self.assertEqual(EfilingActs._meta.get_field("act").related_model, ActT)

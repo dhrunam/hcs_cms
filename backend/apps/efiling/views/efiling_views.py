@@ -1,7 +1,7 @@
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 
 from apps.core.models import Efiling
-from apps.efiliing.serializers.efiling_serializers import EfilingSerializer
+from apps.efiling.serializers.efiling_serializers import EfilingSerializer
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
  
 
