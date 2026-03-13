@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AlterModelTable(
-            name='efiliingacts',
+            name='efilingacts',
             table='e_filing_acts',
         ),
         migrations.AlterModelTable(
