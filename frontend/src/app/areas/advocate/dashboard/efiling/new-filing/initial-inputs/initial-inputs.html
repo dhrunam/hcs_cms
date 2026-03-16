@@ -11,11 +11,11 @@
           [class.is-invalid]="form.get('bench')?.invalid && form.get('bench')?.touched"
         >
           <option value="">Select Bench</option>
-          <option>High Court of Sikkim</option>
+          <option value="High Court Of Sikkim">High Court of Sikkim</option>
         </select>
 
         <small class="text-danger" *ngIf="form.get('bench')?.invalid && form.get('bench')?.touched">
-          Bench is required
+          bench is required
         </small>
       </div>
       <div class="col-md-6">
@@ -26,15 +26,14 @@
           [class.is-invalid]="form.get('nature')?.invalid && form.get('nature')?.touched"
         >
           <option value="">Select</option>
-          <option>Civil</option>
-          <option>Criminal</option>
+          <option *ngFor="let l of case_types" [value]="l.id">{{ l.type_name }}</option>
         </select>
 
         <small
           class="text-danger"
           *ngIf="form.get('nature')?.invalid && form.get('nature')?.touched"
         >
-          Case Type is required
+          case type is required
         </small>
       </div>
       <div class="col-md-6">
@@ -45,8 +44,8 @@
           [class.is-invalid]="form.get('partyType')?.invalid && form.get('partyType')?.touched"
         >
           <option value="">Select</option>
-          <option>Petitioner</option>
-          <option>Respondent</option>
+          <option value="Petitioner">Petitioner</option>
+          <option value="Respondent">Respondent</option>
         </select>
 
         <small
