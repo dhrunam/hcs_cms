@@ -1,9 +1,11 @@
 import { Component, OnInit } from '@angular/core';
+import { RouterModule } from '@angular/router';
 
 @Component({
   selector: 'app-navbar',
   templateUrl: './navbar.html',
   styleUrl: './navbar.css',
+  imports: [RouterModule]
 })
 export class Navbar implements OnInit {
   currentTime: string = '';
@@ -22,6 +24,7 @@ export class Navbar implements OnInit {
     this.currentTime = now.toLocaleTimeString('en-IN', {
       hour: '2-digit',
       minute: '2-digit',
+      second: '2-digit',
       hour12: true,
     });
 

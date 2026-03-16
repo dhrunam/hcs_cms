@@ -52,9 +52,7 @@
   right: 3px;
   bottom: 3px;
   background: inherit;
-
   clip-path: polygon(0% 0%, 85% 0%, 100% 50%, 85% 100%, 0% 100%, 10% 50%);
-
   z-index: 1;
 }
 

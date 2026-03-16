@@ -27,13 +27,13 @@ export class NewFiling {
       bench: ['', Validators.required],
 
       nature: ['', Validators.required],
-      relief: ['', Validators.required],
-      caseType: ['', Validators.required],
+      // relief: ['', Validators.required],
+      // caseType: ['', Validators.required],
 
-      status: ['', Validators.required],
-      mainCaseType: ['', Validators.required],
-      caseNo: ['', Validators.required],
-      year: ['', Validators.required],
+      // status: ['', Validators.required],
+      // mainCaseType: ['', Validators.required],
+      // caseNo: ['', Validators.required],
+      // year: ['', Validators.required],
 
       partyType: ['', Validators.required],
       mobile: ['', Validators.required],
@@ -79,7 +79,7 @@ export class NewFiling {
     //   this.step3.markAllAsTouched();
     //   return;
     // }
-    this.step++;
+    // this.step++;
 
     if (this.step < 5) {
       this.step++;
@@ -88,6 +88,7 @@ export class NewFiling {
         timeOut: 2000,
         closeButton: true,
         progressBar: true,
+        positionClass: 'toast-bottom-right',
       });
       window.scrollTo({
         top: 0,
