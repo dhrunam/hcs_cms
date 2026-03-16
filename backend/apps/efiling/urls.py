@@ -3,7 +3,9 @@ from django.urls import path
 from apps.efiling.views.efiling_acts_views import EfilingActsListCreateView, EfilingActsRetrieveUpdateDestroyView
 from apps.efiling.views.efiling_case_details_views import EfilingCaseDetailsListCreateView, EfilingCaseDetailsRetrieveUpdateDestroyView
 from apps.efiling.views.efiling_litigant_views import EfilingLitigantListCreateView, EfilingLitigantRetrieveUpdateDestroyView
+
 from apps.efiling.views.efiling_views import EfilingListCreateView, EfilingRetrieveUpdateDestroyView
+from apps.efiling.views.document_index_views import DocumentIndexListCreateView, DocumentIndexRetrieveUpdateDestroyView
 
 app_name = "efiling"
 
@@ -16,4 +18,6 @@ urlpatterns = [
     path("efiling-case-details/<int:pk>/", EfilingCaseDetailsRetrieveUpdateDestroyView.as_view(), name="efiling-case-details-detail"),
     path("efiling-acts/", EfilingActsListCreateView.as_view(), name="efiling-acts-list-create"),
     path("efiling-acts/<int:pk>/", EfilingActsRetrieveUpdateDestroyView.as_view(), name="efiling-acts-detail"),
+    path("document-index/", DocumentIndexListCreateView.as_view(), name="document-index-list-create"),
+    path("document-index/<int:pk>/", DocumentIndexRetrieveUpdateDestroyView.as_view(), name="document-index-detail"),
 ]
