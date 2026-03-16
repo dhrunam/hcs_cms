@@ -4,11 +4,12 @@ import { Component } from '@angular/core';
 import { FormGroup, FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
 import { InitialInputs } from './initial-inputs/initial-inputs';
 import { Litigant } from './litigant/litigant';
+import { CaseDetails } from './case-details/case-details';
 
 @Component({
   selector: 'app-new-filing',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, InitialInputs, Litigant],
+  imports: [CommonModule, ReactiveFormsModule, InitialInputs, Litigant, CaseDetails],
   templateUrl: './new-filing.html',
   styleUrls: ['./new-filing.css'],
 })
@@ -18,6 +19,7 @@ export class NewFiling {
   step1!: FormGroup;
   step2!: FormGroup;
   step3!: FormGroup;
+  stepCaseDetails!: FormGroup;
 
   constructor(
     private fb: FormBuilder,
@@ -27,13 +29,13 @@ export class NewFiling {
       bench: ['', Validators.required],
 
       nature: ['', Validators.required],
-      relief: ['', Validators.required],
-      caseType: ['', Validators.required],
+      // relief: ['', Validators.required],
+      // caseType: ['', Validators.required],
 
-      status: ['', Validators.required],
-      mainCaseType: ['', Validators.required],
-      caseNo: ['', Validators.required],
-      year: ['', Validators.required],
+      // status: ['', Validators.required],
+      // mainCaseType: ['', Validators.required],
+      // caseNo: ['', Validators.required],
+      // year: ['', Validators.required],
 
       partyType: ['', Validators.required],
       mobile: ['', Validators.required],
@@ -62,6 +64,24 @@ export class NewFiling {
     this.step3 = this.fb.group({
       address: ['', Validators.required],
     });
+
+    this.stepCaseDetails = this.fb.group({
+      causeOfAction: ['', Validators.required],
+      causeOfActionDate: ['', Validators.required],
+      importantInformation: [''],
+      prayer: [''],
+      suitValuation: [''],
+
+      plaintLocalLanguage: [false],
+
+      state: [''],
+      district: [''],
+      taluka: [''],
+      hobli: [''],
+
+      act: ['', Validators.required],
+      section: ['', Validators.required],
+    });
   }
 
   next() {
@@ -79,7 +99,7 @@ export class NewFiling {
     //   this.step3.markAllAsTouched();
     //   return;
     // }
-    this.step++;
+    // this.step++;
 
     if (this.step < 5) {
       this.step++;
@@ -88,6 +108,7 @@ export class NewFiling {
         timeOut: 2000,
         closeButton: true,
         progressBar: true,
+        positionClass: 'toast-bottom-right',
       });
       window.scrollTo({
         top: 0,

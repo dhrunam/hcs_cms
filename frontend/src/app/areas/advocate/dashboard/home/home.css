@@ -60,15 +60,16 @@
 }
 
 .dashboard-card h5 {
-  font-size: 13px;
-  font-weight: 300;
+  font-size: 16px;
+  font-weight: 500;
   color: #64748b;
 }
 
-.dashboard-card h3 {
+.dashboard-card h4 {
   font-weight: 500;
   margin-top: 5px;
   color: #1e293b;
+  text-align: right;
 }
 
 /* CARD */

@@ -5,6 +5,28 @@
 
     <div class="row g-3">
       <div class="col-md-6">
+        <label class="form-label"> Organisation Type <small class="text-danger">*</small> </label>
+
+        <select class="form-control form-select" formControlName="organisationType">
+          <option value="">Select</option>
+          <option>Government</option>
+          <option>Private</option>
+          <option>Company</option>
+        </select>
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label">
+          Petitioner / Respondent <small class="text-danger">*</small>
+        </label>
+
+        <input
+          class="form-control"
+          placeholder="Type min 3 characters"
+          formControlName="litigantName"
+        />
+      </div>
+      <div class="col-md-6">
         <label class="form-label"> Type <small class="text-danger">*</small> </label>
 
         <div class="d-flex gap-4 mt-1">
@@ -28,29 +50,6 @@
             <label class="form-check-label">Respondent</label>
           </div>
         </div>
-      </div>
-
-      <div class="col-md-6">
-        <label class="form-label"> Organisation Type <small class="text-danger">*</small> </label>
-
-        <select class="form-control form-select" formControlName="organisationType">
-          <option value="">Select</option>
-          <option>Government</option>
-          <option>Private</option>
-          <option>Company</option>
-        </select>
-      </div>
-
-      <div class="col-md-6">
-        <label class="form-label">
-          Petitioner / Respondent <small class="text-danger">*</small>
-        </label>
-
-        <input
-          class="form-control"
-          placeholder="Type min 3 characters"
-          formControlName="litigantName"
-        />
       </div>
     </div>
   </div>
