@@ -32,9 +32,9 @@ export class NewFiling {
     this.form = this.fb.group({
       initialInputs: this.fb.group({
         bench: ['High Court Of Sikkim', Validators.required],
-        nature: ['', Validators.required],
-        partyType: ['', Validators.required],
-        mobile: ['', Validators.required],
+        case_type: ['', Validators.required],
+        petitioner_name: ['', Validators.required],
+        petitioner_contact: ['', Validators.required],
       }),
 
       litigants: this.fb.group({
@@ -134,9 +134,10 @@ export class NewFiling {
   }
 
   goToStep(stepNumber: number) {
-    if (stepNumber <= this.step) {
-      this.step = stepNumber;
-    }
+    // if (stepNumber <= this.step) {
+    //   this.step = stepNumber;
+    // }
+    this.step = stepNumber;
   }
 
   saveStep1() {
