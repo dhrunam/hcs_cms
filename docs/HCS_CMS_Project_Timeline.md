@@ -6,6 +6,14 @@
 - Stack baseline from SRS: Angular (frontend), Django (backend), PostgreSQL (database).
 - Workflow baseline: eFiling -> Scrutiny -> Filing Number in CIS 1.0 -> Registry flow -> Listing -> Courtroom operations -> Disposal.
 
+## Current Progress Update (As of 13 Mar 2026)
+- Backend app structure is active with modular APIs under `/api/v1/`.
+- Efiling and master data APIs are implemented and testable.
+- Accounts API is operational, including `/api/v1/accounts/users/me/`.
+- SSO token introspection path has been integrated in backend authentication logic.
+- For development testing, API auth/permission checks are temporarily relaxed to accelerate CRUD verification.
+- Milestones related to full 4-step eFiling, dashboards, payment/OTP, and advanced workflow modules remain in planned/in-progress state.
+
 ## Approved Implementation Phases
 
 ### Phase I: Core Filing & Foundation (10.03.2026 - 30.04.2026)

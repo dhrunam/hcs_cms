@@ -56,3 +56,8 @@ This is the stack explicitly specified in the SRS and should be treated as the p
 
 ## Bottom Line
 Use **Angular + Django + PostgreSQL** as the primary stack for the current CMS program. Introduce **FastAPI selectively** only for isolated async services after core SRS deliverables are stable.
+
+## Current Implementation Note (As of 13 Mar 2026)
+- Backend currently integrates with an external SSO provider for token introspection.
+- For development-only API validation, auth/permission checks are temporarily relaxed.
+- Before staging/production rollout, re-enable strict authentication/authorization and align with MFA/RBAC controls.

@@ -133,11 +133,9 @@ AUTHENTICATION_BACKENDS = [
 # Django REST Framework
 # ---------------------------------------------------------------------------
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": [
-        "apps.accounts.authentication.SSOIntrospectionAuthentication",
-    ],
+    "DEFAULT_AUTHENTICATION_CLASSES": [],
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.IsAuthenticated",
+        "rest_framework.permissions.AllowAny",
     ],
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
@@ -156,6 +154,7 @@ REST_FRAMEWORK = {
 # ---------------------------------------------------------------------------
 # External SSO / Resource Server
 # ---------------------------------------------------------------------------
+SSO_BASE_URL = os.environ.get("SSO_BASE_URL", "").strip()
 SSO_INTROSPECTION_URL = os.environ.get("SSO_INTROSPECTION_URL", "").strip()
 SSO_CLIENT_ID = os.environ.get("SSO_CLIENT_ID", "").strip()
 SSO_CLIENT_SECRET = os.environ.get("SSO_CLIENT_SECRET", "").strip()

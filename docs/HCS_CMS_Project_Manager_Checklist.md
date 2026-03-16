@@ -1,5 +1,16 @@
 # HCS CMS Project Manager Checklist
 
+## Current Implementation Snapshot (As of 13 Mar 2026)
+- Backend foundation is operational with Django 6 + DRF.
+- Core migrations are running cleanly after dependency-chain correction.
+- Efiling API CRUD endpoints are implemented for `Efiling`, `EfilingLitigant`, `EfilingCaseDetails`, and `EfilingActs`.
+- Master API list endpoints are implemented for case types, states, districts, courts, org types, acts, and org names.
+- URL and serializer/view test coverage has been expanded for active backend apps.
+- External SSO introspection integration is implemented with fallback endpoint support.
+- Temporary development mode is enabled to test CRUD APIs without authentication.
+
+Use this checklist below for remaining milestone tracking and closure governance.
+
 ## How to Use
 - Use this checklist in weekly PM reviews and sprint ceremonies.
 - Mark each item as complete when evidence exists (document, demo, report, sign-off).

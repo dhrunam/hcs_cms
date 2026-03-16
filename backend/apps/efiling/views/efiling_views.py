@@ -2,18 +2,15 @@ from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIV
 
 from apps.core.models import Efiling
 from apps.efiling.serializers.efiling_serializers import EfilingSerializer
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
  
 
 
 class EfilingListCreateView(ListCreateAPIView):
     queryset = Efiling.objects.all()
     serializer_class = EfilingSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
     
 
 
 class EfilingRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
     queryset = Efiling.objects.all()
     serializer_class = EfilingSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
