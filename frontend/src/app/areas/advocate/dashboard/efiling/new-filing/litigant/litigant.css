@@ -3,7 +3,8 @@
   padding-bottom: 30px;
   border-bottom: 1px solid #e5e7eb;
   /* border: 1px solid rgb(233, 233, 233); */
-  border-radius: 6px;
+  border-radius: 12px;
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.2);
   padding: 20px;
 }
 
@@ -23,8 +24,10 @@
 }
 
 .form-control {
-  border-radius: 6px;
-  padding: 10px 12px;
+  border-radius: 12px;
+  padding: 5px;
+  padding-left: 15px;
+  font-size: 0.99rem;
 }
 
 .toggle-group {
@@ -42,13 +45,6 @@
 
 .toggle-btn:hover {
   background: #f3f4f6;
-}
-
-.form-control {
-  border-radius: 4px;
-  padding: 6px 10px;
-  font-size: 0.99rem;
-  height: 34px;
 }
 
 select.form-control {
