@@ -9,21 +9,18 @@
   cursor: pointer;
 }
 
-/* ======================================================
-   SIDEBAR NAV LINKS
-====================================================== */
-.nav-link{
-    color: #1e293b;
+.nav-link {
+  color: #1e293b;
 }
-.nav-link:hover{
-    color: #ffffff;
+.nav-link:hover {
+  color: #ffffff;
 }
-.nav-item.active .nav-link{
-    color: #ffffff;
+.nav-item.active .nav-link {
+  color: #ffffff;
 }
 .nav-item {
   color: #475569;
-  padding: 12px 18px;
+  padding: 5px 8px;
   margin: 6px 12px;
   border-radius: 10px;
   font-weight: 300;

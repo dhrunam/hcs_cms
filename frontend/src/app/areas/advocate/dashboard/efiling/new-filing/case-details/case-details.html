@@ -26,10 +26,10 @@
         <textarea class="form-control" rows="2" formControlName="prayer"></textarea>
       </div>
 
-      <div class="col-md-4">
+      <!-- <div class="col-md-4">
         <label class="form-label">Suit Valuation (₹)</label>
         <input class="form-control" formControlName="suitValuation" />
-      </div>
+      </div> -->
 
       <div class="col-md-4">
         <div class="form-check mt-4">
@@ -61,9 +61,7 @@
 
       <div class="col-md-6">
         <label class="form-label">Taluka</label>
-        <select class="form-control form-select" formControlName="taluka">
-          <option value="">Select Taluka</option>
-        </select>
+        <input type="text" class="form-control" formControlName="taluka" />
       </div>
 
       <div class="col-md-6">
@@ -94,12 +92,5 @@
         <button type="button" class="btn btn-success btn-sm">+ More Acts</button>
       </div>
     </div>
-  </div>
-
-  <!-- ACTION BUTTONS -->
-  <div class="mt-4 d-flex gap-2">
-    <button class="btn btn-primary">Save</button>
-    <button class="btn btn-secondary">Previous</button>
-    <button class="btn btn-dark">Next</button>
   </div>
 </form>
