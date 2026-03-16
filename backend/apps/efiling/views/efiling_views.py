@@ -6,11 +6,11 @@ from apps.efiling.serializers.efiling_serializers import EfilingSerializer
 
 
 class EfilingListCreateView(ListCreateAPIView):
-    queryset = Efiling.objects.all()
+    queryset = Efiling.objects.filter(is_active=True).order_by('-id')
     serializer_class = EfilingSerializer
     
 
 
 class EfilingRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
-    queryset = Efiling.objects.all()
+    queryset = Efiling.objects.filter(is_active=True).order_by('-id')
     serializer_class = EfilingSerializer

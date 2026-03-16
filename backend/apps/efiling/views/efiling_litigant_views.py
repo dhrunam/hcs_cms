@@ -5,10 +5,10 @@ from apps.efiling.serializers.efiling_litigant_serializers import EfilingLitigan
 
 
 class EfilingLitigantListCreateView(ListCreateAPIView):
-    queryset = EfilingLitigant.objects.all()
+    queryset = EfilingLitigant.objects.filter(is_active=True).order_by('-id')
     serializer_class = EfilingLitigantSerializer
 
 
 class EfilingLitigantRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
-    queryset = EfilingLitigant.objects.all()
+    queryset = EfilingLitigant.objects.filter(is_active=True).order_by('-id')
     serializer_class = EfilingLitigantSerializer
