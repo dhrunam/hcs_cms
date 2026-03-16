@@ -1,1 +1,172 @@
-<p>e-file works!</p>
+<div class="container preview-page rounded-3">
+  <!-- INITIAL INPUTS -->
+  <div class="card shadow-sm mb-4 border-0">
+    <div class="card-header text-start bg-dark text-white fw-semibold">Initial Inputs</div>
+
+    <div class="card-body text-start">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="text-muted small">Bench</label>
+          <div class="fw-semibold">{{ initialInputsForm.value.bench }}</div>
+        </div>
+
+        <div class="col-md-6">
+          <label class="text-muted small">Case Type</label>
+          <div class="fw-semibold">{{ initialInputsForm.value.case_type }}</div>
+        </div>
+
+        <div class="col-md-6">
+          <label class="text-muted small">Petitioner Name</label>
+          <div class="fw-semibold">{{ initialInputsForm.value.petitioner_name }}</div>
+        </div>
+
+        <div class="col-md-6">
+          <label class="text-muted small">Petitioner Contact</label>
+          <div class="fw-semibold">{{ initialInputsForm.value.petitioner_contact }}</div>
+        </div>
+
+        <div class="col-md-6">
+          <label class="text-muted small">E-Filing Number</label>
+          <div class="fw-semibold text-success">{{ initialInputsForm.value.e_filing_number }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LITIGANT DETAILS -->
+  <div class="card shadow-sm mb-4 border-0 text-start">
+    <div class="card-header bg-dark text-white fw-semibold">Litigant Details</div>
+
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="text-muted small">Name</label>
+          <div class="fw-semibold">{{ litigantsForm.value.name }}</div>
+        </div>
+
+        <div class="col-md-2">
+          <label class="text-muted small">Gender</label>
+          <div class="fw-semibold">{{ litigantsForm.value.gender }}</div>
+        </div>
+
+        <div class="col-md-2">
+          <label class="text-muted small">Age</label>
+          <div class="fw-semibold">{{ litigantsForm.value.age }}</div>
+        </div>
+
+        <div class="col-md-4">
+          <label class="text-muted small">Contact</label>
+          <div class="fw-semibold">{{ litigantsForm.value.contact }}</div>
+        </div>
+
+        <div class="col-md-4">
+          <label class="text-muted small">Email</label>
+          <div class="fw-semibold">{{ litigantsForm.value.email }}</div>
+        </div>
+
+        <div class="col-md-4">
+          <label class="text-muted small">Religion</label>
+          <div class="fw-semibold">{{ litigantsForm.value.religion }}</div>
+        </div>
+
+        <div class="col-md-4">
+          <label class="text-muted small">Caste</label>
+          <div class="fw-semibold">{{ litigantsForm.value.caste }}</div>
+        </div>
+
+        <div class="col-md-4">
+          <label class="text-muted small">Occupation</label>
+          <div class="fw-semibold">{{ litigantsForm.value.occupation }}</div>
+        </div>
+
+        <div class="col-md-12">
+          <label class="text-muted small">Address</label>
+          <div class="fw-semibold">{{ litigantsForm.value.address }}</div>
+        </div>
+
+        <div class="col-md-3">
+          <label class="text-muted small">State</label>
+          <div class="fw-semibold">{{ litigantsForm.value.state_id }}</div>
+        </div>
+
+        <div class="col-md-3">
+          <label class="text-muted small">District</label>
+          <div class="fw-semibold">{{ litigantsForm.value.district_id }}</div>
+        </div>
+
+        <div class="col-md-3">
+          <label class="text-muted small">Taluka</label>
+          <div class="fw-semibold">{{ litigantsForm.value.taluka }}</div>
+        </div>
+
+        <div class="col-md-3">
+          <label class="text-muted small">Village</label>
+          <div class="fw-semibold">{{ litigantsForm.value.village }}</div>
+        </div>
+
+        <div class="col-md-6">
+          <label class="text-muted small">Differentially Abled</label>
+          <div class="fw-semibold">
+            {{ litigantsForm.value.is_diffentially_abled ? 'Yes' : 'No' }}
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <label class="text-muted small">Is Petitioner</label>
+          <div class="fw-semibold">
+            {{ litigantsForm.value.is_petitioner ? 'Yes' : 'No' }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CASE DETAILS -->
+  <div class="card shadow-sm mb-4 border-0 text-start">
+    <div class="card-header bg-dark text-white fw-semibold">Case Details</div>
+
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="text-muted small">Cause Of Action</label>
+          <div class="fw-semibold">{{ caseDetailsForm.value.causeOfAction }}</div>
+        </div>
+
+        <div class="col-md-6">
+          <label class="text-muted small">Cause Of Action Date</label>
+          <div class="fw-semibold">{{ caseDetailsForm.value.causeOfActionDate }}</div>
+        </div>
+
+        <div class="col-md-3">
+          <label class="text-muted small">State</label>
+          <div class="fw-semibold">{{ caseDetailsForm.value.state }}</div>
+        </div>
+
+        <div class="col-md-3">
+          <label class="text-muted small">District</label>
+          <div class="fw-semibold">{{ caseDetailsForm.value.district }}</div>
+        </div>
+
+        <div class="col-md-3">
+          <label class="text-muted small">Taluka</label>
+          <div class="fw-semibold">{{ caseDetailsForm.value.taluka }}</div>
+        </div>
+
+        <div class="col-md-3">
+          <label class="text-muted small">Hobli</label>
+          <div class="fw-semibold">{{ caseDetailsForm.value.hobli }}</div>
+        </div>
+
+        <div class="col-md-6">
+          <label class="text-muted small">Act</label>
+          <div class="fw-semibold">{{ caseDetailsForm.value.act }}</div>
+        </div>
+
+        <div class="col-md-6">
+          <label class="text-muted small">Section</label>
+          <div class="fw-semibold">{{ caseDetailsForm.value.section }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
