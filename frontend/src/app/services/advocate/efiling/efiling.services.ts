@@ -14,4 +14,8 @@ export class EfilingService {
   post_litigant_details(fd: FormData): Observable<any> {
     return this.http.post<any>(`${app_url}/api/v1/efiling/efiling-litigants/`, fd);
   }
+
+  post_case_details(fd: FormData): Observable<any> {
+    return this.http.post<any>(`${app_url}/api/v1/efiling/efiling-litigants/`, fd);
+  }
 }
