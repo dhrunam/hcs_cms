@@ -21,6 +21,8 @@
   font-size: 0.95rem;
   font-weight: 400;
   margin-bottom: 6px;
+  padding-left: 6px;
+  color: #454545;
 }
 
 .toggle-group {
