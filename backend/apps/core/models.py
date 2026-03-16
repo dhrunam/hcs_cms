@@ -158,7 +158,7 @@ class District(BaseModel):
         db_table = 'district'
 
 class Court(BaseModel):
-    court_name = models.CharField(max_length=100, blank=True, null=True)
+    court_name = models.CharField(max_length=500, blank=True, null=True)
     address= models.CharField(max_length=255, blank=True, null=True)
     est_code_src = models.CharField(max_length=6)
     class Meta:
@@ -178,7 +178,7 @@ class ActT(BaseModel):
 
     actcode = models.BigIntegerField(primary_key=True)
     actname = models.CharField(max_length=250, blank=True, null=True)
-    lactname = models.CharField(max_length=100, blank=True, null=True)
+    lactname = models.CharField(max_length=250, blank=True, null=True)
     acttype = models.TextField()  # This field type is a guess.
     display = models.TextField()  # This field type is a guess.
     national_code = models.CharField(max_length=15, blank=True, null=True)
@@ -262,7 +262,7 @@ class DocumentIndex(BaseModel):
     name=models.CharField(max_length=215, null=False, blank=False)
     case_type= models.ForeignKey(CaseTypeT, on_delete=models.SET_NULL, null=True, blank=True, related_name='document_index')
 
-class EfilingLitigant(BaseModel):
+class EfilingLitigant(BaseModel): #party details of petitioner and respondent
     e_filing = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name='litigants')
     e_filing_number = models.CharField(max_length=100, blank=True, null=True)
     name = models.CharField(max_length=300, blank=True, null=True)
@@ -317,8 +317,11 @@ class EfilingDocuments(BaseModel):
     document_type = models.CharField(max_length=512, blank=True, null=True) 
     parent_e_filing_document = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='child_documents')
     is_ia = models.BooleanField(default=False) 
-   
- 
+    class Meta:
+      
+        db_table = 'efiling_documents'
+
+
 class EfilingDocumentsIndex(BaseModel):
     document= models.ForeignKey(EfilingDocuments, on_delete=models.SET_NULL, null=True, blank=True)
     index= models.ForeignKey(DocumentIndex,on_delete=models.SET_NULL, null=True, blank=True)
@@ -331,10 +334,15 @@ class EfilingDocumentsIndex(BaseModel):
             efiling_number = "unknown"
         part_name = instance.document_part_name or "part"
         return f"efile/{efiling_number}/{part_name}.pdf"
-
     file_part_path = models.FileField(upload_to=file_part_upload_to, max_length=512)
     is_locked = models.BooleanField(default=False)
     document_sequence = models.IntegerField(blank=True, null=True)
+
+   
+
+    class Meta:
+      
+        db_table = 'efiling_documents_index'
     
 class IA(BaseModel):
     e_filing = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name='ias')
@@ -344,21 +352,23 @@ class IA(BaseModel):
     status = models.CharField(max_length=50, blank=True, null=True)
     disposal_date = models.DateField(blank=True, null=True) # next date or disposal date   
 
-
+    class Meta:
+      
+        db_table = 'ia'
 
 class CivilT(BaseModel):
     case_no = models.CharField(max_length=15, blank=True, null=True)
     pet_name = models.CharField(max_length=100, blank=True, null=True)
     lpet_name = models.CharField(max_length=100, blank=True, null=True)
     pet_sex = models.CharField(max_length=1, blank=True, null=True)
-    res_name = models.CharField(max_length=100, blank=True, null=True)
-    lres_name = models.CharField(max_length=100, blank=True, null=True)
-    res_sex = models.CharField(max_length=1, blank=True, null=True)
-    court_no = models.IntegerField()
-    date_of_filing = models.DateField(blank=True, null=True)
-    time_of_filing = models.TimeField(blank=True, null=True)
-    date_first_list = models.DateField(blank=True, null=True)
-    date_next_list = models.DateField(blank=True, null=True)
+    pet_name = models.CharField(max_length=255, blank=True, null=True)
+    lpet_name = models.CharField(max_length=255, blank=True, null=True)
+    res_name = models.CharField(max_length=255, blank=True, null=True)
+    lres_name = models.CharField(max_length=255, blank=True, null=True)
+    pet_father_name = models.CharField(max_length=255, blank=True, null=True)
+    lpet_father_name = models.CharField(max_length=255, blank=True, null=True)
+    res_father_name = models.CharField(max_length=255, blank=True, null=True)
+    lres_father_name = models.CharField(max_length=255, blank=True, null=True)
     date_last_list = models.DateField(blank=True, null=True)
     date_of_decision = models.DateField(blank=True, null=True)
     dec_jud_name = models.CharField(max_length=100, blank=True, null=True)
