@@ -1,0 +1,40 @@
+from rest_framework import serializers
+
+from apps.core.models import EfilingDocumentsIndex
+
+
+class EfilingDocumentsIndexSerializer(serializers.ModelSerializer):
+    """
+    Serializer for individual document parts (EfilingDocumentsIndex).
+    Exposes a read-only URL for the uploaded file.
+    """
+
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = EfilingDocumentsIndex
+        fields = [
+            "id",
+            "document",
+            "index",
+            "document_part_name",
+            "file_part_path",
+            "file_url",
+            "is_locked",
+            "document_sequence",
+            "is_active",
+            "created_at",
+            "updated_at",
+            "created_by",
+            "updated_by",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+    def get_file_url(self, obj):
+        request = self.context.get("request")
+        if obj.file_part_path and hasattr(obj.file_part_path, "url"):
+            if request is not None:
+                return request.build_absolute_uri(obj.file_part_path.url)
+            return obj.file_part_path.url
+        return None
+
