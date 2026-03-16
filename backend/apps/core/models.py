@@ -1,4 +1,6 @@
-from django.db import models
+
+from django.db import IntegrityError, models, transaction
+from django.utils import timezone
 
 # Create your models here.
 from django.db import models
@@ -213,17 +215,48 @@ class OrgnameT(BaseModel):
       
         db_table = 'orgname_t'
 
+class EfilingSequence(models.Model):
+    year = models.IntegerField(unique=True)  # one row per year
+    last_sequence = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = "e_filing_sequence"
+
 class Efiling(BaseModel):
     case_type= models.ForeignKey(CaseTypeT, on_delete=models.SET_NULL, null=True, blank=True, related_name='efilings')
     bench = models.CharField(max_length=200, blank=True, null=True)
     petitioner_name = models.CharField(max_length=300, blank=True, null=True)
     petitioner_contact = models.CharField(max_length=10, blank=True, null=True)
     e_filing_number = models.CharField(max_length=100, unique=True, blank=True, null=True) # Should be genrated at last submission step and should be unique.
-    is_draft = models.BooleanField(default=False)
+    is_draft = models.BooleanField(default=True)
 
     class Meta:
         
         db_table = 'e_filing'
+        
+    # generate e_filing_number in the format ASK2024XXXXXXXCYYYYZZZZZ where XXXXXXX is a zero-padded sequence number, YYYY is the current year, and 
+    # ZZZZZ is a zero-padded sequence number of length 5. The prefix "ASK" and suffix "C" are constant. The sequence number should be unique for each e-filing and should reset every year.
+
+    def save(self, *args, **kwargs):
+        # Generate filing number only on first save
+        if self.pk is None and not self.e_filing_number:
+            current_year = timezone.now().year
+
+            with transaction.atomic():  # Atomic block for concurrency
+                # Get or create the sequence for this year
+                seq_obj, created = EfilingSequence.objects.select_for_update().get_or_create(year=current_year)
+
+                # Increment sequence
+                seq_obj.last_sequence += 1
+                new_sequence = seq_obj.last_sequence
+                seq_obj.save()
+
+                # Format the number
+                seq7 = str(new_sequence).zfill(7)
+                seq5 = str(new_sequence).zfill(5)
+                self.e_filing_number = f"ASK2024{seq7}C{current_year}{seq5}"
+
+        super().save(*args, **kwargs)
 
 class DocumentIndex(BaseModel):
     name=models.CharField(max_length=215, null=False, blank=False)

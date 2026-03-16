@@ -5,10 +5,10 @@ from apps.efiling.serializers.efiling_case_details_serializers import EfilingCas
 
 
 class EfilingCaseDetailsListCreateView(ListCreateAPIView):
-    queryset = EfilingCaseDetails.objects.all()
+    queryset = EfilingCaseDetails.objects.filter(is_active=True).order_by('-id')
     serializer_class = EfilingCaseDetailsSerializer
 
 
 class EfilingCaseDetailsRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
-    queryset = EfilingCaseDetails.objects.all()
+    queryset = EfilingCaseDetails.objects.filter(is_active=True).order_by('-id')
     serializer_class = EfilingCaseDetailsSerializer
