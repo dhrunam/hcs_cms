@@ -1,8 +1,9 @@
 import { Component } from '@angular/core';
+import { SidebarMenus } from '../sidebar-menus/sidebar-menus';
 
 @Component({
   selector: 'app-sidebar',
-  imports: [],
+  imports: [SidebarMenus],
   templateUrl: './sidebar.html',
   styleUrl: './sidebar.css',
 })
