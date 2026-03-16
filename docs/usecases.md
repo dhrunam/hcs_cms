@@ -408,5 +408,6 @@ This document consolidates use cases from the following project documents:
 
 ## Notes
 - Current repository has evolved toward external SSO token validation for API access.
-- Some legacy statements in docs/README.md still describe embedded OAuth server endpoints.
+- API CRUD testing is currently running in development mode with relaxed auth/permission checks.
+- Production intent remains role-scoped access with external SSO validation.
 - This use case document keeps business and workflow intent from SRS and sprint planning as the baseline.
