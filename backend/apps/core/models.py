@@ -271,6 +271,7 @@ class EfilingLitigant(BaseModel): #party details of petitioner and respondent
     is_diffentially_abled = models.BooleanField(default=False)
     contact = models.CharField(max_length=10, blank=True, null=True)
     is_petitioner = models.BooleanField(default=False)
+    sequence_number = models.IntegerField(blank=False, null=False)
     email= models.EmailField(blank=True, null=True)
     religion = models.CharField(max_length=50, blank=True, null=True)
     caste = models.CharField(max_length=50, blank=True, null=True)
@@ -280,6 +281,7 @@ class EfilingLitigant(BaseModel): #party details of petitioner and respondent
     district_id = models.ForeignKey(District, on_delete=models.SET_NULL, null=True, blank=True, related_name='litigants')
     taluka= models.CharField(max_length=100, blank=True, null=True)
     village = models.CharField(max_length=100, blank=True, null=True)
+    
 
     class Meta:
         
