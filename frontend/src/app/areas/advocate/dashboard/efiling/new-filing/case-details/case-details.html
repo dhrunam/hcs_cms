@@ -1,1 +1,105 @@
-<p>case-details works!</p>
+<form [formGroup]="form" class="form-wrapper">
+  <!-- GROUP 1 -->
+  <div class="form-group-block">
+    <div class="section-title">Case Details</div>
+
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label"> Cause of Action <small class="text-danger">*</small> </label>
+        <textarea class="form-control" rows="2" formControlName="causeOfAction"></textarea>
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label">
+          Date of Cause of Action <small class="text-danger">*</small>
+        </label>
+        <input type="date" class="form-control" formControlName="causeOfActionDate" />
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label"> Important Information / Subject / Reason </label>
+        <input class="form-control" formControlName="importantInformation" />
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label">Prayer</label>
+        <textarea class="form-control" rows="2" formControlName="prayer"></textarea>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label">Suit Valuation (₹)</label>
+        <input class="form-control" formControlName="suitValuation" />
+      </div>
+
+      <div class="col-md-4">
+        <div class="form-check mt-4">
+          <input type="checkbox" class="form-check-input" formControlName="plaintLocalLanguage" />
+          <label class="form-check-label">Plaint in Local Language</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GROUP 2 -->
+  <div class="form-group-block">
+    <div class="section-title">Dispute Arising Out Of</div>
+
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">State</label>
+        <select class="form-control form-select" formControlName="state">
+          <option value="">Select State</option>
+        </select>
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label">District</label>
+        <select class="form-control form-select" formControlName="district">
+          <option value="">Select District</option>
+        </select>
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label">Taluka</label>
+        <select class="form-control form-select" formControlName="taluka">
+          <option value="">Select Taluka</option>
+        </select>
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label">Hobli</label>
+        <select class="form-control form-select" formControlName="hobli">
+          <option value="">Select Hobli</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- GROUP 3 -->
+  <div class="form-group-block">
+    <div class="section-title">Act Details</div>
+
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label"> Act <small class="text-danger">*</small> </label>
+        <input class="form-control" formControlName="act" />
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label"> Section <small class="text-danger">*</small> </label>
+        <input class="form-control" formControlName="section" />
+      </div>
+
+      <div class="col-md-12">
+        <button type="button" class="btn btn-success btn-sm">+ More Acts</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACTION BUTTONS -->
+  <div class="mt-4 d-flex gap-2">
+    <button class="btn btn-primary">Save</button>
+    <button class="btn btn-secondary">Previous</button>
+    <button class="btn btn-dark">Next</button>
+  </div>
+</form>
