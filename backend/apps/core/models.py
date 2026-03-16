@@ -225,9 +225,13 @@ class Efiling(BaseModel):
         
         db_table = 'e_filing'
 
+class DocumentIndex(BaseModel):
+    name=models.CharField(max_length=215, null=False, blank=False)
+    case_type= models.ForeignKey(CaseTypeT, on_delete=models.SET_NULL, null=True, blank=True, related_name='document_index')
+
 class EfilingLitigant(BaseModel):
     e_filing = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name='litigants')
-    e_filing_number = models.CharField(max_length=100, unique=True, blank=True, null=True)
+    e_filing_number = models.CharField(max_length=100, blank=True, null=True)
     name = models.CharField(max_length=300, blank=True, null=True)
     gender= models.CharField(max_length=1, blank=True, null=True)
     age = models.SmallIntegerField(blank=True, null=True)
@@ -263,7 +267,7 @@ class EfilingCaseDetails(BaseModel):
 
 class EfilingActs(BaseModel):
     e_filing = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name='efiling_acts')
-    e_filing_number = models.CharField(max_length=100, unique=True, blank=True, null=True)
+    e_filing_number = models.CharField(max_length=100, blank=True, null=True)
     act = models.ForeignKey(ActT, on_delete=models.SET_NULL, null=True, blank=True, related_name='efiling_acts')
     section = models.CharField(max_length=100, blank=True, null=True)
     sub_section = models.CharField(max_length=100, blank=True, null=True)
@@ -272,6 +276,21 @@ class EfilingActs(BaseModel):
     class Meta:
         
         db_table = 'e_filing_acts'
+
+
+class EfilingDocuments(BaseModel):
+    e_filing = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name='efiling_documents')
+    e_filing_number = models.CharField(max_length=100, blank=True, null=True)
+    document_type = models.CharField(max_length=512, blank=True, null=True) 
+    
+class EfilingDocumentsIndex(BaseModel):
+    document= models.ForeignKey(EfilingDocuments, on_delete=models.SET_NULL, null=True, blank=True)
+    index= models.ForeignKey(DocumentIndex,on_delete=models.SET_NULL, null=True, blank=True)
+    document_part_name = models.CharField(max_length=256, blank=False, null=False)
+    file_part_path = models.FileField(upload_to="efile/", max_length=512)
+    is_locked = models.BooleanField(default=False)
+    
+
 
 class CivilT(BaseModel):
     case_no = models.CharField(max_length=15, blank=True, null=True)
