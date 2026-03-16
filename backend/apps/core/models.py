@@ -315,14 +315,35 @@ class EfilingDocuments(BaseModel):
     e_filing = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name='efiling_documents')
     e_filing_number = models.CharField(max_length=100, blank=True, null=True)
     document_type = models.CharField(max_length=512, blank=True, null=True) 
-    
+    parent_e_filing_document = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='child_documents')
+    is_ia = models.BooleanField(default=False) 
+   
+ 
 class EfilingDocumentsIndex(BaseModel):
     document= models.ForeignKey(EfilingDocuments, on_delete=models.SET_NULL, null=True, blank=True)
     index= models.ForeignKey(DocumentIndex,on_delete=models.SET_NULL, null=True, blank=True)
     document_part_name = models.CharField(max_length=256, blank=False, null=False)
-    file_part_path = models.FileField(upload_to="efile/", max_length=512)
+    def file_part_upload_to(instance, filename):
+        efiling_number = None
+        if instance.document and instance.document.e_filing_number:
+            efiling_number = instance.document.e_filing_number
+        else:
+            efiling_number = "unknown"
+        part_name = instance.document_part_name or "part"
+        return f"efile/{efiling_number}/{part_name}.pdf"
+
+    file_part_path = models.FileField(upload_to=file_part_upload_to, max_length=512)
     is_locked = models.BooleanField(default=False)
+    document_sequence = models.IntegerField(blank=True, null=True)
     
+class IA(BaseModel):
+    e_filing = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name='ias')
+    e_filing_number = models.CharField(max_length=100, blank=True, null=True)
+    ia_number = models.CharField(max_length=100, unique=True, blank=True, null=True)
+    ia_text = models.CharField(max_length=500, blank=True, null=True) 
+    status = models.CharField(max_length=50, blank=True, null=True)
+    disposal_date = models.DateField(blank=True, null=True) # next date or disposal date   
+
 
 
 class CivilT(BaseModel):
