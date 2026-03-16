@@ -4,26 +4,28 @@ import { Component } from '@angular/core';
 import { FormGroup, FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
 import { InitialInputs } from './initial-inputs/initial-inputs';
 import { Litigant } from './litigant/litigant';
+import { CaseDetails } from './case-details/case-details';
 
 @Component({
   selector: 'app-new-filing',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, InitialInputs, Litigant],
+  imports: [CommonModule, ReactiveFormsModule, InitialInputs, Litigant, CaseDetails],
   templateUrl: './new-filing.html',
   styleUrls: ['./new-filing.css'],
 })
 export class NewFiling {
   step = 1;
 
-  step1!: FormGroup;
-  step2!: FormGroup;
-  step3!: FormGroup;
+  initialInputs!: FormGroup;
+  litigants!: FormGroup;
+  // step3!: FormGroup;
+  stepCaseDetails!: FormGroup;
 
   constructor(
     private fb: FormBuilder,
     private toastr: ToastrService,
   ) {
-    this.step1 = this.fb.group({
+    this.initialInputs = this.fb.group({
       bench: ['', Validators.required],
 
       nature: ['', Validators.required],
@@ -39,8 +41,9 @@ export class NewFiling {
       mobile: ['', Validators.required],
     });
 
-    this.step2 = this.fb.group({
-      litigantType: ['', Validators.required],
+    this.litigants = this.fb.group({
+      litigantType: ['petitioner', Validators.required],
+      isOrganisation: [false],
       organisationType: ['', Validators.required],
       litigantName: ['', [Validators.required, Validators.minLength(3)]],
 
@@ -59,8 +62,26 @@ export class NewFiling {
       legalHeir: [false],
     });
 
-    this.step3 = this.fb.group({
-      address: ['', Validators.required],
+    // this.step3 = this.fb.group({
+    //   address: ['', Validators.required],
+    // });
+
+    this.stepCaseDetails = this.fb.group({
+      causeOfAction: ['', Validators.required],
+      causeOfActionDate: ['', Validators.required],
+      importantInformation: [''],
+      prayer: [''],
+      suitValuation: [''],
+
+      plaintLocalLanguage: [false],
+
+      state: [''],
+      district: [''],
+      taluka: [''],
+      hobli: [''],
+
+      act: ['', Validators.required],
+      section: ['', Validators.required],
     });
   }
 
@@ -121,15 +142,15 @@ export class NewFiling {
   }
 
   submit() {
-    if (this.step3.invalid) {
-      this.step3.markAllAsTouched();
-      return;
-    }
+    // if (this.step3.invalid) {
+    //   this.step3.markAllAsTouched();
+    //   return;
+    // }
 
     const formData = {
-      ...this.step1.value,
-      ...this.step2.value,
-      ...this.step3.value,
+      ...this.initialInputs.value,
+      ...this.litigants.value,
+      // ...this.step3.value,
     };
 
     console.log(formData);
