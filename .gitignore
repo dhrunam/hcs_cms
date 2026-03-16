@@ -87,3 +87,4 @@ Thumbs.db
 
 # ─── Miscellaneous ───────────────────────────────────────────────────────────
 backend/.venv/
+/old_data
