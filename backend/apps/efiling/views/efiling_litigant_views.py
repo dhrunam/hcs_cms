@@ -5,7 +5,7 @@ from apps.efiling.serializers.efiling_litigant_serializers import EfilingLitigan
 
 
 class EfilingLitigantListCreateView(ListCreateAPIView):
-    
+    queryset = EfilingLitigant.objects.all()
     serializer_class = EfilingLitigantSerializer
 
     def get_queryset(self):
@@ -17,7 +17,7 @@ class EfilingLitigantListCreateView(ListCreateAPIView):
         return qs
 
 class EfilingLitigantRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
-
+    queryset = EfilingLitigant.objects.all()
     serializer_class = EfilingLitigantSerializer
 
     def get_queryset(self):
