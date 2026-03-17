@@ -7,10 +7,13 @@ from apps.efiling.serializers.efiling_acts_serializers import EfilingActsSeriali
 from apps.efiling.serializers.efiling_case_details_serializers import EfilingCaseDetailsSerializer
 from apps.efiling.serializers.efiling_litigant_serializers import EfilingLitigantSerializer
 from apps.efiling.serializers.efiling_serializers import EfilingSerializer
+from apps.efiling.serializers.ia_serializers import IASerializer
 from apps.efiling.views.efiling_acts_views import EfilingActsListCreateView, EfilingActsRetrieveUpdateDestroyView
 from apps.efiling.views.efiling_case_details_views import EfilingCaseDetailsListCreateView, EfilingCaseDetailsRetrieveUpdateDestroyView
 from apps.efiling.views.efiling_litigant_views import EfilingLitigantListCreateView, EfilingLitigantRetrieveUpdateDestroyView
 from apps.efiling.views.efiling_views import EfilingListCreateView, EfilingRetrieveUpdateDestroyView
+from apps.efiling.views.ia_views import IAListCreateView, IARetrieveUpdateDestroyView
+from apps.core.models import IA
 
 
 class EfilingListCreateViewTest(SimpleTestCase):
@@ -57,6 +60,16 @@ class EfilingActsViewsTest(SimpleTestCase):
     def test_detail_view(self):
         self.assertEqual(EfilingActsRetrieveUpdateDestroyView.serializer_class, EfilingActsSerializer)
         self.assertEqual(EfilingActsRetrieveUpdateDestroyView.queryset.model, EfilingActs)
+
+
+class IAViewsTest(SimpleTestCase):
+    def test_list_create_view(self):
+        self.assertEqual(IAListCreateView.serializer_class, IASerializer)
+        self.assertEqual(IAListCreateView.queryset.model, IA)
+
+    def test_detail_view(self):
+        self.assertEqual(IARetrieveUpdateDestroyView.serializer_class, IASerializer)
+        self.assertEqual(IARetrieveUpdateDestroyView.queryset.model, IA)
 
 
 class EfilingCaseDetailsNestedActsPostTest(TestCase):
