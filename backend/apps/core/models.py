@@ -265,6 +265,7 @@ class DocumentIndex(BaseModel):
 class EfilingLitigant(BaseModel): #party details of petitioner and respondent
     e_filing = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name='litigants')
     e_filing_number = models.CharField(max_length=100, blank=True, null=True)
+    organization = models.ForeignKey(OrgnameT, on_delete=models.SET_NULL, null=True, blank=True, related_name='litigants')
     name = models.CharField(max_length=300, blank=True, null=True)
     gender= models.CharField(max_length=1, blank=True, null=True)
     age = models.SmallIntegerField(blank=True, null=True)
