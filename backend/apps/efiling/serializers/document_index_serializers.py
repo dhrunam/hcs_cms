@@ -6,7 +6,7 @@ class DocumentIndexSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DocumentIndex
-        fields = ['name', 
+        fields = ['name'], 
         
        
         read_only_fields = ['id']
