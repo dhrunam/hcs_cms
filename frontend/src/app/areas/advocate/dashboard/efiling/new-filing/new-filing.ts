@@ -18,13 +18,14 @@ import { EFile } from './e-file/e-file';
 })
 export class NewFiling {
   step = 1;
-  filingId: number | null = null;
-  eFilingNumber: string = '';
-  // filingId: number = 4;
-  // eFilingNumber: string = 'ASK20240000004C202600004';
+  // filingId: number | null = null;
+  // eFilingNumber: string = '';
+  filingId: number = 4;
+  eFilingNumber: string = 'ASK20240000004C202600004';
   step1Saved = false;
   step2Saved = false;
   step3Saved = false;
+  litigantList: any[] = [];
 
   form!: FormGroup;
 
@@ -159,6 +160,33 @@ export class NewFiling {
     });
   }
 
+  // saveStep2() {
+  //   const form = this.form.get('litigants') as FormGroup;
+
+  //   if (form.invalid) {
+  //     form.markAllAsTouched();
+  //     return;
+  //   }
+
+  //   const payload = {
+  //     ...form.value,
+  //     e_filing: this.filingId,
+  //     e_filing_number: this.eFilingNumber,
+  //   };
+
+  //   this.eFilingService.post_litigant_details(payload).subscribe((res: any) => {
+  //     this.step = 3;
+  //     this.step2Saved = true;
+
+  //     this.toastr.success('Litigant Details saved successfully', '', {
+  //       timeOut: 5000,
+  //       closeButton: true,
+  //       progressBar: true,
+  //       positionClass: 'toast-bottom-right',
+  //     });
+  //   });
+  // }
+
   saveStep2() {
     const form = this.form.get('litigants') as FormGroup;
 
@@ -174,14 +202,19 @@ export class NewFiling {
     };
 
     this.eFilingService.post_litigant_details(payload).subscribe((res: any) => {
-      this.step = 3;
+      // store in table
+      this.litigantList.push(form.value);
+
+      // reset form (optional)
+      form.reset({
+        is_diffentially_abled: false,
+        is_petitioner: true,
+      });
+
       this.step2Saved = true;
 
-      this.toastr.success('Litigant Details saved successfully', '', {
-        timeOut: 5000,
-        closeButton: true,
-        progressBar: true,
-        positionClass: 'toast-bottom-right',
+      this.toastr.success('Litigant added to table', '', {
+        timeOut: 3000,
       });
     });
   }

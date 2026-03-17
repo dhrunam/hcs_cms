@@ -1,3 +1,24 @@
+<table *ngIf="litigantList.length > 0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Gender</th>
+      <th>Age</th>
+      <th>Contact</th>
+      <th>Address</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let item of litigantList">
+      <td>{{ item.name }}</td>
+      <td>{{ item.gender }}</td>
+      <td>{{ item.age }}</td>
+      <td>{{ item.contact }}</td>
+      <td>{{ item.address }}</td>
+    </tr>
+  </tbody>
+</table>
+
 <form [formGroup]="form" class="form-wrapper">
   <!-- GROUP 1 -->
   <div class="form-group-block">
