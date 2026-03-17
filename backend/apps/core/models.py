@@ -370,7 +370,7 @@ class FileScrutinyCheckList(BaseModel):
 
 
 class EfilingDocumentsScrutinyHistory(BaseModel):
-    document_index = models.ForeignKey(DocumentIndex, on_delete=models.SET_NULL, null=True, blank=True, related_name='scrutiny_history')
+    efiling_document_index = models.ForeignKey(EfilingDocumentsIndex, on_delete=models.SET_NULL, null=True, blank=True, related_name='scrutiny_history')
     is_compliant = models.BooleanField(default=False)
     comments = models.TextField(blank=True, null=True)
     recieved_at = models.DateTimeField(blank=False, null=False)
