@@ -38,31 +38,67 @@
   transform: translateX(4px);
 }
 
+/* Disable hover effects for menu that has submenus (Filing) and its direct link */
+.nav-item.nav-item-has-submenu:hover {
+  background: transparent;
+  color: inherit;
+  transform: none;
+}
+
+.nav-item.nav-item-has-submenu > .nav-link:hover {
+  color: inherit; 
+}
+
+/* Smooth expand / collapse for Filing submenu */
+#filingSubmenu.collapse,
+#filingSubmenu.collapsing {
+  transition: height 0.25s ease, opacity 0.25s ease;
+  overflow: hidden;
+}
+
+#filingSubmenu.collapsing {
+  opacity: 0;
+}
+
+#filingSubmenu.collapse.show {
+  opacity: 1;
+}
+
 .nav-item.active {
   background: #1e293b;
   color: #ffffff;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
-.sidebar-clock {
-  position: absolute;
-  bottom: 20px;
-  left: 0;
-  width: 100%;
-  text-align: center;
-  padding: 12px;
-  border-top: 1px solid #edf2f7;
+/* ============================
+   Filing dropdown customisations
+   ============================ */
+
+/* Rotate chevron for Filing when expanded/collapsed */
+.filing-toggle[aria-expanded="true"] .filing-chevron {
+  transform: rotate(180deg);
+  transition: transform 0.2s ease;
 }
 
-.sidebar-clock .clock-date {
-  font-size: 11px;
-  color: #64748b;
+.filing-toggle[aria-expanded="false"] .filing-chevron {
+  transform: rotate(0deg);
+  transition: transform 0.2s ease;
 }
 
-.sidebar-clock .clock-time {
-  font-size: 15px;
-  font-weight: 600;
-  color: #1e293b;
+/* Prevent submenu items under Filing from changing colors on hover */
+#filingSubmenu .nav-item:hover {
+  background: transparent;
+  color: inherit;
+  transform: none;
+}
+
+#filingSubmenu .nav-link {
+  color: inherit;
+}
+
+#filingSubmenu .nav-link:hover {
+  color: inherit;
+  background-color: transparent;
 }
 
 /* MOBILE SIDEBAR FIX */

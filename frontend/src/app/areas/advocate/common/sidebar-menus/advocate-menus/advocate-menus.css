@@ -1,0 +1,21 @@
+/* Rotate Filing chevron when expanded */
+.filing-toggle[aria-expanded="true"] .filing-chevron {
+  transform: rotate(180deg);
+  transition: transform 0.2s ease;
+}
+
+.filing-toggle[aria-expanded="false"] .filing-chevron {
+  transform: rotate(0deg);
+  transition: transform 0.2s ease;
+}
+
+/* Keep submenu colors stable on hover */
+#filingSubmenu .nav-link {
+  color: inherit;
+}
+
+#filingSubmenu .nav-link:hover {
+  color: inherit;
+  background-color: transparent;
+}
+

@@ -1,0 +1,45 @@
+<div class="dashboard-header mb-4">
+  <div>
+    <h3 class="page-title mb-1">Pending Cases</h3>
+    <p class="text-muted small mb-0">
+      View cases that are filed but still pending.
+    </p>
+  </div>
+</div>
+
+<section class="pending-cases-section">
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0 filing-table" *ngIf="hasCases; else emptyState">
+        <thead>
+          <tr>
+            <th>Case Title</th>
+            <th>Filing Type</th>
+            <th>Filed On</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of cases">
+            <td>{{ item.caseTitle }}</td>
+            <td>{{ item.filingType }}</td>
+            <td>{{ item.filedOn }}</td>
+            <td>
+              <span class="badge bg-warning text-dark">{{ item.status }}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <ng-template #emptyState>
+        <div class="empty-state text-center py-5">
+          <h5 class="mb-2">No pending cases</h5>
+          <p class="text-muted mb-3">
+            Once your filings move to pending status, they will appear here.
+          </p>
+        </div>
+      </ng-template>
+    </div>
+  </div>
+</section>
+

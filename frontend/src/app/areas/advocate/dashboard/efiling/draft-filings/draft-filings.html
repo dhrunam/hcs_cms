@@ -1,0 +1,43 @@
+<div class="dashboard-header mb-4">
+  <div>
+    <h3 class="page-title mb-1">Draft Filings</h3>
+    <p class="text-muted small mb-0">
+      Review and continue working on your saved draft filings.
+    </p>
+  </div>
+</div>
+
+<section class="draft-filings-section">
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0 filing-table" *ngIf="hasDrafts; else emptyState">
+        <thead>
+          <tr>
+            <th>Case Title</th>
+            <th>Filing Type</th>
+            <th>Bench</th>
+            <th>Last Updated</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let draft of drafts">
+            <td>{{ draft.caseTitle }}</td>
+            <td>{{ draft.filingType }}</td>
+            <td>{{ draft.bench }}</td>
+            <td>{{ draft.lastUpdated }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <ng-template #emptyState>
+        <div class="empty-state text-center py-5">
+          <h5 class="mb-2">No draft filings yet</h5>
+          <p class="text-muted mb-3">
+            Save a filing as draft from the new filing workflow to see it here.
+          </p>
+        </div>
+      </ng-template>
+    </div>
+  </div>
+</section>
+
