@@ -229,7 +229,9 @@ class Efiling(BaseModel):
     petitioner_contact = models.CharField(max_length=10, blank=True, null=True)
     e_filing_number = models.CharField(max_length=100, unique=True, blank=True, null=True) # Should be genrated at last submission step and should be unique.
     is_draft = models.BooleanField(default=True)
-
+    status = models.CharField(max_length=50, blank=True, null=True) # e.g., DRAFT, SUBMITTED, ACCEPTED, REJECTED, etc.
+    accepted_at = models.DateTimeField(blank=True, null=True)
+    
     class Meta:
         
         db_table = 'e_filing'
@@ -340,13 +342,13 @@ class EfilingDocumentsIndex(BaseModel):
     file_part_path = models.FileField(upload_to=file_part_upload_to, max_length=512)
     is_locked = models.BooleanField(default=False)
     document_sequence = models.IntegerField(blank=True, null=True)
-
-   
+    is_compliant = models.BooleanField(default=False)
+    comments = models.TextField(blank=True, null=True)
 
     class Meta:
       
         db_table = 'efiling_documents_index'
-    
+
 class IA(BaseModel):
     e_filing = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name='ias')
     e_filing_number = models.CharField(max_length=100, blank=True, null=True)
@@ -358,6 +360,19 @@ class IA(BaseModel):
     class Meta:
       
         db_table = 'ia'
+
+
+class FileScrutinyCheckList(BaseModel):
+    case_type = models.ForeignKey(CaseTypeT, on_delete=models.SET_NULL, null=True, blank=True, related_name='scrutiny_checklists')
+    checklist_item = models.CharField(max_length=500, blank=True, null=True)
+
+
+class EfilingDocumentsScrutinyHistory(BaseModel):
+    document_index = models.ForeignKey(DocumentIndex, on_delete=models.SET_NULL, null=True, blank=True, related_name='scrutiny_history')
+    is_compliant = models.BooleanField(default=False)
+    comments = models.TextField(blank=True, null=True)
+    recieved_at = models.DateTimeField(blank=False, null=False)
+    response_at = models.DateTimeField(auto_now=True, null=True)
 
 class CivilT(BaseModel):
     case_no = models.CharField(max_length=15, blank=True, null=True)
