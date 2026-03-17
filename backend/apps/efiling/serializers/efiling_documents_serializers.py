@@ -16,6 +16,7 @@ class EfilingDocumentsSerializer(serializers.ModelSerializer):
             "e_filing_number",
             "document_type",
             "parent_e_filing_document",
+            "final_document",
             "is_ia",
             "is_active",
             "created_at",
