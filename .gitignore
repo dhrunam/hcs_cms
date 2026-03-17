@@ -34,7 +34,7 @@ eggs/
 lib/
 lib64/
 parts/
-sdist/
+sdist/efile/
 var/
 wheels/
 pip-wheel-metadata/
@@ -104,5 +104,5 @@ backend/.venv/
 /venv
 venv/
 
-efile/
+/media/efile
 
