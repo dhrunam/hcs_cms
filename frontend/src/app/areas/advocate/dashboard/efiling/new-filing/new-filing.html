@@ -64,7 +64,7 @@
 
       <!-- STEP 2 -->
       <div *ngIf="step === 2">
-        <app-litigant [form]="litigantsForm"> </app-litigant>
+        <app-litigant [form]="litigantsForm" [litigantList]="litigantList"> </app-litigant>
 
         <div class="d-flex justify-content-between mt-4">
           <button class="btn btn-light border" (click)="prev()">Back</button>
