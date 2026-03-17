@@ -97,16 +97,35 @@
         <div class="d-flex justify-content-between mt-4">
           <button class="btn btn-light border" (click)="prev()">Back</button>
 
-          <button class="btn btn-primary" (click)="next()">Next</button>
+          <div class="d-flex">
+            <button
+              class="btn btn-p me-2"
+              [class.btn-dark]="!step3Saved"
+              [class.btn-success]="step3Saved"
+              (click)="!step3Saved && saveStep3()"
+              [disabled]="step3Saved"
+            >
+              <i class="fa-regular fa-floppy-disk" *ngIf="!step3Saved"></i>
+              <i class="fa-solid fa-check" *ngIf="step3Saved"></i>
+
+              {{ step3Saved ? 'Saved' : 'Save' }}
+            </button>
+            <button class="btn btn-outline-dark" (click)="next()">
+              Next
+              <i class="fa-solid fa-chevron-right ms-2"></i>
+            </button>
+          </div>
         </div>
       </div>
 
       <!-- STEP 4 -->
-      <div *ngIf="step === 4">
+      <div *ngIf="step === 4" class="preview-page rounded-3 p-3">
         <div class="text-center">
-          <h5 class="mb-4">Review & Submit</h5>
+          <h5 class="">Review & Submit</h5>
 
           <p class="text-muted">Please review all the information before submitting the filing.</p>
+
+          <app-e-file [form]="form"></app-e-file>
         </div>
 
         <div class="d-flex justify-content-between mt-4">
