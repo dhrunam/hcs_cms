@@ -1,4 +1,5 @@
-import { Component } from '@angular/core';
+import { Component, Input } from '@angular/core';
+import { FormGroup } from '@angular/forms';
 
 @Component({
   selector: 'app-e-file',
@@ -6,4 +7,18 @@ import { Component } from '@angular/core';
   templateUrl: './e-file.html',
   styleUrl: './e-file.css',
 })
-export class EFile {}
+export class EFile {
+  @Input() form!: FormGroup;
+
+  get initialInputsForm(): FormGroup {
+    return this.form.get('initialInputs') as FormGroup;
+  }
+
+  get litigantsForm(): FormGroup {
+    return this.form.get('litigants') as FormGroup;
+  }
+
+  get caseDetailsForm(): FormGroup {
+    return this.form.get('caseDetails') as FormGroup;
+  }
+}

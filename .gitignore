@@ -1,4 +1,5 @@
 #backend/
+backend/apps/__pycache__/
 backend/config/__pycache__/
 backend/config/local_settings.py
 backend/config/db.sqlite3
@@ -6,6 +7,16 @@ backend/apps/accounts/migrations/__pycache__/
 backend/apps/accounts/__pycache__/
 backend/apps/cases/migrations/__pycache__/
 backend/apps/cases/__pycache__/
+backend/apps/core/migrations/__pycache__/
+backend/apps/core/__pycache__/
+backend/apps/cis/migrations/__pycache__/
+backend/apps/cis/__pycache__/
+backend/apps/efiling/migrations/__pycache__/
+backend/apps/efiling/__pycache__/
+backend/apps/master/migrations/__pycache__/
+backend/apps/master/__pycache__/
+backend/apps/cis/db_backends/migrations/__pycache__/
+
 
 # ─── Python / Django ─────────────────────────────────────────────────────────
 __pycache__/
@@ -22,7 +33,7 @@ eggs/
 lib/
 lib64/
 parts/
-sdist/
+sdist/efile/
 var/
 wheels/
 pip-wheel-metadata/
@@ -87,3 +98,10 @@ Thumbs.db
 
 # ─── Miscellaneous ───────────────────────────────────────────────────────────
 backend/.venv/
+
+/old_data
+/venv
+venv/
+
+/media/efile
+
