@@ -22,6 +22,8 @@ class EfilingDocumentsIndexSerializer(serializers.ModelSerializer):
             "file_url",
             "is_locked",
             "document_sequence",
+            "is_compliant",
+            "comments",
             "is_active",
             "created_at",
             "updated_at",

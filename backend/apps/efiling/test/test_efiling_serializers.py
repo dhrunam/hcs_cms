@@ -19,6 +19,9 @@ class EfilingSerializerTest(SimpleTestCase):
             "petitioner_name",
             "petitioner_contact",
             "e_filing_number",
+            "is_draft",
+            "status",
+            "accepted_at",
             "is_active",
             "created_at",
             "updated_at",
@@ -34,6 +37,10 @@ class EfilingSerializerTest(SimpleTestCase):
 class EfilingLitigantSerializerTest(SimpleTestCase):
     def test_serializer_meta_model(self):
         self.assertEqual(EfilingLitigantSerializer.Meta.model, EfilingLitigant)
+
+    def test_serializer_includes_new_fields(self):
+        self.assertIn("organization", EfilingLitigantSerializer.Meta.fields)
+        self.assertIn("sequence_number", EfilingLitigantSerializer.Meta.fields)
 
 
 class EfilingCaseDetailsSerializerTest(SimpleTestCase):
