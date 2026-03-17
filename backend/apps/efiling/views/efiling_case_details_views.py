@@ -70,6 +70,9 @@ class EfilingCaseDetailsListCreateView(ListCreateAPIView):
             # treat "true"/"1" as True
             qs = qs.filter(is_active=is_active.lower() in ['true', '1'])
         return qs
+    
+
+    
 
     
 

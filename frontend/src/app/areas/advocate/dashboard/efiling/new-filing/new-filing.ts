@@ -18,14 +18,15 @@ import { EFile } from './e-file/e-file';
 })
 export class NewFiling {
   step = 1;
-  // filingId: number | null = null;
-  // eFilingNumber: string = '';
-  filingId: number = 4;
-  eFilingNumber: string = 'ASK20240000004C202600004';
+  filingId: number | null = null;
+  eFilingNumber: string = '';
+  // filingId: number = 4;
+  // eFilingNumber: string = 'ASK20240000004C202600004';
   step1Saved = false;
   step2Saved = false;
   step3Saved = false;
   litigantList: any[] = [];
+  sequenceNumber_litigant: number = 1;
 
   form!: FormGroup;
 
@@ -40,6 +41,7 @@ export class NewFiling {
         case_type: ['', Validators.required],
         petitioner_name: ['', Validators.required],
         petitioner_contact: ['', Validators.required],
+        e_filing_number: [this.eFilingNumber],
       }),
 
       litigants: this.fb.group({
@@ -47,8 +49,13 @@ export class NewFiling {
         gender: [''],
         age: [''],
 
+        sequence_number: [1],
+
         is_diffentially_abled: [false],
         is_petitioner: [true],
+
+        is_organisation: [false],
+        organization: [''],
 
         contact: [''],
         email: [''],
@@ -78,6 +85,26 @@ export class NewFiling {
         section: ['', Validators.required],
       }),
     });
+  }
+
+  actList: any[] = [];
+
+  receiveActList(data: any[]) {
+    this.actList = data;
+
+    console.log('Act list inm parent page', this.actList);
+
+    const group = this.form.get('caseDetails') as FormGroup;
+
+    group.patchValue({
+      act: '',
+      section: '',
+    });
+
+    group.get('act')?.markAsPristine();
+    group.get('act')?.markAsUntouched();
+    group.get('section')?.markAsPristine();
+    group.get('section')?.markAsUntouched();
   }
 
   get initialInputsForm(): FormGroup {
@@ -110,6 +137,10 @@ export class NewFiling {
 
   next() {
     const currentForm = this.getCurrentForm();
+
+    if (this.step == 2 && this.litigantList.length > 0) {
+      this.step++;
+    }
 
     if (currentForm.invalid) {
       currentForm.markAllAsTouched();
@@ -150,6 +181,9 @@ export class NewFiling {
     this.eFilingService.post_efiling_initial_details(form.value).subscribe((res: any) => {
       this.filingId = res.id;
       this.eFilingNumber = res.e_filing_number;
+      this.form.get('initialInputs')?.patchValue({
+        e_filing_number: this.eFilingNumber,
+      });
       this.step = 2;
       this.toastr.success('Saved successfully. E Filing number: ' + this.eFilingNumber, '', {
         timeOut: 11000,
@@ -199,11 +233,14 @@ export class NewFiling {
       ...form.value,
       e_filing: this.filingId,
       e_filing_number: this.eFilingNumber,
+      sequence_number: this.sequenceNumber_litigant,
     };
 
+    console.log('PAYLOAD SENDING:', payload);
     this.eFilingService.post_litigant_details(payload).subscribe((res: any) => {
       // store in table
       this.litigantList.push(form.value);
+      this.sequenceNumber_litigant++;
 
       // reset form (optional)
       form.reset({
@@ -211,7 +248,12 @@ export class NewFiling {
         is_petitioner: true,
       });
 
-      this.step2Saved = true;
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      });
+
+      // this.step2Saved = true;
 
       this.toastr.success('Litigant added to table', '', {
         timeOut: 3000,
