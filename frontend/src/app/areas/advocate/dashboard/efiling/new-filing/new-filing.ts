@@ -7,11 +7,12 @@ import { InitialInputs } from './initial-inputs/initial-inputs';
 import { Litigant } from './litigant/litigant';
 import { CaseDetails } from './case-details/case-details';
 import { EfilingService } from '../../../../../services/advocate/efiling/efiling.services';
+import { EFile } from './e-file/e-file';
 
 @Component({
   selector: 'app-new-filing',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, InitialInputs, Litigant, CaseDetails],
+  imports: [CommonModule, ReactiveFormsModule, InitialInputs, Litigant, CaseDetails, EFile],
   templateUrl: './new-filing.html',
   styleUrls: ['./new-filing.css'],
 })
@@ -19,8 +20,11 @@ export class NewFiling {
   step = 1;
   filingId: number | null = null;
   eFilingNumber: string = '';
+  // filingId: number = 4;
+  // eFilingNumber: string = 'ASK20240000004C202600004';
   step1Saved = false;
   step2Saved = false;
+  step3Saved = false;
 
   form!: FormGroup;
 
@@ -64,12 +68,6 @@ export class NewFiling {
       caseDetails: this.fb.group({
         causeOfAction: ['', Validators.required],
         causeOfActionDate: ['', Validators.required],
-        importantInformation: [''],
-        prayer: [''],
-        suitValuation: [''],
-
-        plaintLocalLanguage: [false],
-
         state: [''],
         district: [''],
         taluka: [''],
@@ -180,6 +178,33 @@ export class NewFiling {
       this.step2Saved = true;
 
       this.toastr.success('Litigant Details saved successfully', '', {
+        timeOut: 5000,
+        closeButton: true,
+        progressBar: true,
+        positionClass: 'toast-bottom-right',
+      });
+    });
+  }
+
+  saveStep3() {
+    const form = this.form.get('caseDetails') as FormGroup;
+
+    if (form.invalid) {
+      form.markAllAsTouched();
+      return;
+    }
+
+    const payload = {
+      ...form.value,
+      e_filing: this.filingId,
+      e_filing_number: this.eFilingNumber,
+    };
+
+    this.eFilingService.post_case_details(payload).subscribe((res: any) => {
+      this.step = 4;
+      this.step3Saved = true;
+
+      this.toastr.success('Case Details saved successfully', '', {
         timeOut: 5000,
         closeButton: true,
         progressBar: true,
