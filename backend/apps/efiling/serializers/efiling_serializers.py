@@ -14,6 +14,8 @@ class EfilingSerializer(serializers.ModelSerializer):
             'petitioner_contact',
             'e_filing_number',
             'is_draft',
+            'status',
+            'accepted_at',
             'is_active',
             'created_at',
             'updated_at',

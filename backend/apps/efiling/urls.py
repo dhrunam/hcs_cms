@@ -32,6 +32,10 @@ from apps.efiling.views.ia_views import (
     IAListCreateView,
     IARetrieveUpdateDestroyView,
 )
+from apps.efiling.views.efiling_file_scrutiny_checklist_view import (
+    FileScrutinyCheckListListCreateView,
+    FileScrutinyCheckListRetrieveUpdateDestroyView,
+)
 
 
 app_name = "efiling"
@@ -112,6 +116,16 @@ urlpatterns = [
         "efiling-documents-index/<int:pk>/",
         EfilingDocumentsIndexRetrieveUpdateDestroyView.as_view(),
         name="efiling-documents-index-detail",
+    ),
+    path(
+        "file-scrutiny-checklists/",
+        FileScrutinyCheckListListCreateView.as_view(),
+        name="file-scrutiny-checklist-list-create",
+    ),
+    path(
+        "file-scrutiny-checklists/<int:pk>/",
+        FileScrutinyCheckListRetrieveUpdateDestroyView.as_view(),
+        name="file-scrutiny-checklist-detail",
     ),
 ]
 

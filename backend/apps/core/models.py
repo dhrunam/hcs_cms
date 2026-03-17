@@ -314,6 +314,7 @@ class EfilingActs(BaseModel):
     class Meta:
         
         db_table = 'e_filing_acts'
+       
 
 
 class EfilingDocuments(BaseModel):

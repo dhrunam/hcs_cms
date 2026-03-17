@@ -5,6 +5,7 @@ from apps.efiling.views.efiling_acts_views import EfilingActsListCreateView, Efi
 from apps.efiling.views.efiling_case_details_views import EfilingCaseDetailsListCreateView, EfilingCaseDetailsRetrieveUpdateDestroyView
 from apps.efiling.views.efiling_litigant_views import EfilingLitigantListCreateView, EfilingLitigantRetrieveUpdateDestroyView
 from apps.efiling.views.efiling_views import EfilingListCreateView, EfilingRetrieveUpdateDestroyView
+from apps.efiling.views.ia_views import IAListCreateView, IARetrieveUpdateDestroyView
 
 
 class EfilingUrlsTest(SimpleTestCase):
@@ -17,6 +18,16 @@ class EfilingUrlsTest(SimpleTestCase):
         url = reverse("efiling:efiling-detail", kwargs={"pk": 1})
         self.assertEqual(url, "/api/v1/efiling/efilings/1/")
         self.assertEqual(resolve(url).func.view_class, EfilingRetrieveUpdateDestroyView)
+
+    def test_ia_list_create_url(self):
+        url = reverse("efiling:ia-list-create")
+        self.assertEqual(url, "/api/v1/efiling/ias/")
+        self.assertEqual(resolve(url).func.view_class, IAListCreateView)
+
+    def test_ia_detail_url(self):
+        url = reverse("efiling:ia-detail", kwargs={"pk": 1})
+        self.assertEqual(url, "/api/v1/efiling/ias/1/")
+        self.assertEqual(resolve(url).func.view_class, IARetrieveUpdateDestroyView)
 
     def test_efiling_litigant_list_create_url(self):
         url = reverse("efiling:efiling-litigant-list-create")

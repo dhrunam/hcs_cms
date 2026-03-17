@@ -1,23 +1,19 @@
 from rest_framework import serializers
 
-from apps.core.models import EfilingDocuments
+from apps.core.models import IA
 
 
-class EfilingDocumentsSerializer(serializers.ModelSerializer):
-    """
-    Serializer for top-level efiling documents (EfilingDocuments).
-    """
-
+class IASerializer(serializers.ModelSerializer):
     class Meta:
-        model = EfilingDocuments
+        model = IA
         fields = [
             "id",
             "e_filing",
             "e_filing_number",
-            "document_type",
-            "parent_e_filing_document",
-            "final_document",
-            "is_ia",
+            "ia_number",
+            "ia_text",
+            "status",
+            "disposal_date",
             "is_active",
             "created_at",
             "updated_at",
@@ -25,4 +21,3 @@ class EfilingDocumentsSerializer(serializers.ModelSerializer):
             "updated_by",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
-

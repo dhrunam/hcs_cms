@@ -2,4 +2,5 @@ from .efiling_acts_serializers import EfilingActsSerializer
 from .efiling_case_details_serializers import EfilingCaseDetailsSerializer
 from .efiling_litigant_serializers import EfilingLitigantSerializer
 from .efiling_serializers import EfilingSerializer
+from .ia_serializers import IASerializer
 
