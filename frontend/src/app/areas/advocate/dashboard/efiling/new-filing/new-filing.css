@@ -59,3 +59,8 @@
 .card {
   border-radius: 12px;
 }
+
+.btn-saved {
+  background-color: #285a48;
+  color: white;
+}

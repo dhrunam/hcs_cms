@@ -1,82 +1,139 @@
 <div class="dashboard-header mb-4">
   <div class="container py-4">
-    <!-- Chevron Progress -->
     <header>
       <h3 class="mb-3">New Filing</h3>
       <hr />
     </header>
+
+    <!-- STEPPER -->
     <div class="chevron-container mb-4">
       <div class="chevron" [class.active]="step >= 1" (click)="goToStep(1)">
-        <span><i class="fa-solid fa-pen-to-square me-2"></i> Initial Inputs</span>
+        <span>
+          <i class="fa-solid fa-pen-to-square me-2"></i>
+          Initial Inputs
+        </span>
       </div>
 
       <div class="chevron" [class.active]="step >= 2" (click)="goToStep(2)">
-        <span><i class="fa-solid fa-users me-2"></i> Litigant</span>
+        <span>
+          <i class="fa-solid fa-users me-2"></i>
+          Litigant
+        </span>
       </div>
 
-      <!-- <div class="chevron" [class.active]="step >= 3" (click)="goToStep(3)">
-        <span><i class="fa-solid fa-file-lines me-2"></i> Fact Details</span>
-      </div> -->
-
       <div class="chevron" [class.active]="step >= 3" (click)="goToStep(3)">
-        <span><i class="fa-solid fa-scale-balanced me-2"></i> Case Details</span>
+        <span>
+          <i class="fa-solid fa-scale-balanced me-2"></i>
+          Case Details
+        </span>
       </div>
 
       <div class="chevron" [class.active]="step >= 4" (click)="goToStep(4)">
-        <span><i class="fa-solid fa-paper-plane me-2"></i> eFile</span>
-      </div>
-      <div class="chevron" [class.active]="step >= 5" (click)="goToStep(5)">
-        <span><i class="fa-solid fa-eye me-2"></i> Preview</span>
+        <span>
+          <i class="fa-solid fa-paper-plane me-2"></i>
+          eFile
+        </span>
       </div>
     </div>
 
     <div class="card border-0 p-4">
-      <!-- Step 1 -->
+      <!-- STEP 1 -->
       <div *ngIf="step === 1">
-        <app-initial-inputs [form]="initialInputs"></app-initial-inputs>
+        <app-initial-inputs [form]="initialInputsForm"> </app-initial-inputs>
 
         <div class="text-end mt-4">
-          <button class="btn btn-primary" (click)="next()" [disabled]="initialInputs.invalid">
+          <button
+            class="btn btn-p me-2"
+            [class.btn-dark]="!eFilingNumber"
+            [class.btn-success]="eFilingNumber"
+            (click)="!eFilingNumber && saveStep1()"
+            [disabled]="eFilingNumber"
+          >
+            <i class="fa-regular fa-floppy-disk" *ngIf="!eFilingNumber"></i>
+            <i class="fa-solid fa-check" *ngIf="eFilingNumber"></i>
+
+            {{ eFilingNumber ? 'Saved' : 'Save' }}
+          </button>
+
+          <button class="btn btn-outline-dark" (click)="next()">
             Next
+            <i class="fa-solid fa-chevron-right ms-2"></i>
           </button>
         </div>
       </div>
 
-      <!-- Step 2 -->
+      <!-- STEP 2 -->
       <div *ngIf="step === 2">
-        <app-litigant [form]="litigants"></app-litigant>
+        <app-litigant [form]="litigantsForm" [litigantList]="litigantList"> </app-litigant>
 
         <div class="d-flex justify-content-between mt-4">
           <button class="btn btn-light border" (click)="prev()">Back</button>
 
-          <button class="btn btn-primary" (click)="next()" [disabled]="litigants.invalid">
-            Next
-          </button>
+          <div class="d-flex">
+            <button
+              class="btn btn-p me-2"
+              [class.btn-dark]="!step2Saved"
+              [class.btn-success]="step2Saved"
+              (click)="!step2Saved && saveStep2()"
+              [disabled]="step2Saved"
+            >
+              <i class="fa-regular fa-floppy-disk" *ngIf="!step2Saved"></i>
+              <i class="fa-solid fa-check" *ngIf="step2Saved"></i>
+
+              {{ step2Saved ? 'Saved' : 'Save' }}
+            </button>
+            <button class="btn btn-outline-dark" (click)="next()">
+              Next
+              <i class="fa-solid fa-chevron-right ms-2"></i>
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- Step 3 -->
-      <!-- <div *ngIf="step === 3">
-        <form [formGroup]="step3">
-          <div class="mb-3">
-            <label class="form-label">Address</label>
-            <input class="form-control form-control-lg" formControlName="address" />
-          </div>
-        </form>
-
-        <div class="d-flex justify-content-between mt-4">
-          <button class="btn btn-light border" (click)="prev()">Back</button>
-          <button class="btn btn-success">Submit</button>
-        </div>
-      </div> -->
-
+      <!-- STEP 3 -->
       <div *ngIf="step === 3">
-        <app-case-details [form]="stepCaseDetails"></app-case-details>
+        <app-case-details [form]="caseDetailsForm"> </app-case-details>
 
         <div class="d-flex justify-content-between mt-4">
           <button class="btn btn-light border" (click)="prev()">Back</button>
-          <button class="btn btn-primary" (click)="next()" [disabled]="litigants.invalid">
-            Next
+
+          <div class="d-flex">
+            <button
+              class="btn btn-p me-2"
+              [class.btn-dark]="!step3Saved"
+              [class.btn-success]="step3Saved"
+              (click)="!step3Saved && saveStep3()"
+              [disabled]="step3Saved"
+            >
+              <i class="fa-regular fa-floppy-disk" *ngIf="!step3Saved"></i>
+              <i class="fa-solid fa-check" *ngIf="step3Saved"></i>
+
+              {{ step3Saved ? 'Saved' : 'Save' }}
+            </button>
+            <button class="btn btn-outline-dark" (click)="next()">
+              Next
+              <i class="fa-solid fa-chevron-right ms-2"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 4 -->
+      <div *ngIf="step === 4" class="preview-page rounded-3 p-3">
+        <div class="text-center">
+          <h5 class="">Review & Submit</h5>
+
+          <p class="text-muted">Please review all the information before submitting the filing.</p>
+
+          <app-e-file [form]="form"></app-e-file>
+        </div>
+
+        <div class="d-flex justify-content-between mt-4">
+          <button class="btn btn-light border" (click)="prev()">Back</button>
+
+          <button class="btn btn-success" (click)="submit()">
+            <i class="fa-solid fa-paper-plane me-2"></i>
+            Submit Filing
           </button>
         </div>
       </div>

@@ -1017,7 +1017,7 @@ class CauseList(models.Model):
     ia_no = models.CharField(max_length=12, blank=True, null=True)
     ia_next_date = models.DateField(blank=True, null=True)
     ia_flag = models.CharField(max_length=1, blank=True, null=True)
-    unique_no = models.AutoField()
+    unique_no = models.IntegerField()
     search_case = models.SmallIntegerField(blank=True, null=True)
     initial_status = models.CharField(max_length=1, blank=True, null=True)
     final_status = models.CharField(max_length=1, blank=True, null=True)
@@ -1077,7 +1077,7 @@ class CauseListA(models.Model):
     ia_no = models.CharField(max_length=12, blank=True, null=True)
     ia_next_date = models.DateField(blank=True, null=True)
     ia_flag = models.CharField(max_length=1, blank=True, null=True)
-    unique_no = models.AutoField()
+    unique_no = models.IntegerField()
     search_case = models.SmallIntegerField(blank=True, null=True)
     initial_status = models.CharField(max_length=1, blank=True, null=True)
     final_status = models.CharField(max_length=1, blank=True, null=True)
@@ -7913,7 +7913,7 @@ class ObjectionHistory(models.Model):
     objreceipt_dt = models.DateField(blank=True, null=True)
     objprepare_dt = models.DateField(blank=True, null=True)
     cino = models.CharField(max_length=16)
-    srno = models.AutoField()
+    srno = models.IntegerField()
     amd = models.CharField(max_length=1, blank=True, null=True)
     create_modify = models.DateTimeField(blank=True, null=True)
 
@@ -7933,7 +7933,7 @@ class ObjectionHistoryA(models.Model):
     objreceipt_dt = models.DateField(blank=True, null=True)
     objprepare_dt = models.DateField(blank=True, null=True)
     cino = models.CharField(max_length=16)
-    srno = models.AutoField()
+    srno = models.IntegerField()
     amd = models.CharField(max_length=1, blank=True, null=True)
     create_modify = models.DateTimeField(blank=True, null=True)
 
@@ -9278,7 +9278,7 @@ class RosterCreation(models.Model):
     from_date = models.DateField(primary_key=True)
     display = models.TextField(blank=True, null=True)  # This field type is a guess.
     to_date = models.DateField(blank=True, null=True)
-    rec_no = models.AutoField()
+    rec_no = models.IntegerField()
     amd = models.CharField(max_length=1, blank=True, null=True)
     create_modify = models.DateTimeField(blank=True, null=True)
 

@@ -1,121 +1,129 @@
 import { CommonModule } from '@angular/common';
-import { ToastrService } from 'ngx-toastr';
 import { Component } from '@angular/core';
 import { FormGroup, FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
+import { ToastrService } from 'ngx-toastr';
+
 import { InitialInputs } from './initial-inputs/initial-inputs';
 import { Litigant } from './litigant/litigant';
 import { CaseDetails } from './case-details/case-details';
+import { EfilingService } from '../../../../../services/advocate/efiling/efiling.services';
+import { EFile } from './e-file/e-file';
 
 @Component({
   selector: 'app-new-filing',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, InitialInputs, Litigant, CaseDetails],
+  imports: [CommonModule, ReactiveFormsModule, InitialInputs, Litigant, CaseDetails, EFile],
   templateUrl: './new-filing.html',
   styleUrls: ['./new-filing.css'],
 })
 export class NewFiling {
   step = 1;
+  // filingId: number | null = null;
+  // eFilingNumber: string = '';
+  filingId: number = 4;
+  eFilingNumber: string = 'ASK20240000004C202600004';
+  step1Saved = false;
+  step2Saved = false;
+  step3Saved = false;
+  litigantList: any[] = [];
 
-  initialInputs!: FormGroup;
-  litigants!: FormGroup;
-  // step3!: FormGroup;
-  stepCaseDetails!: FormGroup;
+  form!: FormGroup;
 
   constructor(
     private fb: FormBuilder,
     private toastr: ToastrService,
+    private eFilingService: EfilingService,
   ) {
-    this.initialInputs = this.fb.group({
-      bench: ['', Validators.required],
+    this.form = this.fb.group({
+      initialInputs: this.fb.group({
+        bench: ['High Court Of Sikkim', Validators.required],
+        case_type: ['', Validators.required],
+        petitioner_name: ['', Validators.required],
+        petitioner_contact: ['', Validators.required],
+      }),
 
-      nature: ['', Validators.required],
-      // relief: ['', Validators.required],
-      // caseType: ['', Validators.required],
+      litigants: this.fb.group({
+        name: ['', Validators.required],
+        gender: [''],
+        age: [''],
 
-      // status: ['', Validators.required],
-      // mainCaseType: ['', Validators.required],
-      // caseNo: ['', Validators.required],
-      // year: ['', Validators.required],
+        is_diffentially_abled: [false],
+        is_petitioner: [true],
 
-      partyType: ['', Validators.required],
-      mobile: ['', Validators.required],
-    });
+        contact: [''],
+        email: [''],
 
-    this.litigants = this.fb.group({
-      litigantType: ['petitioner', Validators.required],
-      isOrganisation: [false],
-      organisationType: ['', Validators.required],
-      litigantName: ['', [Validators.required, Validators.minLength(3)]],
+        religion: [''],
+        caste: [''],
+        occupation: [''],
 
-      email: ['', [Validators.required, Validators.email]],
-      mobile: ['', Validators.required],
-      occupation: [''],
-      address: ['', Validators.required],
-      pincode: ['', Validators.required],
+        address: [''],
 
-      state: [''],
-      district: [''],
-      taluka: [''],
-      hobli: [''],
+        state_id: [''],
+        district_id: [''],
 
-      otherInformation: [false],
-      legalHeir: [false],
-    });
+        taluka: [''],
+        village: [''],
+      }),
 
-    // this.step3 = this.fb.group({
-    //   address: ['', Validators.required],
-    // });
+      caseDetails: this.fb.group({
+        causeOfAction: ['', Validators.required],
+        causeOfActionDate: ['', Validators.required],
+        state: [''],
+        district: [''],
+        taluka: [''],
+        hobli: [''],
 
-    this.stepCaseDetails = this.fb.group({
-      causeOfAction: ['', Validators.required],
-      causeOfActionDate: ['', Validators.required],
-      importantInformation: [''],
-      prayer: [''],
-      suitValuation: [''],
-
-      plaintLocalLanguage: [false],
-
-      state: [''],
-      district: [''],
-      taluka: [''],
-      hobli: [''],
-
-      act: ['', Validators.required],
-      section: ['', Validators.required],
+        act: ['', Validators.required],
+        section: ['', Validators.required],
+      }),
     });
   }
 
-  next() {
-    // if (this.step === 1 && this.step1.invalid) {
-    //   this.step1.markAllAsTouched();
-    //   return;
-    // }
+  get initialInputsForm(): FormGroup {
+    return this.form.get('initialInputs') as FormGroup;
+  }
 
-    // if (this.step === 2 && this.step2.invalid) {
-    //   this.step2.markAllAsTouched();
-    //   return;
-    // }
+  get litigantsForm(): FormGroup {
+    return this.form.get('litigants') as FormGroup;
+  }
 
-    // if (this.step === 3 && this.step3.invalid) {
-    //   this.step3.markAllAsTouched();
-    //   return;
-    // }
-    // this.step++;
+  get caseDetailsForm(): FormGroup {
+    return this.form.get('caseDetails') as FormGroup;
+  }
 
-    if (this.step < 5) {
-      this.step++;
-
-      this.toastr.success('Changes saved successfully', '', {
-        timeOut: 2000,
-        closeButton: true,
-        progressBar: true,
-        positionClass: 'toast-bottom-right',
-      });
-      window.scrollTo({
-        top: 0,
-        behavior: 'smooth',
-      });
+  getCurrentForm(): FormGroup {
+    if (this.step === 1) {
+      return this.form.get('initialInputs') as FormGroup;
     }
+
+    if (this.step === 2) {
+      return this.form.get('litigants') as FormGroup;
+    }
+
+    if (this.step === 3) {
+      return this.form.get('caseDetails') as FormGroup;
+    }
+
+    return this.form;
+  }
+
+  next() {
+    const currentForm = this.getCurrentForm();
+
+    if (currentForm.invalid) {
+      currentForm.markAllAsTouched();
+      return;
+    }
+
+    if (this.step < 4) {
+      this.step++;
+    }
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
   }
 
   prev() {
@@ -125,33 +133,126 @@ export class NewFiling {
   }
 
   goToStep(stepNumber: number) {
-    // if (stepNumber === 1) {
-    //   this.step = 1;
-    //   return;
+    // if (stepNumber <= this.step) {
+    //   this.step = stepNumber;
     // }
-
-    // if (stepNumber === 2 && this.step1.valid) {
-    //   this.step = 2;
-    // }
-
-    // if (stepNumber === 3 && this.step1.valid && this.step2.valid) {
-    //   this.step = 3;
-    // }
-
     this.step = stepNumber;
   }
 
-  submit() {
-    // if (this.step3.invalid) {
-    //   this.step3.markAllAsTouched();
-    //   return;
-    // }
+  saveStep1() {
+    const form = this.form.get('initialInputs') as FormGroup;
 
-    const formData = {
-      ...this.initialInputs.value,
-      ...this.litigants.value,
-      // ...this.step3.value,
+    if (form.invalid) {
+      form.markAllAsTouched();
+      return;
+    }
+
+    this.eFilingService.post_efiling_initial_details(form.value).subscribe((res: any) => {
+      this.filingId = res.id;
+      this.eFilingNumber = res.e_filing_number;
+      this.step = 2;
+      this.toastr.success('Saved successfully. E Filing number: ' + this.eFilingNumber, '', {
+        timeOut: 11000,
+        closeButton: true,
+        progressBar: true,
+        positionClass: 'toast-bottom-right',
+      });
+    });
+  }
+
+  // saveStep2() {
+  //   const form = this.form.get('litigants') as FormGroup;
+
+  //   if (form.invalid) {
+  //     form.markAllAsTouched();
+  //     return;
+  //   }
+
+  //   const payload = {
+  //     ...form.value,
+  //     e_filing: this.filingId,
+  //     e_filing_number: this.eFilingNumber,
+  //   };
+
+  //   this.eFilingService.post_litigant_details(payload).subscribe((res: any) => {
+  //     this.step = 3;
+  //     this.step2Saved = true;
+
+  //     this.toastr.success('Litigant Details saved successfully', '', {
+  //       timeOut: 5000,
+  //       closeButton: true,
+  //       progressBar: true,
+  //       positionClass: 'toast-bottom-right',
+  //     });
+  //   });
+  // }
+
+  saveStep2() {
+    const form = this.form.get('litigants') as FormGroup;
+
+    if (form.invalid) {
+      form.markAllAsTouched();
+      return;
+    }
+
+    const payload = {
+      ...form.value,
+      e_filing: this.filingId,
+      e_filing_number: this.eFilingNumber,
     };
+
+    this.eFilingService.post_litigant_details(payload).subscribe((res: any) => {
+      // store in table
+      this.litigantList.push(form.value);
+
+      // reset form (optional)
+      form.reset({
+        is_diffentially_abled: false,
+        is_petitioner: true,
+      });
+
+      this.step2Saved = true;
+
+      this.toastr.success('Litigant added to table', '', {
+        timeOut: 3000,
+      });
+    });
+  }
+
+  saveStep3() {
+    const form = this.form.get('caseDetails') as FormGroup;
+
+    if (form.invalid) {
+      form.markAllAsTouched();
+      return;
+    }
+
+    const payload = {
+      ...form.value,
+      e_filing: this.filingId,
+      e_filing_number: this.eFilingNumber,
+    };
+
+    this.eFilingService.post_case_details(payload).subscribe((res: any) => {
+      this.step = 4;
+      this.step3Saved = true;
+
+      this.toastr.success('Case Details saved successfully', '', {
+        timeOut: 5000,
+        closeButton: true,
+        progressBar: true,
+        positionClass: 'toast-bottom-right',
+      });
+    });
+  }
+
+  submit() {
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
+
+    const formData = this.form.value;
 
     console.log(formData);
   }

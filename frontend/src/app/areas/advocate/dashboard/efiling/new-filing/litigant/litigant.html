@@ -1,34 +1,40 @@
+<table *ngIf="litigantList.length > 0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Gender</th>
+      <th>Age</th>
+      <th>Contact</th>
+      <th>Address</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let item of litigantList">
+      <td>{{ item.name }}</td>
+      <td>{{ item.gender }}</td>
+      <td>{{ item.age }}</td>
+      <td>{{ item.contact }}</td>
+      <td>{{ item.address }}</td>
+    </tr>
+  </tbody>
+</table>
+
 <form [formGroup]="form" class="form-wrapper">
   <!-- GROUP 1 -->
   <div class="form-group-block">
     <div class="section-title">Litigant</div>
 
     <div class="row g-3">
-      <div class="col-md-6 d-flex align-items-center justify-content-start">
-        <label class="form-label pe-3"> Is Organisation ? </label>
-
-        <input type="checkbox" class="form-check mb-2" formControlName="isOrganisation" />
-      </div>
-      <div class="col-md-6" *ngIf="form.get('isOrganisation')?.value">
-        <label class="form-label"> Organisation Type <small class="text-danger">*</small> </label>
-
-        <select class="form-control form-select" formControlName="organisationType">
-          <option value="">Select</option>
-          <option>Government</option>
-          <option>Private</option>
-          <option>Company</option>
-        </select>
-      </div>
       <div class="col-md-6 d-flex align-items-center">
-        <label class="form-label pe-3">Litigant Type ?</label>
+        <label class="form-label pe-3">Litigant Type</label>
 
         <div class="d-flex gap-4 mb-1">
           <div class="form-check">
             <input
               type="radio"
               class="form-check-input"
-              value="petitioner"
-              formControlName="litigantType"
+              [value]="true"
+              formControlName="is_petitioner"
             />
             <label class="form-check-label">Petitioner</label>
           </div>
@@ -37,8 +43,8 @@
             <input
               type="radio"
               class="form-check-input"
-              value="respondent"
-              formControlName="litigantType"
+              [value]="false"
+              formControlName="is_petitioner"
             />
             <label class="form-check-label">Respondent</label>
           </div>
@@ -46,12 +52,33 @@
       </div>
 
       <div class="col-md-6">
-        <label class="form-label">
-          {{ form.get('litigantType')?.value === 'petitioner' ? 'Petitioner' : 'Respondent' }}
-          <small class="text-danger">*</small>
-        </label>
+        <label class="form-label">Name <small class="text-danger">*</small></label>
 
-        <input class="form-control" placeholder="" formControlName="litigantName" />
+        <input class="form-control" formControlName="name" />
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label">Gender</label>
+
+        <select class="form-control form-select" formControlName="gender">
+          <option value="">Select</option>
+          <option value="M">Male</option>
+          <option value="F">Female</option>
+          <option value="O">Other</option>
+        </select>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label">Age</label>
+
+        <input type="number" class="form-control" formControlName="age" />
+      </div>
+
+      <div class="col-md-4 d-flex align-items-center">
+        <div class="form-check mt-4">
+          <input type="checkbox" class="form-check-input" formControlName="is_diffentially_abled" />
+          <label class="form-check-label">Differently Abled</label>
+        </div>
       </div>
     </div>
   </div>
@@ -63,26 +90,36 @@
     <div class="row g-3">
       <div class="col-md-6">
         <label class="form-label">Email</label>
+
         <input class="form-control" formControlName="email" />
       </div>
 
       <div class="col-md-6">
         <label class="form-label">Mobile No</label>
-        <input class="form-control" formControlName="mobile" />
+
+        <input class="form-control" formControlName="contact" />
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label">Religion</label>
+
+        <input class="form-control" formControlName="religion" />
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label">Caste</label>
+
+        <input class="form-control" formControlName="caste" />
       </div>
 
       <div class="col-md-6">
         <label class="form-label">Occupation</label>
+
         <input class="form-control" formControlName="occupation" />
       </div>
 
       <div class="col-md-6">
-        <label class="form-label">Pin Code</label>
-        <input class="form-control" formControlName="pincode" />
-      </div>
-
-      <div class="col-md-6">
-        <label class="form-label"> Address <small class="text-danger">*</small> </label>
+        <label class="form-label">Address</label>
 
         <textarea class="form-control" rows="2" formControlName="address"></textarea>
       </div>
@@ -91,64 +128,36 @@
 
   <!-- GROUP 3 -->
   <div class="form-group-block">
-    <div class="section-title">State Information</div>
+    <div class="section-title">Location Information</div>
 
     <div class="row g-3">
       <div class="col-md-4">
         <label class="form-label">State</label>
 
-        <select class="form-control form-select" formControlName="state">
+        <select class="form-control form-select" formControlName="state_id">
           <option value="">Select State</option>
-          <option>Sikkim</option>
         </select>
       </div>
 
       <div class="col-md-4">
         <label class="form-label">District</label>
 
-        <select class="form-control form-select" formControlName="district">
+        <select class="form-control form-select" formControlName="district_id">
           <option value="">Select District</option>
-          <option>East Sikkim</option>
-          <option>West Sikkim</option>
         </select>
       </div>
 
       <div class="col-md-4">
         <label class="form-label">Taluka</label>
 
-        <select class="form-control form-select" formControlName="taluka">
-          <option value="">Select Taluka</option>
-        </select>
+        <input class="form-control" formControlName="taluka" />
       </div>
 
       <div class="col-md-4">
-        <label class="form-label">Hobli</label>
+        <label class="form-label">Village</label>
 
-        <select class="form-control form-select" formControlName="hobli">
-          <option value="">Select Hobli</option>
-        </select>
+        <input class="form-control" formControlName="village" />
       </div>
     </div>
   </div>
-
-  <!-- GROUP 4 -->
-  <!-- <div class="form-group-block">
-    <div class="section-title">Other Information</div>
-
-    <div class="row g-3">
-      <div class="col-md-6">
-        <div class="form-check mt-2">
-          <input type="checkbox" class="form-check-input" formControlName="otherInformation" />
-          <label class="form-check-label">Other Information</label>
-        </div>
-      </div>
-
-      <div class="col-md-6">
-        <div class="form-check mt-2">
-          <input type="checkbox" class="form-check-input" formControlName="legalHeir" />
-          <label class="form-check-label">Add Legal Heir</label>
-        </div>
-      </div>
-    </div>
-  </div> -->
 </form>
