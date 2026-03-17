@@ -10,4 +10,5 @@ import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 })
 export class Litigant {
   @Input() form!: FormGroup;
+  @Input() litigantList!: any;
 }
