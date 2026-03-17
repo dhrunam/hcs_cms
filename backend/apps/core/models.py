@@ -343,7 +343,7 @@ class EfilingDocumentsIndex(BaseModel):
         else:
             efiling_number = "unknown"
         part_name = instance.document_part_name or "part"
-        return f"efile/{efiling_number}/{part_name}.pdf"
+        return f"media/efile/{efiling_number}/{part_name}.pdf"
     file_part_path = models.FileField(upload_to=file_part_upload_to, max_length=512)
     is_locked = models.BooleanField(default=False)
     document_sequence = models.IntegerField(blank=True, null=True)
