@@ -28,6 +28,10 @@ from apps.efiling.views.efiling_documents_index_views import (
     EfilingDocumentsIndexListCreateView,
     EfilingDocumentsIndexRetrieveUpdateDestroyView,
 )
+from apps.efiling.views.ia_views import (
+    IAListCreateView,
+    IARetrieveUpdateDestroyView,
+)
 
 
 app_name = "efiling"
@@ -38,6 +42,16 @@ urlpatterns = [
         "efilings/<int:pk>/",
         EfilingRetrieveUpdateDestroyView.as_view(),
         name="efiling-detail",
+    ),
+    path(
+        "ias/",
+        IAListCreateView.as_view(),
+        name="ia-list-create",
+    ),
+    path(
+        "ias/<int:pk>/",
+        IARetrieveUpdateDestroyView.as_view(),
+        name="ia-detail",
     ),
     path(
         "efiling-litigants/",
