@@ -10,11 +10,8 @@ class EfilingLitigantSerializer(serializers.ModelSerializer):
             'id',
             'e_filing',
             'e_filing_number',
-<<<<<<< HEAD
             'organization',
-=======
             'sequence_number',
->>>>>>> fa422b9 (eFiling form completion)
             'name',
             'gender',
             'age',

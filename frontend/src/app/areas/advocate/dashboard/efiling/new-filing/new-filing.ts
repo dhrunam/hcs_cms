@@ -8,25 +8,35 @@ import { Litigant } from './litigant/litigant';
 import { CaseDetails } from './case-details/case-details';
 import { EfilingService } from '../../../../../services/advocate/efiling/efiling.services';
 import { EFile } from './e-file/e-file';
+import { UploadDocuments } from './upload-documents/upload-documents';
 
 @Component({
   selector: 'app-new-filing',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, InitialInputs, Litigant, CaseDetails, EFile],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    InitialInputs,
+    Litigant,
+    CaseDetails,
+    EFile,
+    UploadDocuments,
+  ],
   templateUrl: './new-filing.html',
   styleUrls: ['./new-filing.css'],
 })
 export class NewFiling {
   step = 1;
-  filingId: number | null = null;
-  eFilingNumber: string = '';
-  // filingId: number = 4;
-  // eFilingNumber: string = 'ASK20240000004C202600004';
+  // filingId: number | null = null;
+  // eFilingNumber: string = '';
+  filingId: number = 4;
+  eFilingNumber: string = 'ASK20240000004C202600004';
   step1Saved = false;
   step2Saved = false;
   step3Saved = false;
   litigantList: any[] = [];
   sequenceNumber_litigant: number = 1;
+  isUpdateMode = false;
 
   form!: FormGroup;
 
@@ -44,34 +54,54 @@ export class NewFiling {
         e_filing_number: [this.eFilingNumber],
       }),
 
-      litigants: this.fb.group({
-        name: ['', Validators.required],
-        gender: [''],
-        age: [''],
+      litigants: this.fb.group(
+        {
+          name: ['', Validators.required],
+          gender: [''],
+          age: [''],
 
-        sequence_number: [1],
+          sequence_number: [1, Validators.required],
 
-        is_diffentially_abled: [false],
-        is_petitioner: [true],
+          is_diffentially_abled: [false],
+          is_petitioner: [true],
 
-        is_organisation: [false],
-        organization: [''],
+          is_organisation: [false],
+          organization: [''],
 
-        contact: [''],
-        email: [''],
+          contact: [''],
+          email: [''],
 
-        religion: [''],
-        caste: [''],
-        occupation: [''],
+          religion: [''],
+          caste: [''],
+          occupation: [''],
 
-        address: [''],
+          address: [''],
 
-        state_id: [''],
-        district_id: [''],
+          state_id: [''],
+          district_id: [''],
 
-        taluka: [''],
-        village: [''],
-      }),
+          taluka: [''],
+          village: [''],
+        },
+
+        {
+          validators: (group) => {
+            const isOrg = group.get('is_organisation')?.value;
+            const org = group.get('organization')?.value;
+            const age = group.get('age')?.value;
+
+            if (isOrg && !org) {
+              return { orgRequired: true };
+            }
+
+            if (!isOrg && !age) {
+              return { ageRequired: true };
+            }
+
+            return null;
+          },
+        },
+      ),
 
       caseDetails: this.fb.group({
         causeOfAction: ['', Validators.required],
@@ -83,6 +113,10 @@ export class NewFiling {
 
         act: ['', Validators.required],
         section: ['', Validators.required],
+      }),
+
+      uploadFilingDoc: this.fb.group({
+        documents: [[], [Validators.required, this.pdfOnlyValidator]],
       }),
     });
   }
@@ -105,6 +139,16 @@ export class NewFiling {
     group.get('act')?.markAsUntouched();
     group.get('section')?.markAsPristine();
     group.get('section')?.markAsUntouched();
+  }
+
+  pdfOnlyValidator(control: any) {
+    const files: File[] = control.value;
+
+    if (!files || files.length === 0) return null;
+
+    const invalid = files.some((file) => file.type !== 'application/pdf');
+
+    return invalid ? { invalidFileType: true } : null;
   }
 
   get initialInputsForm(): FormGroup {
@@ -184,6 +228,7 @@ export class NewFiling {
       this.form.get('initialInputs')?.patchValue({
         e_filing_number: this.eFilingNumber,
       });
+      this.initialInputsForm.disable();
       this.step = 2;
       this.toastr.success('Saved successfully. E Filing number: ' + this.eFilingNumber, '', {
         timeOut: 11000,
@@ -223,6 +268,11 @@ export class NewFiling {
 
   saveStep2() {
     const form = this.form.get('litigants') as FormGroup;
+    const formValue = { ...form.value };
+
+    if (formValue.is_organisation) {
+      formValue.age = 0;
+    }
 
     if (form.invalid) {
       form.markAllAsTouched();
@@ -230,30 +280,25 @@ export class NewFiling {
     }
 
     const payload = {
-      ...form.value,
+      ...formValue,
       e_filing: this.filingId,
       e_filing_number: this.eFilingNumber,
-      sequence_number: this.sequenceNumber_litigant,
     };
 
-    console.log('PAYLOAD SENDING:', payload);
     this.eFilingService.post_litigant_details(payload).subscribe((res: any) => {
-      // store in table
-      this.litigantList.push(form.value);
+      this.litigantList.push(res);
+
+      console.log('Litigant details are', res);
+
       this.sequenceNumber_litigant++;
 
-      // reset form (optional)
       form.reset({
         is_diffentially_abled: false,
         is_petitioner: true,
+        sequence_number: this.sequenceNumber_litigant, // 👈 set here
       });
 
-      window.scrollTo({
-        top: 0,
-        behavior: 'smooth',
-      });
-
-      // this.step2Saved = true;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
 
       this.toastr.success('Litigant added to table', '', {
         timeOut: 3000,
@@ -261,30 +306,37 @@ export class NewFiling {
     });
   }
 
-  saveStep3() {
-    const form = this.form.get('caseDetails') as FormGroup;
+  onDelete(id: number) {
+    this.litigantList = this.litigantList.filter((item) => item.id !== id);
+  }
 
-    if (form.invalid) {
+  updateStep2() {}
+
+  saveStep3() {
+    const form = this.caseDetailsForm;
+
+    if (this.actList.length === 0 && (!form.value.act || !form.value.section)) {
       form.markAllAsTouched();
       return;
     }
+
+    const acts = this.actList.length
+      ? this.actList
+      : [{ act: form.value.act, section: form.value.section }];
 
     const payload = {
       ...form.value,
       e_filing: this.filingId,
       e_filing_number: this.eFilingNumber,
+      efiling_acts: acts.map((a) => ({
+        ...a,
+        e_filing: this.filingId,
+        e_filing_number: this.eFilingNumber,
+      })),
     };
 
-    this.eFilingService.post_case_details(payload).subscribe((res: any) => {
+    this.eFilingService.post_case_details(payload).subscribe(() => {
       this.step = 4;
-      this.step3Saved = true;
-
-      this.toastr.success('Case Details saved successfully', '', {
-        timeOut: 5000,
-        closeButton: true,
-        progressBar: true,
-        positionClass: 'toast-bottom-right',
-      });
     });
   }
 
