@@ -27,8 +27,14 @@
           Case Details
         </span>
       </div>
-
       <div class="chevron" [class.active]="step >= 4" (click)="goToStep(4)">
+        <span>
+          <i class="fa-solid fa-file-pdf me-2"></i>
+          Documents
+        </span>
+      </div>
+
+      <div class="chevron" [class.active]="step >= 5" (click)="goToStep(5)">
         <span>
           <i class="fa-solid fa-paper-plane me-2"></i>
           eFile
@@ -71,7 +77,12 @@
 
       <!-- STEP 2 -->
       <div *ngIf="step === 2">
-        <app-litigant [form]="litigantsForm" [litigantList]="litigantList"> </app-litigant>
+        <app-litigant
+          (deleted)="onDelete($event)"
+          [form]="litigantsForm"
+          [litigantList]="litigantList"
+        >
+        </app-litigant>
 
         <div class="d-flex justify-content-between mt-4">
           <button class="btn btn-light border" (click)="prev()">Back</button>
@@ -82,7 +93,7 @@
               [class.btn-dark]="!step2Saved"
               [class.btn-success]="step2Saved"
               (click)="!step2Saved && saveStep2()"
-              [disabled]="step2Saved"
+              [disabled]="litigantsForm.invalid"
             >
               <i class="fa-regular fa-plus" *ngIf="!step2Saved"></i>
               <i class="fa-solid fa-check" *ngIf="step2Saved"></i>
@@ -126,8 +137,25 @@
         </div>
       </div>
 
-      <!-- STEP 4 -->
       <div *ngIf="step === 4" class="preview-page rounded-3 p-3">
+        <div class="text-center">
+          <h5 class="text-start">Upload Documents</h5>
+
+          <app-upload-documents [form]="form"></app-upload-documents>
+        </div>
+
+        <div class="d-flex justify-content-between mt-4">
+          <button class="btn btn-light border" (click)="prev()">Back</button>
+
+          <button class="btn btn-outline-dark" (click)="next()">
+            Next
+            <i class="fa-solid fa-chevron-right ms-2"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 4 -->
+      <div *ngIf="step === 5" class="preview-page rounded-3 p-3">
         <div class="text-center">
           <h5 class="">Review & Submit</h5>
 
