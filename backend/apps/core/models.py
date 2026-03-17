@@ -231,7 +231,7 @@ class Efiling(BaseModel):
     is_draft = models.BooleanField(default=True)
     status = models.CharField(max_length=50, blank=True, null=True) # e.g., DRAFT, SUBMITTED, ACCEPTED, REJECTED, etc.
     accepted_at = models.DateTimeField(blank=True, null=True)
-    
+
     class Meta:
         
         db_table = 'e_filing'
@@ -321,6 +321,7 @@ class EfilingDocuments(BaseModel):
     e_filing_number = models.CharField(max_length=100, blank=True, null=True)
     document_type = models.CharField(max_length=512, blank=True, null=True) 
     parent_e_filing_document = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='child_documents')
+    final_document = models.FileField(upload_to='efile/final_documents/', max_length=512, blank=True, null=True)
     is_ia = models.BooleanField(default=False) 
     class Meta:
       
