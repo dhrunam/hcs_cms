@@ -5,7 +5,6 @@ backend/config/local_settings.py
 backend/config/db.sqlite3
 backend/apps/accounts/migrations/__pycache__/
 backend/apps/accounts/__pycache__/
-backend/apps/
 backend/apps/cases/migrations/__pycache__/
 backend/apps/cases/__pycache__/
 backend/apps/core/migrations/__pycache__/
