@@ -36,3 +36,47 @@ class EfilingDocumentsIndexRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIVie
             qs = qs.filter(is_active=is_active.lower() in ['true', '1'])
         return qs
 
+    def update(self, request, *args, **kwargs):        
+        with transaction.atomic():
+            instance = self.get_object()
+            old_file = instance.file_part_path.path if instance.file_part_path else None
+            # Delete old file before upload
+            if old_file and 'file_part_path' in request.FILES:
+                import os
+                if os.path.exists(old_file):
+                    os.remove(old_file)
+            response = super().update(request, *args, **kwargs)
+            instance.refresh_from_db()
+            new_file = instance.file_part_path.path if instance.file_part_path else None
+            if old_file and new_file and old_file != new_file:
+                import os
+                if os.path.exists(old_file):
+                    os.remove(old_file)
+            EfilingDocumentsScrutinyHistory.objects.create(
+                efiling_document_index=instance,
+                recieved_at=instance.updated_at,
+            )
+        return response
+
+    def partial_update(self, request, *args, **kwargs):        
+        with transaction.atomic():
+            instance = self.get_object()
+            old_file = instance.file_part_path.path if instance.file_part_path else None
+            # Delete old file before upload
+            if old_file and 'file_part_path' in request.FILES:
+                import os
+                if os.path.exists(old_file):
+                    os.remove(old_file)
+            response = super().partial_update(request, *args, **kwargs)
+            instance.refresh_from_db()
+            new_file = instance.file_part_path.path if instance.file_part_path else None
+            if old_file and new_file and old_file != new_file:
+                import os
+                if os.path.exists(old_file):
+                    os.remove(old_file)
+            EfilingDocumentsScrutinyHistory.objects.create(
+                efiling_document_index=instance,
+                recieved_at=instance.updated_at,
+            )
+        return response
+
