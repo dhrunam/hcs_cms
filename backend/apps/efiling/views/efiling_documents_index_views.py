@@ -52,10 +52,10 @@ class EfilingDocumentsIndexRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIVie
                 import os
                 if os.path.exists(old_file):
                     os.remove(old_file)
-            EfilingDocumentsScrutinyHistory.objects.create(
-                efiling_document_index=instance,
-                recieved_at=instance.updated_at,
-            )
+            # EfilingDocumentsScrutinyHistory.objects.create(
+            #     efiling_document_index=instance,
+            #     recieved_at=instance.updated_at,
+            # )
         return response
 
     def partial_update(self, request, *args, **kwargs):        
