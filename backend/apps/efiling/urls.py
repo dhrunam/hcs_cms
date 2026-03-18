@@ -39,6 +39,10 @@ from apps.efiling.views.efiling_file_scrutiny_checklist_view import (
 from apps.efiling.views.vakalatnama_views import (
     VakalatnamaListCreateView
     ,VakalatnamaRetrieveUpdateDestroyView)
+from apps.efiling.views.efiler_document_access_views import (
+    EfilerDocumentAccessListCreateView,
+    EfilerDocumentAccessRetrieveUpdateDestroyView,
+)
 
 
 app_name = "efiling"
@@ -140,5 +144,16 @@ urlpatterns = [
         VakalatnamaRetrieveUpdateDestroyView.as_view(),
         name="vakalatnama-detail",
     ),
+    path(
+        "efiler-document-access/",
+        EfilerDocumentAccessListCreateView.as_view(),
+        name="efiler-document-access-list-create",
+    ),
+    path(
+        "efiler-document-access/<int:pk>/",
+        EfilerDocumentAccessRetrieveUpdateDestroyView.as_view(),
+        name="efiler-document-access-detail",
+    ),
+
 ]
 
