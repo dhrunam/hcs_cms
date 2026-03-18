@@ -98,10 +98,10 @@
       </div>
     </div>
 
-    <div class="col-md-12 mt-3">
+    <div class="col-md-12 mt-3" *ngIf="actList.length > 0">
       <label class="text-muted small">Acts & Sections</label>
 
-      <div *ngIf="actList.length > 0; else noActs">
+      <div>
         <div
           *ngFor="let act of actList; let i = index"
           class="d-flex align-items-center justify-content-between border rounded px-3 py-2 mb-2"
@@ -113,10 +113,6 @@
           </div>
         </div>
       </div>
-
-      <ng-template #noActs>
-        <div class="text-muted small">No acts added</div>
-      </ng-template>
     </div>
   </div>
 </form>
