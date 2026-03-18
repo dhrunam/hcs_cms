@@ -1,9 +1,10 @@
 .sidebar {
   height: 100vh;
-  background: #ffffff;
+  background: white;
   border-right: 1px solid #edf2f7;
   padding-top: 10px;
   cursor: pointer;
+  width: 260px;        
 }
 
 .sidebar-header {
@@ -14,9 +15,9 @@
 
 .sidebar .nav-link {
   color: #475569;
-  /* padding: 12px 18px; */
-  padding: 2px;
-  margin: 6px 12px;
+  display: block;
+  padding: 8px 16px;   /* inner spacing instead of outer margin */
+  margin: 4px 12px;       /* no horizontal margin so background stays within sidebar */
   border-radius: 10px;
   font-weight: 300;
   transition: all 0.25s ease;
@@ -30,7 +31,7 @@
 .sidebar .nav-link:hover {
   background: #494949;
   color: #ffffff;
-  transform: translateX(4px);
+  transform: none; /* avoid shifting outside sidebar border */
 }
 
 .sidebar .nav-link.active {
@@ -39,31 +40,10 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
-.sidebar-clock {
-  position: absolute;
-  bottom: 20px;
-  left: 0;
-  width: 100%;
-  text-align: center;
-  padding: 12px;
-  border-top: 1px solid #edf2f7;
-}
-
-.sidebar-clock .clock-date {
-  font-size: 11px;
-  color: #64748b;
-}
-
-.sidebar-clock .clock-time {
-  font-size: 15px;
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.sidebar-mobile {
+/* .sidebar-mobile {
   width: 260px;
   z-index: 1055;
-}
+} */
 
 @media (max-width: 767px) {
   .sidebar {
