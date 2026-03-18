@@ -27,7 +27,7 @@
         <label class="form-label">State</label>
         <select class="form-control form-select" formControlName="dispute_state">
           <option value="">Select State</option>
-          <option *ngFor="let s of states" [id]="s.id">{{ s.state }}</option>
+          <option *ngFor="let s of states" [value]="s.id">{{ s.state }}</option>
         </select>
       </div>
 

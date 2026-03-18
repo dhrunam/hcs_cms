@@ -28,8 +28,6 @@ export class CaseDetails {
     this.get_act_types();
     this.get_state_list();
     this.isDisabled = this.form!.disabled;
-
-    alert('Form is' + this.form!.disabled);
   }
 
   get_state_list() {
