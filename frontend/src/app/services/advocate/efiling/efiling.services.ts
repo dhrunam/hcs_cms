@@ -15,7 +15,11 @@ export class EfilingService {
     return this.http.post<any>(`${app_url}/api/v1/efiling/efiling-litigants/`, fd);
   }
 
+  delete_litigant_details_by_id(id: number): Observable<any> {
+    return this.http.delete<any>(`${app_url}/api/v1/efiling/efiling-litigants/${id}/`);
+  }
+
   post_case_details(fd: FormData): Observable<any> {
-    return this.http.post<any>(`${app_url}/api/v1/efiling/efiling-litigants/`, fd);
+    return this.http.post<any>(`${app_url}/api/v1/efiling/efiling-case-details/`, fd);
   }
 }

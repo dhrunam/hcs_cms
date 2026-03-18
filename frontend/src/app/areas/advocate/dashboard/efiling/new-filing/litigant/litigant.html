@@ -1,23 +1,40 @@
-<table *ngIf="litigantList.length > 0">
-  <thead>
-    <tr>
-      <th>Name</th>
-      <th>Gender</th>
-      <th>Age</th>
-      <th>Contact</th>
-      <th>Address</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr *ngFor="let item of litigantList">
-      <td>{{ item.name }}</td>
-      <td>{{ item.gender }}</td>
-      <td>{{ item.age }}</td>
-      <td>{{ item.contact }}</td>
-      <td>{{ item.address }}</td>
-    </tr>
-  </tbody>
-</table>
+<div class="card border-0 shadow-sm mb-4" *ngIf="litigantList.length > 0">
+  <table class="table" *ngIf="litigantList.length > 0">
+    <thead class="table-primary fw-lighter">
+      <tr class="fw-light">
+        <th class="fw-light" style="border-top-left-radius: 10px">#</th>
+        <th class="fw-light">Type</th>
+        <th class="fw-light">Name</th>
+        <th class="fw-light">Gender</th>
+        <th class="fw-light">Age</th>
+        <th class="fw-light">Contact</th>
+        <th class="fw-light">Address</th>
+        <th class="fw-light" style="border-top-right-radius: 10px">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let item of litigantList; let i = index">
+        <td class="fw-lighter">{{ i + 1 }}</td>
+        <td class="fw-sem">{{ item.is_petitioner ? 'Petitioner' : 'Respondent' }}</td>
+        <td>
+          {{ item.name }}
+          <span> ({{ get_organisation_name(item.organization) }}) </span>
+        </td>
+        <td class="fw-lighter">{{ item.organization == '' ? item.gender : '-' }}</td>
+        <td class="fw-lighter">{{ item.organization == '' ? item.age : '-' }}</td>
+        <td class="fw-lighter">{{ item.contact }}</td>
+        <td class="fw-lighter">{{ item.address }}</td>
+        <td class="fw-light">
+          <i
+            class="fa-regular fa-trash-can fa-bin text-danger"
+            style="cursor: pointer"
+            (click)="deleteLitigant(item.id)"
+          ></i>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 <form [formGroup]="form" class="form-wrapper">
   <!-- GROUP 1 -->
@@ -50,11 +67,67 @@
           </div>
         </div>
       </div>
+      <div class="col-md-6">
+        <div class="d-flex gap-4 mb-1">
+          <div class="form-check">
+            <label class="form-check-label">Is Organisation? </label>
+            <input
+              type="checkbox"
+              class="form-check-input"
+              [value]="true"
+              formControlName="is_organisation"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6" *ngIf="form.get('is_organisation')?.value">
+        <label class="form-label">Organisation <small class="text-danger"> *</small></label>
+
+        <select
+          class="form-control form-select"
+          formControlName="organization"
+          [class.is-invalid]="
+            form.get('is_organisation')?.value &&
+            form.get('organization')?.value === '' &&
+            form.get('organization')?.touched
+          "
+        >
+          <option value="">Select</option>
+          <option *ngFor="let o of organisations" [value]="o.id">{{ o.orgname }}</option>
+        </select>
+      </div>
 
       <div class="col-md-6">
-        <label class="form-label">Name <small class="text-danger">*</small></label>
+        <label class="form-label">
+          {{
+            form.get('is_organisation')?.value
+              ? 'Organisation'
+              : form.get('is_petitioner')?.value
+                ? 'Petitioner '
+                : 'Respondent'
+          }}
+          Name <small class="text-danger">*</small></label
+        >
 
-        <input class="form-control" formControlName="name" />
+        <input
+          class="form-control"
+          formControlName="name"
+          [class.is-invalid]="form.get('name')?.invalid && form.get('name')?.touched"
+        />
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label">Sequence Number</label>
+
+        <input
+          type="number"
+          class="form-control"
+          formControlName="sequence_number"
+          [class.is-invalid]="
+            form.get('sequence_number')?.invalid && form.get('sequence_number')?.touched
+          "
+        />
       </div>
 
       <div class="col-md-4">
@@ -71,7 +144,16 @@
       <div class="col-md-4">
         <label class="form-label">Age</label>
 
-        <input type="number" class="form-control" formControlName="age" />
+        <input
+          type="number"
+          class="form-control"
+          formControlName="age"
+          [class.is-invalid]="
+            !form.get('is_organisation')?.value &&
+            form.get('age')?.value === '' &&
+            form.get('age')?.touched
+          "
+        />
       </div>
 
       <div class="col-md-4 d-flex align-items-center">
