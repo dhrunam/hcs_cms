@@ -3,6 +3,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { OrganisationService } from '../../../../../../services/master/organisation.services';
 import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
+import { StateAndDistrictService } from '../../../../../../services/master/state_and_district.services';
 
 @Component({
   selector: 'app-litigant',
@@ -14,14 +15,17 @@ export class Litigant {
   @Input() form!: FormGroup;
   @Input() litigantList!: any;
   organisations: any[] = [];
+  states: any[] = [];
   @Output() deleted = new EventEmitter<number>();
   constructor(
     private organisationService: OrganisationService,
     private eFilingService: EfilingService,
+    private stateService: StateAndDistrictService,
   ) {}
 
   ngOnInit() {
     this.get_organisation_list();
+    this.get_state_list();
   }
 
   delete_ligitant_details(id: number) {
@@ -37,6 +41,14 @@ export class Litigant {
       next: (data) => {
         this.organisations = data.results;
         console.log(this.organisations);
+      },
+    });
+  }
+
+  get_state_list() {
+    this.stateService.get_states().subscribe({
+      next: (data) => {
+        this.states = data.results;
       },
     });
   }
