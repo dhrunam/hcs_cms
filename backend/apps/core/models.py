@@ -376,6 +376,21 @@ class EfilingDocumentsScrutinyHistory(BaseModel):
     recieved_at = models.DateTimeField(blank=False, null=False)
     response_at = models.DateTimeField(auto_now=True, null=True)
 
+class Vakalatnama(BaseModel):
+    e_filing = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name='vakalatnamas')
+    e_filing_number = models.CharField(max_length=100, blank=True, null=True)
+    vakalatnama_document = models.FileField(upload_to='efile/vakalatnamas/', max_length=512, blank=True, null=True)
+    is_final = models.BooleanField(default=False)
+
+class EfilerDocumentAccecss(BaseModel):
+    vakalatnama= models.ForeignKey(Vakalatnama, on_delete=models.CASCADE, related_name='document_accesses')
+    e_filing = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name='assigned_advocates')
+    e_filing_number = models.CharField(max_length=100, blank=True, null=True)
+    efiler = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_advocates')
+    accces_allowed_from= models.DateTimeField(blank=True, null=True)
+    access_provided_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='provided_accesses')
+
+
 class CivilT(BaseModel):
     case_no = models.CharField(max_length=15, blank=True, null=True)
     pet_name = models.CharField(max_length=100, blank=True, null=True)

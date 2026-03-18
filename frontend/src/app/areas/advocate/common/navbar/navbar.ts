@@ -1,21 +1,43 @@
 import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { AuthService } from '../../../../auth.service';
 
 @Component({
   selector: 'app-navbar',
   templateUrl: './navbar.html',
   styleUrl: './navbar.css',
-  imports: [RouterModule]
+  imports: [RouterModule, CommonModule]
 })
 export class Navbar implements OnInit {
   currentTime: string = '';
   currentDate: string = '';
 
+  constructor(private authService: AuthService) {}
+
   ngOnInit() {
+    this.authService.initializeAuth().catch((error) => {
+      console.error('SSO initialization failed:', error);
+    });
+
     this.updateClock();
     setInterval(() => {
       this.updateClock();
     }, 1000);
+  }
+
+  isLoggedIn(): boolean {
+    return this.authService.isLoggedIn();
+  }
+
+  onLogin(event: Event): void {
+    event.preventDefault();
+    this.authService.login();
+  }
+
+  async onLogout(event: Event): Promise<void> {
+    event.preventDefault();
+    await this.authService.logout();
   }
 
   updateClock() {
