@@ -388,8 +388,8 @@ class EfilingDocumentsScrutinyHistory(BaseModel):
 class Vakalatnama(BaseModel):
     e_filing = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name='vakalatnamas')
     e_filing_number = models.CharField(max_length=100, blank=True, null=True)
-    vakalatnama_document = models.FileField(upload_to='efile/vakalatnamas/', max_length=512, blank=True, null=True)
-    is_final = models.BooleanField(default=False)
+    vakalatnama_document = models.FileField(upload_to='media/efile/vakalatnamas/', max_length=512, blank=True, null=True)
+    
 
     class Meta:
       
