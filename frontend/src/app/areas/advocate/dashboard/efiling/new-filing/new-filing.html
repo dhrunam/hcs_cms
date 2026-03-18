@@ -19,44 +19,25 @@
     </span>
   </div>
 
-  <div class="chevron" [class.active]="step >= 3" (click)="goToStep(3)">
-    <span>
-      <i class="fa-solid fa-scale-balanced me-2"></i>
-      Case Details
-    </span>
-  </div>
+      <div class="chevron" [class.active]="step >= 3" (click)="goToStep(3)">
+        <span>
+          <i class="fa-solid fa-scale-balanced me-2"></i>
+          Case Details
+        </span>
+      </div>
+      <div class="chevron" [class.active]="step >= 4" (click)="goToStep(4)">
+        <span>
+          <i class="fa-solid fa-file-pdf me-2"></i>
+          Documents
+        </span>
+      </div>
 
-  <div class="chevron" [class.active]="step >= 4" (click)="goToStep(4)">
-    <span>
-      <i class="fa-solid fa-paper-plane me-2"></i>
-      eFile
-    </span>
-  </div>
-</div>
-
-<div class="card border-0 p-4">
-  <!-- STEP 1 -->
-  <div *ngIf="step === 1">
-    <app-initial-inputs [form]="initialInputsForm"> </app-initial-inputs>
-
-    <div class="text-end mt-4">
-      <button
-        class="btn btn-p me-2"
-        [class.btn-dark]="!eFilingNumber"
-        [class.btn-success]="eFilingNumber"
-        (click)="!eFilingNumber && saveStep1()"
-        [disabled]="eFilingNumber"
-      >
-        <i class="fa-regular fa-floppy-disk" *ngIf="!eFilingNumber"></i>
-        <i class="fa-solid fa-check" *ngIf="eFilingNumber"></i>
-
-        {{ eFilingNumber ? 'Saved' : 'Save' }}
-      </button>
-
-      <button class="btn btn-outline-dark" (click)="next()">
-        Next
-        <i class="fa-solid fa-chevron-right ms-2"></i>
-      </button>
+      <div class="chevron" [class.active]="step >= 5" (click)="goToStep(5)">
+        <span>
+          <i class="fa-solid fa-paper-plane me-2"></i>
+          eFile
+        </span>
+      </div>
     </div>
   </div>
 
@@ -64,8 +45,23 @@
   <div *ngIf="step === 2">
     <app-litigant [form]="litigantsForm" [litigantList]="litigantList"> </app-litigant>
 
-    <div class="d-flex justify-content-between mt-4">
-      <button class="btn btn-light border" (click)="prev()">Back</button>
+        <div class="alert alert-warning px-2 p-0 py-1">
+          <small>
+            Note: Once the E-Filing Number is generated, you will not be able to make changes to
+            these details.
+          </small>
+        </div>
+
+        <div class="text-end mt-4">
+          <button
+            class="btn btn-p me-2"
+            [class.btn-dark]="!eFilingNumber"
+            [class.btn-success]="eFilingNumber"
+            (click)="!eFilingNumber && saveStep1()"
+            [disabled]="eFilingNumber"
+          >
+            <i class="fa-regular fa-floppy-disk" *ngIf="!eFilingNumber"></i>
+            <i class="fa-solid fa-check" *ngIf="eFilingNumber"></i>
 
       <div class="d-flex">
         <button
@@ -78,12 +74,110 @@
           <i class="fa-regular fa-floppy-disk" *ngIf="!step2Saved"></i>
           <i class="fa-solid fa-check" *ngIf="step2Saved"></i>
 
-          {{ step2Saved ? 'Saved' : 'Save' }}
-        </button>
-        <button class="btn btn-outline-dark" (click)="next()">
-          Next
-          <i class="fa-solid fa-chevron-right ms-2"></i>
-        </button>
+          <button class="btn btn-outline-dark" (click)="next()">
+            Next
+            <i class="fa-solid fa-chevron-right ms-2"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 2 -->
+      <div *ngIf="step === 2">
+        <app-litigant
+          (deleted)="onDelete($event)"
+          [form]="litigantsForm"
+          [litigantList]="litigantList"
+        >
+        </app-litigant>
+
+        <div class="d-flex justify-content-between mt-4">
+          <button class="btn btn-light border" (click)="prev()">Back</button>
+
+          <div class="d-flex">
+            <button
+              class="btn btn-p me-2"
+              [class.btn-dark]="!step2Saved"
+              [class.btn-success]="step2Saved"
+              (click)="!step2Saved && saveStep2()"
+              [disabled]="litigantsForm.invalid"
+            >
+              <i class="fa-regular fa-plus" *ngIf="!step2Saved"></i>
+              <i class="fa-solid fa-check" *ngIf="step2Saved"></i>
+
+              {{ step2Saved ? 'Saved' : 'Add Litigant' }}
+            </button>
+            <button class="btn btn-outline-dark" (click)="next()">
+              Next
+              <i class="fa-solid fa-chevron-right ms-2"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 3 -->
+      <div *ngIf="step === 3">
+        <app-case-details [form]="caseDetailsForm" (actListChange)="receiveActList($event)">
+        </app-case-details>
+
+        <div class="d-flex justify-content-between mt-4">
+          <button class="btn btn-light border" (click)="prev()">Back</button>
+
+          <div class="d-flex">
+            <button
+              class="btn btn-p me-2"
+              [class.btn-dark]="!step3Saved"
+              [class.btn-success]="step3Saved"
+              (click)="!step3Saved && saveStep3()"
+              [disabled]="step3Saved"
+            >
+              <i class="fa-regular fa-floppy-disk" *ngIf="!step3Saved"></i>
+              <i class="fa-solid fa-check" *ngIf="step3Saved"></i>
+
+              {{ step3Saved ? 'Saved' : 'Save' }}
+            </button>
+            <button class="btn btn-outline-dark" (click)="next()">
+              Next
+              <i class="fa-solid fa-chevron-right ms-2"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="step === 4" class="preview-page rounded-3 p-3">
+        <div class="text-center">
+          <h5 class="text-start">Upload Documents</h5>
+
+          <app-upload-documents [form]="form"></app-upload-documents>
+        </div>
+
+        <div class="d-flex justify-content-between mt-4">
+          <button class="btn btn-light border" (click)="prev()">Back</button>
+
+          <button class="btn btn-outline-dark" (click)="next()">
+            Next
+            <i class="fa-solid fa-chevron-right ms-2"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 4 -->
+      <div *ngIf="step === 5" class="preview-page rounded-3 p-3">
+        <div class="text-center">
+          <h5 class="">Review & Submit</h5>
+
+          <p class="text-muted">Please review all the information before submitting the filing.</p>
+
+          <app-e-file [form]="form" [litigantList]="litigantList"></app-e-file>
+        </div>
+
+        <div class="d-flex justify-content-between mt-4">
+          <button class="btn btn-light border" (click)="prev()">Back</button>
+
+          <button class="btn btn-success" (click)="submit()">
+            <i class="fa-solid fa-paper-plane me-2"></i>
+            Submit Filing
+          </button>
+        </div>
       </div>
     </div>
   </div>

@@ -1,5 +1,6 @@
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
-
+from rest_framework.response import Response
+from rest_framework import status
 from apps.core.models import EfilingLitigant
 from apps.efiling.serializers.efiling_litigant_serializers import EfilingLitigantSerializer
 
@@ -15,6 +16,14 @@ class EfilingLitigantListCreateView(ListCreateAPIView):
             # treat "true"/"1" as True
             qs = qs.filter(is_active=is_active.lower() in ['true', '1'])
         return qs
+
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 class EfilingLitigantRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
     queryset = EfilingLitigant.objects.all()
