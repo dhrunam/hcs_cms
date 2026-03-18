@@ -8,8 +8,7 @@ export const EfilingRoutes: Routes = [
     },
     {
         path: 'draft-filings',
-        loadComponent: () =>
-            import('./draft-filings/draft-filings').then(c => c.DraftFilings),
+        loadChildren: () => import('./draft-filings/draft-filing.routing').then(r => r.DraftFilingRoutes),
     },
     {
         path: 'pending-cases',

@@ -9,13 +9,3 @@
   transition: transform 0.2s ease;
 }
 
-/* Keep submenu colors stable on hover */
-#filingSubmenu .nav-link {
-  color: inherit;
-}
-
-#filingSubmenu .nav-link:hover {
-  color: inherit;
-  background-color: transparent;
-}
-
