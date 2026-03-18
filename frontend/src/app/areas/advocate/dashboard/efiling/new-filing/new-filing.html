@@ -1,23 +1,25 @@
-<header>
-  <h3 class="mb-3">New Filing</h3>
-  <hr />
-</header>
+<div class="dashboard-header mb-4">
+  <div class="container py-4">
+    <header>
+      <h3 class="mb-3">New Filing</h3>
+      <hr />
+    </header>
 
-<!-- STEPPER -->
-<div class="chevron-container mb-4">
-  <div class="chevron" [class.active]="step >= 1" (click)="goToStep(1)">
-    <span>
-      <i class="fa-solid fa-pen-to-square me-2"></i>
-      Initial Inputs
-    </span>
-  </div>
+    <!-- STEPPER -->
+    <div class="chevron-container mb-4">
+      <div class="chevron" [class.active]="step >= 1" (click)="goToStep(1)">
+        <span>
+          <i class="fa-solid fa-pen-to-square me-2"></i>
+          Initial Inputs
+        </span>
+      </div>
 
-  <div class="chevron" [class.active]="step >= 2" (click)="goToStep(2)">
-    <span>
-      <i class="fa-solid fa-users me-2"></i>
-      Litigant
-    </span>
-  </div>
+      <div class="chevron" [class.active]="step >= 2" (click)="goToStep(2)">
+        <span>
+          <i class="fa-solid fa-users me-2"></i>
+          Litigant
+        </span>
+      </div>
 
       <div class="chevron" [class.active]="step >= 3" (click)="goToStep(3)">
         <span>
@@ -39,11 +41,11 @@
         </span>
       </div>
     </div>
-  </div>
 
-  <!-- STEP 2 -->
-  <div *ngIf="step === 2">
-    <app-litigant [form]="litigantsForm" [litigantList]="litigantList"> </app-litigant>
+    <div class="card border-0 p-4">
+      <!-- STEP 1 -->
+      <div *ngIf="step === 1">
+        <app-initial-inputs [form]="initialInputsForm"> </app-initial-inputs>
 
         <div class="alert alert-warning px-2 p-0 py-1">
           <small>
@@ -63,16 +65,8 @@
             <i class="fa-regular fa-floppy-disk" *ngIf="!eFilingNumber"></i>
             <i class="fa-solid fa-check" *ngIf="eFilingNumber"></i>
 
-      <div class="d-flex">
-        <button
-          class="btn btn-p me-2"
-          [class.btn-dark]="!step2Saved"
-          [class.btn-success]="step2Saved"
-          (click)="!step2Saved && saveStep2()"
-          [disabled]="step2Saved"
-        >
-          <i class="fa-regular fa-floppy-disk" *ngIf="!step2Saved"></i>
-          <i class="fa-solid fa-check" *ngIf="step2Saved"></i>
+            {{ eFilingNumber ? 'Saved' : 'Save' }}
+          </button>
 
           <button class="btn btn-outline-dark" (click)="next()">
             Next
@@ -144,26 +138,73 @@
       </div>
 
       <div *ngIf="step === 4" class="preview-page rounded-3 p-3">
-        <div class="text-center">
-          <h5 class="text-start">Upload Documents</h5>
+        <div class="text-center rounded-3 p-3" style="box-shadow: 0 0 3px rgba(0, 0, 0, 0.2)">
+          <h5 class="section-title text-start">Upload Case Documents</h5>
+          <p class="text-muted text-start mb-4" style="font-size: 0.9rem">
+            Please review your case details and attach all required documents before submitting the
+            e-filing.
+          </p>
 
-          <app-upload-documents [form]="form"></app-upload-documents>
+          <!-- Uploaded Documents List -->
+          <div *ngIf="docList.length > 0" class="mb-4">
+            <h6 class="text-start mb-3">Uploaded Documents</h6>
+
+            <div class="card shadow-sm border-0">
+              <div class="list-group list-group-flush">
+                <div
+                  style="border-left: 2px solid black"
+                  class="list-group-item d-flex justify-content-between align-items-center"
+                  *ngFor="let doc of docList; let i = index"
+                >
+                  <!-- Left -->
+                  <div class="text-start">
+                    <div class="fw-semibold">{{ i + 1 }}. {{ doc.document_type }}</div>
+                  </div>
+
+                  <!-- Right Actions -->
+                  <div class="d-flex gap-2">
+                    <!-- Preview -->
+                    <a
+                      [href]="doc.final_document"
+                      target="_blank"
+                      class="btn btn-sm btn-outline-primary"
+                    >
+                      <i class="fa fa-eye"></i>
+                    </a>
+
+                    <!-- Delete -->
+                    <button class="btn btn-sm btn-outline-danger" (click)="deleteDoc(doc.id, i)">
+                      <i class="fa fa-trash"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <app-upload-documents
+            [form]="uploadFilingDocForm"
+            (submitDoc)="handleDocUpload($event)"
+          ></app-upload-documents>
         </div>
 
         <div class="d-flex justify-content-between mt-4">
           <button class="btn btn-light border" (click)="prev()">Back</button>
 
-          <button class="btn btn-outline-dark" (click)="next()">
-            Next
-            <i class="fa-solid fa-chevron-right ms-2"></i>
-          </button>
+          <div class="d-flex gap-2">
+            <!-- Next -->
+            <button class="btn btn-outline-dark" (click)="next()">
+              Next
+              <i class="fa-solid fa-chevron-right ms-2"></i>
+            </button>
+          </div>
         </div>
       </div>
 
       <!-- STEP 4 -->
-      <div *ngIf="step === 5" class="preview-page rounded-3 p-3">
+      <div *ngIf="step === 5" class="preview-page rounded-3">
         <div class="text-center">
-          <h5 class="">Review & Submit</h5>
+          <h5 class="mt-0">Review & Submit</h5>
 
           <p class="text-muted">Please review all the information before submitting the filing.</p>
 
@@ -179,54 +220,6 @@
           </button>
         </div>
       </div>
-    </div>
-  </div>
-
-  <!-- STEP 3 -->
-  <div *ngIf="step === 3">
-    <app-case-details [form]="caseDetailsForm"> </app-case-details>
-
-    <div class="d-flex justify-content-between mt-4">
-      <button class="btn btn-light border" (click)="prev()">Back</button>
-
-      <div class="d-flex">
-        <button
-          class="btn btn-p me-2"
-          [class.btn-dark]="!step3Saved"
-          [class.btn-success]="step3Saved"
-          (click)="!step3Saved && saveStep3()"
-          [disabled]="step3Saved"
-        >
-          <i class="fa-regular fa-floppy-disk" *ngIf="!step3Saved"></i>
-          <i class="fa-solid fa-check" *ngIf="step3Saved"></i>
-
-          {{ step3Saved ? 'Saved' : 'Save' }}
-        </button>
-        <button class="btn btn-outline-dark" (click)="next()">
-          Next
-          <i class="fa-solid fa-chevron-right ms-2"></i>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- STEP 4 -->
-  <div *ngIf="step === 4" class="preview-page rounded-3 p-3">
-    <div class="text-center">
-      <h5 class="">Review & Submit</h5>
-
-      <p class="text-muted">Please review all the information before submitting the filing.</p>
-
-      <app-e-file [form]="form"></app-e-file>
-    </div>
-
-    <div class="d-flex justify-content-between mt-4">
-      <button class="btn btn-light border" (click)="prev()">Back</button>
-
-      <button class="btn btn-success" (click)="submit()">
-        <i class="fa-solid fa-paper-plane me-2"></i>
-        Submit Filing
-      </button>
     </div>
   </div>
 </div>

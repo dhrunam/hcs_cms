@@ -18,10 +18,10 @@
         <td class="fw-sem">{{ item.is_petitioner ? 'Petitioner' : 'Respondent' }}</td>
         <td>
           {{ item.name }}
-          <span> ({{ get_organisation_name(item.organization) }}) </span>
+          <span *ngIf="item.organization"> ({{ get_organisation_name(item.organization) }}) </span>
         </td>
-        <td class="fw-lighter">{{ item.organization == '' ? item.gender : '-' }}</td>
-        <td class="fw-lighter">{{ item.organization == '' ? item.age : '-' }}</td>
+        <td class="fw-lighter">{{ item.organization == null ? item.gender : '-' }}</td>
+        <td class="fw-lighter">{{ item.organization == null ? item.age : '-' }}</td>
         <td class="fw-lighter">{{ item.contact }}</td>
         <td class="fw-lighter">{{ item.address }}</td>
         <td class="fw-light">
@@ -118,7 +118,7 @@
       </div>
 
       <div class="col-md-4">
-        <label class="form-label">Sequence Number</label>
+        <label class="form-label">Sequence Number <small class="text-danger">*</small></label>
 
         <input
           type="number"
@@ -131,7 +131,10 @@
       </div>
 
       <div class="col-md-4">
-        <label class="form-label">Gender</label>
+        <label class="form-label"
+          >Gender
+          <small *ngIf="!form.get('is_organisation')?.value" class="text-danger">*</small></label
+        >
 
         <select class="form-control form-select" formControlName="gender">
           <option value="">Select</option>
@@ -142,7 +145,10 @@
       </div>
 
       <div class="col-md-4">
-        <label class="form-label">Age</label>
+        <label class="form-label"
+          >Age
+          <small *ngIf="!form.get('is_organisation')?.value" class="text-danger">*</small></label
+        >
 
         <input
           type="number"
@@ -218,6 +224,7 @@
 
         <select class="form-control form-select" formControlName="state_id">
           <option value="">Select State</option>
+          <option *ngFor="let s of states" [id]="s.id">{{ s.state }}</option>
         </select>
       </div>
 

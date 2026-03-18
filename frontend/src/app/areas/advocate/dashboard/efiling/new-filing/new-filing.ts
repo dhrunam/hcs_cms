@@ -29,14 +29,15 @@ export class NewFiling {
   step = 1;
   // filingId: number | null = null;
   // eFilingNumber: string = '';
-  filingId: number = 4;
-  eFilingNumber: string = 'ASK20240000004C202600004';
+  filingId: number = 28;
+  eFilingNumber: string = 'ASK20240000028C202600028';
   step1Saved = false;
   step2Saved = false;
   step3Saved = false;
   litigantList: any[] = [];
   sequenceNumber_litigant: number = 1;
   isUpdateMode = false;
+  docList: any[] = [];
 
   form!: FormGroup;
 
@@ -104,19 +105,19 @@ export class NewFiling {
       ),
 
       caseDetails: this.fb.group({
-        causeOfAction: ['', Validators.required],
-        causeOfActionDate: ['', Validators.required],
-        state: [''],
-        district: [''],
-        taluka: [''],
-        hobli: [''],
+        cause_of_action: ['', Validators.required],
+        date_of_cause_of_action: ['', Validators.required],
+        dispute_state: [''],
+        dispute_district: [''],
+        dispute_taluka: [''],
 
         act: ['', Validators.required],
         section: ['', Validators.required],
       }),
 
       uploadFilingDoc: this.fb.group({
-        documents: [[], [Validators.required, this.pdfOnlyValidator]],
+        document_type: [null, Validators.required],
+        final_document: [[], Validators.required],
       }),
     });
   }
@@ -163,6 +164,10 @@ export class NewFiling {
     return this.form.get('caseDetails') as FormGroup;
   }
 
+  get uploadFilingDocForm(): FormGroup {
+    return this.form.get('uploadFilingDoc') as FormGroup;
+  }
+
   getCurrentForm(): FormGroup {
     if (this.step === 1) {
       return this.form.get('initialInputs') as FormGroup;
@@ -183,6 +188,10 @@ export class NewFiling {
     const currentForm = this.getCurrentForm();
 
     if (this.step == 2 && this.litigantList.length > 0) {
+      this.step++;
+    }
+
+    if (this.step == 4 && this.docList.length > 0) {
       this.step++;
     }
 
@@ -295,7 +304,8 @@ export class NewFiling {
       form.reset({
         is_diffentially_abled: false,
         is_petitioner: true,
-        sequence_number: this.sequenceNumber_litigant, // 👈 set here
+        sequence_number: this.sequenceNumber_litigant,
+        gender: '',
       });
 
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -337,7 +347,59 @@ export class NewFiling {
 
     this.eFilingService.post_case_details(payload).subscribe(() => {
       this.step = 4;
+      this.initialInputsForm.disable();
     });
+  }
+
+  previewDoc(doc: any) {
+    if (doc.final_document) {
+      window.open(doc.final_document, '_blank');
+    }
+  }
+
+  deleteDoc(id: number, index: number) {
+    const confirmDelete = confirm(
+      'Your document will be deleted and you need to re-upload it. Continue?',
+    );
+
+    if (!confirmDelete) return;
+
+    this.eFilingService.delete_case_documnets_before_final_filing(id).subscribe({
+      next: (res) => {
+        console.log('Deleted response', res);
+        this.docList.splice(index, 1);
+      },
+    });
+  }
+
+  handleDocUpload(data: any) {
+    const formData = new FormData();
+    formData.append('document_type', data.document_type);
+    formData.append('final_document', data.file);
+    formData.append('e_filing', this.filingId + '');
+    formData.append('e_filing_number', this.eFilingNumber);
+
+    this.eFilingService.upload_case_documnets(formData).subscribe({
+      next: (res) => {
+        console.log('After uploading documents', res);
+
+        this.docList.push(res);
+      },
+    });
+  }
+
+  saveStep4() {
+    const files = this.form.get('uploadFilingDoc.documents')?.value;
+
+    if (!files || files.length === 0) return;
+
+    const formData = new FormData();
+
+    files.forEach((file: File, index: number) => {
+      formData.append('documents', file); // same key for multiple
+    });
+
+    // call API
   }
 
   submit() {

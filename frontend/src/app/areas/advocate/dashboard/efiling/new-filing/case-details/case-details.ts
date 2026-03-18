@@ -3,6 +3,7 @@ import { Component, Input } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActService } from '../../../../../../services/master/acts.services';
 import { Output, EventEmitter } from '@angular/core';
+import { StateAndDistrictService } from '../../../../../../services/master/state_and_district.services';
 
 @Component({
   selector: 'app-case-details',
@@ -13,13 +14,25 @@ import { Output, EventEmitter } from '@angular/core';
 export class CaseDetails {
   @Input() form!: FormGroup;
   acts: any[] = [];
-
+  states: any[] = [];
   actList: any[] = [];
   @Output() actListChange = new EventEmitter<any[]>();
-  constructor(private actService: ActService) {}
+  constructor(
+    private actService: ActService,
+    private stateService: StateAndDistrictService,
+  ) {}
 
   ngOnInit() {
     this.get_act_types();
+    this.get_state_list();
+  }
+
+  get_state_list() {
+    this.stateService.get_states().subscribe({
+      next: (data) => {
+        this.states = data.results;
+      },
+    });
   }
 
   get_act_types() {

@@ -22,4 +22,11 @@ export class EfilingService {
   post_case_details(fd: FormData): Observable<any> {
     return this.http.post<any>(`${app_url}/api/v1/efiling/efiling-case-details/`, fd);
   }
+
+  upload_case_documnets(fd: FormData): Observable<any> {
+    return this.http.post<any>(`${app_url}/api/v1/efiling/efiling-documents/`, fd);
+  }
+  delete_case_documnets_before_final_filing(id: number): Observable<any> {
+    return this.http.delete<any>(`${app_url}/api/v1/efiling/efiling-documents/${id}/`);
+  }
 }

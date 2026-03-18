@@ -6,14 +6,14 @@
     <div class="row g-3">
       <div class="col-md-6">
         <label class="form-label"> Cause of Action <small class="text-danger">*</small> </label>
-        <textarea class="form-control" rows="2" formControlName="causeOfAction"></textarea>
+        <textarea class="form-control" rows="2" formControlName="cause_of_action"></textarea>
       </div>
 
       <div class="col-md-6">
         <label class="form-label">
           Date of Cause of Action <small class="text-danger">*</small>
         </label>
-        <input type="date" class="form-control" formControlName="causeOfActionDate" />
+        <input type="date" class="form-control" formControlName="date_of_cause_of_action" />
       </div>
 
       <!-- <div class="col-md-6">
@@ -47,21 +47,22 @@
     <div class="row g-3">
       <div class="col-md-6">
         <label class="form-label">State</label>
-        <select class="form-control form-select" formControlName="state">
+        <select class="form-control form-select" formControlName="dispute_state">
           <option value="">Select State</option>
+          <option *ngFor="let s of states" [id]="s.id">{{ s.state }}</option>
         </select>
       </div>
 
       <div class="col-md-6">
         <label class="form-label">District</label>
-        <select class="form-control form-select" formControlName="district">
+        <select class="form-control form-select" formControlName="dispute_district">
           <option value="">Select District</option>
         </select>
       </div>
 
       <div class="col-md-6">
         <label class="form-label">Taluka</label>
-        <input type="text" class="form-control" formControlName="taluka" />
+        <input type="text" class="form-control" formControlName="dispute_taluka" />
       </div>
     </div>
   </div>
