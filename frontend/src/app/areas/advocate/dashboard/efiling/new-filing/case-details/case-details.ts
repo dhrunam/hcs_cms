@@ -13,10 +13,12 @@ import { StateAndDistrictService } from '../../../../../../services/master/state
 })
 export class CaseDetails {
   @Input() form!: FormGroup;
+  @Input() actList!: any;
   acts: any[] = [];
   states: any[] = [];
-  actList: any[] = [];
+
   @Output() actListChange = new EventEmitter<any[]>();
+  isDisabled = false;
   constructor(
     private actService: ActService,
     private stateService: StateAndDistrictService,
@@ -25,6 +27,9 @@ export class CaseDetails {
   ngOnInit() {
     this.get_act_types();
     this.get_state_list();
+    this.isDisabled = this.form!.disabled;
+
+    alert('Form is' + this.form!.disabled);
   }
 
   get_state_list() {
@@ -43,27 +48,36 @@ export class CaseDetails {
     });
   }
 
-  addAct() {
-    const group = this.form as FormGroup;
+  addAct(actInput?: any, sectionInput?: any) {
+    let act, section;
 
-    const act = group.get('act')?.value;
-    const section = group.get('section')?.value;
+    if (this.isDisabled) {
+      act = actInput?.value;
+      section = sectionInput?.value;
+    } else {
+      const group = this.form as FormGroup;
+      act = group.get('act')?.value;
+      section = group.get('section')?.value;
+    }
 
-    console.log('ACT:', act, 'SECTION:', section);
+    if (!act || !section) return;
 
     const selectedAct = this.acts.find((a: any) => a.actcode == act);
 
-    this.actList.push({
-      act,
-      actname: selectedAct?.actname,
-      section,
-    });
+    this.actListChange.emit([
+      {
+        act,
+        actname: selectedAct?.actname,
+        section,
+      },
+    ]);
 
-    this.actListChange.emit(this.actList);
-
-    group.patchValue({
-      act: null,
-      section: '',
-    });
+    if (this.isDisabled) {
+      actInput.value = '';
+      sectionInput.value = '';
+    } else {
+      const group = this.form as FormGroup;
+      group.patchValue({ act: '', section: '' });
+    }
   }
 }

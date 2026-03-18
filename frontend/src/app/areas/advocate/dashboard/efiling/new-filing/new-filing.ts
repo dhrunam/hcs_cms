@@ -9,6 +9,7 @@ import { CaseDetails } from './case-details/case-details';
 import { EfilingService } from '../../../../../services/advocate/efiling/efiling.services';
 import { EFile } from './e-file/e-file';
 import { UploadDocuments } from './upload-documents/upload-documents';
+import Swal from 'sweetalert2';
 
 @Component({
   selector: 'app-new-filing',
@@ -27,10 +28,10 @@ import { UploadDocuments } from './upload-documents/upload-documents';
 })
 export class NewFiling {
   step = 1;
-  // filingId: number | null = null;
-  // eFilingNumber: string = '';
-  filingId: number = 28;
-  eFilingNumber: string = 'ASK20240000028C202600028';
+  filingId: number | null = null;
+  eFilingNumber: string = '';
+  // filingId: number = 28;
+  // eFilingNumber: string = 'ASK20240000028C202600028';
   step1Saved = false;
   step2Saved = false;
   step3Saved = false;
@@ -38,6 +39,7 @@ export class NewFiling {
   sequenceNumber_litigant: number = 1;
   isUpdateMode = false;
   docList: any[] = [];
+  isDeclarationChecked = false;
 
   form!: FormGroup;
 
@@ -115,9 +117,17 @@ export class NewFiling {
         section: ['', Validators.required],
       }),
 
+      actDetails: this.fb.group({
+        act: ['', Validators.required],
+        section: ['', Validators.required],
+      }),
+
       uploadFilingDoc: this.fb.group({
         document_type: [null, Validators.required],
         final_document: [[], Validators.required],
+      }),
+      setDeclaration: this.fb.group({
+        isDeclarationChecked: [false, Validators.requiredTrue],
       }),
     });
   }
@@ -125,9 +135,21 @@ export class NewFiling {
   actList: any[] = [];
 
   receiveActList(data: any[]) {
-    this.actList = data;
+    this.actList = [...this.actList, ...data];
+    if (this.caseDetailsForm.disabled) {
+      data.forEach((item: any) => {
+        const payload = new FormData();
 
-    console.log('Act list inm parent page', this.actList);
+        payload.append('e_filing', String(this.filingId));
+        payload.append('e_filing_number', this.eFilingNumber);
+        payload.append('act', item.act);
+        payload.append('section', item.section);
+
+        this.eFilingService.add_case_details_act(payload).subscribe();
+      });
+    }
+
+    console.log('Act list in parent page', this.actList);
 
     const group = this.form.get('caseDetails') as FormGroup;
 
@@ -164,8 +186,16 @@ export class NewFiling {
     return this.form.get('caseDetails') as FormGroup;
   }
 
+  getActDetailsForm(): FormGroup {
+    return this.form.get('actDetails') as FormGroup;
+  }
+
   get uploadFilingDocForm(): FormGroup {
     return this.form.get('uploadFilingDoc') as FormGroup;
+  }
+
+  get setDeclarationForm(): FormGroup {
+    return this.form.get('setDeclaration') as FormGroup;
   }
 
   getCurrentForm(): FormGroup {
@@ -306,6 +336,7 @@ export class NewFiling {
         is_petitioner: true,
         sequence_number: this.sequenceNumber_litigant,
         gender: '',
+        organization: '',
       });
 
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -347,8 +378,12 @@ export class NewFiling {
 
     this.eFilingService.post_case_details(payload).subscribe(() => {
       this.step = 4;
-      this.initialInputsForm.disable();
+      this.caseDetailsForm.disable();
     });
+  }
+
+  goToPageFromPreview(step: number) {
+    this.step = step;
   }
 
   previewDoc(doc: any) {
@@ -398,18 +433,44 @@ export class NewFiling {
     files.forEach((file: File, index: number) => {
       formData.append('documents', file); // same key for multiple
     });
-
-    // call API
   }
 
   submit() {
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
-      return;
-    }
+    Swal.fire({
+      title: 'Submit Filing?',
+      text: 'Once submitted, it will be forwarded for scrutiny.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, Submit',
+      cancelButtonText: 'Cancel',
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const payload = {
+          e_filing: this.filingId,
+          e_filing_number: this.eFilingNumber,
+        };
 
-    const formData = this.form.value;
+        this.eFilingService.final_submit_efiling(this.filingId || 0).subscribe({
+          next: (res) => {
+            Swal.fire({
+              icon: 'success',
+              title: 'Filed Successfully',
+              text: 'Your filing has been submitted for scrutiny.',
+            });
 
-    console.log(formData);
+            console.log('Final submit response', res);
+          },
+          error: (err) => {
+            Swal.fire({
+              icon: 'error',
+              title: 'Submission Failed',
+              text: 'Something went wrong. Please try again.',
+            });
+
+            console.error(err);
+          },
+        });
+      }
+    });
   }
 }

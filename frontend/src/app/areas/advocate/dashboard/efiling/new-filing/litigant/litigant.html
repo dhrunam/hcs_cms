@@ -1,39 +1,123 @@
-<div class="card border-0 shadow-sm mb-4" *ngIf="litigantList.length > 0">
-  <table class="table" *ngIf="litigantList.length > 0">
-    <thead class="table-primary fw-lighter">
-      <tr class="fw-light">
-        <th class="fw-light" style="border-top-left-radius: 10px">#</th>
-        <th class="fw-light">Type</th>
-        <th class="fw-light">Name</th>
-        <th class="fw-light">Gender</th>
-        <th class="fw-light">Age</th>
-        <th class="fw-light">Contact</th>
-        <th class="fw-light">Address</th>
-        <th class="fw-light" style="border-top-right-radius: 10px">Action</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let item of litigantList; let i = index">
-        <td class="fw-lighter">{{ i + 1 }}</td>
-        <td class="fw-sem">{{ item.is_petitioner ? 'Petitioner' : 'Respondent' }}</td>
-        <td>
-          {{ item.name }}
-          <span *ngIf="item.organization"> ({{ get_organisation_name(item.organization) }}) </span>
-        </td>
-        <td class="fw-lighter">{{ item.organization == null ? item.gender : '-' }}</td>
-        <td class="fw-lighter">{{ item.organization == null ? item.age : '-' }}</td>
-        <td class="fw-lighter">{{ item.contact }}</td>
-        <td class="fw-lighter">{{ item.address }}</td>
-        <td class="fw-light">
-          <i
-            class="fa-regular fa-trash-can fa-bin text-danger"
-            style="cursor: pointer"
-            (click)="deleteLitigant(item.id)"
-          ></i>
-        </td>
-      </tr>
-    </tbody>
-  </table>
+<div class="card shadow-sm mb-4 border-0 text-start" *ngIf="litigantList.length > 0">
+  <div class="card-header bg-dark text-white fw-semibold border-0">Litigant Details</div>
+
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-borderless align-middle mb-0">
+        <thead style="background-color: #f8fafc">
+          <tr class="text-muted small fw-light">
+            <th class="fw-light">#</th>
+            <th class="fw-light">Type</th>
+            <th class="fw-light">Name</th>
+            <th class="fw-light">Gender</th>
+            <th class="fw-light">Age</th>
+            <th class="fw-light">Contact</th>
+            <th class="fw-light">Address</th>
+            <th class="fw-light">Action</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <ng-container *ngFor="let item of sortedLitigants; let i = index">
+            <!-- MAIN ROW (minimal) -->
+            <tr style="border-bottom: 1px solid #f1f5f9">
+              <td class="text-muted small">{{ i + 1 }}</td>
+
+              <td>
+                <span
+                  class="d-inline-flex align-items-center gap-1 px-2 py-1"
+                  [ngStyle]="{
+                    'background-color': item.is_petitioner ? '#ecfdf5' : '#fef9c3',
+                    color: item.is_petitioner ? '#065f46' : '#713f12',
+                    'border-radius': '20px',
+                    'font-size': '12px',
+                  }"
+                >
+                  <i
+                    class="fa-solid"
+                    [ngClass]="item.is_petitioner ? 'fa-user-check' : 'fa-user-xmark'"
+                    style="font-size: 11px"
+                  ></i>
+                  {{ item.is_petitioner ? 'Petitioner' : 'Respondent' }}
+                </span>
+              </td>
+
+              <td class="fw-semibold text-dark">
+                {{ item.name }}
+              </td>
+
+              <td class="text-muted small">
+                {{ item.gender || '-' }}
+              </td>
+
+              <td class="text-muted small">
+                {{ item.age || '-' }}
+              </td>
+
+              <td class="text-muted small">
+                {{ item.contact || '-' }}
+              </td>
+
+              <td class="text-muted small">
+                {{ item.address || '-' }}
+              </td>
+
+              <td class="d-flex gap-2 align-items-center">
+                <!-- More / Less -->
+                <button
+                  type="button"
+                  class="btn btn-sm btn-secondary d-flex align-items-center justify-content-center gap-1"
+                  style="min-width: 80px; height: 32px; font-size: 13px"
+                  (click)="toggleRow(i)"
+                >
+                  {{ expandedRows[i] ? 'Less' : 'More' }}
+                  <i
+                    class="fa-solid"
+                    [ngClass]="expandedRows[i] ? 'fa-chevron-up' : 'fa-chevron-down'"
+                    style="font-size: 12px"
+                  ></i>
+                </button>
+
+                <!-- Delete -->
+                <button
+                  type="button"
+                  class="btn btn-sm btn-danger d-flex align-items-center justify-content-center gap-1"
+                  style="min-width: 80px; height: 32px; font-size: 13px"
+                  (click)="deleteLitigant(item.id)"
+                >
+                  <i class="fa-regular fa-trash-can" style="font-size: 12px"></i>
+                  Delete
+                </button>
+              </td>
+            </tr>
+
+            <!-- EXPANDED ROW -->
+            <tr *ngIf="expandedRows[i]">
+              <td colspan="8" style="background-color: #f8fafc">
+                <div class="p-3 small text-muted">
+                  <div>
+                    <strong>Organization:</strong> {{ get_organisation_name(item.organization) }}
+                  </div>
+                  <div><strong>Sequence No:</strong> {{ item.sequence_number }}</div>
+                  <div><strong>Email:</strong> {{ item.email || '-' }}</div>
+                  <div><strong>Religion:</strong> {{ item.religion || '-' }}</div>
+                  <div><strong>Caste:</strong> {{ item.caste || '-' }}</div>
+                  <div><strong>Occupation:</strong> {{ item.occupation || '-' }}</div>
+                  <div>
+                    <strong>Differently Abled:</strong>
+                    {{ item.is_diffentially_abled ? 'Yes' : 'No' }}
+                  </div>
+                  <div><strong>State ID:</strong> {{ item.state_id || '-' }}</div>
+                  <div><strong>District ID:</strong> {{ item.district_id || '-' }}</div>
+                  <div><strong>Taluka:</strong> {{ item.taluka || '-' }}</div>
+                </div>
+              </td>
+            </tr>
+          </ng-container>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <form [formGroup]="form" class="form-wrapper">
@@ -222,9 +306,15 @@
       <div class="col-md-4">
         <label class="form-label">State</label>
 
-        <select class="form-control form-select" formControlName="state_id">
+        <select
+          class="form-control form-select"
+          formControlName="state_id"
+          (change)="onStateChange($event)"
+        >
           <option value="">Select State</option>
-          <option *ngFor="let s of states" [id]="s.id">{{ s.state }}</option>
+          <option *ngFor="let s of states" [value]="s.id">
+            {{ s.state }}
+          </option>
         </select>
       </div>
 
@@ -233,6 +323,9 @@
 
         <select class="form-control form-select" formControlName="district_id">
           <option value="">Select District</option>
+          <option *ngFor="let d of districts" [value]="d.id">
+            {{ d.district }}
+          </option>
         </select>
       </div>
 

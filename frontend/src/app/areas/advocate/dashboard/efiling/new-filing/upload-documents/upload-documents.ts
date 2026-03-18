@@ -33,5 +33,14 @@ export class UploadDocuments {
     };
 
     this.submitDoc.emit(payload);
+
+    this.form.reset();
+
+    this.form.patchValue({
+      document_type: '',
+      final_document: null,
+    });
+
+    this.selectedFile = null as any;
   }
 }
