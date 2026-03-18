@@ -263,6 +263,9 @@ class Efiling(BaseModel):
 class DocumentIndex(BaseModel):
     name=models.CharField(max_length=215, null=False, blank=False)
     case_type= models.ForeignKey(CaseTypeT, on_delete=models.SET_NULL, null=True, blank=True, related_name='document_index')
+    class Meta:
+      
+        db_table = 'document_index'
 
 class EfilingLitigant(BaseModel): #party details of petitioner and respondent
     e_filing = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name='litigants')
@@ -340,7 +343,7 @@ class EfilingDocumentsIndex(BaseModel):
         else:
             efiling_number = "unknown"
         part_name = instance.document_part_name or "part"
-        return f"efile/{efiling_number}/{part_name}.pdf"
+        return f"media/efile/{efiling_number}/{part_name}.pdf"
     file_part_path = models.FileField(upload_to=file_part_upload_to, max_length=512)
     is_locked = models.BooleanField(default=False)
     document_sequence = models.IntegerField(blank=True, null=True)
@@ -367,7 +370,9 @@ class IA(BaseModel):
 class FileScrutinyCheckList(BaseModel):
     case_type = models.ForeignKey(CaseTypeT, on_delete=models.SET_NULL, null=True, blank=True, related_name='scrutiny_checklists')
     checklist_item = models.CharField(max_length=500, blank=True, null=True)
-
+    class Meta:
+      
+        db_table = 'file_scrutiny_checklist'
 
 class EfilingDocumentsScrutinyHistory(BaseModel):
     efiling_document_index = models.ForeignKey(EfilingDocumentsIndex, on_delete=models.SET_NULL, null=True, blank=True, related_name='scrutiny_history')
@@ -376,11 +381,19 @@ class EfilingDocumentsScrutinyHistory(BaseModel):
     recieved_at = models.DateTimeField(blank=False, null=False)
     response_at = models.DateTimeField(auto_now=True, null=True)
 
+    class Meta:
+      
+        db_table = 'efiling_documents_scrutiny_history'
+
 class Vakalatnama(BaseModel):
     e_filing = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name='vakalatnamas')
     e_filing_number = models.CharField(max_length=100, blank=True, null=True)
     vakalatnama_document = models.FileField(upload_to='efile/vakalatnamas/', max_length=512, blank=True, null=True)
     is_final = models.BooleanField(default=False)
+
+    class Meta:
+      
+        db_table = 'vakalatnama'
 
 class EfilerDocumentAccecss(BaseModel):
     vakalatnama= models.ForeignKey(Vakalatnama, on_delete=models.CASCADE, related_name='document_accesses')
@@ -390,7 +403,11 @@ class EfilerDocumentAccecss(BaseModel):
     accces_allowed_from= models.DateTimeField(blank=True, null=True)
     access_provided_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='provided_accesses')
 
+    class Meta:
+      
+        db_table = 'efiler_document_access'
 
+        
 class CivilT(BaseModel):
     case_no = models.CharField(max_length=15, blank=True, null=True)
     pet_name = models.CharField(max_length=100, blank=True, null=True)

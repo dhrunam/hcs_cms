@@ -63,13 +63,6 @@
         <label class="form-label">Taluka</label>
         <input type="text" class="form-control" formControlName="taluka" />
       </div>
-
-      <div class="col-md-6">
-        <label class="form-label">Hobli</label>
-        <select class="form-control form-select" formControlName="hobli">
-          <option value="">Select Hobli</option>
-        </select>
-      </div>
     </div>
   </div>
 
@@ -80,7 +73,13 @@
     <div class="row g-3">
       <div class="col-md-6">
         <label class="form-label"> Act <small class="text-danger">*</small> </label>
-        <input class="form-control" formControlName="act" />
+
+        <select class="form-control form-select" formControlName="act">
+          <option value="">Select Act</option>
+          <option *ngFor="let act of acts" [value]="act.actcode">
+            {{ act.actname }}
+          </option>
+        </select>
       </div>
 
       <div class="col-md-6">
@@ -89,8 +88,26 @@
       </div>
 
       <div class="col-md-12">
-        <button type="button" class="btn btn-success btn-sm">+ More Acts</button>
+        <button type="button" class="btn btn-success btn-sm" (click)="addAct()">+ Add Act</button>
       </div>
+    </div>
+    <div class="card p-2 border-0 shadow-sm mb-2 mt-2">
+      <table class="table mt-3 table-striped" *ngIf="actList.length > 0">
+        <thead class="table-secondary fw-lighter">
+          <tr>
+            <th class="fw-light" style="border-top-left-radius: 10px">#</th>
+            <th class="fw-light">Act</th>
+            <th class="fw-light" style="border-top-right-radius: 10px">Section</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of actList; let i = index">
+            <td>{{ i + 1 }}</td>
+            <td>{{ item.actname }}</td>
+            <td>{{ item.section }}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </form>

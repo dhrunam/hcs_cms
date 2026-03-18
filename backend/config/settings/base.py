@@ -43,7 +43,6 @@ INSTALLED_APPS = [
     "corsheaders",
     # Local
     "apps.accounts",
-    "apps.cases",
     "apps.cis",
     "apps.core",
     "apps.efiling",

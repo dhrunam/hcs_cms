@@ -4,10 +4,10 @@ import { app_url } from '../../environment';
 import { Injectable } from '@angular/core';
 
 @Injectable({ providedIn: 'root' })
-export class OrganisationService {
+export class ActService {
   constructor(private http: HttpClient) {}
 
-  get_organisations(): Observable<any> {
-    return this.http.get<any>(`${app_url}/api/v1/master/org-names/`);
+  get_act_types(): Observable<any> {
+    return this.http.get<any>(`${app_url}/api/v1/master/acts`);
   }
 }

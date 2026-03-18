@@ -12,7 +12,7 @@
 
         <div class="col-md-6">
           <label class="text-muted small">Case Type</label>
-          <div class="fw-semibold">{{ initialInputsForm.value.case_type }}</div>
+          <div class="fw-semibold">{{ get_case_type_name(initialInputsForm.value.case_type) }}</div>
         </div>
 
         <div class="col-md-6">
@@ -37,86 +37,32 @@
   <div class="card shadow-sm mb-4 border-0 text-start">
     <div class="card-header bg-dark text-white fw-semibold">Litigant Details</div>
 
-    <div class="card-body">
-      <div class="row g-3">
-        <div class="col-md-4">
-          <label class="text-muted small">Name</label>
-          <div class="fw-semibold">{{ litigantsForm.value.name }}</div>
-        </div>
-
-        <div class="col-md-2">
-          <label class="text-muted small">Gender</label>
-          <div class="fw-semibold">{{ litigantsForm.value.gender }}</div>
-        </div>
-
-        <div class="col-md-2">
-          <label class="text-muted small">Age</label>
-          <div class="fw-semibold">{{ litigantsForm.value.age }}</div>
-        </div>
-
-        <div class="col-md-4">
-          <label class="text-muted small">Contact</label>
-          <div class="fw-semibold">{{ litigantsForm.value.contact }}</div>
-        </div>
-
-        <div class="col-md-4">
-          <label class="text-muted small">Email</label>
-          <div class="fw-semibold">{{ litigantsForm.value.email }}</div>
-        </div>
-
-        <div class="col-md-4">
-          <label class="text-muted small">Religion</label>
-          <div class="fw-semibold">{{ litigantsForm.value.religion }}</div>
-        </div>
-
-        <div class="col-md-4">
-          <label class="text-muted small">Caste</label>
-          <div class="fw-semibold">{{ litigantsForm.value.caste }}</div>
-        </div>
-
-        <div class="col-md-4">
-          <label class="text-muted small">Occupation</label>
-          <div class="fw-semibold">{{ litigantsForm.value.occupation }}</div>
-        </div>
-
-        <div class="col-md-12">
-          <label class="text-muted small">Address</label>
-          <div class="fw-semibold">{{ litigantsForm.value.address }}</div>
-        </div>
-
-        <div class="col-md-3">
-          <label class="text-muted small">State</label>
-          <div class="fw-semibold">{{ litigantsForm.value.state_id }}</div>
-        </div>
-
-        <div class="col-md-3">
-          <label class="text-muted small">District</label>
-          <div class="fw-semibold">{{ litigantsForm.value.district_id }}</div>
-        </div>
-
-        <div class="col-md-3">
-          <label class="text-muted small">Taluka</label>
-          <div class="fw-semibold">{{ litigantsForm.value.taluka }}</div>
-        </div>
-
-        <div class="col-md-3">
-          <label class="text-muted small">Village</label>
-          <div class="fw-semibold">{{ litigantsForm.value.village }}</div>
-        </div>
-
-        <div class="col-md-6">
-          <label class="text-muted small">Differentially Abled</label>
-          <div class="fw-semibold">
-            {{ litigantsForm.value.is_diffentially_abled ? 'Yes' : 'No' }}
-          </div>
-        </div>
-
-        <div class="col-md-6">
-          <label class="text-muted small">Is Petitioner</label>
-          <div class="fw-semibold">
-            {{ litigantsForm.value.is_petitioner ? 'Yes' : 'No' }}
-          </div>
-        </div>
+    <div class="card-body" *ngIf="litigantList.length > 0">
+      <div class="card p-2 border-0 shadow-sm mb-4">
+        <table class="table table-striped" *ngIf="litigantList.length > 0">
+          <thead class="table-secondary fw-lighter">
+            <tr class="fw-light">
+              <th class="fw-light" style="border-top-left-radius: 10px">#</th>
+              <th class="fw-light">Type</th>
+              <th class="fw-light">Name</th>
+              <th class="fw-light">Gender</th>
+              <th class="fw-light">Age</th>
+              <th class="fw-light">Contact</th>
+              <th class="fw-light" style="border-top-right-radius: 10px">Address</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of litigantList; let i = index">
+              <td class="fw-lighter">{{ i + 1 }}</td>
+              <td class="fw-sem">{{ item.is_petitioner ? 'Petitioner' : 'Respondent' }}</td>
+              <td>{{ item.name }}</td>
+              <td class="fw-lighter">{{ item.gender }}</td>
+              <td class="fw-lighter">{{ item.age }}</td>
+              <td class="fw-lighter">{{ item.contact }}</td>
+              <td class="fw-lighter">{{ item.address }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -150,11 +96,6 @@
         <div class="col-md-3">
           <label class="text-muted small">Taluka</label>
           <div class="fw-semibold">{{ caseDetailsForm.value.taluka }}</div>
-        </div>
-
-        <div class="col-md-3">
-          <label class="text-muted small">Hobli</label>
-          <div class="fw-semibold">{{ caseDetailsForm.value.hobli }}</div>
         </div>
 
         <div class="col-md-6">
