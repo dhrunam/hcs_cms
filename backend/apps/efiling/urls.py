@@ -36,6 +36,9 @@ from apps.efiling.views.efiling_file_scrutiny_checklist_view import (
     FileScrutinyCheckListListCreateView,
     FileScrutinyCheckListRetrieveUpdateDestroyView,
 )
+from apps.efiling.views.vakalatnama_views import (
+    VakalatnamaListCreateView
+    ,VakalatnamaRetrieveUpdateDestroyView)
 
 
 app_name = "efiling"
@@ -126,6 +129,16 @@ urlpatterns = [
         "file-scrutiny-checklists/<int:pk>/",
         FileScrutinyCheckListRetrieveUpdateDestroyView.as_view(),
         name="file-scrutiny-checklist-detail",
+    ),
+    path(
+        "vakalatnama/",
+        VakalatnamaListCreateView.as_view(),
+        name="vakalatnama-list-create",
+    ),
+    path(
+        "vakalatnama/<int:pk>/",
+        VakalatnamaRetrieveUpdateDestroyView.as_view(),
+        name="vakalatnama-detail",
     ),
 ]
 
