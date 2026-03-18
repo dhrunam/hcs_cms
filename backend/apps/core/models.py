@@ -395,7 +395,7 @@ class Vakalatnama(BaseModel):
       
         db_table = 'vakalatnama'
 
-class EfilerDocumentAccecss(BaseModel):
+class EfilerDocumentAccess(BaseModel):
     vakalatnama= models.ForeignKey(Vakalatnama, on_delete=models.CASCADE, related_name='document_accesses')
     e_filing = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name='assigned_advocates')
     e_filing_number = models.CharField(max_length=100, blank=True, null=True)
