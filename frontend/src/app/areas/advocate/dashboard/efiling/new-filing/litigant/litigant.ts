@@ -16,7 +16,13 @@ export class Litigant {
   @Input() litigantList!: any;
   organisations: any[] = [];
   states: any[] = [];
+  districts: any[] = [];
   @Output() deleted = new EventEmitter<number>();
+  expandedRows: { [key: number]: boolean } = {};
+
+  toggleRow(index: number) {
+    this.expandedRows[index] = !this.expandedRows[index];
+  }
   constructor(
     private organisationService: OrganisationService,
     private eFilingService: EfilingService,
@@ -36,6 +42,12 @@ export class Litigant {
     });
   }
 
+  get sortedLitigants() {
+    return this.litigantList.sort(
+      (a: any, b: any) => Number(b.is_petitioner) - Number(a.is_petitioner),
+    );
+  }
+
   get_organisation_list() {
     this.organisationService.get_organisations().subscribe({
       next: (data) => {
@@ -49,6 +61,22 @@ export class Litigant {
     this.stateService.get_states().subscribe({
       next: (data) => {
         this.states = data.results;
+      },
+    });
+  }
+
+  onStateChange(event: any) {
+    const stateId = event.target.value;
+
+    if (stateId) {
+      this.get_district_list_by_state_id(+stateId);
+    }
+  }
+
+  get_district_list_by_state_id(state_id: number) {
+    this.stateService.get_district_by_state_id(state_id).subscribe({
+      next: (data) => {
+        this.districts = data.results;
       },
     });
   }

@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input } from '@angular/core';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormGroup } from '@angular/forms';
 import { CaseTypeService } from '../../../../../../services/master/case-type.services';
+import { OrganisationService } from '../../../../../../services/master/organisation.services';
 
 @Component({
   selector: 'app-e-file',
@@ -12,9 +13,22 @@ import { CaseTypeService } from '../../../../../../services/master/case-type.ser
 export class EFile {
   @Input() form!: FormGroup;
   @Input() litigantList!: any;
-  caseTypes: any[] = [];
+  @Input() actList!: any;
+  @Input() docList!: any;
+  @Output() goToPage = new EventEmitter<number>();
 
-  constructor(private caseTypeService: CaseTypeService) {}
+  caseTypes: any[] = [];
+  expandedRows: { [key: number]: boolean } = {};
+  organisations: any[] = [];
+
+  toggleRow(index: number) {
+    this.expandedRows[index] = !this.expandedRows[index];
+  }
+
+  constructor(
+    private caseTypeService: CaseTypeService,
+    private organisationService: OrganisationService,
+  ) {}
 
   ngOnInit() {}
 
@@ -24,6 +38,12 @@ export class EFile {
         this.caseTypes = data.results;
       },
     });
+  }
+
+  get sortedLitigants() {
+    return this.litigantList.sort(
+      (a: any, b: any) => Number(b.is_petitioner) - Number(a.is_petitioner),
+    );
   }
 
   get_case_type_name(id: number): string {
@@ -40,5 +60,21 @@ export class EFile {
 
   get caseDetailsForm(): FormGroup {
     return this.form.get('caseDetails') as FormGroup;
+  }
+
+  get_organisation_list() {
+    this.organisationService.get_organisations().subscribe({
+      next: (data) => {
+        this.organisations = data.results;
+        console.log(this.organisations);
+      },
+    });
+  }
+
+  get_organisation_name(id: number): string {
+    return this.organisations.find((o) => o.id === id)?.orgname || '';
+  }
+  onUpdateClick(id: number) {
+    this.goToPage.emit(id);
   }
 }
