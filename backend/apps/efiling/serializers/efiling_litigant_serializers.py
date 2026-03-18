@@ -11,6 +11,7 @@ class EfilingLitigantSerializer(serializers.ModelSerializer):
             'e_filing',
             'e_filing_number',
             'organization',
+            'sequence_number',
             'name',
             'gender',
             'age',
