@@ -1,9 +1,31 @@
 from rest_framework import serializers
 
-from apps.core.models import EfilingLitigant
+from apps.core.models import District, EfilingLitigant, OrgnameT, State
+
+
+class EfilingOrganizationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrgnameT
+        fields = ['id', 'orgname']
+
+
+class EfilingStateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = State
+        fields = ['id', 'state']
+
+
+class EfilingDistrictSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = District
+        fields = ['id', 'district']
 
 
 class EfilingLitigantSerializer(serializers.ModelSerializer):
+    organization_detail = EfilingOrganizationSerializer(source='organization', read_only=True)
+    state_detail = EfilingStateSerializer(source='state_id', read_only=True)
+    district_detail = EfilingDistrictSerializer(source='district_id', read_only=True)
+
     class Meta:
         model = EfilingLitigant
         fields = [
@@ -26,6 +48,9 @@ class EfilingLitigantSerializer(serializers.ModelSerializer):
             'address',
             'state_id',
             'district_id',
+            'organization_detail',
+            'state_detail',
+            'district_detail',
             'taluka',
             'village',
             'is_active',
