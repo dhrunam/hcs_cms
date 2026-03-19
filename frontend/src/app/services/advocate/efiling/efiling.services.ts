@@ -41,6 +41,6 @@ export class EfilingService {
   }
 
   get_filings_under_scrutiny(): Observable<any> {
-    return this.http.get<any>(`${app_url}/api/v1/efiling/efilings`);
+    return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/?is_draft=false`);
   }
 }
