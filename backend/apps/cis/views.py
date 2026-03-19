@@ -1,4 +1,4 @@
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -14,7 +14,6 @@ from rest_framework.response import Response
 
 #     queryset = CISFilingNumber.objects.all()
 #     serializer_class = CISFilingNumberSerializer
-#     permission_classes = [permissions.IsAuthenticated]
 
 #     def get_queryset(self):
 #         """Staff users can view all; regular users cannot access CIS data."""
@@ -32,7 +31,6 @@ from rest_framework.response import Response
 
 #     queryset = CISDataLog.objects.all()
 #     serializer_class = CISDataLogSerializer
-#     permission_classes = [permissions.IsAuthenticated]
 
 #     def get_queryset(self):
 #         """Only staff users can view data logs."""
