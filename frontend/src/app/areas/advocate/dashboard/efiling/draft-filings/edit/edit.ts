@@ -139,6 +139,15 @@ export class Edit {
     this.route.queryParams.subscribe((params) => {
       this.filingId = params['id'];
       this.eFilingNumber = params['e_filing_number'];
+      this.get_litigant_list_by_filing_id();
+    });
+  }
+
+  get_litigant_list_by_filing_id() {
+    this.eFilingService.get_litigant_list_by_filing_id(this.filingId || 0).subscribe({
+      next: (data) => {
+        this.litigantList = data.results;
+      },
     });
   }
 
