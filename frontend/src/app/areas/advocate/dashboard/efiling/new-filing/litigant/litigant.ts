@@ -3,6 +3,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { OrganisationService } from '../../../../../../services/master/organisation.services';
 import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
+import { StateAndDistrictService } from '../../../../../../services/master/state_and_district.services';
 
 @Component({
   selector: 'app-litigant',
@@ -14,14 +15,23 @@ export class Litigant {
   @Input() form!: FormGroup;
   @Input() litigantList!: any;
   organisations: any[] = [];
+  states: any[] = [];
+  districts: any[] = [];
   @Output() deleted = new EventEmitter<number>();
+  expandedRows: { [key: number]: boolean } = {};
+
+  toggleRow(index: number) {
+    this.expandedRows[index] = !this.expandedRows[index];
+  }
   constructor(
     private organisationService: OrganisationService,
     private eFilingService: EfilingService,
+    private stateService: StateAndDistrictService,
   ) {}
 
   ngOnInit() {
     this.get_organisation_list();
+    this.get_state_list();
   }
 
   delete_ligitant_details(id: number) {
@@ -32,11 +42,41 @@ export class Litigant {
     });
   }
 
+  get sortedLitigants() {
+    return this.litigantList.sort(
+      (a: any, b: any) => Number(b.is_petitioner) - Number(a.is_petitioner),
+    );
+  }
+
   get_organisation_list() {
     this.organisationService.get_organisations().subscribe({
       next: (data) => {
         this.organisations = data.results;
         console.log(this.organisations);
+      },
+    });
+  }
+
+  get_state_list() {
+    this.stateService.get_states().subscribe({
+      next: (data) => {
+        this.states = data.results;
+      },
+    });
+  }
+
+  onStateChange(event: any) {
+    const stateId = event.target.value;
+
+    if (stateId) {
+      this.get_district_list_by_state_id(+stateId);
+    }
+  }
+
+  get_district_list_by_state_id(state_id: number) {
+    this.stateService.get_district_by_state_id(state_id).subscribe({
+      next: (data) => {
+        this.districts = data.results;
       },
     });
   }
