@@ -7,13 +7,21 @@ from pathlib import Path
 import dj_database_url
 from dotenv import load_dotenv
 
-# ---------------------------------------------------------------------------
-# Paths
-# ---------------------------------------------------------------------------
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-
-# Load .env from the project root (backend/)
 load_dotenv(BASE_DIR / ".env")
+
+
+def env_bool(name, default=False):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "t", "yes", "y", "on"}
+
+
+def env_list(name, default=""):
+    value = os.getenv(name, default)
+    return [item.strip() for item in value.split(",") if item.strip()]
 
 # ---------------------------------------------------------------------------
 # Security
@@ -42,11 +50,13 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     # Local
+    "drf_sso_resource",
     "apps.accounts",
     "apps.cis",
     "apps.core",
     "apps.efiling",
     "apps.master",
+   
 ]
 
 MIDDLEWARE = [
@@ -132,9 +142,11 @@ AUTHENTICATION_BACKENDS = [
 # Django REST Framework
 # ---------------------------------------------------------------------------
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": [],
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "drf_sso_resource.authentication.SSOResourceServerAuthentication",
+    ],
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",
+        "rest_framework.permissions.IsAuthenticated",
     ],
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
@@ -149,15 +161,6 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
 }
-
-# ---------------------------------------------------------------------------
-# External SSO / Resource Server
-# ---------------------------------------------------------------------------
-SSO_BASE_URL = os.environ.get("SSO_BASE_URL", "").strip()
-SSO_INTROSPECTION_URL = os.environ.get("SSO_INTROSPECTION_URL", "").strip()
-SSO_CLIENT_ID = os.environ.get("SSO_CLIENT_ID", "").strip()
-SSO_CLIENT_SECRET = os.environ.get("SSO_CLIENT_SECRET", "").strip()
-SSO_VERIFY_SSL = os.environ.get("SSO_VERIFY_SSL", "True").lower() in ("1", "true", "yes")
 
 # ---------------------------------------------------------------------------
 # CORS
@@ -197,3 +200,35 @@ STORAGES = {
 # Default primary key
 # ---------------------------------------------------------------------------
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+
+OAUTH2_SERVER_URL = os.getenv('OAUTH2_SERVER_URL', 'http://localhost:8000')
+OAUTH2_USERINFO_URL = os.getenv('OAUTH2_USERINFO_URL', f'{OAUTH2_SERVER_URL}/api/oidc/userinfo/')
+SSO_BASE_URL = os.getenv('SSO_BASE_URL', OAUTH2_SERVER_URL).strip()
+SSO_INTROSPECTION_URL = os.getenv('SSO_INTROSPECTION_URL', 'http://localhost:8000/o/introspect/')
+SSO_CLIENT_ID = os.getenv('SSO_CLIENT_ID', '')
+SSO_CLIENT_SECRET = os.getenv('SSO_CLIENT_SECRET', '')
+SSO_VERIFY_SSL = env_bool('SSO_VERIFY_SSL', True)
+SSO_HTTP_TIMEOUT = float(os.getenv('SSO_HTTP_TIMEOUT', '3'))
+SSO_HTTP_RETRY_TOTAL = int(os.getenv('SSO_HTTP_RETRY_TOTAL', '1'))
+SSO_HTTP_RETRY_CONNECT = int(os.getenv('SSO_HTTP_RETRY_CONNECT', '1'))
+SSO_HTTP_RETRY_READ = int(os.getenv('SSO_HTTP_RETRY_READ', '1'))
+SSO_HTTP_RETRY_BACKOFF = float(os.getenv('SSO_HTTP_RETRY_BACKOFF', '0.2'))
+SSO_HTTP_POOL_CONNECTIONS = int(os.getenv('SSO_HTTP_POOL_CONNECTIONS', '20'))
+SSO_HTTP_POOL_MAXSIZE = int(os.getenv('SSO_HTTP_POOL_MAXSIZE', '50'))
+SSO_INTROSPECTION_CACHE_TTL = int(os.getenv('SSO_INTROSPECTION_CACHE_TTL', '120'))
+SSO_USERINFO_CACHE_TTL = int(os.getenv('SSO_USERINFO_CACHE_TTL', '300'))
+SSO_INTROSPECTION_CACHE_PREFIX = os.getenv('SSO_INTROSPECTION_CACHE_PREFIX', 'sso:introspection')
+SSO_USERINFO_CACHE_PREFIX = os.getenv('SSO_USERINFO_CACHE_PREFIX', 'sso:userinfo')
+SSO_ENABLE_USERINFO_FALLBACK = env_bool('SSO_ENABLE_USERINFO_FALLBACK', True)
+SSO_USER_SYNC_HANDLER = os.getenv('SSO_USER_SYNC_HANDLER', 'drf_sso_resource.user_sync.map_sso_user')
+
+# The package registers the app_authorized signal automatically.
+# Set False here only if you want to disable signal-based sync entirely.
+SSO_SIGNAL_AUTO_SYNC = env_bool('SSO_SIGNAL_AUTO_SYNC', True)
+SSO_SUB_CLAIM_KEYS = tuple(env_list('SSO_SUB_CLAIM_KEYS', 'sub,id'))
+SSO_USERNAME_CLAIM_KEYS = tuple(env_list('SSO_USERNAME_CLAIM_KEYS', 'preferred_username,username,email'))
+SSO_EMAIL_CLAIM_KEYS = tuple(env_list('SSO_EMAIL_CLAIM_KEYS', 'email'))
+
+    
