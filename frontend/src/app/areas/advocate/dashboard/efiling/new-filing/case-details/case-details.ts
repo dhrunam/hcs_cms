@@ -16,7 +16,7 @@ export class CaseDetails {
   @Input() actList!: any;
   acts: any[] = [];
   states: any[] = [];
-
+  districts: any[] = [];
   @Output() actListChange = new EventEmitter<any[]>();
   isDisabled = false;
   constructor(
@@ -37,7 +37,14 @@ export class CaseDetails {
       },
     });
   }
-
+  get_districts(event:any){
+    const stateId = parseInt(event.target.value);
+    this.stateService.get_district_by_state_id(stateId).subscribe({
+      next: (data) => {
+        this.districts = data.results;
+      },
+    });
+  }
   get_act_types() {
     this.actService.get_act_types().subscribe({
       next: (data) => {

@@ -241,3 +241,18 @@
   text-align: center;
   text-transform: uppercase;
 }
+
+.document-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.document-type-header {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  color: #334155;
+  font-weight: 700;
+  padding: 0.45rem 0.65rem;
+}

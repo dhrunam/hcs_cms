@@ -11,6 +11,8 @@ import { CaseDetails } from '../../new-filing/case-details/case-details';
 import { EFile } from '../../new-filing/e-file/e-file';
 import { UploadDocuments } from '../../new-filing/upload-documents/upload-documents';
 import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
+import { HttpEventType } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-edit',
@@ -42,6 +44,10 @@ export class Edit {
   isUpdateMode = false;
   docList: any[] = [];
   isDeclarationChecked = false;
+
+  isUploadingDocuments = false;
+  uploadFileProgresses: number[] = [];
+  uploadCompletedToken = 0;
 
   form!: FormGroup;
 
@@ -434,19 +440,75 @@ export class Edit {
     });
   }
 
-  handleDocUpload(data: any) {
-    const formData = new FormData();
-    formData.append('document_type', data.document_type);
-    formData.append('final_document', data.file);
-    formData.append('e_filing', this.filingId + '');
-    formData.append('e_filing_number', this.eFilingNumber);
+  async handleDocUpload(data: any) {
+    const documentType = String(data?.document_type || '').trim();
+    const uploadItems = Array.isArray(data?.items) ? data.items : [];
 
-    this.eFilingService.upload_case_documnets(formData).subscribe({
-      next: (res) => {
-        console.log('After uploading documents', res);
+    if (!documentType || uploadItems.length === 0 || !this.filingId) return;
 
-        this.docList.push(res);
-      },
+    this.isUploadingDocuments = true;
+    this.uploadFileProgresses = uploadItems.map(() => 0);
+
+    try {
+      const documentPayload = new FormData();
+      documentPayload.append('document_type', documentType);
+      documentPayload.append('e_filing', String(this.filingId));
+      documentPayload.append('e_filing_number', this.eFilingNumber);
+
+      const documentRes = await firstValueFrom(this.eFilingService.upload_case_documnets(documentPayload));
+      const documentId = documentRes?.id;
+      if (!documentId) return;
+
+      const uploadedDocumentParts: any[] = [];
+
+      for (let i = 0; i < uploadItems.length; i++) {
+        const item = uploadItems[i];
+
+        const indexPayload = new FormData();
+        indexPayload.append('document', String(documentId));
+        indexPayload.append('document_part_name', String(item.index_name || '').trim());
+        indexPayload.append('file_part_path', item.file);
+        indexPayload.append('document_sequence', String(i + 1));
+        if (item.index_id) {
+          indexPayload.append('index', String(item.index_id));
+        }
+
+        const indexRes = await this.uploadIndexFileWithProgress(indexPayload, i);
+        uploadedDocumentParts.push(indexRes);
+      }
+
+      this.docList.push({
+        ...documentRes,
+        document_indexes: uploadedDocumentParts,
+        final_document: uploadedDocumentParts[0]?.file_url || documentRes?.final_document,
+      });
+
+      this.uploadCompletedToken++;
+    } catch (error) {
+      console.error('Document upload failed', error);
+    } finally {
+      this.isUploadingDocuments = false;
+    }
+  }
+
+  private uploadIndexFileWithProgress(formData: FormData, index: number): Promise<any> {
+    return new Promise((resolve, reject) => {
+      this.eFilingService.upload_case_documnets_index(formData).subscribe({
+        next: (event: any) => {
+          if (event.type === HttpEventType.UploadProgress) {
+            const total = event.total || 0;
+            if (total > 0) {
+              this.uploadFileProgresses[index] = Math.round((event.loaded / total) * 100);
+            }
+          }
+
+          if (event.type === HttpEventType.Response) {
+            this.uploadFileProgresses[index] = 100;
+            resolve(event.body);
+          }
+        },
+        error: (err) => reject(err),
+      });
     });
   }
 

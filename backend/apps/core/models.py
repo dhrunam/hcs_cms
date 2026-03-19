@@ -317,6 +317,30 @@ class EfilingActs(BaseModel):
     class Meta:
         
         db_table = 'e_filing_acts'
+
+
+def _safe_folder_component(value: str, default: str = "unknown") -> str:
+    """
+    Make a string safe to use as a folder name.
+    Keep it simple: allow alnum + '._-' and replace everything else with '_'.
+    """
+
+    raw = (value or "").strip()
+    if not raw:
+        return default
+
+    # Avoid directory traversal if a value accidentally contains path separators.
+    raw = raw.replace("\\", "/").split("/")[-1]
+
+    cleaned_chars: list[str] = []
+    for ch in raw:
+        if ch.isalnum() or ch in "._-":
+            cleaned_chars.append(ch)
+        else:
+            cleaned_chars.append("_")
+
+    cleaned = "".join(cleaned_chars).strip("_")
+    return cleaned or default
        
 
 
@@ -325,7 +349,15 @@ class EfilingDocuments(BaseModel):
     e_filing_number = models.CharField(max_length=100, blank=True, null=True)
     document_type = models.CharField(max_length=512, blank=True, null=True) 
     parent_e_filing_document = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='child_documents')
-    final_document = models.FileField(upload_to='efile/final_documents/', max_length=512, blank=True, null=True)
+    def final_document_upload_to(instance, filename: str) -> str:
+        efiling_number = instance.e_filing_number or "unknown"
+        document_type_folder = _safe_folder_component(instance.document_type, default="document_type")
+
+        # Preserve original filename (but strip any path segments).
+        safe_filename = (filename or "").replace("\\", "/").split("/")[-1] or "document.pdf"
+        return f"efile/{efiling_number}/{document_type_folder}/{safe_filename}"
+
+    final_document = models.FileField(upload_to=final_document_upload_to, max_length=512, blank=True, null=True)
     is_ia = models.BooleanField(default=False) 
     class Meta:
       
@@ -349,8 +381,15 @@ class EfilingDocumentsIndex(BaseModel):
             efiling_number = instance.document.e_filing_number
         else:
             efiling_number = "unknown"
-        part_name = instance.document_part_name or "part"
-        return f"media/efile/{efiling_number}/{part_name}.pdf"
+        document_type_folder = _safe_folder_component(
+            instance.document.document_type if instance.document else None,
+            default="document_type",
+        )
+        part_name = _safe_folder_component(instance.document_part_name or "part", default="part")
+
+        # Store all PDF parts under: media/efile/<efiling_number>/<document_type>/
+        # (Django will prefix MEDIA_ROOT and serve it under MEDIA_URL).
+        return f"efile/{efiling_number}/{document_type_folder}/{part_name}.pdf"
     file_part_path = models.FileField(upload_to=file_part_upload_to, max_length=512)
     is_locked = models.BooleanField(default=False)
     document_sequence = models.IntegerField(blank=True, null=True)
