@@ -47,7 +47,7 @@
       <div *ngIf="step === 1">
         <app-initial-inputs [form]="initialInputsForm"> </app-initial-inputs>
 
-        <div class="alert alert-warning px-2 p-0 py-1">
+        <div class="alert alert-warning px-2 p-0 py-1 mt-4">
           <small>
             Note: Once the E-Filing Number is generated, you will not be able to make changes to
             these details.
@@ -157,30 +157,42 @@
               <div class="list-group list-group-flush">
                 <div
                   style="border-left: 2px solid black"
-                  class="list-group-item d-flex justify-content-between align-items-center"
+                  class="list-group-item"
                   *ngFor="let doc of docList; let i = index"
                 >
-                  <!-- Left -->
-                  <div class="text-start">
-                    <div class="fw-semibold">{{ i + 1 }}. {{ doc.document_type }}</div>
-                  </div>
+                  <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div class="text-start">
+                      <div class="fw-semibold">{{ i + 1 }}. {{ doc.document_type }}</div>
+                    </div>
 
-                  <!-- Right Actions -->
-                  <div class="d-flex gap-2">
-                    <!-- Preview -->
-                    <a
-                      [href]="doc.final_document"
-                      target="_blank"
-                      class="btn btn-sm btn-outline-primary"
-                    >
-                      <i class="fa fa-eye"></i> view
-                    </a>
-
-                    <!-- Delete -->
                     <button class="btn btn-sm btn-outline-danger" (click)="deleteDoc(doc.id, i)">
                       <i class="fa fa-trash"></i>
                       delete
                     </button>
+                  </div>
+
+                  <div class="mt-2 ps-2" *ngIf="doc.document_indexes?.length > 0">
+                    <div
+                      *ngFor="let filePart of doc.document_indexes; let j = index"
+                      class="d-flex justify-content-between align-items-center py-1"
+                    >
+                      <div class="small text-muted text-start">
+                        {{ j + 1 }}. {{ filePart.document_part_name || 'Document Part' }}
+                      </div>
+                      <a
+                        [href]="filePart.file_url || filePart.file_part_path"
+                        target="_blank"
+                        class="btn btn-sm btn-outline-primary"
+                      >
+                        <i class="fa fa-eye"></i> view
+                      </a>
+                    </div>
+                  </div>
+
+                  <div class="mt-2 ps-2" *ngIf="!doc.document_indexes?.length && doc.final_document">
+                    <a [href]="doc.final_document" target="_blank" class="btn btn-sm btn-outline-primary">
+                      <i class="fa fa-eye"></i> view
+                    </a>
                   </div>
                 </div>
               </div>
@@ -189,6 +201,9 @@
 
           <app-upload-documents
             [form]="uploadFilingDocForm"
+            [isUploading]="isUploadingDocuments"
+            [fileProgresses]="uploadFileProgresses"
+            [uploadCompletedToken]="uploadCompletedToken"
             (submitDoc)="handleDocUpload($event)"
           ></app-upload-documents>
         </div>
