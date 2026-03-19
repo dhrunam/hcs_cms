@@ -41,7 +41,7 @@ export class EfilingService {
   final_submit_efiling(id: number): Observable<any> {
     var fd = new FormData();
     fd.append('is_draft', 'false');
-    return this.http.patch<any>(`${app_url}/api/v1/efiling/efilings/28/`, fd);
+    return this.http.patch<any>(`${app_url}/api/v1/efiling/efilings/${id}/`, fd);
   }
 
   add_case_details_act(fd: FormData) {
@@ -56,6 +56,10 @@ export class EfilingService {
     return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/?is_draft=true`);
   }
 
+  get_filing_by_id(id: number): Observable<any> {
+    return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/${id}/`);
+  }
+
   get_litigant_list_by_filing_id(id: number): Observable<any> {
     console.log(`${app_url}/api/v1/efiling/efiling-litigants/?efiling_id=${id}`);
     return this.http.get<any>(`${app_url}/api/v1/efiling/efiling-litigants/?efiling_id=${id}`);
@@ -63,6 +67,50 @@ export class EfilingService {
   get_case_details_by_filing_id(id: number): Observable<any> {
     console.log(`${app_url}/api/v1/efiling/efiling-case-details/?efiling_id=${id}`);
     return this.http.get<any>(`${app_url}/api/v1/efiling/efiling-case-details/?efiling_id=${id}`);
+  }
+
+  get_acts_by_filing_id(id: number): Observable<any> {
+    return this.http.get<any>(`${app_url}/api/v1/efiling/efiling-acts/?efiling_id=${id}`);
+  }
+
+  get_documents_by_filing_id(id: number): Observable<any> {
+    return this.http.get<any>(`${app_url}/api/v1/efiling/efiling-documents/?efiling_id=${id}`);
+  }
+
+  get_document_reviews_by_filing_id(id: number): Observable<any> {
+    return this.http.get<any>(`${app_url}/api/v1/efiling/efiling-documents-index/?efiling_id=${id}`);
+  }
+
+  get_document_scrutiny_history(documentIndexId: number): Observable<any> {
+    return this.http.get<any>(
+      `${app_url}/api/v1/efiling/efiling-documents-scrutiny-history/?document_index_id=${documentIndexId}`,
+    );
+  }
+
+  fetch_document_blob(fileUrl: string): Observable<Blob> {
+    return this.http.get(fileUrl, { responseType: 'blob' });
+  }
+
+  review_document(documentIndexId: number, payload: FormData | Record<string, any>): Observable<any> {
+    return this.http.patch<any>(
+      `${app_url}/api/v1/efiling/efiling-documents-index/${documentIndexId}/`,
+      payload,
+    );
+  }
+
+  replace_document(documentId: number, file: File, documentType?: string): Observable<any> {
+    const fd = new FormData();
+    fd.append('final_document', file);
+    if (documentType) {
+      fd.append('document_type', documentType);
+    }
+    return this.http.patch<any>(`${app_url}/api/v1/efiling/efiling-documents/${documentId}/`, fd);
+  }
+
+  get_file_scrutiny_checklist(caseTypeId: number): Observable<any> {
+    return this.http.get<any>(
+      `${app_url}/api/v1/efiling/file-scrutiny-checklists/?case_type=${caseTypeId}`,
+    );
   }
 
   get_document_index_master(): Observable<any> {

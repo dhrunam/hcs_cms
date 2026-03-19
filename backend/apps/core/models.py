@@ -333,6 +333,12 @@ class EfilingDocuments(BaseModel):
 
 
 class EfilingDocumentsIndex(BaseModel):
+    class ScrutinyStatus(models.TextChoices):
+        DRAFT = "DRAFT", "Draft"
+        UNDER_SCRUTINY = "UNDER_SCRUTINY", "Under Scrutiny"
+        ACCEPTED = "ACCEPTED", "Accepted"
+        REJECTED = "REJECTED", "Rejected"
+
     document= models.ForeignKey(EfilingDocuments, on_delete=models.SET_NULL, null=True, blank=True)
     index= models.ForeignKey(DocumentIndex,on_delete=models.SET_NULL, null=True, blank=True)
     
@@ -350,6 +356,14 @@ class EfilingDocumentsIndex(BaseModel):
     document_sequence = models.IntegerField(blank=True, null=True)
     is_compliant = models.BooleanField(default=False)
     comments = models.TextField(blank=True, null=True)
+    scrutiny_status = models.CharField(
+        max_length=32,
+        choices=ScrutinyStatus.choices,
+        default=ScrutinyStatus.DRAFT,
+    )
+    is_new_for_scrutiny = models.BooleanField(default=False)
+    last_resubmitted_at = models.DateTimeField(blank=True, null=True)
+    last_reviewed_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
       
@@ -379,6 +393,11 @@ class EfilingDocumentsScrutinyHistory(BaseModel):
     efiling_document_index = models.ForeignKey(EfilingDocumentsIndex, on_delete=models.SET_NULL, null=True, blank=True, related_name='scrutiny_history')
     is_compliant = models.BooleanField(default=False)
     comments = models.TextField(blank=True, null=True)
+    scrutiny_status = models.CharField(
+        max_length=32,
+        choices=EfilingDocumentsIndex.ScrutinyStatus.choices,
+        default=EfilingDocumentsIndex.ScrutinyStatus.DRAFT,
+    )
     recieved_at = models.DateTimeField(blank=False, null=False)
     response_at = models.DateTimeField(auto_now=True, null=True)
 
@@ -396,7 +415,7 @@ class Vakalatnama(BaseModel):
       
         db_table = 'vakalatnama'
 
-class EfilerDocumentAccecss(BaseModel):
+class EfilerDocumentAccess(BaseModel):
     vakalatnama= models.ForeignKey(Vakalatnama, on_delete=models.CASCADE, related_name='document_accesses')
     e_filing = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name='assigned_advocates')
     e_filing_number = models.CharField(max_length=100, blank=True, null=True)
