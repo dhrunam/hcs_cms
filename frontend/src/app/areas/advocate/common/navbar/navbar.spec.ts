@@ -17,7 +17,13 @@ describe('Navbar', () => {
             initializeAuth: () => Promise.resolve(),
             isLoggedIn: () => false,
             login: () => {},
-            logout: () => Promise.resolve(),
+            logout: () =>
+              Promise.resolve({
+                apiSessionLoggedOut: true,
+                ssoSessionLoggedOut: true,
+                tokensCleared: true,
+                success: true,
+              }),
           },
         },
       ],

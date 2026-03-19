@@ -191,7 +191,7 @@ export class NewFiling {
       return;
     }
 
-    if (this.step < 4) {
+    if (this.step < 5) {
       this.step++;
     }
 

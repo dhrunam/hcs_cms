@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { ToastrService } from 'ngx-toastr';
 import { AuthService } from '../../../../auth.service';
 
 @Component({
@@ -13,7 +14,10 @@ export class Navbar implements OnInit {
   currentTime: string = '';
   currentDate: string = '';
 
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private toastr: ToastrService,
+  ) {}
 
   ngOnInit() {
     this.authService.initializeAuth().catch((error) => {
@@ -37,7 +41,29 @@ export class Navbar implements OnInit {
 
   async onLogout(event: Event): Promise<void> {
     event.preventDefault();
-    await this.authService.logout();
+    const status = await this.authService.logout();
+
+    if (status.success) {
+      this.toastr.success('Logged out from both API and SSO sessions.');
+      return;
+    }
+
+    const issues: string[] = [];
+    if (!status.apiSessionLoggedOut) {
+      issues.push('API session');
+    }
+    if (!status.ssoSessionLoggedOut) {
+      issues.push('SSO session');
+    }
+    if (!status.tokensCleared) {
+      issues.push('local tokens');
+    }
+
+    this.toastr.warning(
+      `Logout partially completed. Check: ${issues.join(', ')}.`,
+      'Logout Verification',
+      { closeButton: true },
+    );
   }
 
   updateClock() {
