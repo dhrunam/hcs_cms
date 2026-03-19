@@ -64,3 +64,14 @@
   background-color: #285a48;
   color: white;
 }
+
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 400;
+  color: #111827;
+  border-left: 3px solid black;
+  padding-left: 10px;
+}
+.swal2-container {
+  z-index: 9999 !important;
+}

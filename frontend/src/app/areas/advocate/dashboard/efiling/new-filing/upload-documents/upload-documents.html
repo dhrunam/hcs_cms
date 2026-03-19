@@ -1,1 +1,99 @@
-<input type="file" multiple accept="application/pdf" (change)="onFileChange($event)" />
+<form [formGroup]="form" (ngSubmit)="submit()" class="form-group-block">
+  <div class="row g-3 align-items-end mb-3 mt-2">
+    <div class="col-md-4 text-start">
+      <label class="form-label text-start ps-lg-2">Document Type</label>
+      <input
+        type="text"
+        class="form-control top-control"
+        formControlName="document_type"
+        placeholder="Enter document type"
+        (input)="onTopDocumentTypeInput($any($event.target).value)"
+        [disabled]="isUploading"
+      />
+    </div>
+    <div class="col-md-4 text-start">
+      <label class="form-label text-start ps-lg-2">Select PDF files</label>
+      <div class="drop-zone top-control" (click)="!isUploading && pdfInput.click()">
+        <input
+          #pdfInput
+          type="file"
+          class="form-control d-none"
+          accept="application/pdf"
+          multiple
+          (change)="onFileChange($event)"
+        />
+        <span class="drop-text">Choose PDF files to upload</span>
+      </div>
+    </div>
+    <div class="col-md-4 d-grid" *ngIf="entries.length > 0">
+      <button class="btn btn-dark" type="submit" [disabled]="!canUpload()">
+        <span
+          *ngIf="isUploading"
+          class="spinner-border spinner-border-sm me-2"
+          role="status"
+          aria-hidden="true"
+        ></span>
+        {{ isUploading ? 'Uploading...' : 'Upload Documents' }}
+      </button>
+    </div>
+  </div>
+
+  <div
+    *ngIf="entries.length > 0"
+    class="file-list"
+    cdkDropList
+    [cdkDropListData]="entries"
+    [cdkDropListDisabled]="isUploading"
+    (cdkDropListDropped)="reorderEntries($event)"
+  >
+    <div class="file-row" *ngFor="let entry of entries; let i = index; trackBy: trackByEntry" cdkDrag>
+      <label class="form-label text-start mb-1">Index Name:</label>
+      <input
+        type="text"
+        class="form-control"
+        [value]="entry.index_name"
+        (input)="updateDocumentType(i, $any($event.target).value)"
+        [attr.list]="entry.index_name && entry.index_name.trim() ? 'index-name-suggestions-' + i : null"
+        placeholder="Eg. Synopsis/List of Dates and Events ...."
+        [disabled]="isUploading"
+      />
+
+      <datalist *ngIf="entry.index_name && entry.index_name.trim()" [id]="'index-name-suggestions-' + i">
+        <option *ngFor="let name of getIndexSuggestions(entry.index_name)" [value]="name"></option>
+      </datalist>
+
+      <div class="file-main">
+        <span class="drag-handle" cdkDragHandle title="Drag to reorder" [class.disabled]="isUploading">
+          <i class="fa-solid fa-grip-vertical"></i>
+        </span>
+        <span class="file-name" [title]="entry.file.name">{{ entry.file.name }}</span>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-danger"
+          (click)="removeEntry(i)"
+          [disabled]="isUploading"
+        >
+          Remove
+        </button>
+      </div>
+
+      <div class="upload-progress-wrap" *ngIf="isUploading || getFileProgress(i) > 0">
+        <div class="upload-progress-label">
+          <span>Upload progress</span>
+          <span>{{ getFileProgress(i) }}%</span>
+        </div>
+        <div class="progress">
+          <div
+            class="progress-bar"
+            role="progressbar"
+            [style.width.%]="getFileProgress(i)"
+            [attr.aria-valuenow]="getFileProgress(i)"
+            aria-valuemin="0"
+            aria-valuemax="100"
+          ></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</form>

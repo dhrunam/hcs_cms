@@ -105,7 +105,7 @@ DATABASES = {
 
     "default": dj_database_url.config(
         env="DATABASE_URL",
-        default="postgresql://postgres:postgres@localhost:5435/hcs_cms_db",
+        default="postgresql://postgres:postgres@10.182.144.249:5432/hcs_cms_db",
         conn_max_age=600,
         conn_health_checks=True,
     ),

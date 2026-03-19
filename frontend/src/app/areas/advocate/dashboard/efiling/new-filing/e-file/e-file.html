@@ -34,53 +34,160 @@
   </div>
 
   <!-- LITIGANT DETAILS -->
-  <div class="card shadow-sm mb-4 border-0 text-start">
-    <div class="card-header bg-dark text-white fw-semibold">Litigant Details</div>
+  <div class="card shadow-sm mb-4 border-0 text-start" *ngIf="litigantList.length > 0">
+    <div
+      class="card-header bg-dark text-white fw-semibold d-flex justify-content-between align-items-center"
+    >
+      <span>Litigant Details</span>
 
-    <div class="card-body" *ngIf="litigantList.length > 0">
-      <div class="card p-2 border-0 shadow-sm mb-4">
-        <table class="table table-striped" *ngIf="litigantList.length > 0">
-          <thead class="table-secondary fw-lighter">
-            <tr class="fw-light">
-              <th class="fw-light" style="border-top-left-radius: 10px">#</th>
+      <!-- Edit Button -->
+      <button
+        type="button"
+        class="btn btn-sm btn-light d-flex align-items-center gap-1"
+        (click)="onUpdateClick(2)"
+      >
+        <i class="fa-solid fa-pen"></i>
+        Edit
+      </button>
+    </div>
+
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-borderless align-middle mb-0">
+          <thead style="background-color: #f8fafc">
+            <tr class="text-muted small fw-light">
+              <th class="fw-light">#</th>
               <th class="fw-light">Type</th>
               <th class="fw-light">Name</th>
               <th class="fw-light">Gender</th>
               <th class="fw-light">Age</th>
               <th class="fw-light">Contact</th>
-              <th class="fw-light" style="border-top-right-radius: 10px">Address</th>
+              <th class="fw-light">Address</th>
+              <th class="fw-light">Action</th>
             </tr>
           </thead>
+
           <tbody>
-            <tr *ngFor="let item of litigantList; let i = index">
-              <td class="fw-lighter">{{ i + 1 }}</td>
-              <td class="fw-sem">{{ item.is_petitioner ? 'Petitioner' : 'Respondent' }}</td>
-              <td>{{ item.name }}</td>
-              <td class="fw-lighter">{{ item.gender }}</td>
-              <td class="fw-lighter">{{ item.age }}</td>
-              <td class="fw-lighter">{{ item.contact }}</td>
-              <td class="fw-lighter">{{ item.address }}</td>
-            </tr>
+            <ng-container *ngFor="let item of sortedLitigants; let i = index">
+              <!-- MAIN ROW (minimal) -->
+              <tr style="border-bottom: 1px solid #f1f5f9">
+                <td class="text-muted small">{{ i + 1 }}</td>
+
+                <td>
+                  <span
+                    class="d-inline-flex align-items-center gap-1 px-2 py-1"
+                    [ngStyle]="{
+                      'background-color': item.is_petitioner ? '#ecfdf5' : '#fef9c3',
+                      color: item.is_petitioner ? '#065f46' : '#713f12',
+                      'border-radius': '20px',
+                      'font-size': '12px',
+                    }"
+                  >
+                    <i
+                      class="fa-solid"
+                      [ngClass]="item.is_petitioner ? 'fa-user-check' : 'fa-user-xmark'"
+                      style="font-size: 11px"
+                    ></i>
+                    {{ item.is_petitioner ? 'Petitioner' : 'Respondent' }}
+                  </span>
+                </td>
+
+                <td class="fw-semibold text-dark">
+                  {{ item.name }}
+                </td>
+
+                <td class="text-muted small">
+                  {{ item.gender || '-' }}
+                </td>
+
+                <td class="text-muted small">
+                  {{ item.age || '-' }}
+                </td>
+
+                <td class="text-muted small">
+                  {{ item.contact || '-' }}
+                </td>
+
+                <td class="text-muted small">
+                  {{ item.address || '-' }}
+                </td>
+                <td class="d-flex gap-3 align-items-center">
+                  <!-- More / Less Toggle -->
+                  <span
+                    class="d-flex align-items-center gap-1"
+                    style="cursor: pointer; color: #64748b; font-size: 13px"
+                    (click)="toggleRow(i)"
+                  >
+                    {{ expandedRows[i] ? 'Less' : 'More' }}
+                    <i
+                      class="fa-solid"
+                      [ngClass]="expandedRows[i] ? 'fa-chevron-up' : 'fa-chevron-down'"
+                      style="font-size: 12px"
+                    ></i>
+                  </span>
+                </td>
+              </tr>
+
+              <!-- EXPANDED ROW -->
+              <tr *ngIf="expandedRows[i]">
+                <td colspan="8" style="background-color: #f8fafc">
+                  <div class="p-3 small text-muted">
+                    <div>
+                      <strong>Organization:</strong> {{ get_organisation_name(item.organization) }}
+                    </div>
+                    <div><strong>Sequence No:</strong> {{ item.sequence_number }}</div>
+                    <div><strong>Email:</strong> {{ item.email || '-' }}</div>
+                    <div><strong>Religion:</strong> {{ item.religion || '-' }}</div>
+                    <div><strong>Caste:</strong> {{ item.caste || '-' }}</div>
+                    <div><strong>Occupation:</strong> {{ item.occupation || '-' }}</div>
+                    <div>
+                      <strong>Differently Abled:</strong>
+                      {{ item.is_diffentially_abled ? 'Yes' : 'No' }}
+                    </div>
+                    <div><strong>State ID:</strong> {{ item.state_id || '-' }}</div>
+                    <div><strong>District ID:</strong> {{ item.district_id || '-' }}</div>
+                    <div><strong>Taluka:</strong> {{ item.taluka || '-' }}</div>
+                  </div>
+                </td>
+              </tr>
+            </ng-container>
           </tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <!-- CASE DETAILS -->
   <div class="card shadow-sm mb-4 border-0 text-start">
-    <div class="card-header bg-dark text-white fw-semibold">Case Details</div>
+    <div
+      class="card-header bg-dark text-white fw-semibold d-flex justify-content-between align-items-center"
+    >
+      <span>Case Details</span>
+
+      <!-- Edit Button -->
+      <button
+        type="button"
+        class="btn btn-sm btn-light d-flex align-items-center gap-1"
+        (click)="onUpdateClick(3)"
+      >
+        <i class="fa-solid fa-pen"></i>
+        Edit
+      </button>
+    </div>
 
     <div class="card-body">
       <div class="row g-3">
         <div class="col-md-6">
           <label class="text-muted small">Cause Of Action</label>
-          <div class="fw-semibold">{{ caseDetailsForm.value.causeOfAction }}</div>
+          <div class="fw-semibold">
+            {{ caseDetailsForm.value.cause_of_action }}
+          </div>
         </div>
 
         <div class="col-md-6">
           <label class="text-muted small">Cause Of Action Date</label>
-          <div class="fw-semibold">{{ caseDetailsForm.value.causeOfActionDate }}</div>
+          <div class="fw-semibold">
+            {{ caseDetailsForm.value.date_of_cause_of_action | date: 'dd MMM, yyyy' }}
+          </div>
         </div>
 
         <div class="col-md-3">
@@ -98,14 +205,94 @@
           <div class="fw-semibold">{{ caseDetailsForm.value.taluka }}</div>
         </div>
 
-        <div class="col-md-6">
-          <label class="text-muted small">Act</label>
-          <div class="fw-semibold">{{ caseDetailsForm.value.act }}</div>
-        </div>
+        <div class="col-md-12 mt-3">
+          <label class="text-muted small">Acts & Sections</label>
 
-        <div class="col-md-6">
-          <label class="text-muted small">Section</label>
-          <div class="fw-semibold">{{ caseDetailsForm.value.section }}</div>
+          <div *ngIf="actList.length > 0; else noActs">
+            <div
+              *ngFor="let act of actList; let i = index"
+              class="d-flex align-items-center justify-content-between border rounded px-3 py-2 mb-2"
+              style="background-color: #f8fafc"
+            >
+              <div>
+                <div class="fw-semibold">{{ i + 1 }}. {{ act.actname }}</div>
+                <div class="text-muted small">Section: {{ act.section }}</div>
+              </div>
+            </div>
+          </div>
+
+          <ng-template #noActs>
+            <div class="text-muted small">No acts added</div>
+          </ng-template>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card p-0 shadow-sm mb-4 border-0 text-start">
+    <div
+      class="card-header bg-dark text-white fw-semibold d-flex justify-content-between align-items-center"
+    >
+      <span>Documents Details</span>
+
+      <!-- Edit Button -->
+      <button
+        type="button"
+        class="btn btn-sm btn-light d-flex align-items-center gap-1"
+        (click)="onUpdateClick(4)"
+      >
+        <i class="fa-solid fa-pen"></i>
+        Edit
+      </button>
+    </div>
+
+    <div class="card-body p-0" *ngIf="docList.length > 0">
+      <div class="list-group list-group-flush">
+        <div
+          *ngFor="let doc of docList; let i = index"
+          class="list-group-item"
+          style="border-bottom: 1px solid #f1f5f9"
+        >
+          <div class="d-flex align-items-center gap-3 mb-2">
+            <div
+              class="d-flex align-items-center justify-content-center"
+              style="width: 36px; height: 36px; background-color: #fef2f2; border-radius: 8px"
+            >
+              <i class="fa-solid fa-file-pdf text-danger"></i>
+            </div>
+
+            <div class="text-start">
+              <div class="fw-semibold" style="color: #0f172a">{{ i + 1 }}. {{ doc.document_type }}</div>
+            </div>
+          </div>
+
+          <div class="ps-5" *ngIf="doc.document_indexes?.length > 0">
+            <div
+              *ngFor="let filePart of doc.document_indexes; let j = index"
+              class="d-flex justify-content-between align-items-center py-1"
+            >
+              <div class="small text-muted">{{ j + 1 }}. {{ filePart.document_part_name || 'Document Part' }}</div>
+              <a
+                [href]="filePart.file_url || filePart.file_part_path"
+                target="_blank"
+                class="btn btn-sm btn-light border d-flex align-items-center gap-1"
+              >
+                <i class="fa fa-eye text-primary"></i>
+                <span class="small">View</span>
+              </a>
+            </div>
+          </div>
+
+          <div class="ps-5" *ngIf="!doc.document_indexes?.length && doc.final_document">
+            <a
+              [href]="doc.final_document"
+              target="_blank"
+              class="btn btn-sm btn-light border d-flex align-items-center gap-1"
+            >
+              <i class="fa fa-eye text-primary"></i>
+              <span class="small">View</span>
+            </a>
+          </div>
         </div>
       </div>
     </div>

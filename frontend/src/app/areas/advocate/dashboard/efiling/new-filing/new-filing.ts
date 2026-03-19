@@ -9,6 +9,10 @@ import { CaseDetails } from './case-details/case-details';
 import { EfilingService } from '../../../../../services/advocate/efiling/efiling.services';
 import { EFile } from './e-file/e-file';
 import { UploadDocuments } from './upload-documents/upload-documents';
+import Swal from 'sweetalert2';
+import { ActivatedRoute } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
+import { HttpEventType } from '@angular/common/http';
 
 @Component({
   selector: 'app-new-filing',
@@ -27,16 +31,21 @@ import { UploadDocuments } from './upload-documents/upload-documents';
 })
 export class NewFiling {
   step = 1;
-  // filingId: number | null = null;
-  // eFilingNumber: string = '';
-  filingId: number = 4;
-  eFilingNumber: string = 'ASK20240000004C202600004';
+  filingId: number | null = null;
+  eFilingNumber: string = '';
+  // filingId: number = 28;
+  // eFilingNumber: string = 'ASK20240000028C202600028';
   step1Saved = false;
   step2Saved = false;
   step3Saved = false;
   litigantList: any[] = [];
   sequenceNumber_litigant: number = 1;
   isUpdateMode = false;
+  docList: any[] = [];
+  isDeclarationChecked = false;
+  isUploadingDocuments = false;
+  uploadFileProgresses: number[] = [];
+  uploadCompletedToken = 0;
 
   form!: FormGroup;
 
@@ -44,6 +53,7 @@ export class NewFiling {
     private fb: FormBuilder,
     private toastr: ToastrService,
     private eFilingService: EfilingService,
+    private route: ActivatedRoute,
   ) {
     this.form = this.fb.group({
       initialInputs: this.fb.group({
@@ -104,29 +114,56 @@ export class NewFiling {
       ),
 
       caseDetails: this.fb.group({
-        causeOfAction: ['', Validators.required],
-        causeOfActionDate: ['', Validators.required],
-        state: [''],
-        district: [''],
-        taluka: [''],
-        hobli: [''],
+        cause_of_action: ['', Validators.required],
+        date_of_cause_of_action: ['', Validators.required],
+        dispute_state: [''],
+        dispute_district: [''],
+        dispute_taluka: [''],
 
         act: ['', Validators.required],
         section: ['', Validators.required],
       }),
 
-      uploadFilingDoc: this.fb.group({
-        documents: [[], [Validators.required, this.pdfOnlyValidator]],
+      actDetails: this.fb.group({
+        act: ['', Validators.required],
+        section: ['', Validators.required],
       }),
+
+      uploadFilingDoc: this.fb.group({
+        document_type: [null, Validators.required],
+        final_document: [[], Validators.required],
+      }),
+      setDeclaration: this.fb.group({
+        isDeclarationChecked: [false, Validators.requiredTrue],
+      }),
+    });
+  }
+
+  ngOnInit() {
+    this.route.queryParams.subscribe((params) => {
+      this.filingId = params['id'];
+      this.eFilingNumber = params['e_filing_number'];
     });
   }
 
   actList: any[] = [];
 
   receiveActList(data: any[]) {
-    this.actList = data;
+    this.actList = [...this.actList, ...data];
+    if (this.caseDetailsForm.disabled) {
+      data.forEach((item: any) => {
+        const payload = new FormData();
 
-    console.log('Act list inm parent page', this.actList);
+        payload.append('e_filing', String(this.filingId));
+        payload.append('e_filing_number', this.eFilingNumber);
+        payload.append('act', item.act);
+        payload.append('section', item.section);
+
+        this.eFilingService.add_case_details_act(payload).subscribe();
+      });
+    }
+
+    console.log('Act list in parent page', this.actList);
 
     const group = this.form.get('caseDetails') as FormGroup;
 
@@ -163,6 +200,18 @@ export class NewFiling {
     return this.form.get('caseDetails') as FormGroup;
   }
 
+  getActDetailsForm(): FormGroup {
+    return this.form.get('actDetails') as FormGroup;
+  }
+
+  get uploadFilingDocForm(): FormGroup {
+    return this.form.get('uploadFilingDoc') as FormGroup;
+  }
+
+  get setDeclarationForm(): FormGroup {
+    return this.form.get('setDeclaration') as FormGroup;
+  }
+
   getCurrentForm(): FormGroup {
     if (this.step === 1) {
       return this.form.get('initialInputs') as FormGroup;
@@ -183,6 +232,10 @@ export class NewFiling {
     const currentForm = this.getCurrentForm();
 
     if (this.step == 2 && this.litigantList.length > 0) {
+      this.step++;
+    }
+
+    if (this.step == 4 && this.docList.length > 0) {
       this.step++;
     }
 
@@ -295,7 +348,9 @@ export class NewFiling {
       form.reset({
         is_diffentially_abled: false,
         is_petitioner: true,
-        sequence_number: this.sequenceNumber_litigant, // 👈 set here
+        sequence_number: this.sequenceNumber_litigant,
+        gender: '',
+        organization: '',
       });
 
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -337,17 +392,157 @@ export class NewFiling {
 
     this.eFilingService.post_case_details(payload).subscribe(() => {
       this.step = 4;
+      this.caseDetailsForm.disable();
+    });
+  }
+
+  goToPageFromPreview(step: number) {
+    this.step = step;
+  }
+
+  previewDoc(doc: any) {
+    if (doc.final_document) {
+      window.open(doc.final_document, '_blank');
+    }
+  }
+
+  deleteDoc(id: number, index: number) {
+    const confirmDelete = confirm(
+      'Your document will be deleted and you need to re-upload it. Continue?',
+    );
+
+    if (!confirmDelete) return;
+
+    this.eFilingService.delete_case_documnets_before_final_filing(id).subscribe({
+      next: (res) => {
+        console.log('Deleted response', res);
+        this.docList.splice(index, 1);
+      },
+    });
+  }
+
+  async handleDocUpload(data: any) {
+    const documentType = String(data?.document_type || '').trim();
+    const uploadItems = Array.isArray(data?.items) ? data.items : [];
+
+    if (!documentType || uploadItems.length === 0 || !this.filingId) return;
+
+    this.isUploadingDocuments = true;
+    this.uploadFileProgresses = uploadItems.map(() => 0);
+
+    try {
+      const documentPayload = new FormData();
+      documentPayload.append('document_type', documentType);
+      documentPayload.append('e_filing', String(this.filingId));
+      documentPayload.append('e_filing_number', this.eFilingNumber);
+
+      const documentRes = await firstValueFrom(
+        this.eFilingService.upload_case_documnets(documentPayload),
+      );
+
+      const documentId = documentRes?.id;
+      if (!documentId) return;
+
+      const uploadedDocumentParts: any[] = [];
+
+      for (let i = 0; i < uploadItems.length; i++) {
+        const item = uploadItems[i];
+        const indexPayload = new FormData();
+        indexPayload.append('document', String(documentId));
+        indexPayload.append('document_part_name', String(item.index_name || '').trim());
+        indexPayload.append('file_part_path', item.file);
+        indexPayload.append('document_sequence', String(i + 1));
+        if (item.index_id) {
+          indexPayload.append('index', String(item.index_id));
+        }
+
+        const indexRes = await this.uploadIndexFileWithProgress(indexPayload, i);
+        uploadedDocumentParts.push(indexRes);
+      }
+
+      this.docList.push({
+        ...documentRes,
+        document_indexes: uploadedDocumentParts,
+        final_document: uploadedDocumentParts[0]?.file_url || documentRes?.final_document,
+      });
+      this.uploadCompletedToken++;
+    } catch (error) {
+      console.error('Document upload failed', error);
+    } finally {
+      this.isUploadingDocuments = false;
+    }
+  }
+
+  private uploadIndexFileWithProgress(formData: FormData, index: number): Promise<any> {
+    return new Promise((resolve, reject) => {
+      this.eFilingService.upload_case_documnets_index(formData).subscribe({
+        next: (event: any) => {
+          if (event.type === HttpEventType.UploadProgress) {
+            const total = event.total || 0;
+            if (total > 0) {
+              this.uploadFileProgresses[index] = Math.round((event.loaded / total) * 100);
+            }
+          }
+
+          if (event.type === HttpEventType.Response) {
+            this.uploadFileProgresses[index] = 100;
+            resolve(event.body);
+          }
+        },
+        error: (err) => reject(err),
+      });
+    });
+  }
+
+  saveStep4() {
+    const files = this.form.get('uploadFilingDoc.documents')?.value;
+
+    if (!files || files.length === 0) return;
+
+    const formData = new FormData();
+
+    files.forEach((file: File, index: number) => {
+      formData.append('documents', file); // same key for multiple
     });
   }
 
   submit() {
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
-      return;
-    }
+    Swal.fire({
+      title: 'Submit Filing?',
+      text: 'Once submitted, it will be forwarded for scrutiny.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, Submit',
+      cancelButtonText: 'Cancel',
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const payload = {
+          e_filing: this.filingId,
+          e_filing_number: this.eFilingNumber,
+          is_draft: false,
+        };
 
-    const formData = this.form.value;
+        this.eFilingService.final_submit_efiling(this.filingId || 0).subscribe({
+          next: (res) => {
+            Swal.fire({
+              icon: 'success',
+              title: 'Filed Successfully',
+              text: 'Your filing has been submitted for scrutiny.',
+            });
 
-    console.log(formData);
+            console.log('Final submit response', res);
+          },
+          error: (err) => {
+            Swal.fire({
+              icon: 'error',
+              title: 'Submission Failed',
+              text: 'Something went wrong. Please try again.',
+            });
+
+            console.error(err);
+          },
+        });
+      }
+    });
   }
 }
