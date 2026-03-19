@@ -1,0 +1,88 @@
+<div class="dashboard-header mb-4">
+  <div class="px-3 py-1">
+    <h5 class="page-title mb-1">Filings Under Scrutiny</h5>
+    <hr class="" />
+    <!-- <p class="text-muted small mb-0">View cases that are filed but still pending.</p> -->
+  </div>
+</div>
+
+<section class="pending-cases-section px-3">
+  <div class="card border-1 rounded-4">
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table align-middle mb-0 table-striped">
+          <thead style="background-color: #f1f5f9">
+            <tr class="text-secondary small fw-normal">
+              <th>#</th>
+              <th>Filing No</th>
+              <th>Case Type</th>
+              <th>Case Title</th>
+              <th>Filing Date</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+
+          <tbody class="text-muted small">
+            <tr
+              *ngFor="let c of filingsUnderScrutiny; let i = index"
+              style="border-bottom: 1px solid #e5e7eb; cursor: pointer"
+              [routerLink]="['/advocate/dashboard/efiling/pending-scrutiny/details', '1']"
+            >
+              <td>{{ i + 1 }}</td>
+              <td class="fw-medium text-dark">EF-2026-001</td>
+              <td>Civil</td>
+              <td>Property Dispute</td>
+              <td>12 Mar 2026</td>
+              <td>
+                <span
+                  class="badge rounded-pill px-3 py-1 fw-normal"
+                  style="background: #fef3c7; color: #92400e"
+                >
+                  Under Scrutiny
+                </span>
+              </td>
+            </tr>
+
+            <tr
+              style="border-bottom: 1px solid #e5e7eb; cursor: pointer"
+              [routerLink]="['/advocate/dashboard/efiling/pending-scrutiny/details', '1']"
+            >
+              <td>2</td>
+              <td class="fw-medium text-dark">EF-2026-002</td>
+              <td>Criminal</td>
+              <td>Theft Complaint</td>
+              <td>14 Mar 2026</td>
+              <td>
+                <span
+                  class="badge rounded-pill px-3 py-1"
+                  style="background: #fef3c7; color: #92400e"
+                >
+                  Under Scrutiny
+                </span>
+              </td>
+            </tr>
+
+            <tr
+              style="cursor: pointer"
+              [routerLink]="['/advocate/dashboard/efiling/pending-scrutiny/details', '1']"
+            >
+              <td>3</td>
+              <td class="fw-medium text-dark">EF-2026-003</td>
+              <td>Family</td>
+              <td>Divorce Petition</td>
+              <td>15 Mar 2026</td>
+              <td>
+                <span
+                  class="badge rounded-pill px-3 py-1"
+                  style="background: #fef3c7; color: #92400e"
+                >
+                  Under Scrutiny
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>

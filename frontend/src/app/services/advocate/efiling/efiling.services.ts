@@ -39,4 +39,8 @@ export class EfilingService {
   add_case_details_act(fd: FormData) {
     return this.http.post<any>(`${app_url}/api/v1/efiling/efiling-acts/`, fd);
   }
+
+  get_filings_under_scrutiny(): Observable<any> {
+    return this.http.get<any>(`${app_url}/api/v1/efiling/efilings`);
+  }
 }
