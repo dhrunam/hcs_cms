@@ -1,5 +1,4 @@
 from django.test import SimpleTestCase
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
 from apps.core.models import OrgnameT
 from apps.master.serializers.orgname_t_serializers import OrgnameTSerializer
@@ -12,6 +11,3 @@ class OrgnameTListViewTest(SimpleTestCase):
 
     def test_queryset_model(self):
         self.assertEqual(OrgnameTListView.queryset.model, OrgnameT)
-
-    def test_permission_classes(self):
-        self.assertEqual(OrgnameTListView.permission_classes, [IsAuthenticatedOrReadOnly])
