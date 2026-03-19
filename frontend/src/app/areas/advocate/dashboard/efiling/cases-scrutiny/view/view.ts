@@ -33,4 +33,29 @@ export class View {
       },
     });
   }
+
+  getStatusLabel(status: string | null): string {
+    const normalizedStatus = (status ?? '').trim().toLowerCase();
+    if (!normalizedStatus || normalizedStatus === 'submitted' || normalizedStatus === 'under_scrutiny') {
+      return 'Under Scrutiny';
+    }
+    if (normalizedStatus.includes('accept')) {
+      return 'Accepted';
+    }
+    if (normalizedStatus.includes('reject') || normalizedStatus.includes('object')) {
+      return 'Rejected';
+    }
+    return status ?? 'Under Scrutiny';
+  }
+
+  getStatusBadgeClass(status: string | null): string {
+    const label = this.getStatusLabel(status).toLowerCase();
+    if (label.includes('accept')) {
+      return 'background: #dcfce7; color: #166534';
+    }
+    if (label.includes('reject')) {
+      return 'background: #fee2e2; color: #991b1b';
+    }
+    return 'background: #fef3c7; color: #92400e';
+  }
 }

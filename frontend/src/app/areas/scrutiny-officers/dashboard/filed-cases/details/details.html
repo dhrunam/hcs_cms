@@ -1,0 +1,318 @@
+<div class="details-page">
+  <div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+    <div>
+      <div class="eyebrow-text">Scrutiny Workspace</div>
+      <h4 class="mb-1">Filed Case Review</h4>
+      <p class="text-muted small mb-0">
+        Review ordered PDFs inline, add notes, and accept or reject each document.
+      </p>
+    </div>
+
+    <a [routerLink]="['/scrutiny-officers/dashboard/filed-cases/view']" class="btn btn-light border btn-sm">
+      <i class="fa-solid fa-arrow-left me-1"></i>
+      Back to Filed Cases
+    </a>
+  </div>
+
+  <div *ngIf="isLoading" class="card border-0 shadow-sm">
+    <div class="card-body p-4 text-muted small">Loading scrutiny workspace...</div>
+  </div>
+
+  <div *ngIf="!isLoading && missingFilingId" class="card border-0 shadow-sm">
+    <div class="card-body p-4 text-center">
+      <h6 class="mb-2">Select a filed case first</h6>
+      <p class="text-muted small mb-3">Open this page from the filed cases list to review a case.</p>
+      <a [routerLink]="['/scrutiny-officers/dashboard/filed-cases/view']" class="btn btn-outline-primary btn-sm">
+        Go to Filed Cases
+      </a>
+    </div>
+  </div>
+
+  <ng-container *ngIf="!isLoading && filing">
+    <div class="card border-0 shadow-sm overview-card mb-4">
+      <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+          <div>
+            <div class="eyebrow-text mb-2">Case Overview</div>
+            <h5 class="mb-1">{{ filing.petitioner_name || 'Filed Case' }}</h5>
+            <p class="text-muted small mb-0">
+              {{ filing.case_type?.type_name || 'Case Type Pending' }} at {{ filing.bench || 'Bench pending' }}
+            </p>
+          </div>
+
+          <span class="status-badge" [ngClass]="getStatusClass(filing.status)">
+            {{ getStatusLabel(filing.status) }}
+          </span>
+        </div>
+
+        <div class="row g-3 mt-3">
+          <div class="col-md-3">
+            <div class="metric-card">
+              <div class="metric-label">Documents</div>
+              <div class="metric-value">{{ documents.length }}</div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="metric-card">
+              <div class="metric-label">Accepted</div>
+              <div class="metric-value text-success">{{ acceptedCount }}</div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="metric-card">
+              <div class="metric-label">Rejected</div>
+              <div class="metric-value text-danger">{{ rejectedCount }}</div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="metric-card">
+              <div class="metric-label">Pending</div>
+              <div class="metric-value text-warning-emphasis">{{ pendingCount }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+      <div class="col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <div class="section-title">Ordered Documents</div>
+                <div class="text-muted small">Maintains advocate upload order for scrutiny.</div>
+              </div>
+              <span class="small text-muted">{{ documents.length }} total</span>
+            </div>
+
+            <div *ngIf="documents.length === 0" class="text-muted small">No uploaded documents available yet.</div>
+
+            <div class="document-list" *ngIf="documents.length > 0">
+              <button
+                type="button"
+                class="document-item"
+                *ngFor="let document of documents; trackBy: trackById"
+                [class.document-item-active]="selectedDocument?.id === document.id"
+                (click)="selectDocument(document)"
+              >
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                  <div>
+                    <div class="document-title">
+                      #{{ document.document_sequence || '-' }} {{ getDocumentTitle(document) }}
+                    </div>
+                    <div class="document-meta">{{ getDocumentMeta(document) }}</div>
+                    <div class="document-meta" *ngIf="getDocumentDate(document)">
+                      {{ getDocumentDate(document) | date: 'dd MMM yyyy, hh:mm a' }}
+                    </div>
+                  </div>
+
+                  <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                    <span class="new-tag" *ngIf="document.is_new_for_scrutiny">new</span>
+                    <span class="status-badge status-badge-sm" [ngClass]="getStatusClass(document.scrutiny_status)">
+                      {{ getStatusLabel(document.scrutiny_status) }}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xl-9">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body p-4">
+            <div *ngIf="selectedDocument; else noSelection">
+              <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+                <div>
+                  <div class="section-title mb-1">{{ getDocumentTitle(selectedDocument) }}</div>
+                  <div class="text-muted small">
+                    Sequence {{ selectedDocument.document_sequence || '-' }} •
+                    {{ getDocumentMeta(selectedDocument) }}
+                  </div>
+                </div>
+
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                  <span class="new-tag" *ngIf="selectedDocument.is_new_for_scrutiny">new</span>
+                  <span class="status-badge" [ngClass]="getStatusClass(selectedDocument.scrutiny_status)">
+                    {{ getStatusLabel(selectedDocument.scrutiny_status) }}
+                  </span>
+                  <button type="button" class="btn btn-light border btn-sm" (click)="openInNewTab()">
+                    <i class="fa-solid fa-up-right-from-square me-1"></i>
+                    Open
+                  </button>
+                </div>
+              </div>
+
+              <div class="row g-4 align-items-start">
+                <div class="col-lg-3">
+                  <div class="review-panel">
+                    <div class="section-title mb-2">Review Notes</div>
+                    <textarea
+                      class="form-control notes-area"
+                      [(ngModel)]="reviewNote"
+                      placeholder="Add notes for the advocate. These notes stay in the review history."
+                    ></textarea>
+                    <div class="text-muted small mt-2">
+                      Notes are visible to advocates along with the full review trail.
+                    </div>
+
+                    <div class="d-flex gap-2 flex-wrap mt-3">
+                      <button type="button" class="btn btn-outline-primary btn-sm" (click)="saveNotes()" [disabled]="isSavingReview">
+                        {{ isSavingReview ? 'Saving...' : 'Save Notes' }}
+                      </button>
+                      <button type="button" class="btn btn-success btn-sm" (click)="acceptDocument()" [disabled]="isSavingReview">
+                        Accept
+                      </button>
+                      <button type="button" class="btn btn-danger btn-sm" (click)="rejectDocument()" [disabled]="isSavingReview">
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="review-panel mt-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                      <div class="section-title mb-0">Checklist</div>
+                      <span class="small text-muted">{{ scrutinyChecklist.length }}</span>
+                    </div>
+
+                    <div *ngIf="scrutinyChecklist.length === 0" class="text-muted small">
+                      No checklist items are configured for this case type yet.
+                    </div>
+
+                    <div class="checklist-list" *ngIf="scrutinyChecklist.length > 0">
+                      <div class="checklist-item" *ngFor="let item of scrutinyChecklist; trackBy: trackById">
+                        <i class="fa-regular fa-circle-check checklist-icon"></i>
+                        <span>{{ item.checklist_item }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-lg-9">
+                  <div class="review-panel mb-3">
+                    <div class="section-title mb-2">Inline PDF Preview</div>
+                    <div class="preview-frame" *ngIf="selectedDocumentUrl; else noPreview">
+                      <iframe [src]="selectedDocumentUrl" title="Scrutiny PDF preview"></iframe>
+                    </div>
+                  </div>
+
+                  <div class="review-panel">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                      <div class="section-title mb-0">Scrutiny Notes</div>
+                      <span class="small text-muted">{{ visibleDocumentHistory.length }}</span>
+                    </div>
+
+                    <div *ngIf="visibleDocumentHistory.length === 0" class="text-muted small">
+                      Only notes saved by scrutiny are shown here.
+                    </div>
+
+                    <div class="history-list" *ngIf="visibleDocumentHistory.length > 0">
+                      <div class="history-item" *ngFor="let item of visibleDocumentHistory; trackBy: trackById">
+                        <div class="d-flex justify-content-between align-items-start gap-3">
+                          <div>
+                            <span class="history-badge" [ngClass]="historyClass(item.scrutiny_status)">
+                              {{ getStatusLabel(item.scrutiny_status) }}
+                            </span>
+                            <div class="history-note mt-2">{{ item.comments || 'No note added.' }}</div>
+                          </div>
+                          <div class="text-muted small text-end">
+                            {{ item.recieved_at | date: 'dd MMM yyyy, hh:mm a' }}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <ng-template #noSelection>
+              <div class="text-muted small">Choose a document from the ordered list to begin review.</div>
+            </ng-template>
+
+            <ng-template #noPreview>
+              <div class="preview-empty text-muted small">
+                PDF preview will appear here once a document file is available.
+              </div>
+            </ng-template>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body p-4">
+            <div class="section-title mb-3">Case Filing Information</div>
+            <div class="meta-row">
+              <span>Cause Of Action</span>
+              <strong>{{ caseDetails?.cause_of_action || '-' }}</strong>
+            </div>
+            <div class="meta-row">
+              <span>Date Of Cause</span>
+              <strong>{{ caseDetails?.date_of_cause_of_action | date: 'dd MMM yyyy' }}</strong>
+            </div>
+            <div class="meta-row">
+              <span>Dispute Taluka</span>
+              <strong>{{ caseDetails?.dispute_taluka || '-' }}</strong>
+            </div>
+            <div class="meta-row">
+              <span>Filing Number</span>
+              <strong>{{ filing.e_filing_number || '-' }}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body p-4">
+            <div class="section-title mb-3">Acts And Sections</div>
+            <div *ngIf="acts.length === 0" class="text-muted small">No acts or sections available.</div>
+            <div class="simple-list" *ngIf="acts.length > 0">
+              <div class="simple-item" *ngFor="let act of acts; trackBy: trackById">
+                <div class="fw-semibold">{{ act.act || 'Act' }}</div>
+                <div class="text-muted small">Section: {{ act.section || '-' }}</div>
+                <div class="text-muted small" *ngIf="act.sub_section">Sub-section: {{ act.sub_section }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body p-4">
+            <div class="section-title mb-3">Litigants</div>
+            <div class="party-block">
+              <div class="party-heading">Petitioners</div>
+              <div *ngIf="petitioners.length === 0" class="text-muted small">No petitioners available.</div>
+              <div class="simple-list" *ngIf="petitioners.length > 0">
+                <div class="simple-item" *ngFor="let litigant of petitioners; trackBy: trackById">
+                  <div class="fw-semibold">#{{ litigant.sequence_number }} {{ litigant.name || '-' }}</div>
+                  <div class="text-muted small">{{ litigant.contact || 'No contact' }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="party-divider">vs</div>
+
+            <div class="party-block">
+              <div class="party-heading">Respondents</div>
+              <div *ngIf="respondents.length === 0" class="text-muted small">No respondents available.</div>
+              <div class="simple-list" *ngIf="respondents.length > 0">
+                <div class="simple-item" *ngFor="let litigant of respondents; trackBy: trackById">
+                  <div class="fw-semibold">#{{ litigant.sequence_number }} {{ litigant.name || '-' }}</div>
+                  <div class="text-muted small">{{ litigant.contact || 'No contact' }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+</div>

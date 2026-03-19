@@ -1,0 +1,79 @@
+.navbar {
+  height: 60px;
+  border-bottom: 1px solid #dbe4ff;
+  background: linear-gradient(90deg, #1e3a8a 0%, #312e81 100%) !important;
+}
+
+.brand-text {
+  color: #ffffff !important;
+  font-size: 18px;
+  letter-spacing: 0.4px;
+}
+
+.navbar-brand,
+.navbar-brand i,
+.navbar .btn,
+.navbar .me-4,
+.navbar .dropdown-toggle {
+  color: #ffffff !important;
+}
+
+.clock {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 6px 14px;
+  border-radius: 10px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.clock-date {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #e0e7ff;
+}
+
+.clock-time {
+  font-size: 0.87rem;
+  font-weight: 400;
+  color: #ffffff;
+}
+
+.dropdown-menu {
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.dropdown-item {
+  padding: 8px 14px;
+}
+
+.dropdown-item:hover {
+  background: #eef2ff;
+}
+
+.navbar .d-flex.align-items-center:last-child {
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .clock {
+    padding: 4px 8px;
+  }
+
+  .clock-date {
+    font-size: 10px;
+  }
+
+  .clock-time {
+    font-size: 10px;
+  }
+
+  .navbar .dropdown {
+    padding-right: 0 !important;
+  }
+
+  .navbar .me-4 {
+    margin-right: 8px !important;
+  }
+}
