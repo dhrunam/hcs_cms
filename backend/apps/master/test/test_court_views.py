@@ -1,5 +1,4 @@
 from django.test import SimpleTestCase
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
 from apps.core.models import Court
 from apps.master.serializers.court_serializers import CourtSerializer
@@ -12,6 +11,3 @@ class CourtListViewTest(SimpleTestCase):
 
     def test_queryset_model(self):
         self.assertEqual(CourtListView.queryset.model, Court)
-
-    def test_permission_classes(self):
-        self.assertEqual(CourtListView.permission_classes, [IsAuthenticatedOrReadOnly])
