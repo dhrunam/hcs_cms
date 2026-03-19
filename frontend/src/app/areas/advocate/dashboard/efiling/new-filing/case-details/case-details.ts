@@ -3,6 +3,7 @@ import { Component, Input } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActService } from '../../../../../../services/master/acts.services';
 import { Output, EventEmitter } from '@angular/core';
+import { StateAndDistrictService } from '../../../../../../services/master/state_and_district.services';
 
 @Component({
   selector: 'app-case-details',
@@ -12,14 +13,29 @@ import { Output, EventEmitter } from '@angular/core';
 })
 export class CaseDetails {
   @Input() form!: FormGroup;
+  @Input() actList!: any;
   acts: any[] = [];
+  states: any[] = [];
 
-  actList: any[] = [];
   @Output() actListChange = new EventEmitter<any[]>();
-  constructor(private actService: ActService) {}
+  isDisabled = false;
+  constructor(
+    private actService: ActService,
+    private stateService: StateAndDistrictService,
+  ) {}
 
   ngOnInit() {
     this.get_act_types();
+    this.get_state_list();
+    this.isDisabled = this.form!.disabled;
+  }
+
+  get_state_list() {
+    this.stateService.get_states().subscribe({
+      next: (data) => {
+        this.states = data.results;
+      },
+    });
   }
 
   get_act_types() {
@@ -30,27 +46,36 @@ export class CaseDetails {
     });
   }
 
-  addAct() {
-    const group = this.form as FormGroup;
+  addAct(actInput?: any, sectionInput?: any) {
+    let act, section;
 
-    const act = group.get('act')?.value;
-    const section = group.get('section')?.value;
+    if (this.isDisabled) {
+      act = actInput?.value;
+      section = sectionInput?.value;
+    } else {
+      const group = this.form as FormGroup;
+      act = group.get('act')?.value;
+      section = group.get('section')?.value;
+    }
 
-    console.log('ACT:', act, 'SECTION:', section);
+    if (!act || !section) return;
 
     const selectedAct = this.acts.find((a: any) => a.actcode == act);
 
-    this.actList.push({
-      act,
-      actname: selectedAct?.actname,
-      section,
-    });
+    this.actListChange.emit([
+      {
+        act,
+        actname: selectedAct?.actname,
+        section,
+      },
+    ]);
 
-    this.actListChange.emit(this.actList);
-
-    group.patchValue({
-      act: null,
-      section: '',
-    });
+    if (this.isDisabled) {
+      actInput.value = '';
+      sectionInput.value = '';
+    } else {
+      const group = this.form as FormGroup;
+      group.patchValue({ act: '', section: '' });
+    }
   }
 }

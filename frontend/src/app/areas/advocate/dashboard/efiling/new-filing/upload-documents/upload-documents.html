@@ -1,1 +1,30 @@
-<input type="file" multiple accept="application/pdf" (change)="onFileChange($event)" />
+<form [formGroup]="form" (ngSubmit)="submit()" class="form-group-block">
+  <div class="row g-3 align-items-end">
+    <!-- Document Type -->
+    <div class="col-md-5 text-start">
+      <label class="form-label text-start ps-lg-2">Document Type</label>
+      <input
+        type="text"
+        class="form-control"
+        formControlName="document_type"
+        placeholder="Enter document type"
+      />
+    </div>
+
+    <!-- File Upload -->
+    <div class="col-md-5 text-start">
+      <label class="form-label ps-2">Upload PDF</label>
+      <input
+        type="file"
+        class="form-control"
+        accept="application/pdf"
+        (change)="onFileChange($event)"
+      />
+    </div>
+
+    <!-- Button -->
+    <div class="col-md-2 d-grid">
+      <button class="btn btn-dark" [disabled]="form.invalid">Upload</button>
+    </div>
+  </div>
+</form>
