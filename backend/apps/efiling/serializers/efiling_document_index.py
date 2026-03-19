@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from apps.core.models import EfilingDocumentsIndex
+from apps.efiling.review_utils import can_replace_document
 
 
 class EfilingDocumentsIndexSerializer(serializers.ModelSerializer):
@@ -10,6 +11,11 @@ class EfilingDocumentsIndexSerializer(serializers.ModelSerializer):
     """
 
     file_url = serializers.SerializerMethodField()
+    e_filing_id = serializers.SerializerMethodField()
+    e_filing_number = serializers.SerializerMethodField()
+    document_type = serializers.SerializerMethodField()
+    history_count = serializers.SerializerMethodField()
+    can_replace = serializers.SerializerMethodField()
 
     class Meta:
         model = EfilingDocumentsIndex
@@ -24,6 +30,15 @@ class EfilingDocumentsIndexSerializer(serializers.ModelSerializer):
             "document_sequence",
             "is_compliant",
             "comments",
+            "scrutiny_status",
+            "is_new_for_scrutiny",
+            "last_resubmitted_at",
+            "last_reviewed_at",
+            "e_filing_id",
+            "e_filing_number",
+            "document_type",
+            "history_count",
+            "can_replace",
             "is_active",
             "created_at",
             "updated_at",
@@ -39,4 +54,21 @@ class EfilingDocumentsIndexSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.file_part_path.url)
             return obj.file_part_path.url
         return None
+
+    def get_e_filing_id(self, obj):
+        return obj.document.e_filing_id if obj.document_id and obj.document else None
+
+    def get_e_filing_number(self, obj):
+        return obj.document.e_filing_number if obj.document_id and obj.document else None
+
+    def get_document_type(self, obj):
+        return obj.document.document_type if obj.document_id and obj.document else None
+
+    def get_history_count(self, obj):
+        return obj.scrutiny_history.count()
+
+    def get_can_replace(self, obj):
+        if not obj.document_id or not obj.document:
+            return False
+        return can_replace_document(obj.document)
 

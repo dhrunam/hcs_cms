@@ -105,7 +105,8 @@ DATABASES = {
 
     "default": dj_database_url.config(
         env="DATABASE_URL",
-        default="postgresql://postgres:postgres@10.182.144.249:5432/hcs_cms_db",
+        # default="postgresql://postgres:postgres@localhost:5435/hcs_cms_db",
+        default=os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@10.182.144.249:5432/hcs_cms_db"),
         conn_max_age=600,
         conn_health_checks=True,
     ),
@@ -196,6 +197,9 @@ STORAGES = {
     },
 }
 
+MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_URL = "/media/"
+
 # ---------------------------------------------------------------------------
 # Default primary key
 # ---------------------------------------------------------------------------
@@ -230,5 +234,3 @@ SSO_SIGNAL_AUTO_SYNC = env_bool('SSO_SIGNAL_AUTO_SYNC', True)
 SSO_SUB_CLAIM_KEYS = tuple(env_list('SSO_SUB_CLAIM_KEYS', 'sub,id'))
 SSO_USERNAME_CLAIM_KEYS = tuple(env_list('SSO_USERNAME_CLAIM_KEYS', 'preferred_username,username,email'))
 SSO_EMAIL_CLAIM_KEYS = tuple(env_list('SSO_EMAIL_CLAIM_KEYS', 'email'))
-
-    
