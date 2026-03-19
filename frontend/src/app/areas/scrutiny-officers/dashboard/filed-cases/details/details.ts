@@ -27,6 +27,7 @@ export class FiledCaseDetails {
   caseDetails: any = null;
   acts: any[] = [];
   documents: any[] = [];
+  groupedDocuments: Array<{ document_type: string; items: any[] }> = [];
   selectedDocument: any = null;
   selectedDocumentUrl: SafeResourceUrl | null = null;
   selectedDocumentBlobUrl: string | null = null;
@@ -72,6 +73,7 @@ export class FiledCaseDetails {
         this.caseDetails = caseDetails?.results?.[0] ?? null;
         this.acts = acts?.results ?? [];
         this.documents = documents?.results ?? [];
+        this.groupedDocuments = this.groupDocumentsByType(this.documents);
         this.loadChecklist();
         this.selectDocument(
           this.documents.find((document) => document.id === preferredDocumentId) ?? this.documents[0] ?? null,
@@ -145,6 +147,23 @@ export class FiledCaseDetails {
         this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
       },
     });
+  }
+
+  groupDocumentsByType(docs: any[]): Array<{ document_type: string; items: any[] }> {
+    if (!Array.isArray(docs) || docs.length === 0) return [];
+
+    const map = new Map<string, any[]>();
+    for (const doc of docs) {
+      const type = (doc?.document_type ?? '').trim() || 'Main Document';
+      const bucket = map.get(type);
+      if (bucket) {
+        bucket.push(doc);
+      } else {
+        map.set(type, [doc]);
+      }
+    }
+
+    return Array.from(map.entries()).map(([document_type, items]) => ({ document_type, items }));
   }
 
   saveNotes(): void {
@@ -229,12 +248,26 @@ export class FiledCaseDetails {
     return 'status-badge-warning';
   }
 
+  private extractFileName(value: string | null | undefined): string {
+    const raw = (value ?? '').trim();
+    if (!raw) return '';
+
+    const withoutQuery = raw.split('?')[0];
+    const parts = withoutQuery.split('/');
+    return parts[parts.length - 1] || '';
+  }
+
   getDocumentTitle(document: any): string {
-    return document?.document_part_name || document?.document_type || 'Uploaded document';
+    const partName = (document?.document_part_name ?? '').trim();
+    if (partName) return partName;
+
+    const fileUrl = document?.file_url ?? document?.file_part_path;
+    const fileName = this.extractFileName(fileUrl);
+    return fileName || 'Uploaded document';
   }
 
   getDocumentMeta(document: any): string {
-    return document?.document_type || 'PDF document';
+    return 'PDF document';
   }
 
   getDocumentDate(document: any): string | null {
@@ -254,6 +287,10 @@ export class FiledCaseDetails {
 
   trackById(_: number, item: any): number {
     return item.id;
+  }
+
+  trackByGroupIndex(index: number, group: any): string {
+    return `${index}__${group?.document_type ?? 'unknown'}`;
   }
 
   get visibleDocumentHistory(): any[] {

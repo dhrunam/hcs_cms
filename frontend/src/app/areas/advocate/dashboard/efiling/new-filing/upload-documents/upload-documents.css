@@ -43,6 +43,9 @@
   border-radius: 10px;
   padding: 12px;
   background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .file-row.cdk-drag-preview {
@@ -58,20 +61,27 @@
   transition: transform 180ms ease;
 }
 
-.file-main {
+.file-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start; /* keep drag icon at the top */
   gap: 10px;
-  margin-top: 10px;
+}
+
+.file-header-left {
+  display: flex;
+  align-items: flex-start; /* keep filename aligned to the top */
+  gap: 10px;
+  flex: 1;
 }
 
 .drag-handle {
   cursor: grab;
   color: #6b7280;
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  padding-top: 2px; /* small offset so the icon visually sits at the top */
 }
 
 .drag-handle.disabled {
@@ -97,6 +107,13 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: left;
+  flex: 1;
+}
+
+.index-field {
+  display: flex;
+  flex-direction: column;
 }
 
 .section-title {

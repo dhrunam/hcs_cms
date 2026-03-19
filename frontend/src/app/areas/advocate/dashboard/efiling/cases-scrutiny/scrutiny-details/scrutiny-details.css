@@ -150,3 +150,18 @@
   line-height: 1.45;
 }
 
+.document-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.document-type-header {
+  background: #ecfeff;
+  border: 1px solid #cffafe;
+  border-radius: 12px;
+  color: #0e7490;
+  font-weight: 700;
+  padding: 0.45rem 0.65rem;
+}
+

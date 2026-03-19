@@ -13,7 +13,7 @@
 <section class="pending-cases-section px-3">
   <div class="card border-1 rounded-4">
     <div class="card-body">
-      <div class="table-responsive">
+      <div class="table-responsive" *ngIf="filingsUnderDraft && filingsUnderDraft.length > 0; else emptyState">
         <table class="table align-middle mb-0 table-hover">
           <thead style="background-color: #f1f5f9">
             <tr class="text-secondary small fw-normal">
@@ -54,6 +54,14 @@
           </tbody>
         </table>
       </div>
+      <ng-template #emptyState>
+        <div class="empty-state text-center py-5">
+          <h5 class="mb-2">No draft filings</h5>
+          <p class="text-muted mb-3">
+            Once you submit a filing, it will appear here.
+          </p>
+        </div>
+      </ng-template>
     </div>
   </div>
 </section>
