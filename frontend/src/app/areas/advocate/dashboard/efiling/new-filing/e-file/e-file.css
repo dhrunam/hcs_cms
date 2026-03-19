@@ -1,0 +1,9 @@
+.badge {
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+.table td,
+.table th {
+  vertical-align: middle;
+}
