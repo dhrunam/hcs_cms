@@ -250,11 +250,10 @@
       <div class="list-group list-group-flush">
         <div
           *ngFor="let doc of docList; let i = index"
-          class="list-group-item d-flex justify-content-between align-items-center"
+          class="list-group-item"
           style="border-bottom: 1px solid #f1f5f9"
         >
-          <!-- Left -->
-          <div class="d-flex align-items-center gap-3">
+          <div class="d-flex align-items-center gap-3 mb-2">
             <div
               class="d-flex align-items-center justify-content-center"
               style="width: 36px; height: 36px; background-color: #fef2f2; border-radius: 8px"
@@ -263,21 +262,28 @@
             </div>
 
             <div class="text-start">
-              <a
-                [href]="doc.final_document"
-                target="_blank"
-                class="fw-semibold text-decoration-none"
-                style="color: #0f172a"
-              >
-                {{ doc.document_type }}
-              </a>
-
-              <div class="text-muted small">Document {{ i + 1 }}</div>
+              <div class="fw-semibold" style="color: #0f172a">{{ i + 1 }}. {{ doc.document_type }}</div>
             </div>
           </div>
 
-          <!-- Right -->
-          <div>
+          <div class="ps-5" *ngIf="doc.document_indexes?.length > 0">
+            <div
+              *ngFor="let filePart of doc.document_indexes; let j = index"
+              class="d-flex justify-content-between align-items-center py-1"
+            >
+              <div class="small text-muted">{{ j + 1 }}. {{ filePart.document_part_name || 'Document Part' }}</div>
+              <a
+                [href]="filePart.file_url || filePart.file_part_path"
+                target="_blank"
+                class="btn btn-sm btn-light border d-flex align-items-center gap-1"
+              >
+                <i class="fa fa-eye text-primary"></i>
+                <span class="small">View</span>
+              </a>
+            </div>
+          </div>
+
+          <div class="ps-5" *ngIf="!doc.document_indexes?.length && doc.final_document">
             <a
               [href]="doc.final_document"
               target="_blank"
