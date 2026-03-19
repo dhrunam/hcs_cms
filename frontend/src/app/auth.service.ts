@@ -2,13 +2,21 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { OAuthService } from 'angular-oauth2-oidc';
 import { authConfig } from './auth.config';
-import { app_url } from './environment';
+import { app_url, sso_url } from './environment';
+
+export type LogoutStatus = {
+  apiSessionLoggedOut: boolean;
+  ssoSessionLoggedOut: boolean;
+  tokensCleared: boolean;
+  success: boolean;
+};
 
 @Injectable({
   providedIn: 'root',
 })
 export class AuthService {
   private readonly logoutUrl = `${app_url}/api/v1/accounts/users/logout/`;
+  private readonly ssoLogoutUrl = `${sso_url}/accounts/logout/`;
 
   constructor(
     private oauthService: OAuthService,
@@ -25,22 +33,51 @@ export class AuthService {
     this.oauthService.initCodeFlow();
   }
 
-  async logout(): Promise<void> {
+  async logout(): Promise<LogoutStatus> {
+    const csrfToken = this.getCookieValue('csrftoken');
+    let apiSessionLoggedOut = false;
+    let ssoSessionLoggedOut = false;
+
     try {
       await this.http
         .post(this.logoutUrl, {}, { withCredentials: true })
         .toPromise();
+      apiSessionLoggedOut = true;
     } catch (error) {
       console.warn('Backend session logout failed (continuing with OAuth logout):', error);
-    } finally {
-      // Expire the csrftoken cookie from JS (it is not HttpOnly so JS can touch it).
-      // The sessionid (HttpOnly) is deleted server-side via delete_cookie.
-      document.cookie = 'csrftoken=; Max-Age=0; path=/; SameSite=Lax';
-      this.oauthService.logOut();
-      sessionStorage.removeItem('access_token');
-      sessionStorage.removeItem('user_groups');
-      sessionStorage.removeItem('user_group');
     }
+
+    try {
+      await this.http
+        .post(
+          this.ssoLogoutUrl,
+          {},
+          {
+            withCredentials: true,
+            headers: csrfToken ? { 'X-CSRFToken': csrfToken } : {},
+          },
+        )
+        .toPromise();
+      ssoSessionLoggedOut = true;
+    } catch (error) {
+      console.warn('SSO session logout failed:', error);
+    }
+
+    // Expire csrftoken from JS where possible; sessionid is HttpOnly and must be
+    // invalidated by server-side logout endpoints.
+    document.cookie = 'csrftoken=; Max-Age=0; path=/; SameSite=Lax';
+    this.oauthService.logOut();
+    sessionStorage.removeItem('access_token');
+    sessionStorage.removeItem('user_groups');
+    sessionStorage.removeItem('user_group');
+
+    const tokensCleared = !this.isLoggedIn();
+    return {
+      apiSessionLoggedOut,
+      ssoSessionLoggedOut,
+      tokensCleared,
+      success: apiSessionLoggedOut && ssoSessionLoggedOut && tokensCleared,
+    };
   }
 
   get accessToken() {
@@ -139,5 +176,18 @@ export class AuthService {
     }
 
     return [];
+  }
+
+  private getCookieValue(name: string): string {
+    const cookies = document.cookie ? document.cookie.split(';') : [];
+
+    for (const cookie of cookies) {
+      const [rawKey, ...rawValue] = cookie.trim().split('=');
+      if (rawKey === name) {
+        return decodeURIComponent(rawValue.join('='));
+      }
+    }
+
+    return '';
   }
 }
