@@ -47,4 +47,13 @@ export class EfilingService {
   get_filings_under_draft(): Observable<any> {
     return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/?is_draft=true`);
   }
+
+  get_litigant_list_by_filing_id(id: number): Observable<any> {
+    console.log(`${app_url}/api/v1/efiling/efiling-litigants/?efiling_id=${id}`);
+    return this.http.get<any>(`${app_url}/api/v1/efiling/efiling-litigants/?efiling_id=${id}`);
+  }
+  get_case_details_by_filing_id(id: number): Observable<any> {
+    console.log(`${app_url}/api/v1/efiling/efiling-case-details/?efiling_id=${id}`);
+    return this.http.get<any>(`${app_url}/api/v1/efiling/efiling-case-details/?efiling_id=${id}`);
+  }
 }
