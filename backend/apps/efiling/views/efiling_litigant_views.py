@@ -6,12 +6,15 @@ from apps.efiling.serializers.efiling_litigant_serializers import EfilingLitigan
 
 
 class EfilingLitigantListCreateView(ListCreateAPIView):
-    queryset = EfilingLitigant.objects.all()
+    queryset = EfilingLitigant.objects.select_related('organization', 'state_id', 'district_id')
     serializer_class = EfilingLitigantSerializer
 
     def get_queryset(self):
-        qs = EfilingLitigant.objects.all().order_by('-id')
+        qs = EfilingLitigant.objects.select_related('organization', 'state_id', 'district_id').order_by('-id')
         is_active = self.request.query_params.get('is_active')
+        efiling_id = self.request.query_params.get('efiling_id')
+        if efiling_id is not None:
+            qs = qs.filter(e_filing=efiling_id)
         if is_active is not None:
             # treat "true"/"1" as True
             qs = qs.filter(is_active=is_active.lower() in ['true', '1'])
@@ -26,11 +29,11 @@ class EfilingLitigantListCreateView(ListCreateAPIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 class EfilingLitigantRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
-    queryset = EfilingLitigant.objects.all()
+    queryset = EfilingLitigant.objects.select_related('organization', 'state_id', 'district_id')
     serializer_class = EfilingLitigantSerializer
 
     def get_queryset(self):
-        qs = EfilingLitigant.objects.all().order_by('-id')
+        qs = EfilingLitigant.objects.select_related('organization', 'state_id', 'district_id').order_by('-id')
         is_active = self.request.query_params.get('is_active')
         if is_active is not None:
             # treat "true"/"1" as True

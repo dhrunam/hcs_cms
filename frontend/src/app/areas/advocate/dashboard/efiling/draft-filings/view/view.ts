@@ -17,7 +17,7 @@ interface PendingCase {
   styleUrl: './view.css',
 })
 export class View {
-  filingsUnderScrutiny: any[] | null = null;
+  filingsUnderDraft: any[] | null = null;
 
   constructor(private eFilingService: EfilingService) {}
 
@@ -26,10 +26,10 @@ export class View {
   }
 
   get_filings_under_scrutiny() {
-    this.eFilingService.get_filings_under_scrutiny().subscribe({
+    this.eFilingService.get_filings_under_draft().subscribe({
       next: (data) => {
-        this.filingsUnderScrutiny = data.results;
-        console.log(this.filingsUnderScrutiny);
+        this.filingsUnderDraft = data.results;
+        console.log(this.filingsUnderDraft);
       },
     });
   }
