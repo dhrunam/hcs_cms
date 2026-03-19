@@ -10,6 +10,7 @@ import { EfilingService } from '../../../../../services/advocate/efiling/efiling
 import { EFile } from './e-file/e-file';
 import { UploadDocuments } from './upload-documents/upload-documents';
 import Swal from 'sweetalert2';
+import { ActivatedRoute } from '@angular/router';
 
 @Component({
   selector: 'app-new-filing',
@@ -47,6 +48,7 @@ export class NewFiling {
     private fb: FormBuilder,
     private toastr: ToastrService,
     private eFilingService: EfilingService,
+    private route: ActivatedRoute,
   ) {
     this.form = this.fb.group({
       initialInputs: this.fb.group({
@@ -129,6 +131,13 @@ export class NewFiling {
       setDeclaration: this.fb.group({
         isDeclarationChecked: [false, Validators.requiredTrue],
       }),
+    });
+  }
+
+  ngOnInit() {
+    this.route.queryParams.subscribe((params) => {
+      this.filingId = params['id'];
+      this.eFilingNumber = params['e_filing_number'];
     });
   }
 
