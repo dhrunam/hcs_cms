@@ -11,4 +11,16 @@ export const routes: Routes = [
     loadChildren: () =>
       import('./areas/advocate/advocate-routing-module').then((m) => m.AdvocateRoutes),
   },
+  {
+    path: 'scrutiny-officers',
+    loadChildren: () =>
+      import('./areas/scrutiny-officers/scrutiny-officers-routing-module').then(
+        (m) => m.ScrutinyOfficerRoutes,
+      ),
+  },
+  {
+    path: '',
+    redirectTo: 'advocate',
+    pathMatch: 'full',
+  },
 ];

@@ -42,9 +42,9 @@
               <td>
                 <span
                   class="badge rounded-pill px-3 py-1 fw-normal"
-                  style="background: #fef3c7; color: #92400e"
+                  [style]="getStatusBadgeClass(c.status)"
                 >
-                  Under Scrutiny
+                  {{ getStatusLabel(c.status) }}
                 </span>
               </td>
             </tr>

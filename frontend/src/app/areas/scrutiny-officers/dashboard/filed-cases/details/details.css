@@ -1,9 +1,9 @@
-.scrutiny-page {
-  padding: 0 0.25rem 1rem;
+.details-page {
+  padding: 0 0.25rem 1.5rem;
 }
 
 .eyebrow-text {
-  color: #047857;
+  color: #4f46e5;
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -11,8 +11,31 @@
 }
 
 .overview-card {
-  background: linear-gradient(135deg, #f0fdf4 0%, #ecfeff 100%);
-  border: 1px solid #bbf7d0;
+  background: linear-gradient(135deg, #f8fbff 0%, #eef2ff 100%);
+  border: 1px solid #dbeafe;
+}
+
+.metric-card,
+.review-panel,
+.simple-item {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+}
+
+.metric-card {
+  padding: 0.9rem 1rem;
+}
+
+.metric-label {
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.metric-value {
+  color: #0f172a;
+  font-size: 1.25rem;
+  font-weight: 700;
 }
 
 .section-title {
@@ -22,7 +45,9 @@
 }
 
 .document-list,
-.history-list {
+.history-list,
+.simple-list,
+.checklist-list {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -32,7 +57,7 @@
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 16px;
-  padding: 0.95rem 1rem;
+  padding: 0.8rem 0.9rem;
   text-align: left;
   transition: all 0.2s ease;
   width: 100%;
@@ -40,8 +65,8 @@
 
 .document-item:hover,
 .document-item-active {
-  border-color: #10b981;
-  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.12);
+  border-color: #6366f1;
+  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.12);
 }
 
 .document-title {
@@ -55,8 +80,23 @@
   margin-top: 0.2rem;
 }
 
+.review-panel {
+  padding: 1rem;
+}
+
+.notes-area {
+  min-height: 220px;
+  resize: vertical;
+}
+
+.document-list {
+  max-height: 880px;
+  overflow: auto;
+  padding-right: 0.2rem;
+}
+
 .preview-frame {
-  border: 1px solid #d1fae5;
+  border: 1px solid #dbeafe;
   border-radius: 16px;
   overflow: hidden;
 }
@@ -64,13 +104,13 @@
 .preview-frame iframe {
   background: #f8fafc;
   border: 0;
-  height: 620px;
+  height: 820px;
   width: 100%;
 }
 
 .pdf-object {
   display: block;
-  height: 620px;
+  height: 820px;
   width: 100%;
 }
 
@@ -115,10 +155,20 @@
   color: #991b1b;
 }
 
+.new-tag {
+  background: #dbeafe;
+  border-radius: 999px;
+  color: #1d4ed8;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  text-transform: uppercase;
+}
+
 .history-item {
   border: 1px solid #e2e8f0;
   border-radius: 14px;
-  padding: 0.85rem 0.95rem;
+  padding: 0.8rem 0.9rem;
 }
 
 .history-badge {
@@ -150,3 +200,44 @@
   line-height: 1.45;
 }
 
+.checklist-item {
+  align-items: flex-start;
+  color: #334155;
+  display: flex;
+  gap: 0.6rem;
+  font-size: 0.88rem;
+}
+
+.checklist-icon {
+  color: #4f46e5;
+  margin-top: 0.1rem;
+}
+
+.meta-row {
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 0;
+}
+
+.meta-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.party-heading {
+  color: #0f172a;
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.party-divider {
+  color: #6366f1;
+  font-size: 0.9rem;
+  font-weight: 800;
+  padding: 0.75rem 0;
+  text-align: center;
+  text-transform: uppercase;
+}

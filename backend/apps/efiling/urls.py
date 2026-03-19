@@ -28,6 +28,9 @@ from apps.efiling.views.efiling_documents_index_views import (
     EfilingDocumentsIndexListCreateView,
     EfilingDocumentsIndexRetrieveUpdateDestroyView,
 )
+from apps.efiling.views.efiling_documents_scrutiny_history_views import (
+    EfilingDocumentsScrutinyHistoryListView,
+)
 from apps.efiling.views.ia_views import (
     IAListCreateView,
     IARetrieveUpdateDestroyView,
@@ -123,6 +126,11 @@ urlpatterns = [
         "efiling-documents-index/<int:pk>/",
         EfilingDocumentsIndexRetrieveUpdateDestroyView.as_view(),
         name="efiling-documents-index-detail",
+    ),
+    path(
+        "efiling-documents-scrutiny-history/",
+        EfilingDocumentsScrutinyHistoryListView.as_view(),
+        name="efiling-documents-scrutiny-history-list",
     ),
     path(
         "file-scrutiny-checklists/",
