@@ -1,31 +1,36 @@
+import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
-import { RouterModule } from '@angular/router';
-interface DraftFiling {
+import { RouterLink } from '@angular/router';
+import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
+interface PendingCase {
   id: number;
   caseTitle: string;
   filingType: string;
-  lastUpdated: string;
-  bench: string;
+  filedOn: string;
+  status: string;
 }
 
 @Component({
   selector: 'app-view',
-  imports: [RouterModule],
+  imports: [CommonModule, RouterLink],
   templateUrl: './view.html',
   styleUrl: './view.css',
 })
 export class View {
-  drafts: DraftFiling[] = [
-    {
-      id: 1,
-      caseTitle: 'Sample draft case',
-      filingType: 'Petition',
-      lastUpdated: '12 Mar 2026',
-      bench: 'Bench A',
-    },
-  ];
+  filingsUnderScrutiny: any[] | null = null;
 
-  get hasDrafts(): boolean {
-    return this.drafts.length > 0;
+  constructor(private eFilingService: EfilingService) {}
+
+  ngOnInit() {
+    this.get_filings_under_scrutiny();
+  }
+
+  get_filings_under_scrutiny() {
+    this.eFilingService.get_filings_under_scrutiny().subscribe({
+      next: (data) => {
+        this.filingsUnderScrutiny = data.results;
+        console.log(this.filingsUnderScrutiny);
+      },
+    });
   }
 }
