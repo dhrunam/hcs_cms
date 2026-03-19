@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpEvent } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Injectable } from '@angular/core';
 import { app_url } from '../../../environment';
@@ -26,6 +26,14 @@ export class EfilingService {
   upload_case_documnets(fd: FormData): Observable<any> {
     return this.http.post<any>(`${app_url}/api/v1/efiling/efiling-documents/`, fd);
   }
+
+  upload_case_documnets_index(fd: FormData): Observable<HttpEvent<any>> {
+    return this.http.post<any>(`${app_url}/api/v1/efiling/efiling-documents-index/`, fd, {
+      reportProgress: true,
+      observe: 'events',
+    });
+  }
+
   delete_case_documnets_before_final_filing(id: number): Observable<any> {
     return this.http.delete<any>(`${app_url}/api/v1/efiling/efiling-documents/${id}/`);
   }
@@ -103,5 +111,9 @@ export class EfilingService {
     return this.http.get<any>(
       `${app_url}/api/v1/efiling/file-scrutiny-checklists/?case_type=${caseTypeId}`,
     );
+  }
+
+  get_document_index_master(): Observable<any> {
+    return this.http.get<any>(`${app_url}/api/v1/efiling/document-index/`);
   }
 }
