@@ -151,6 +151,14 @@ export class Edit {
     });
   }
 
+  get_case_details_by_filing_id() {
+    this.eFilingService.get_case_details_by_filing_id(this.filingId || 0).subscribe({
+      next: (data) => {
+        this.litigantList = data.results;
+      },
+    });
+  }
+
   actList: any[] = [];
 
   receiveActList(data: any[]) {
