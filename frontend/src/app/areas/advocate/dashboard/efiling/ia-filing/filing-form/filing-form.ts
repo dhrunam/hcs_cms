@@ -206,6 +206,7 @@ export class IaFilingForm implements OnInit {
       documentPayload.append('document_type', documentType);
       documentPayload.append('e_filing', String(eFilingId));
       documentPayload.append('e_filing_number', eFilingNumber);
+      documentPayload.append('is_ia', 'true');
 
       const documentRes = await firstValueFrom(
         this.efilingService.upload_case_documnets(documentPayload),
@@ -291,6 +292,23 @@ export class IaFilingForm implements OnInit {
           this.toastr.error(msg);
         },
       });
+  }
+
+  deleteDoc(id: number, index: number): void {
+    const confirmDelete = confirm(
+      'Your document will be deleted and you need to re-upload it. Continue?',
+    );
+    if (!confirmDelete) return;
+
+    this.efilingService.delete_case_documnets_before_final_filing(id).subscribe({
+      next: () => {
+        this.docList.splice(index, 1);
+        this.toastr.success('Document deleted.');
+      },
+      error: () => {
+        this.toastr.error('Failed to delete document.');
+      },
+    });
   }
 
   trackById(_: number, item: any): number {

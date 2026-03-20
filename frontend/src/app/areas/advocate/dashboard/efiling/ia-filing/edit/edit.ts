@@ -53,7 +53,7 @@ export class IaFilingEdit implements OnInit {
             litigants: this.efilingService.get_litigant_list_by_filing_id(Number(eFilingId)),
             acts: this.efilingService.get_acts_by_filing_id(Number(eFilingId)),
             // iaActs: this.efilingService.get_ia_acts_by_ia_id(Number(id)),
-            documents: this.efilingService.get_document_reviews_by_filing_id(Number(eFilingId)),
+            documents: this.efilingService.get_document_reviews_by_filing_id(Number(eFilingId), true),
           }).subscribe({
             next: ({ filing, caseDetails, litigants, acts, documents }) => {
               this.filing = filing;

@@ -438,3 +438,45 @@
   margin-top: 0.15rem;
 }
 
+/* IA Details tab */
+.ia-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ia-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+  transition: border-color 0.2s ease;
+}
+
+.ia-card:hover {
+  border-color: #cbd5e1;
+}
+
+.ia-card-header .ia-number {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.ia-card-body .ia-text {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.ia-tab-content {
+  padding: 0;
+}
+
+.ia-tab-content .filing-summary-section {
+  padding: 1.5rem 1.75rem;
+}
+

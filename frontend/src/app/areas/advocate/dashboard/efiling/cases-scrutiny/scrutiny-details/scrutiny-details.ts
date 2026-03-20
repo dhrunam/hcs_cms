@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
 
@@ -35,7 +35,13 @@ export class ScrutinyDetails {
   isReplacing = false;
   notesPopupOpen = false;
   canShowReplaceBtn: boolean = false;
-  activeTab: 'filing' | 'documents' = 'filing';
+  activeTab: 'filing' | 'documents' | 'ia' = 'filing';
+  iaList: any[] = [];
+  iaDocuments: any[] = [];
+  groupedIaDocuments: Array<{ document_type: string; items: any[] }> = [];
+  selectedIaDocument: any = null;
+  selectedIaDocumentUrl: SafeResourceUrl | null = null;
+  selectedIaDocumentBlobUrl: string | null = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -51,7 +57,7 @@ export class ScrutinyDetails {
     this.notesPopupOpen = false;
   }
 
-  setActiveTab(tab: 'filing' | 'documents'): void {
+  setActiveTab(tab: 'filing' | 'documents' | 'ia'): void {
     this.activeTab = tab;
   }
 
@@ -70,18 +76,24 @@ export class ScrutinyDetails {
     this.isLoading = true;
     forkJoin({
       filing: this.efilingService.get_filing_by_id(id),
-      documents: this.efilingService.get_document_reviews_by_filing_id(id),
+      documents: this.efilingService.get_document_reviews_by_filing_id(id, false),
+      iaDocuments: this.efilingService.get_document_reviews_by_filing_id(id, true),
       litigants: this.efilingService.get_litigant_list_by_filing_id(id),
       caseDetails: this.efilingService.get_case_details_by_filing_id(id),
       acts: this.efilingService.get_acts_by_filing_id(id),
+      ias: this.efilingService.get_ias_by_efiling_id(id),
     }).subscribe({
-      next: ({ filing, documents, litigants, caseDetails, acts }) => {
+      next: ({ filing, documents, iaDocuments, litigants, caseDetails, acts, ias }) => {
         this.filing = filing;
         this.documents = documents?.results ?? [];
         this.groupedDocuments = this.groupDocumentsByType(this.documents);
+        this.iaDocuments = iaDocuments?.results ?? [];
+        this.groupedIaDocuments = this.groupDocumentsByType(this.iaDocuments);
         this.litigantList = litigants?.results ?? [];
         this.caseDetails = caseDetails?.results?.[0] ?? null;
         this.actList = acts?.results ?? [];
+        this.iaList = Array.isArray(ias) ? ias : (ias?.results ?? []);
+        this.selectIaDocument(this.groupedIaDocuments[0]?.items[0] ?? null);
         this.selectDocument(
           this.documents.find((document) => document.id === preferredDocumentId) ?? this.documents[0] ?? null,
         );
@@ -290,5 +302,29 @@ export class ScrutinyDetails {
 
   getActName(act: any): string {
     return act?.act?.actname ?? act?.actname ?? '-';
+  }
+
+  selectIaDocument(document: any): void {
+    this.selectedIaDocument = document;
+    if (this.selectedIaDocumentBlobUrl) {
+      URL.revokeObjectURL(this.selectedIaDocumentBlobUrl);
+      this.selectedIaDocumentBlobUrl = null;
+    }
+    if (!document?.file_url) {
+      this.selectedIaDocumentUrl = null;
+      return;
+    }
+    this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(document.file_url);
+    this.efilingService.fetch_document_blob(document.file_url).subscribe({
+      next: (blob) => {
+        this.selectedIaDocumentBlobUrl = URL.createObjectURL(blob);
+        this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
+          this.selectedIaDocumentBlobUrl,
+        );
+      },
+      error: () => {
+        this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(document.file_url);
+      },
+    });
   }
 }

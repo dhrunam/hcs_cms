@@ -1,7 +1,9 @@
 <form [formGroup]="form" (ngSubmit)="submit()" class="form-group-block">
   <div class="row g-3 align-items-end mb-3 mt-2">
     <div class="col-md-4 text-start">
-      <label class="form-label text-start ps-lg-2">Document Type</label>
+      <label class="form-label text-start ps-lg-2"
+        >Document Type <small class="text-danger">*</small></label
+      >
       <input
         type="text"
         class="form-control top-control"
@@ -9,7 +11,9 @@
         placeholder="Enter document type"
         (input)="onTopDocumentTypeInput($any($event.target).value)"
         [disabled]="isUploading"
+        [class.is-invalid]="isDocumentTypeInvalid()"
       />
+      <small class="text-danger" *ngIf="isDocumentTypeInvalid()"> document type is required </small>
     </div>
     <div class="col-md-4 text-start">
       <label class="form-label text-start ps-lg-2">Select PDF files</label>
@@ -24,6 +28,7 @@
         />
         <span class="drop-text">Choose PDF files to upload</span>
       </div>
+      <small class="text-danger" *ngIf="isFilesInvalid()">at least one PDF is required</small>
     </div>
     <div class="col-md-4 d-grid" *ngIf="entries.length > 0">
       <button class="btn btn-dark" type="submit" [disabled]="!canUpload()">
@@ -46,10 +51,19 @@
     [cdkDropListDisabled]="isUploading"
     (cdkDropListDropped)="reorderEntries($event)"
   >
-    <div class="file-row" *ngFor="let entry of entries; let i = index; trackBy: trackByEntry" cdkDrag>
+    <div
+      class="file-row"
+      *ngFor="let entry of entries; let i = index; trackBy: trackByEntry"
+      cdkDrag
+    >
       <div class="file-header">
         <div class="file-header-left">
-          <span class="drag-handle" cdkDragHandle title="Drag to reorder" [class.disabled]="isUploading">
+          <span
+            class="drag-handle"
+            cdkDragHandle
+            title="Drag to reorder"
+            [class.disabled]="isUploading"
+          >
             <i class="fa-solid fa-grip-vertical"></i>
           </span>
           <span class="file-name" [title]="entry.file.name">{{ entry.file.name }}</span>
@@ -72,13 +86,27 @@
           class="form-control"
           [value]="entry.index_name"
           (input)="updateDocumentType(i, $any($event.target).value)"
-          [attr.list]="entry.index_name && entry.index_name.trim() ? 'index-name-suggestions-' + i : null"
+          [attr.list]="
+            entry.index_name && entry.index_name.trim() ? 'index-name-suggestions-' + i : null
+          "
           placeholder="Eg. Synopsis/List of Dates and Events ...."
           [disabled]="isUploading"
+          [class.is-invalid]="isIndexNameInvalid(entry)"
+          required
         />
 
-        <datalist *ngIf="entry.index_name && entry.index_name.trim()" [id]="'index-name-suggestions-' + i">
-          <option *ngFor="let name of getIndexSuggestions(entry.index_name)" [value]="name"></option>
+        <div class="text-danger small" *ngIf="isIndexNameInvalid(entry)">
+          Index Name is required.
+        </div>
+
+        <datalist
+          *ngIf="entry.index_name && entry.index_name.trim()"
+          [id]="'index-name-suggestions-' + i"
+        >
+          <option
+            *ngFor="let name of getIndexSuggestions(entry.index_name)"
+            [value]="name"
+          ></option>
         </datalist>
       </div>
 
@@ -100,5 +128,4 @@
       </div>
     </div>
   </div>
-
 </form>
