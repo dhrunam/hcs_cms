@@ -14,7 +14,7 @@
   </div>
 
   <ng-container *ngIf="!isLoading && filing">
-    <div class="card border-0 shadow-sm overview-card mb-4">
+    <div class="card border-0 shadow-sm overview-card mb-2">
       <div class="card-body p-4 d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div>
           <h5 class="mb-1">{{ filing.case_type?.type_name || 'Case Type Pending' }} • {{ filing.e_filing_number || '-' }}</h5>
@@ -33,8 +33,128 @@
           </button>
         </h2>
         <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#accordionExample">
-          <div class="accordion-body">
-            <strong>This is the first item's accordion body.</strong> It is shown by default, until the collapse plugin adds the appropriate classes that we use to style each element. These classes control the overall appearance, as well as the showing and hiding via CSS transitions. You can modify any of this with custom CSS or overriding our default variables. It's also worth noting that just about any HTML can go within the <code>.accordion-body</code>, though the transition does limit overflow.
+          <div class="accordion-body filing-summary-body">
+            <!-- Initial Inputs -->
+            <div class="filing-summary-section">
+              <div class="filing-summary-section-title">
+                <i class="fa-solid fa-file-lines me-2"></i>
+                Filing Information
+              </div>
+              <div class="filing-summary-grid">
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Bench</span>
+                  <span class="filing-summary-value">{{ filing.bench || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Case Type</span>
+                  <span class="filing-summary-value">{{ filing.case_type?.type_name || filing.case_type?.full_form || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Petitioner Name</span>
+                  <span class="filing-summary-value">{{ filing.petitioner_name || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Petitioner Contact</span>
+                  <span class="filing-summary-value">{{ filing.petitioner_contact || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">E-Filing Number</span>
+                  <span class="filing-summary-value filing-number">{{ filing.e_filing_number || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Accepted At</span>
+                  <span class="filing-summary-value">{{ filing.accepted_at | date: 'dd MMM yyyy, hh:mm a' }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Case Details -->
+            <div class="filing-summary-section" *ngIf="caseDetails">
+              <div class="filing-summary-section-title">
+                <i class="fa-solid fa-scale-balanced me-2"></i>
+                Case Details
+              </div>
+              <div class="filing-summary-grid">
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Cause of Action</span>
+                  <span class="filing-summary-value">{{ caseDetails.cause_of_action || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Date of Cause</span>
+                  <span class="filing-summary-value">{{ caseDetails.date_of_cause_of_action | date: 'dd MMM yyyy' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Dispute State</span>
+                  <span class="filing-summary-value">{{ caseDetails.dispute_state || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Dispute District</span>
+                  <span class="filing-summary-value">{{ caseDetails.dispute_district || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Dispute Taluka</span>
+                  <span class="filing-summary-value">{{ caseDetails.dispute_taluka || '-' }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Litigants -->
+            <div class="filing-summary-section" *ngIf="litigantList.length > 0">
+              <div class="filing-summary-section-title">
+                <i class="fa-solid fa-users me-2"></i>
+                Litigant Details
+              </div>
+              <div class="litigants-layout">
+                <div class="party-block">
+                  <div class="party-heading">
+                    <i class="fa-solid fa-user-check me-1"></i>
+                    Petitioners
+                  </div>
+                  <div *ngIf="petitioners.length === 0" class="text-muted small">No petitioners available.</div>
+                  <div class="litigant-list" *ngIf="petitioners.length > 0">
+                    <div class="litigant-card" *ngFor="let litigant of petitioners; trackBy: trackById">
+                      <div class="litigant-name">{{ litigant.name || '-' }}</div>
+                      <div class="litigant-meta">{{ litigant.contact || 'No contact' }}</div>
+                      <div class="litigant-meta" *ngIf="litigant.address">{{ litigant.address }}</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="party-divider">vs</div>
+                <div class="party-block">
+                  <div class="party-heading party-heading-respondent">
+                    <i class="fa-solid fa-user-xmark me-1"></i>
+                    Respondents
+                  </div>
+                  <div *ngIf="respondents.length === 0" class="text-muted small">No respondents available.</div>
+                  <div class="litigant-list" *ngIf="respondents.length > 0">
+                    <div class="litigant-card" *ngFor="let litigant of respondents; trackBy: trackById">
+                      <div class="litigant-name">{{ litigant.name || '-' }}</div>
+                      <div class="litigant-meta">{{ litigant.contact || 'No contact' }}</div>
+                      <div class="litigant-meta" *ngIf="litigant.address">{{ litigant.address }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Acts & Sections -->
+            <div class="filing-summary-section">
+              <div class="filing-summary-section-title">
+                <i class="fa-solid fa-gavel me-2"></i>
+                Acts & Sections
+              </div>
+              <div *ngIf="actList.length === 0" class="text-muted small">No acts or sections added.</div>
+              <div class="acts-list" *ngIf="actList.length > 0">
+                <div class="act-card" *ngFor="let act of actList; let i = index; trackBy: trackById">
+                  <div class="act-index">{{ i + 1 }}</div>
+                  <div class="act-content">
+                    <div class="act-name">{{ getActName(act) }}</div>
+                    <div class="act-section">Section: {{ act.section || '-' }}</div>
+                    <div class="act-subsection text-muted small" *ngIf="act.sub_section">Sub-section: {{ act.sub_section }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

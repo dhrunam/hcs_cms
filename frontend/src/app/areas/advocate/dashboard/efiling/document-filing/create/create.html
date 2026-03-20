@@ -1,0 +1,160 @@
+<div class="container py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <button type="button" class="btn btn-outline-dark" routerLink="/advocate/dashboard/efiling/document-filing/view">
+      Back
+    </button>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+      <div class="section-title mb-2">Search Case</div>
+
+      <form [formGroup]="searchForm" (ngSubmit)="searchCase()">
+        <div class="row g-3 align-items-end">
+          <div class="col-md-4">
+            <label class="form-label">Case Type</label>
+            <select class="form-control" formControlName="case_type">
+              <option value="" disabled>Select case type</option>
+              <option *ngFor="let ct of caseTypes" [value]="ct.id">{{ ct.type_name || ct.case_type }}</option>
+            </select>
+          </div>
+
+          <div class="col-md-3">
+            <label class="form-label">Case No</label>
+            <input type="text" class="form-control" formControlName="case_no" placeholder="Enter case no" />
+          </div>
+
+          <div class="col-md-3">
+            <label class="form-label">Case Year</label>
+            <input type="text" class="form-control" formControlName="case_year" placeholder="Enter year (e.g., 2026)" />
+          </div>
+
+          <div class="col-md-2 d-grid">
+            <button class="btn btn-dark" type="submit" [disabled]="isSearching || searchForm.invalid">
+              {{ isSearching ? 'Searching...' : 'Search' }}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div *ngIf="searchMatches.length > 1" class="mb-4">
+    <div class="section-title mb-2">Select Matching Case</div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Petitioner</th>
+            <th>Filing No</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody class="text-muted small">
+          <tr *ngFor="let f of searchMatches; let i = index" style="cursor: pointer">
+            <td>{{ i + 1 }}</td>
+            <td class="text-dark">{{ f.petitioner_name || '-' }}</td>
+            <td class="text-success">{{ f.e_filing_number || '-' }}</td>
+            <td>{{ f.status || '-' }}</td>
+            <td>
+              <button type="button" class="btn btn-sm btn-outline-dark" (click)="selectFiling(f)">
+                Select
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div *ngIf="isLoadingCase" class="text-muted small mb-2">Loading case details...</div>
+
+  <div *ngIf="selectedFiling" class="mb-4">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-dark text-white fw-semibold">Case Details</div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <div class="text-muted small">Case Type</div>
+            <div class="fw-semibold">{{ selectedFiling.case_type?.type_name || '-' }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">E-Filing Number</div>
+            <div class="fw-semibold text-success">{{ selectedFiling.e_filing_number || '-' }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">Petitioner</div>
+            <div class="fw-semibold">{{ selectedFiling.petitioner_name || '-' }}</div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="text-muted small">Cause of Action</div>
+            <div class="fw-semibold">{{ caseDetails?.cause_of_action || '-' }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small">Date of Cause of Action</div>
+            <div class="fw-semibold">
+              {{ caseDetails?.date_of_cause_of_action | date: 'dd MMM yyyy' }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-dark text-white fw-semibold">Existing Uploaded Documents</div>
+      <div class="card-body">
+        <div *ngIf="docList.length === 0" class="text-muted small">No documents found.</div>
+
+        <div *ngIf="docList.length > 0" class="list-group list-group-flush">
+          <div class="list-group-item" *ngFor="let doc of docList; let i = index; trackBy: trackByDocId">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+              <div>
+                <div class="fw-semibold">
+                  {{ i + 1 }}. {{ doc.document_type || '-' }}
+                </div>
+              </div>
+              <div class="d-flex gap-2">
+                <a
+                  *ngIf="doc.final_document"
+                  [href]="doc.final_document"
+                  target="_blank"
+                  class="btn btn-sm btn-outline-primary"
+                >
+                  <i class="fa fa-eye"></i> view
+                </a>
+              </div>
+            </div>
+
+            <div class="mt-2 ps-2" *ngIf="doc.document_indexes?.length > 0">
+              <div
+                class="d-flex justify-content-between align-items-center py-1 small text-muted"
+                *ngFor="let part of doc.document_indexes; let j = index"
+              >
+                <div>{{ j + 1 }}. {{ part.document_part_name || '-' }}</div>
+                <a
+                  [href]="part.file_url || part.file_part_path"
+                  target="_blank"
+                  class="btn btn-sm btn-outline-primary"
+                >
+                  <i class="fa fa-eye"></i> view
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <app-upload-documents
+      [form]="uploadFilingDocForm"
+      [isUploading]="isUploadingDocuments"
+      [fileProgresses]="uploadFileProgresses"
+      [uploadCompletedToken]="uploadCompletedToken"
+      (submitDoc)="handleDocUpload($event)"
+    ></app-upload-documents>
+  </div>
+</div>
+
