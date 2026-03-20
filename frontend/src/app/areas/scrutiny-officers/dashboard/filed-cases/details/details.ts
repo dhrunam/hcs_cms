@@ -38,12 +38,17 @@ export class FiledCaseDetails {
   isSavingReview = false;
   isSubmittingApprovedCase = false;
   missingFilingId = false;
+  activeTab: 'filing' | 'documents' = 'filing';
 
   constructor(
     private route: ActivatedRoute,
     private efilingService: EfilingService,
     private sanitizer: DomSanitizer,
   ) {}
+
+  setActiveTab(tab: 'filing' | 'documents'): void {
+    this.activeTab = tab;
+  }
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((params) => {
@@ -340,7 +345,9 @@ export class FiledCaseDetails {
   get pendingCount(): number {
     return this.documents.filter((document) => this.getStatusTone(document.scrutiny_status) === 'warning').length;
   }
-
+  getActName(act: any): string {
+    return act?.act?.actname ?? act?.actname ?? '-';
+  }
   private applyReviewedDocument(updatedDocument: any): void {
     if (!updatedDocument?.id) {
       return;

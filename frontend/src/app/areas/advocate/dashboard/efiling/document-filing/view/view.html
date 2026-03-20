@@ -1,0 +1,44 @@
+<div class="container">
+  <div class="text-end mb-2">
+    <button class="btn btn-outline-dark" routerLink="/advocate/dashboard/efiling/document-filing/create">
+      + File Document(s)
+    </button>
+  </div>
+  <div *ngIf="isLoading" class="text-muted small">Loading...</div>
+
+  <div *ngIf="!isLoading && (documents && documents.length === 0)" class="text-muted small">
+    No data found
+  </div>
+
+  <div *ngIf="!isLoading && (documents &&documents.length > 0)" class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Document Type</th>
+          <th>E-Filing Number</th>
+          <th>Scrutiny Status</th>
+          <th>Final Document</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let doc of documents; trackBy: trackByDocId">
+          <td class="fw-semibold">{{ doc.document_type || '-' }}</td>
+          <td>{{ doc.e_filing_number || '-' }}</td>
+          <td>{{ doc.scrutiny_status || '-' }}</td>
+          <td>
+            <a
+              *ngIf="doc.final_document"
+              [href]="doc.final_document"
+              target="_blank"
+              class="btn btn-sm btn-outline-primary"
+            >
+              View
+            </a>
+            <span *ngIf="!doc.final_document" class="text-muted small">-</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+

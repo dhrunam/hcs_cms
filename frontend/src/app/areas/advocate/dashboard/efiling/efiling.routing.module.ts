@@ -19,4 +19,9 @@ export const EfilingRoutes: Routes = [
     loadChildren: () =>
       import('./cases-scrutiny/cases-scrutiny-routing-module').then((c) => c.routes),
   },
+  {
+    path: 'document-filing',
+    loadChildren: () =>
+      import('./document-filing/document-filing.routing').then((r) => r.DocumentFilingRoutes),
+  },
 ];
