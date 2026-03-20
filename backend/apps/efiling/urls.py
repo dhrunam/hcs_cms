@@ -46,11 +46,17 @@ from apps.efiling.views.efiler_document_access_views import (
     EfilerDocumentAccessListCreateView,
     EfilerDocumentAccessRetrieveUpdateDestroyView,
 )
+from apps.efiling.views.advocate_views import (
+    AdvocateListView,
+    AdvocateRetrieveView,
+)
 
 
 app_name = "efiling"
 
 urlpatterns = [
+    path("advocates/", AdvocateListView.as_view(), name="advocate-list"),
+    path("advocates/<int:adv_code>/", AdvocateRetrieveView.as_view(), name="advocate-detail"),
     path("efilings/", EfilingListCreateView.as_view(), name="efiling-list-create"),
     path(
         "efilings/<int:pk>/",
