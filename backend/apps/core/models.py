@@ -418,6 +418,20 @@ class IA(BaseModel):
       
         db_table = 'ia'
 
+class IAActs(BaseModel):
+    ia = models.ForeignKey(IA, on_delete=models.CASCADE, related_name='ia_acts', null=True, blank=True)
+    ia_number = models.CharField(max_length=100, unique=True, blank=True, null=True)
+    e_filing = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name='ia_acts')
+    e_filing_number = models.CharField(max_length=100, blank=True, null=True)
+    act = models.ForeignKey(ActT, on_delete=models.SET_NULL, null=True, blank=True, related_name='ia_acts')
+    section = models.CharField(max_length=100, blank=True, null=True)
+    sub_section = models.CharField(max_length=100, blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+
+    class Meta:
+        
+        db_table = 'ia_acts'
+
 
 class FileScrutinyCheckList(BaseModel):
     case_type = models.ForeignKey(CaseTypeT, on_delete=models.SET_NULL, null=True, blank=True, related_name='scrutiny_checklists')
