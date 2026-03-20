@@ -702,5 +702,4 @@ class AdvocateT(BaseModel):
     est_code_src = models.CharField(max_length=6)
 
     class Meta:
-        managed = False
         db_table = 'advocate_t'
