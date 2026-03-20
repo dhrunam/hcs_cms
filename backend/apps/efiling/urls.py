@@ -36,6 +36,10 @@ from apps.efiling.views.ia_views import (
     IAListCreateView,
     IARetrieveUpdateDestroyView,
 )
+from apps.efiling.views.ia_acts_views import (
+    IAActsListCreateView,
+    IAActsRetrieveUpdateDestroyView,
+)
 from apps.efiling.views.efiling_file_scrutiny_checklist_view import (
     FileScrutinyCheckListListCreateView,
     FileScrutinyCheckListRetrieveUpdateDestroyView,
@@ -78,6 +82,16 @@ urlpatterns = [
         "ias/<int:pk>/",
         IARetrieveUpdateDestroyView.as_view(),
         name="ia-detail",
+    ),
+    path(
+        "ia-acts/",
+        IAActsListCreateView.as_view(),
+        name="ia-acts-list-create",
+    ),
+    path(
+        "ia-acts/<int:pk>/",
+        IAActsRetrieveUpdateDestroyView.as_view(),
+        name="ia-acts-detail",
     ),
     path(
         "efiling-litigants/",
