@@ -165,3 +165,34 @@
   padding: 0.45rem 0.65rem;
 }
 
+.notes-popup-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 1050;
+}
+
+.notes-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(900px, 95vw);
+  max-height: 85vh;
+  overflow: auto;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  z-index: 1060;
+}
+
+.notes-popup-header {
+  padding: 0.95rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f8fafc;
+}
+
+.notes-popup-body {
+  padding: 1rem;
+}
+

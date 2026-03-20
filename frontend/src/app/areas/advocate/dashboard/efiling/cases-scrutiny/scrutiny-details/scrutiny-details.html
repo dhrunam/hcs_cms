@@ -1,12 +1,7 @@
 <div class="scrutiny-page">
-  <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
-    <div>
-      <div class="eyebrow-text">Advocate Review</div>
-      <h4 class="mb-1">Scrutiny Feedback</h4>
-      <p class="text-muted small mb-0">
-        Accepted documents stay locked. Replace is available only for rejected documents.
-      </p>
-    </div>
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-1">
+    <!-- <div>
+    </div> -->
 
     <a [routerLink]="['/advocate/dashboard/efiling/pending-scrutiny']" class="btn btn-light border btn-sm">
       <i class="fa-solid fa-arrow-left me-1"></i>
@@ -15,18 +10,14 @@
   </div>
 
   <div *ngIf="isLoading" class="card border-0 shadow-sm">
-    <div class="card-body p-4 text-muted small">Loading scrutiny feedback...</div>
+    <div class="card-body p-4 text-muted small">Loading Page .....</div>
   </div>
 
   <ng-container *ngIf="!isLoading && filing">
     <div class="card border-0 shadow-sm overview-card mb-4">
       <div class="card-body p-4 d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div>
-          <div class="eyebrow-text mb-2">Filing Summary</div>
-          <h5 class="mb-1">{{ filing.petitioner_name || 'Filed Case' }}</h5>
-          <p class="text-muted small mb-0">
-            {{ filing.case_type?.type_name || 'Case Type Pending' }} • {{ filing.e_filing_number || '-' }}
-          </p>
+          <h5 class="mb-1">{{ filing.case_type?.type_name || 'Case Type Pending' }} • {{ filing.e_filing_number || '-' }}</h5>
         </div>
 
         <span class="status-badge" [ngClass]="getStatusClass(filing.status)">
@@ -34,141 +25,183 @@
         </span>
       </div>
     </div>
-
-    <div class="row g-4">
-      <div class="col-xl-4">
-        <div class="card border-0 shadow-sm h-100">
-          <div class="card-body p-4">
-            <div class="section-title mb-1">Documents</div>
-            <div class="text-muted small mb-3">Review notes and status for each uploaded document.</div>
-
-            <div class="document-list" *ngIf="groupedDocuments.length > 0">
-              <div
-                class="document-group"
-                *ngFor="let group of groupedDocuments; trackBy: trackByGroupIndex"
-              >
-                <div class="document-type-header">
-                  {{ group.document_type || 'Main Document' }}
-                </div>
-
-                <button
-                  type="button"
-                  class="document-item"
-                  *ngFor="let document of group.items; trackBy: trackById"
-                  [class.document-item-active]="selectedDocument?.id === document.id"
-                  (click)="selectDocument(document)"
-                >
-                  <div class="d-flex justify-content-between align-items-start gap-2">
-                    <div>
-                      <!-- Treat document_part_name as the actual "file" row -->
-                      <div class="document-title">{{ document.document_part_name || getDocumentFileLabel(document) }}</div>
-                      <div class="document-meta">Seq {{ document.document_sequence || '-' }}</div>
-                    </div>
-
-                    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
-                      <span
-                        class="status-badge status-badge-sm"
-                        [ngClass]="getStatusClass(document.scrutiny_status)"
-                      >
-                        {{ getStatusLabel(document.scrutiny_status) }}
-                      </span>
-                      <input
-                        #rowReplaceInput
-                        type="file"
-                        accept="application/pdf"
-                        hidden
-                        (click)="$event.stopPropagation()"
-                        (change)="replaceSelectedDocument($event)"
-                      />
-                      <button
-                        type="button"
-                        class="btn btn-danger btn-sm"
-                        *ngIf="canReplace(document)"
-                        [disabled]="isReplacing"
-                        (click)="startReplace(document, rowReplaceInput, $event)"
-                      >
-                        {{
-                          isReplacing && selectedDocument?.id === document.id ? 'Replacing...' : 'Replace'
-                        }}
-                      </button>
-                    </div>
-                  </div>
-                </button>
-              </div>
-            </div>
+    <div class="accordion" id="accordionExample">
+      <div class="accordion-item">
+        <h2 class="accordion-header" id="headingOne">
+          <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+            Filing Summary
+          </button>
+        </h2>
+        <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#accordionExample">
+          <div class="accordion-body">
+            <strong>This is the first item's accordion body.</strong> It is shown by default, until the collapse plugin adds the appropriate classes that we use to style each element. These classes control the overall appearance, as well as the showing and hiding via CSS transitions. You can modify any of this with custom CSS or overriding our default variables. It's also worth noting that just about any HTML can go within the <code>.accordion-body</code>, though the transition does limit overflow.
           </div>
         </div>
       </div>
-
-      <div class="col-xl-8">
-        <div class="card border-0 shadow-sm">
-          <div class="card-body p-4" *ngIf="selectedDocument">
-            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
-              <div>
-                <div class="section-title mb-1">
-                  {{ getDocumentFileLabel(selectedDocument) }}
-                </div>
-                <div class="text-muted small">
-                  Sequence {{ selectedDocument.document_sequence || '-' }} •
-                    PDF document
-                </div>
-              </div>
-
-              <div class="d-flex align-items-center gap-2 flex-wrap">
-                <span class="status-badge" [ngClass]="getStatusClass(selectedDocument.scrutiny_status)">
-                  {{ getStatusLabel(selectedDocument.scrutiny_status) }}
-                </span>
-                <button type="button" class="btn btn-light border btn-sm" (click)="openInNewTab()">
-                  Open
-                </button>
-                <input #replaceInput type="file" accept="application/pdf" hidden (change)="replaceSelectedDocument($event)" />
-                <button
-                  type="button"
-                  class="btn btn-danger btn-sm"
-                  *ngIf="canReplace(selectedDocument)"
-                  [disabled]="isReplacing"
-                  (click)="triggerReplace(replaceInput)"
-                >
-                  {{ isReplacing ? 'Replacing...' : 'Replace' }}
-                </button>
-              </div>
-            </div>
-
-            <div class="alert alert-light border small mb-3" *ngIf="canReplace(selectedDocument)">
-              This document was rejected during scrutiny. Upload a fresh PDF to send it back for review.
-            </div>
-
+      <div class="accordion-item">
+        <h2 class="accordion-header" id="headingTwo">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+            Documents
+          </button>
+        </h2>
+        <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#accordionExample">
+          <div class="accordion-body">
             <div class="row g-4">
-              <div class="col-lg-7">
-                <div class="section-title mb-2">Inline PDF Preview</div>
-                <div class="preview-frame" *ngIf="selectedDocumentUrl; else noPreview">
-                  <iframe [src]="selectedDocumentUrl" title="Advocate PDF preview"></iframe>
-                </div>
-              </div>
-
-              <div class="col-lg-5">
-                <div class="section-title mb-2">Scrutiny Notes</div>
-                <div class="history-list">
-                  <div class="history-item" *ngFor="let item of visibleDocumentHistory; trackBy: trackById">
-                    <span class="history-badge" [ngClass]="historyClass(item.scrutiny_status)">
-                      {{ getStatusLabel(item.scrutiny_status) }}
-                    </span>
-                    <div class="history-note mt-2">{{ item.comments || 'No note added.' }}</div>
-                    <div class="text-muted small mt-2">
-                      {{ item.recieved_at | date: 'dd MMM yyyy, hh:mm a' }}
+              <div class="col-xl-3">
+                <div class="card border-0 shadow-sm h-100">
+                  <div class="card-body p-4">
+                    <div class="document-list" *ngIf="groupedDocuments.length > 0">
+                      <div
+                        class="document-group"
+                        *ngFor="let group of groupedDocuments; trackBy: trackByGroupIndex"
+                      >
+                        <div class="document-type-header">
+                          {{ group.document_type || 'Main Document' }}
+                        </div>
+        
+                        <button
+                          type="button"
+                          class="document-item"
+                          *ngFor="let document of group.items; trackBy: trackById"
+                          [class.document-item-active]="selectedDocument?.id === document.id"
+                          (click)="selectDocument(document)"
+                        >
+                          <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div>
+                              <!-- Treat document_part_name as the actual "file" row -->
+                              <div class="document-title">{{ document.document_part_name || getDocumentFileLabel(document) }}</div>
+                            </div>
+        
+                            <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                              <span
+                                class="status-badge status-badge-sm"
+                                [ngClass]="getStatusClass(document.scrutiny_status)"
+                              >
+                                {{ getStatusLabel(document.scrutiny_status) }}
+                              </span>
+                              <input
+                                #rowReplaceInput
+                                type="file"
+                                accept="application/pdf"
+                                hidden
+                                (click)="$event.stopPropagation()"
+                                (change)="replaceSelectedDocument($event)"
+                              />
+                              <button
+                                type="button"
+                                class="btn btn-danger btn-sm"
+                                *ngIf="canReplace(document)"
+                                [disabled]="isReplacing"
+                                (click)="startReplace(document, rowReplaceInput, $event)"
+                              >
+                                {{
+                                  isReplacing && selectedDocument?.id === document.id ? 'Replacing...' : 'Replace'
+                                }}
+                              </button>
+                            </div>
+                          </div>
+                        </button>
+                      </div>
                     </div>
                   </div>
+                </div>
+              </div>
+        
+              <div class="col-xl-9">
+                <div class="card border-0 shadow-sm">
+                  <div class="card-body p-4" *ngIf="selectedDocument">
+                    <div class="alert alert-light border small mb-3" *ngIf="canReplace(selectedDocument)">
+                      This document was rejected during scrutiny. Upload a fresh PDF to send it back for review.
+                    </div>
+        
+                    <div class="row g-4">
+                      <div class="col-12">
+                        <div class="d-flex justify-content-end mb-2">
+                          <button type="button" class="btn btn-danger btn-sm mx-3" *ngIf="canShowReplaceBtn">
+                            Replace
+                        </button>
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-dark"
+                            (click)="openNotesPopup()"
+                          >
+                            View Remarks
+                          </button>
+                        </div>
+                        <div class="preview-frame" *ngIf="selectedDocumentUrl; else noPreview">
+                          <iframe [src]="selectedDocumentUrl" title="Advocate PDF preview"></iframe>
+                        </div>
 
-                  <div *ngIf="visibleDocumentHistory.length === 0" class="text-muted small">
-                    Only scrutiny notes are shown here.
+                        <!-- Notes popup -->
+                        <div
+                          class="notes-popup-backdrop"
+                          *ngIf="notesPopupOpen"
+                          (click)="closeNotesPopup()"
+                        ></div>
+                        <div
+                          class="notes-popup"
+                          *ngIf="notesPopupOpen"
+                          role="dialog"
+                          aria-modal="true"
+                          aria-label="Scrutiny Notes"
+                          (click)="$event.stopPropagation()"
+                        >
+                          <div class="notes-popup-header d-flex justify-content-between align-items-center">
+                            <div class="fw-semibold">Scrutiny Notes</div>
+                            <button
+                              type="button"
+                              class="btn btn-sm btn-outline-secondary"
+                              (click)="closeNotesPopup()"
+                            >
+                              Close
+                            </button>
+                          </div>
+
+                          <div class="notes-popup-body">
+                            <div class="history-list">
+                              <div
+                                class="history-item"
+                                *ngFor="let item of visibleDocumentHistory; trackBy: trackById"
+                              >
+                                <div class="history-note mt-2">{{ item.comments || 'No note added.' }}</div>
+                                <div class="text-muted small mt-2">
+                                  {{ item.recieved_at | date: 'dd MMM yyyy, hh:mm a' }}
+                                </div>
+                              </div>
+
+                              <div
+                                *ngIf="visibleDocumentHistory.length === 0"
+                                class="text-muted small"
+                              >
+                                Only scrutiny notes are shown here.
+                              </div>
+                            </div>
+
+                            <div class="mt-3">
+                              <input
+                                #popupReplaceInput
+                                type="file"
+                                accept="application/pdf"
+                                hidden
+                                (click)="$event.stopPropagation()"
+                                (change)="replaceSelectedDocument($event)"
+                              />
+
+                              
+                            </div>
+                            
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+        
+                  <div class="card-body p-4 text-muted small" *ngIf="!selectedDocument">
+                    Select a document to view its scrutiny history.
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-
-          <div class="card-body p-4 text-muted small" *ngIf="!selectedDocument">
-            Select a document to view its scrutiny history.
           </div>
         </div>
       </div>

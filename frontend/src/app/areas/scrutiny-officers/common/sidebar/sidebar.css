@@ -1,7 +1,7 @@
 .sidebar {
   height: 100vh;
-  background: linear-gradient(180deg, #ffffff 0%, #eef2ff 100%);
-  border-right: 1px solid #dbe4ff;
+  /* background: linear-gradient(180deg, #ffffff 0%, #eef2ff 100%); */
+  /* border-right: 1px solid #dbe4ff; */
   padding-top: 10px;
   cursor: pointer;
   width: 260px;
