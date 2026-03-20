@@ -9,6 +9,13 @@ export const FiledCasesRoutes: Routes = [
       {
         path: 'view',
         loadComponent: () => import('./view/view').then((c) => c.FiledCasesView),
+        title: 'Filed Cases | CMS',
+      },
+      {
+        path: 'registered',
+        loadComponent: () => import('./view/view').then((c) => c.FiledCasesView),
+        title: 'Registered Cases | CMS',
+        data: { mode: 'registered' },
       },
       {
         path: 'details',

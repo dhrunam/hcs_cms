@@ -56,8 +56,13 @@ class EfilingDocumentsRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
     def _save_document_update(self, request, *args, partial=False, **kwargs):
         document = self.get_object()
         is_file_replacement = "final_document" in request.FILES or "final_document" in request.data
+        raw_document_index_id = request.data.get("document_index_id")
+        try:
+            document_index_id = int(raw_document_index_id) if raw_document_index_id else None
+        except (TypeError, ValueError):
+            raise ValidationError({"document_index_id": "A valid document review item is required."})
 
-        if is_file_replacement and not can_replace_document(document):
+        if is_file_replacement and not can_replace_document(document, document_index_id=document_index_id):
             raise ValidationError(
                 {
                     "final_document": (
@@ -73,6 +78,7 @@ class EfilingDocumentsRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
             sync_document_index_for_upload(
                 document,
                 user=request.user if request.user.is_authenticated else None,
+                document_index_id=document_index_id,
             )
         derive_filing_status(document.e_filing)
         return response

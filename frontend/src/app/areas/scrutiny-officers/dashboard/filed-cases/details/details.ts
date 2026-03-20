@@ -112,7 +112,7 @@ export class FiledCaseDetails {
 
   selectDocument(document: any): void {
     this.selectedDocument = document;
-    this.reviewNote = document?.comments ?? '';
+    this.reviewNote = document?.draft_comments ?? document?.comments ?? '';
     this.updatePreviewUrl(document?.file_url ?? null);
 
     if (!document?.id) {
@@ -191,6 +191,7 @@ export class FiledCaseDetails {
       next: (filing) => {
         this.isSubmittingApprovedCase = false;
         this.filing = filing;
+        this.loadWorkspace(this.filingId!);
       },
       error: (error) => {
         console.error('Failed to submit approved filing', error);
@@ -215,8 +216,8 @@ export class FiledCaseDetails {
         next: (updatedDocument) => {
           this.isSavingReview = false;
           this.applyReviewedDocument(updatedDocument);
-          this.refreshFilingSummary();
-          this.selectDocument(this.getNextDocumentForReview(currentDocumentId));
+          const nextDocument = this.getNextDocumentForReview(currentDocumentId);
+          this.loadWorkspace(this.filingId!, nextDocument?.id);
         },
         error: (error) => {
           console.error('Failed to update review', error);
@@ -231,6 +232,26 @@ export class FiledCaseDetails {
     }
   }
 
+  get filingStatusForDisplay(): string | null {
+    const activeDocuments = this.activeDocuments;
+    if (!activeDocuments.length) {
+      return this.filing?.status ?? null;
+    }
+
+    const tones = activeDocuments.map((document) => this.getStatusTone(this.getEffectiveReviewStatus(document)));
+
+    if (tones.every((tone) => tone === 'success')) {
+      return 'ACCEPTED';
+    }
+
+    if (tones.includes('danger')) {
+      const hasNonRejected = tones.some((tone) => tone !== 'danger');
+      return hasNonRejected ? 'PARTIALLY_REJECTED' : 'REJECTED';
+    }
+
+    return this.filing?.status ?? 'UNDER_SCRUTINY';
+  }
+
   getStatusLabel(status: string | null): string {
     const normalizedStatus = (status ?? '').trim().toLowerCase();
     if (!normalizedStatus || normalizedStatus === 'submitted' || normalizedStatus === 'under_scrutiny') {
@@ -241,6 +262,9 @@ export class FiledCaseDetails {
     }
     if (normalizedStatus.includes('reject') || normalizedStatus.includes('object')) {
       return 'Rejected';
+    }
+    if (normalizedStatus.includes('partially')) {
+      return 'Partially Rejected';
     }
     if (normalizedStatus === 'draft') {
       return 'Draft';
@@ -268,6 +292,20 @@ export class FiledCaseDetails {
       return 'status-badge-danger';
     }
     return 'status-badge-warning';
+  }
+
+  getDocumentStatusLabel(document: any): string {
+    const draftStatus = (document?.draft_scrutiny_status ?? '').trim();
+    if (draftStatus) {
+      const baseLabel = this.getStatusLabel(draftStatus);
+      return baseLabel === 'Under Scrutiny' ? baseLabel : `Draft ${baseLabel}`;
+    }
+    return this.getStatusLabel(document?.scrutiny_status ?? null);
+  }
+
+  getDocumentStatusClass(document: any): string {
+    const draftStatus = (document?.draft_scrutiny_status ?? '').trim();
+    return this.getStatusClass(draftStatus || document?.scrutiny_status || null);
   }
 
   private extractFileName(value: string | null | undefined): string {
@@ -335,15 +373,19 @@ export class FiledCaseDetails {
   }
 
   get acceptedCount(): number {
-    return this.documents.filter((document) => this.getStatusTone(document.scrutiny_status) === 'success').length;
+    return this.activeDocuments.filter(
+      (document) => this.getStatusTone(this.getEffectiveReviewStatus(document)) === 'success',
+    ).length;
   }
 
   get rejectedCount(): number {
-    return this.documents.filter((document) => this.getStatusTone(document.scrutiny_status) === 'danger').length;
+    return this.activeDocuments.filter(
+      (document) => this.getStatusTone(this.getEffectiveReviewStatus(document)) === 'danger',
+    ).length;
   }
 
   get pendingCount(): number {
-    return this.documents.filter((document) => this.getStatusTone(document.scrutiny_status) === 'warning').length;
+    return this.activeDocuments.filter((document) => this.isPendingDraftReview(document)).length;
   }
   getActName(act: any): string {
     return act?.act?.actname ?? act?.actname ?? '-';
@@ -377,8 +419,7 @@ export class FiledCaseDetails {
   private getNextDocumentForReview(currentDocumentId: number): any {
     const nextPendingDocument =
       this.documents.find(
-        (document) =>
-          document.id !== currentDocumentId && this.getStatusTone(document.scrutiny_status) === 'warning',
+        (document) => document.id !== currentDocumentId && this.isPendingDraftReview(document),
       ) ?? null;
 
     if (nextPendingDocument) {
@@ -393,11 +434,9 @@ export class FiledCaseDetails {
     return this.documents[currentIndex + 1] ?? this.documents[currentIndex - 1] ?? this.documents[currentIndex];
   }
 
-  get allDocumentsApproved(): boolean {
-    return (
-      this.documents.length > 0 &&
-      this.documents.every((document) => this.getStatusTone(document?.scrutiny_status) === 'success')
-    );
+  get allDocumentsReviewed(): boolean {
+    const activeDocuments = this.activeDocuments;
+    return activeDocuments.length > 0 && activeDocuments.every((document) => !this.isPendingDraftReview(document));
   }
 
   get canSubmitApprovedFiling(): boolean {
@@ -405,7 +444,29 @@ export class FiledCaseDetails {
       this.filingId &&
         !this.isSubmittingApprovedCase &&
         !this.filing?.case_number &&
-        this.allDocumentsApproved,
+        this.allDocumentsReviewed,
     );
+  }
+
+  private isPendingDraftReview(document: any): boolean {
+    const draftStatus = this.getNormalizedStatus(document?.draft_scrutiny_status);
+    if (['accepted', 'rejected'].includes(draftStatus)) {
+      return false;
+    }
+    const finalStatus = this.getNormalizedStatus(document?.scrutiny_status);
+    return !['accepted', 'rejected'].includes(finalStatus);
+  }
+
+  private getEffectiveReviewStatus(document: any): string | null {
+    return document?.draft_scrutiny_status || document?.scrutiny_status || null;
+  }
+
+  private getNormalizedStatus(status: string | null | undefined): string {
+    return String(status ?? '').trim().toLowerCase();
+  }
+
+  private get activeDocuments(): any[] {
+    const explicitlyActive = this.documents.filter((document) => document?.is_active !== false);
+    return explicitlyActive.length > 0 ? explicitlyActive : this.documents;
   }
 }

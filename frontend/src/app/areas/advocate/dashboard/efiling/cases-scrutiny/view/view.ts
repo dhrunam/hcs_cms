@@ -42,6 +42,9 @@ export class View {
     if (normalizedStatus.includes('accept')) {
       return 'Accepted';
     }
+    if (normalizedStatus.includes('partially')) {
+      return 'Partially Rejected';
+    }
     if (normalizedStatus.includes('reject') || normalizedStatus.includes('object')) {
       return 'Rejected';
     }
@@ -53,7 +56,7 @@ export class View {
     if (label.includes('accept')) {
       return 'background: #f1f5f9; color: #1e293b';
     }
-    if (label.includes('reject')) {
+    if (label.includes('reject') || label.includes('partial')) {
       return 'background: #fee2e2; color: #991b1b';
     }
     return 'background: #fef3c7; color: #92400e';
