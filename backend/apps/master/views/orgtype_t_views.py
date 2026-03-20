@@ -7,3 +7,4 @@ from apps.master.serializers.orgtype_t_serializers import OrgtypeTSerializer
 class OrgtypeTListView(ListAPIView):
     queryset = OrgtypeT.objects.all()
     serializer_class = OrgtypeTSerializer
+    pagination_class = None  # Disable pagination for this view
