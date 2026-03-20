@@ -13,6 +13,7 @@ export class InitialInputs {
   constructor(private caseTypeService: CaseTypeService) {}
 
   @Input() form!: FormGroup;
+  @Input() isDraft = false;
   case_types: any[] = [];
 
   ngOnInit() {
@@ -25,5 +26,11 @@ export class InitialInputs {
         this.case_types = data;
       },
     });
+  }
+
+  get_case_type_label(value: any): string {
+    if (value?.type_name) return value.type_name;
+    const id = value?.id ?? value;
+    return this.case_types.find((item) => item.id === id)?.type_name || '';
   }
 }

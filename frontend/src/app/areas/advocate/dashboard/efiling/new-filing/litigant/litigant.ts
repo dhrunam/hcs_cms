@@ -32,6 +32,21 @@ export class Litigant {
   ngOnInit() {
     this.get_organisation_list();
     this.get_state_list();
+    this.bindOrganisationToggle();
+  }
+
+  private bindOrganisationToggle() {
+    const orgCtrl = this.form?.get('is_organisation');
+    if (!orgCtrl) return;
+
+    orgCtrl.valueChanges.subscribe((isOrg) => {
+      if (isOrg) {
+        this.form.patchValue({ gender: '', age: '' }, { emitEvent: false });
+        return;
+      }
+
+      this.form.patchValue({ organization: '' }, { emitEvent: false });
+    });
   }
 
   delete_ligitant_details(id: number) {
@@ -46,6 +61,13 @@ export class Litigant {
     return this.litigantList.sort(
       (a: any, b: any) => Number(b.is_petitioner) - Number(a.is_petitioner),
     );
+  }
+
+  get hasRequiredLitigants(): boolean {
+    const list = Array.isArray(this.litigantList) ? this.litigantList : [];
+    const hasPetitioner = list.some((item) => item.is_petitioner);
+    const hasRespondent = list.some((item) => !item.is_petitioner);
+    return hasPetitioner && hasRespondent;
   }
 
   get_organisation_list() {

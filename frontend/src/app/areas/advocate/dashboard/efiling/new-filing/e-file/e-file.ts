@@ -15,6 +15,7 @@ export class EFile {
   @Input() litigantList!: any;
   @Input() actList!: any;
   @Input() docList!: any;
+  @Input() caseDetailsData: any;
   @Output() goToPage = new EventEmitter<number>();
 
   caseTypes: any[] = [];
@@ -30,7 +31,10 @@ export class EFile {
     private organisationService: OrganisationService,
   ) {}
 
-  ngOnInit() {}
+  ngOnInit() {
+    this.get_case_types();
+    this.get_organisation_list();
+  }
 
   get_case_types() {
     this.caseTypeService.get_case_types().subscribe({
@@ -50,6 +54,10 @@ export class EFile {
     return this.caseTypes.find((n) => n.id === id)?.name || '';
   }
 
+  get_case_type_full_form(id: number): string {
+    return this.caseTypes.find((n) => n.id === id)?.full_form || '';
+  }
+
   get initialInputsForm(): FormGroup {
     return this.form.get('initialInputs') as FormGroup;
   }
@@ -60,6 +68,11 @@ export class EFile {
 
   get caseDetailsForm(): FormGroup {
     return this.form.get('caseDetails') as FormGroup;
+  }
+
+  get caseDetailsView(): any {
+    if (this.caseDetailsData) return this.caseDetailsData;
+    return this.caseDetailsForm.getRawValue();
   }
 
   get_organisation_list() {
