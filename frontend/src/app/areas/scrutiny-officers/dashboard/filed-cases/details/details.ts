@@ -318,4 +318,7 @@ export class FiledCaseDetails {
   get pendingCount(): number {
     return this.documents.filter((document) => this.getStatusTone(document.scrutiny_status) === 'warning').length;
   }
+  getActName(act: any): string {
+    return act?.act?.actname ?? act?.actname ?? '-';
+  }
 }

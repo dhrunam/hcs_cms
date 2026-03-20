@@ -77,6 +77,10 @@ export class EfilingService {
     return this.http.get<any>(`${app_url}/api/v1/efiling/efiling-documents/?efiling_id=${id}`);
   }
 
+  get_efiling_documents(): Observable<any> {
+    return this.http.get<any>(`${app_url}/api/v1/efiling/efiling-documents/`);
+  }
+
   get_document_reviews_by_filing_id(id: number): Observable<any> {
     return this.http.get<any>(`${app_url}/api/v1/efiling/efiling-documents-index/?efiling_id=${id}`);
   }
