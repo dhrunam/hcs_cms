@@ -167,9 +167,6 @@
                     </div>
 
                     <div class="d-flex gap-2 flex-wrap mt-3">
-                      <button type="button" class="btn btn-outline-primary btn-sm" (click)="saveNotes()" [disabled]="isSavingReview">
-                        {{ isSavingReview ? 'Saving...' : 'Save Notes' }}
-                      </button>
                       <button type="button" class="btn btn-success btn-sm" (click)="acceptDocument()" [disabled]="isSavingReview">
                         Accept
                       </button>
