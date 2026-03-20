@@ -27,10 +27,19 @@
     >
       <li
         class="nav-item"
-        routerLink="/scrutiny-officers/dashboard/filed-cases"
+        routerLink="/scrutiny-officers/dashboard/filed-cases/view"
         routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
       >
         <a class="nav-link">Filed Cases</a>
+      </li>
+      <li
+        class="nav-item"
+        routerLink="/scrutiny-officers/dashboard/filed-cases/registered"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+      >
+        <a class="nav-link">Registered Cases</a>
       </li>
     </ul>
   </li>

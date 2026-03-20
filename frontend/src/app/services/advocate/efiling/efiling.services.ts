@@ -48,6 +48,10 @@ export class EfilingService {
     return this.http.post<any>(`${app_url}/api/v1/efiling/efiling-acts/`, fd);
   }
 
+  delete_case_details_act(id: number): Observable<any> {
+    return this.http.delete<any>(`${app_url}/api/v1/efiling/efiling-acts/${id}/`);
+  }
+
   get_filings_under_scrutiny(): Observable<any> {
     return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/?is_draft=false`);
   }
@@ -58,6 +62,10 @@ export class EfilingService {
 
   get_filing_by_id(id: number): Observable<any> {
     return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/${id}/`);
+  }
+
+  get_filing_by_efiling_id(id: number): Observable<any> {
+    return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/?e_filing_id=${id}`);
   }
 
   submit_approved_filing(id: number): Observable<any> {
@@ -86,7 +94,9 @@ export class EfilingService {
   }
 
   get_document_reviews_by_filing_id(id: number): Observable<any> {
-    return this.http.get<any>(`${app_url}/api/v1/efiling/efiling-documents-index/?efiling_id=${id}`);
+    return this.http.get<any>(
+      `${app_url}/api/v1/efiling/efiling-documents-index/?efiling_id=${id}`,
+    );
   }
 
   get_document_scrutiny_history(documentIndexId: number): Observable<any> {
@@ -99,7 +109,10 @@ export class EfilingService {
     return this.http.get(fileUrl, { responseType: 'blob' });
   }
 
-  review_document(documentIndexId: number, payload: FormData | Record<string, any>): Observable<any> {
+  review_document(
+    documentIndexId: number,
+    payload: FormData | Record<string, any>,
+  ): Observable<any> {
     return this.http.patch<any>(
       `${app_url}/api/v1/efiling/efiling-documents-index/${documentIndexId}/`,
       payload,
@@ -113,6 +126,16 @@ export class EfilingService {
       fd.append('document_type', documentType);
     }
     return this.http.patch<any>(`${app_url}/api/v1/efiling/efiling-documents/${documentId}/`, fd);
+  }
+
+  replace_document_review_item(documentIndexId: number, file: File): Observable<any> {
+    const fd = new FormData();
+    fd.append('file_part_path', file);
+    return this.http.patch<any>(`${app_url}/api/v1/efiling/efiling-documents-index/${documentIndexId}/`, fd);
+  }
+
+  get_new_scrutiny_documents(): Observable<any> {
+    return this.http.get<any>(`${app_url}/api/v1/efiling/efiling-documents-index/?is_new_for_scrutiny=true`);
   }
 
   get_file_scrutiny_checklist(caseTypeId: number): Observable<any> {

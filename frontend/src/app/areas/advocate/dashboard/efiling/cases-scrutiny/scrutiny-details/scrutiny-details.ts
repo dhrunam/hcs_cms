@@ -159,6 +159,7 @@ export class ScrutinyDetails {
   }
 
   triggerReplace(input: HTMLInputElement): void {
+    input.value = '';
     input.click();
   }
 
@@ -172,17 +173,13 @@ export class ScrutinyDetails {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
 
-    if (!file || !this.selectedDocument?.document || this.isReplacing) {
+    if (!file || !this.selectedDocument?.id || this.isReplacing) {
       return;
     }
 
     this.isReplacing = true;
     this.efilingService
-      .replace_document(
-        this.selectedDocument.document,
-        file,
-        this.selectedDocument.document_part_name || this.selectedDocument.document_type,
-      )
+      .replace_document_review_item(this.selectedDocument.id, file)
       .subscribe({
         next: () => {
           this.isReplacing = false;

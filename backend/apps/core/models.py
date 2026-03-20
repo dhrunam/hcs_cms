@@ -406,6 +406,14 @@ class EfilingDocumentsIndex(BaseModel):
         choices=ScrutinyStatus.choices,
         default=ScrutinyStatus.DRAFT,
     )
+    draft_scrutiny_status = models.CharField(
+        max_length=32,
+        choices=ScrutinyStatus.choices,
+        blank=True,
+        null=True,
+    )
+    draft_comments = models.TextField(blank=True, null=True)
+    draft_reviewed_at = models.DateTimeField(blank=True, null=True)
     is_new_for_scrutiny = models.BooleanField(default=False)
     last_resubmitted_at = models.DateTimeField(blank=True, null=True)
     last_reviewed_at = models.DateTimeField(blank=True, null=True)
