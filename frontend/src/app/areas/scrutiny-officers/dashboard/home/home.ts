@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { EfilingService } from '../../../../services/advocate/efiling/efiling.services';
 
 interface EfilingCaseType {
@@ -27,6 +28,7 @@ interface EfilingItem {
 })
 export class ScrutinyOfficerHome {
   filedCases: EfilingItem[] = [];
+  newIncomingFilingIds = new Set<number>();
   isLoading = false;
 
   constructor(private eFilingService: EfilingService) {}
@@ -43,6 +45,10 @@ export class ScrutinyOfficerHome {
     return this.registeredCases.length;
   }
 
+  get newIncomingCount(): number {
+    return this.newIncomingFilingIds.size;
+  }
+
   get underScrutinyCount(): number {
     return this.openFiledCases.filter((item) => this.getStatusTone(item.status) === 'warning').length;
   }
@@ -51,12 +57,12 @@ export class ScrutinyOfficerHome {
     return this.filedCases.filter((item) => this.getStatusTone(item.status) === 'success').length;
   }
 
-  get objectionsCount(): number {
+  get rejectedCount(): number {
     return this.openFiledCases.filter((item) => this.getStatusTone(item.status) === 'danger').length;
   }
 
   get dashboardPreviewCases(): EfilingItem[] {
-    return this.openFiledCases.slice(0, 5);
+    return this.openFiledCases.slice(0, 10);
   }
 
   get registeredCasesPreview(): EfilingItem[] {
@@ -73,23 +79,36 @@ export class ScrutinyOfficerHome {
 
   getFiledCases(): void {
     this.isLoading = true;
-    this.eFilingService.get_filings_under_scrutiny().subscribe({
-      next: (data) => {
-        this.filedCases = data?.results ?? [];
+    forkJoin({
+      filings: this.eFilingService.get_filings_under_scrutiny(),
+      incoming: this.eFilingService.get_new_scrutiny_documents(),
+    }).subscribe({
+      next: ({ filings, incoming }) => {
+        this.filedCases = filings?.results ?? [];
+        this.newIncomingFilingIds = new Set<number>(
+          (incoming?.results ?? incoming ?? [])
+            .map((item: any) => item?.e_filing_id)
+            .filter((id: number | null | undefined) => typeof id === 'number'),
+        );
         this.isLoading = false;
       },
       error: (error) => {
         console.error('Failed to load filed cases', error);
         this.filedCases = [];
+        this.newIncomingFilingIds = new Set<number>();
         this.isLoading = false;
       },
     });
   }
 
+  hasNewForScrutiny(filingId: number | null | undefined): boolean {
+    return typeof filingId === 'number' && this.newIncomingFilingIds.has(filingId);
+  }
+
   getStatusLabel(status: string | null): string {
     const normalizedStatus = (status ?? '').trim().toLowerCase();
 
-    if (!normalizedStatus || normalizedStatus === 'submitted') {
+    if (!normalizedStatus || normalizedStatus === 'submitted' || normalizedStatus === 'under_scrutiny') {
       return 'Under Scrutiny';
     }
 
@@ -97,12 +116,16 @@ export class ScrutinyOfficerHome {
       return 'Accepted';
     }
 
+    if (normalizedStatus.includes('partially')) {
+      return 'Partially Rejected';
+    }
+
     if (
       normalizedStatus.includes('reject') ||
       normalizedStatus.includes('object') ||
       normalizedStatus.includes('defect')
     ) {
-      return 'Objection';
+      return 'Rejected';
     }
 
     return status ?? 'Under Scrutiny';
@@ -115,7 +138,7 @@ export class ScrutinyOfficerHome {
       return 'success';
     }
 
-    if (label.includes('objection') || label.includes('reject') || label.includes('defect')) {
+    if (label.includes('partial') || label.includes('reject') || label.includes('defect')) {
       return 'danger';
     }
 

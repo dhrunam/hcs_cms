@@ -31,6 +31,9 @@ class EfilingDocumentsIndexSerializer(serializers.ModelSerializer):
             "is_compliant",
             "comments",
             "scrutiny_status",
+            "draft_scrutiny_status",
+            "draft_comments",
+            "draft_reviewed_at",
             "is_new_for_scrutiny",
             "last_resubmitted_at",
             "last_reviewed_at",
@@ -70,5 +73,5 @@ class EfilingDocumentsIndexSerializer(serializers.ModelSerializer):
     def get_can_replace(self, obj):
         if not obj.document_id or not obj.document:
             return False
-        return can_replace_document(obj.document)
+        return can_replace_document(obj.document, document_index_id=obj.id)
 
