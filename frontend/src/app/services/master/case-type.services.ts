@@ -8,6 +8,6 @@ export class CaseTypeService {
   constructor(private http: HttpClient) {}
 
   get_case_types(): Observable<any> {
-    return this.http.get<any>(`${app_url}/api/v1/master/case-types`);
+    return this.http.get<any>(`${app_url}/api/v1/master/case-types/`);
   }
 }
