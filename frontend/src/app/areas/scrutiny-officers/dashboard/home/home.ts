@@ -57,12 +57,12 @@ export class ScrutinyOfficerHome {
     return this.filedCases.filter((item) => this.getStatusTone(item.status) === 'success').length;
   }
 
-  get objectionsCount(): number {
+  get rejectedCount(): number {
     return this.openFiledCases.filter((item) => this.getStatusTone(item.status) === 'danger').length;
   }
 
   get dashboardPreviewCases(): EfilingItem[] {
-    return this.openFiledCases.slice(0, 5);
+    return this.openFiledCases.slice(0, 10);
   }
 
   get registeredCasesPreview(): EfilingItem[] {
@@ -108,7 +108,7 @@ export class ScrutinyOfficerHome {
   getStatusLabel(status: string | null): string {
     const normalizedStatus = (status ?? '').trim().toLowerCase();
 
-    if (!normalizedStatus || normalizedStatus === 'submitted') {
+    if (!normalizedStatus || normalizedStatus === 'submitted' || normalizedStatus === 'under_scrutiny') {
       return 'Under Scrutiny';
     }
 
@@ -116,12 +116,16 @@ export class ScrutinyOfficerHome {
       return 'Accepted';
     }
 
+    if (normalizedStatus.includes('partially')) {
+      return 'Partially Rejected';
+    }
+
     if (
       normalizedStatus.includes('reject') ||
       normalizedStatus.includes('object') ||
       normalizedStatus.includes('defect')
     ) {
-      return 'Objection';
+      return 'Rejected';
     }
 
     return status ?? 'Under Scrutiny';
@@ -134,7 +138,7 @@ export class ScrutinyOfficerHome {
       return 'success';
     }
 
-    if (label.includes('objection') || label.includes('reject') || label.includes('defect')) {
+    if (label.includes('partial') || label.includes('reject') || label.includes('defect')) {
       return 'danger';
     }
 

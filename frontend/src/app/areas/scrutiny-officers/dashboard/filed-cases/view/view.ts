@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { EfilingService } from '../../../../../services/advocate/efiling/efiling.services';
 
@@ -30,10 +30,15 @@ export class FiledCasesView {
   allCases: EfilingItem[] = [];
   newIncomingFilingIds = new Set<number>();
   isLoading = false;
+  mode: 'all' | 'registered' = 'all';
 
-  constructor(private eFilingService: EfilingService) {}
+  constructor(
+    private eFilingService: EfilingService,
+    private route: ActivatedRoute,
+  ) {}
 
   ngOnInit(): void {
+    this.mode = this.route.snapshot.data['mode'] === 'registered' ? 'registered' : 'all';
     this.getFiledCases();
   }
 
@@ -69,6 +74,14 @@ export class FiledCasesView {
     return this.allCases.filter((filing) => !!filing.case_number);
   }
 
+  get showFiledCasesSection(): boolean {
+    return this.mode !== 'registered';
+  }
+
+  get showRegisteredCasesSection(): boolean {
+    return this.mode === 'registered';
+  }
+
   hasNewForScrutiny(filingId: number | null | undefined): boolean {
     return typeof filingId === 'number' && this.newIncomingFilingIds.has(filingId);
   }
@@ -76,7 +89,7 @@ export class FiledCasesView {
   getStatusLabel(status: string | null): string {
     const normalizedStatus = (status ?? '').trim().toLowerCase();
 
-    if (!normalizedStatus || normalizedStatus === 'submitted') {
+    if (!normalizedStatus || normalizedStatus === 'submitted' || normalizedStatus === 'under_scrutiny') {
       return 'Under Scrutiny';
     }
 
@@ -84,12 +97,16 @@ export class FiledCasesView {
       return 'Accepted';
     }
 
+    if (normalizedStatus.includes('partially')) {
+      return 'Partially Rejected';
+    }
+
     if (
       normalizedStatus.includes('reject') ||
       normalizedStatus.includes('object') ||
       normalizedStatus.includes('defect')
     ) {
-      return 'Objection';
+      return 'Rejected';
     }
 
     return status ?? 'Under Scrutiny';
