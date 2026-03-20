@@ -1,3 +1,53 @@
+<<<<<<< HEAD
+=======
+<header class="d-flex justify-content-between align-items-center mb-2">
+  <h5 class="mb-0">
+    <span class="text-dark ms-2 small">
+      <span class="text-muted">Filing Number :</span>
+      {{ eFilingNumber }}
+    </span>
+  </h5>
+
+  <a
+    [routerLink]="['/advocate/dashboard/efiling/draft-filings']"
+    class="btn btn-sm btn-light border"
+    style="font-size: 12px"
+  >
+    <i class="fa-solid fa-arrow-left me-1"></i>
+    Back
+  </a>
+</header>
+<!-- STEPPER -->
+<div class="chevron-container mb-4">
+  <div class="chevron" [class.active]="step >= 2" (click)="goToStep(2)">
+    <span>
+      <i class="fa-solid fa-users me-2"></i>
+      Litigant
+    </span>
+  </div>
+
+  <div class="chevron" [class.active]="step >= 3" (click)="goToStep(3)">
+    <span>
+      <i class="fa-solid fa-scale-balanced me-2"></i>
+      Case Details
+    </span>
+  </div>
+  <div class="chevron" [class.active]="step >= 4" (click)="goToStep(4)">
+    <span>
+      <i class="fa-solid fa-file-pdf me-2"></i>
+      Documents
+    </span>
+  </div>
+
+  <div class="chevron" [class.active]="step >= 5" (click)="goToStep(5)">
+    <span>
+      <i class="fa-solid fa-paper-plane me-2"></i>
+      eFile
+    </span>
+  </div>
+</div>
+
+>>>>>>> 753054ae62d97a1683f331928f75c96e7505a3a2
 <div class="card border-0 p-4">
   <div class="chevron-container mb-4">
     <div class="chevron" [class.active]="step >= 1" (click)="goToStep(1)">

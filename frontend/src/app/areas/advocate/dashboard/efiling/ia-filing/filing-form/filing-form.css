@@ -1,10 +1,8 @@
-.section-title {
-  color: #0f172a;
-  font-size: 1rem;
-  font-weight: 600;
+.ia-filing-form {
+  padding: 0 0.25rem;
 }
 
-/* Searchable select - same as IA filing */
+/* Searchable select */
 .searchable-select {
   position: relative;
 }
@@ -117,4 +115,3 @@
 .rotate-180 {
   transform: rotate(180deg);
 }
-

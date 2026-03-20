@@ -24,4 +24,9 @@ export const EfilingRoutes: Routes = [
     loadChildren: () =>
       import('./document-filing/document-filing.routing').then((r) => r.DocumentFilingRoutes),
   },
+  {
+    path: 'ia-filing',
+    loadChildren: () =>
+      import('./ia-filing/ia-filing.routing').then((r) => r.IaFilingRoutes),
+  },
 ];
