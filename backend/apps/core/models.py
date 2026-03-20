@@ -221,6 +221,13 @@ class EfilingSequence(models.Model):
 
     class Meta:
         db_table = "e_filing_sequence"
+        
+class IAfilingSequence(models.Model):
+    year = models.IntegerField(unique=True)  # one row per year
+    last_sequence = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = "ia_filing_sequence"
 
 class Efiling(BaseModel):
     case_type= models.ForeignKey(CaseTypeT, on_delete=models.SET_NULL, null=True, blank=True, related_name='efilings')
@@ -354,6 +361,7 @@ def _safe_folder_component(value: str, default: str = "unknown") -> str:
 class EfilingDocuments(BaseModel):
     e_filing = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name='efiling_documents')
     e_filing_number = models.CharField(max_length=100, blank=True, null=True)
+    ia_number = models.CharField(max_length=100, blank=True, null=True)
     document_type = models.CharField(max_length=512, blank=True, null=True) 
     parent_e_filing_document = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='child_documents')
     final_document = models.FileField(upload_to='media/efile/final_documents/', max_length=512, blank=True, null=True)
@@ -425,6 +433,27 @@ class IA(BaseModel):
     class Meta:
       
         db_table = 'ia'
+        
+    def save(self, *args, **kwargs):
+        # Generate filing number only on first save
+        if self.pk is None and not self.ia_number:
+            current_year = timezone.now().year
+
+            with transaction.atomic():  # Atomic block for concurrency
+                # Get or create the sequence for this year
+                seq_obj, created = IAfilingSequence.objects.select_for_update().get_or_create(year=current_year)
+
+                # Increment sequence
+                seq_obj.last_sequence += 1
+                new_sequence = seq_obj.last_sequence
+                seq_obj.save()
+
+                # Format the number
+              
+                seq5 = str(new_sequence).zfill(5)
+                self.ia_number = f"IA{current_year}{seq5}"
+
+        super().save(*args, **kwargs)
 
 class IAActs(BaseModel):
     ia = models.ForeignKey(IA, on_delete=models.CASCADE, related_name='ia_acts', null=True, blank=True)
