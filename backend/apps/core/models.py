@@ -651,3 +651,56 @@ class CivilT(BaseModel):
         
         db_table = 'civil_t'
 
+class AdvocateT(BaseModel):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='advocate_profile', null=True, blank=True)
+    adv_code = models.BigIntegerField(primary_key=True)
+    adv_name = models.CharField(max_length=100, blank=True, null=True)
+    ladv_name = models.CharField(max_length=100, blank=True, null=True)
+    adv_reg = models.CharField(max_length=20, blank=True, null=True)
+    display = models.TextField()  # This field type is a guess.
+    address = models.TextField(blank=True, null=True)
+    laddress = models.TextField(blank=True, null=True)
+    email = models.CharField(max_length=254, blank=True, null=True)
+    adv_sex = models.CharField(max_length=1, blank=True, null=True)
+    adv_mobile = models.CharField(max_length=15, blank=True, null=True)
+    adv_phone = models.CharField(max_length=15, blank=True, null=True)
+    adv_phone1 = models.CharField(max_length=15, blank=True, null=True)
+    off_add = models.TextField(blank=True, null=True)
+    loff_add = models.TextField(blank=True, null=True)
+    dist_code = models.SmallIntegerField()
+    taluka_code = models.SmallIntegerField()
+    village_code = models.IntegerField()
+    village1_code = models.IntegerField()
+    village2_code = models.IntegerField()
+    town_code = models.IntegerField()
+    ward_code = models.IntegerField()
+    adv_fax = models.CharField(max_length=15, blank=True, null=True)
+    date_birth = models.DateField(blank=True, null=True)
+    debarred = models.TextField()  # This field type is a guess.
+    pincode = models.IntegerField(blank=True, null=True)
+    dist_code_res = models.SmallIntegerField()
+    taluka_code_res = models.SmallIntegerField()
+    village_code_res = models.IntegerField()
+    village1_code_res = models.IntegerField()
+    village2_code_res = models.IntegerField()
+    town_code_res = models.IntegerField()
+    ward_code_res = models.IntegerField()
+    status = models.IntegerField()
+    frequent = models.TextField()  # This field type is a guess.
+    adv_full_name = models.CharField(max_length=100, blank=True, null=True)
+    adv_seniority = models.IntegerField(blank=True, null=True)
+    adv_gender = models.CharField(max_length=1, blank=True, null=True)
+    state_id_res = models.IntegerField(blank=True, null=True)
+    uid = models.BigIntegerField(blank=True, null=True)
+    state_id = models.IntegerField(blank=True, null=True)
+    advocate_type = models.SmallIntegerField()
+    ori_adv_code = models.BigIntegerField(blank=True, null=True)
+    ori_adv_bar = models.CharField(max_length=20, blank=True, null=True)
+    adv_desig_from_date = models.DateField(blank=True, null=True)
+    amd = models.CharField(max_length=1, blank=True, null=True)
+    create_modify = models.DateTimeField(blank=True, null=True)
+    est_code_src = models.CharField(max_length=6)
+
+    class Meta:
+        managed = False
+        db_table = 'advocate_t'
