@@ -51,7 +51,7 @@ export class View {
   getStatusBadgeClass(status: string | null): string {
     const label = this.getStatusLabel(status).toLowerCase();
     if (label.includes('accept')) {
-      return 'background: #dcfce7; color: #166534';
+      return 'background: #f1f5f9; color: #1e293b';
     }
     if (label.includes('reject')) {
       return 'background: #fee2e2; color: #991b1b';

@@ -1,0 +1,59 @@
+<div class="ia-filing-view">
+  <div class="text-end mb-3">
+    <a [routerLink]="['/advocate/dashboard/efiling/ia-filing/create']" class="btn btn-dark">
+      <i class="fa-solid fa-plus me-1"></i>
+      New IA Filing
+    </a>
+  </div>
+
+  <div *ngIf="isLoading" class="text-muted small py-4">Loading...</div>
+
+  <div *ngIf="!isLoading && iaFilings.length === 0" class="card border-0 shadow-sm">
+    <div class="card-body py-5 text-center text-muted">
+      <i class="fa-solid fa-folder-open fa-2x mb-3 d-block"></i>
+      <p class="mb-0">No IA filings found.</p>
+      <a [routerLink]="['/advocate/dashboard/efiling/ia-filing/create']" class="btn btn-outline-dark btn-sm mt-3">
+        Create IA Filing
+      </a>
+    </div>
+  </div>
+
+  <div *ngIf="!isLoading && iaFilings.length > 0" class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead style="background-color: #f8fafc">
+            <tr class="text-secondary small fw-normal">
+              <th>#</th>
+              <th>IA Filing No</th>
+              <th>E-Filing Number</th>
+              <th>Relief Sought</th>
+              <th>Status</th>
+              <th>Created Date</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody class="text-muted small">
+            <tr *ngFor="let item of iaFilings; let i = index; trackBy: trackById">
+              <td>{{ i + 1 }}</td>
+              <td class="fw-medium text-dark">{{ item.ia_number || '-' }}</td>
+              <td class="fw-medium text-dark">{{ item.e_filing_number || '-' }}</td>
+              <td>{{ item.ia_text || '-' }}</td>
+              <td>
+                <span class="badge rounded-pill px-2 py-1" [ngClass]="item.status === 'Submitted' ? 'bg-dark' : 'bg-secondary'">
+                  {{ item.status || '-' }}
+                </span>
+              </td>
+              <td>{{ item.created_at | date: 'dd MMM yyyy' }}</td>
+              <td>
+                <a [routerLink]="['/advocate/dashboard/efiling/ia-filing/edit', item.id]" class="btn btn-sm btn-outline-dark">
+                  View
+                </a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
