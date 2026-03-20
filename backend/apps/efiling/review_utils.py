@@ -1,4 +1,5 @@
 from django.utils import timezone
+from django.db import models
 from rest_framework.exceptions import ValidationError
 
 from apps.core.models import Efiling, EfilingDocuments, EfilingDocumentsIndex, EfilingDocumentsScrutinyHistory
@@ -49,6 +50,9 @@ def sync_document_index_for_upload(document, user=None, document_index_id=None):
             document_sequence=next_sequence,
             comments=None,
             scrutiny_status=status,
+            draft_scrutiny_status=None,
+            draft_comments=None,
+            draft_reviewed_at=None,
             is_new_for_scrutiny=is_new_for_scrutiny,
             last_resubmitted_at=now if is_new_for_scrutiny else None,
             created_by=user,
@@ -66,6 +70,9 @@ def sync_document_index_for_upload(document, user=None, document_index_id=None):
         document_index.document_part_name = document.document_type or document_index.document_part_name
         document_index.file_part_path = document.final_document.name
         document_index.scrutiny_status = status
+        document_index.draft_scrutiny_status = None
+        document_index.draft_comments = None
+        document_index.draft_reviewed_at = None
         document_index.is_compliant = False
         document_index.is_new_for_scrutiny = is_new_for_scrutiny
         document_index.last_resubmitted_at = now if is_new_for_scrutiny else document_index.last_resubmitted_at
@@ -75,6 +82,9 @@ def sync_document_index_for_upload(document, user=None, document_index_id=None):
                 "document_part_name",
                 "file_part_path",
                 "scrutiny_status",
+                "draft_scrutiny_status",
+                "draft_comments",
+                "draft_reviewed_at",
                 "is_compliant",
                 "is_new_for_scrutiny",
                 "last_resubmitted_at",
@@ -100,6 +110,9 @@ def submit_documents_for_scrutiny(filing, user=None):
         if document_index.scrutiny_status == EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED:
             continue
         document_index.scrutiny_status = EfilingDocumentsIndex.ScrutinyStatus.UNDER_SCRUTINY
+        document_index.draft_scrutiny_status = None
+        document_index.draft_comments = None
+        document_index.draft_reviewed_at = None
         document_index.is_compliant = False
         document_index.is_new_for_scrutiny = True
         document_index.last_resubmitted_at = now
@@ -107,6 +120,9 @@ def submit_documents_for_scrutiny(filing, user=None):
         document_index.save(
             update_fields=[
                 "scrutiny_status",
+                "draft_scrutiny_status",
+                "draft_comments",
+                "draft_reviewed_at",
                 "is_compliant",
                 "is_new_for_scrutiny",
                 "last_resubmitted_at",
@@ -140,6 +156,9 @@ def derive_filing_status(filing):
         document__e_filing=filing,
         is_active=True,
     )
+    if not document_indexes.exists():
+        # Backward-compatible fallback for rows that were accidentally stored inactive.
+        document_indexes = EfilingDocumentsIndex.objects.filter(document__e_filing=filing)
 
     if filing.is_draft:
         filing.status = "DRAFT"
@@ -150,7 +169,10 @@ def derive_filing_status(filing):
     else:
         statuses = set(document_indexes.values_list("scrutiny_status", flat=True))
         if EfilingDocumentsIndex.ScrutinyStatus.REJECTED in statuses:
-            filing.status = "REJECTED"
+            if statuses == {EfilingDocumentsIndex.ScrutinyStatus.REJECTED}:
+                filing.status = "REJECTED"
+            else:
+                filing.status = "PARTIALLY_REJECTED"
             filing.accepted_at = None
         elif statuses == {EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED}:
             filing.status = "ACCEPTED"
@@ -175,6 +197,8 @@ def finalize_approved_filing(filing, user=None):
         document__e_filing=filing,
         is_active=True,
     )
+    if not active_document_indexes.exists():
+        active_document_indexes = EfilingDocumentsIndex.objects.filter(document__e_filing=filing)
 
     if filing.is_draft:
         raise ValidationError("Draft filings cannot be submitted as approved cases.")
@@ -196,6 +220,80 @@ def finalize_approved_filing(filing, user=None):
     return filing
 
 
+def finalize_scrutiny_submission(filing, user=None):
+    if filing.is_draft:
+        raise ValidationError("Draft filings cannot be submitted for scrutiny finalization.")
+
+    document_indexes = EfilingDocumentsIndex.objects.filter(
+        document__e_filing=filing,
+        is_active=True,
+    ).order_by("id")
+    if not document_indexes.exists():
+        document_indexes = EfilingDocumentsIndex.objects.filter(document__e_filing=filing).order_by("id")
+    if not document_indexes.exists():
+        raise ValidationError("At least one document is required before final submit.")
+
+    pending_review = document_indexes.filter(draft_scrutiny_status__isnull=True).exists()
+    if pending_review:
+        raise ValidationError("Please review all documents before final submit.")
+
+    now = timezone.now()
+    final_statuses = []
+    for document_index in document_indexes:
+        final_status = document_index.draft_scrutiny_status
+        final_statuses.append(final_status)
+        draft_comments = document_index.draft_comments
+        final_is_compliant = final_status == EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED
+        reviewed_at = document_index.draft_reviewed_at or now
+        document_index.scrutiny_status = final_status
+        document_index.comments = draft_comments
+        document_index.is_compliant = final_is_compliant
+        document_index.is_new_for_scrutiny = False
+        document_index.last_reviewed_at = reviewed_at
+        document_index.draft_scrutiny_status = None
+        document_index.draft_comments = None
+        document_index.draft_reviewed_at = None
+        document_index.updated_by = user
+        document_index.save(
+            update_fields=[
+                "scrutiny_status",
+                "comments",
+                "is_compliant",
+                "is_new_for_scrutiny",
+                "last_reviewed_at",
+                "draft_scrutiny_status",
+                "draft_comments",
+                "draft_reviewed_at",
+                "updated_by",
+                "updated_at",
+            ]
+        )
+        create_scrutiny_history(
+            document_index,
+            comments=draft_comments,
+            user=user,
+            scrutiny_status=final_status,
+        )
+
+    has_rejected = EfilingDocumentsIndex.ScrutinyStatus.REJECTED in final_statuses
+    if has_rejected:
+        filing.status = (
+            "PARTIALLY_REJECTED"
+            if any(status == EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED for status in final_statuses)
+            else "REJECTED"
+        )
+        filing.accepted_at = None
+        if not filing.case_number:
+            filing.case_number = None
+        filing.updated_by = user
+        filing.save(update_fields=["status", "accepted_at", "case_number", "updated_by", "updated_at"])
+        return filing
+
+    filing = finalize_approved_filing(filing, user=user)
+    filing.refresh_from_db()
+    return filing
+
+
 def can_replace_document(document, document_index_id=None):
     if document.e_filing.is_draft:
         return True
@@ -207,5 +305,6 @@ def can_replace_document(document, document_index_id=None):
         document_indexes = document_indexes.filter(id=document_index_id)
 
     return document_indexes.filter(
-        scrutiny_status=EfilingDocumentsIndex.ScrutinyStatus.REJECTED
+        models.Q(scrutiny_status=EfilingDocumentsIndex.ScrutinyStatus.REJECTED)
+        | models.Q(draft_scrutiny_status=EfilingDocumentsIndex.ScrutinyStatus.REJECTED)
     ).exists()

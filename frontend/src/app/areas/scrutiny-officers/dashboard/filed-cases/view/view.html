@@ -1,5 +1,5 @@
 <section class="pending-cases-section">
-  <div class="card border-1 rounded-4">
+  <div class="card border-1 rounded-4" *ngIf="showFiledCasesSection">
     <div class="card-body">
       <div *ngIf="isLoading" class="text-muted small py-4">Loading filed cases...</div>
 
@@ -57,7 +57,7 @@
     </div>
   </div>
 
-  <div class="card border-1 rounded-4 mt-4">
+  <div class="card border-1 rounded-4" [class.mt-4]="showFiledCasesSection" *ngIf="showRegisteredCasesSection">
     <div class="card-body">
       <h6 class="fw-semibold mb-3">Registered Cases</h6>
 
@@ -116,4 +116,6 @@
       </div>
     </div>
   </div>
+
+
 </section>

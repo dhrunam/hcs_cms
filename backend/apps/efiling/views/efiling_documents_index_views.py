@@ -47,6 +47,7 @@ class EfilingDocumentsIndexListCreateView(ListCreateAPIView):
     def perform_create(self, serializer):
         with transaction.atomic():
             instance = serializer.save(
+                is_active=True,
                 created_by=self.request.user if self.request.user.is_authenticated else None,
                 updated_by=self.request.user if self.request.user.is_authenticated else None,
             )
@@ -99,6 +100,7 @@ class EfilingDocumentsIndexRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIVie
                     raise ValidationError({"file_part_path": "A PDF file is required."})
 
                 instance.file_part_path = uploaded_file
+                instance.is_active = True
                 filing = instance.document.e_filing if instance.document else None
                 scrutiny_status = (
                     EfilingDocumentsIndex.ScrutinyStatus.DRAFT
@@ -106,6 +108,9 @@ class EfilingDocumentsIndexRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIVie
                     else EfilingDocumentsIndex.ScrutinyStatus.UNDER_SCRUTINY
                 )
                 instance.scrutiny_status = scrutiny_status
+                instance.draft_scrutiny_status = None
+                instance.draft_comments = None
+                instance.draft_reviewed_at = None
                 instance.is_compliant = False
                 instance.is_new_for_scrutiny = bool(filing and not filing.is_draft)
                 instance.last_resubmitted_at = timezone.now() if instance.is_new_for_scrutiny else None
@@ -113,7 +118,11 @@ class EfilingDocumentsIndexRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIVie
                 instance.save(
                     update_fields=[
                         "file_part_path",
+                        "is_active",
                         "scrutiny_status",
+                        "draft_scrutiny_status",
+                        "draft_comments",
+                        "draft_reviewed_at",
                         "is_compliant",
                         "is_new_for_scrutiny",
                         "last_resubmitted_at",
@@ -132,39 +141,35 @@ class EfilingDocumentsIndexRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIVie
                 serializer = self.get_serializer(instance)
                 return Response(serializer.data)
 
-            kwargs["partial"] = partial
-            response = super().update(request, *args, **kwargs)
-            instance.refresh_from_db()
-
             if "scrutiny_status" in request.data or "comments" in request.data:
-                if "scrutiny_status" not in request.data and not instance.scrutiny_status:
-                    instance.scrutiny_status = EfilingDocumentsIndex.ScrutinyStatus.UNDER_SCRUTINY
-                if instance.scrutiny_status == EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED:
-                    instance.is_compliant = True
-                elif instance.scrutiny_status == EfilingDocumentsIndex.ScrutinyStatus.REJECTED:
-                    instance.is_compliant = False
-
+                draft_status = request.data.get("scrutiny_status", instance.draft_scrutiny_status)
+                if draft_status not in (
+                    EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED,
+                    EfilingDocumentsIndex.ScrutinyStatus.REJECTED,
+                ):
+                    raise ValidationError(
+                        {"scrutiny_status": "Draft review status must be ACCEPTED or REJECTED."}
+                    )
+                instance.draft_scrutiny_status = draft_status
+                instance.draft_comments = request.data.get("comments", instance.draft_comments)
+                instance.draft_reviewed_at = timezone.now()
+                instance.is_active = True
                 instance.is_new_for_scrutiny = False
-                instance.last_reviewed_at = timezone.now()
                 instance.updated_by = request.user if request.user.is_authenticated else None
                 instance.save(
                     update_fields=[
-                        "scrutiny_status",
-                        "is_compliant",
+                        "is_active",
+                        "draft_scrutiny_status",
+                        "draft_comments",
+                        "draft_reviewed_at",
                         "is_new_for_scrutiny",
-                        "last_reviewed_at",
                         "updated_by",
                         "updated_at",
                     ]
                 )
+                serializer = self.get_serializer(instance)
+                return Response(serializer.data)
 
-            create_scrutiny_history(
-                instance,
-                comments=request.data.get("comments", instance.comments),
-                user=request.user if request.user.is_authenticated else None,
-                scrutiny_status=request.data.get("scrutiny_status", instance.scrutiny_status),
-            )
-            if instance.document and instance.document.e_filing:
-                derive_filing_status(instance.document.e_filing)
-        return response
+            kwargs["partial"] = partial
+            return super().update(request, *args, **kwargs)
 

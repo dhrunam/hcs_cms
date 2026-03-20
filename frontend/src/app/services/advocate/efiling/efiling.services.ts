@@ -115,6 +115,16 @@ export class EfilingService {
     return this.http.patch<any>(`${app_url}/api/v1/efiling/efiling-documents/${documentId}/`, fd);
   }
 
+  replace_document_review_item(documentIndexId: number, file: File): Observable<any> {
+    const fd = new FormData();
+    fd.append('file_part_path', file);
+    return this.http.patch<any>(`${app_url}/api/v1/efiling/efiling-documents-index/${documentIndexId}/`, fd);
+  }
+
+  get_new_scrutiny_documents(): Observable<any> {
+    return this.http.get<any>(`${app_url}/api/v1/efiling/efiling-documents-index/?is_new_for_scrutiny=true`);
+  }
+
   get_file_scrutiny_checklist(caseTypeId: number): Observable<any> {
     return this.http.get<any>(
       `${app_url}/api/v1/efiling/file-scrutiny-checklists/?case_type=${caseTypeId}`,
