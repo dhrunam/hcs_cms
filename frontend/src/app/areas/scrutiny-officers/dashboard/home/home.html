@@ -87,8 +87,8 @@
       </div>
 
       <div *ngIf="!isLoading && dashboardPreviewCases.length > 0" class="table-responsive">
-        <table class="table align-middle mb-0 table-hover">
-          <thead style="background-color: #f1f5f9">
+        <table class="table table-hover align-middle mb-0">
+          <thead style="background-color: #eef2ff">
             <tr class="text-secondary small fw-normal">
               <th>#</th>
               <th>Petitioner Name</th>
@@ -99,22 +99,21 @@
               <th>Status</th>
             </tr>
           </thead>
-
           <tbody class="text-muted small">
             <tr
               *ngFor="let filing of dashboardPreviewCases; let i = index"
-              style="border-bottom: 1px solid #e5e7eb; cursor: pointer"
+              style="cursor: pointer"
               [routerLink]="['/scrutiny-officers/dashboard/filed-cases/details', filing.id]"
             >
               <td>{{ i + 1 }}</td>
               <td class="fw-medium text-dark">{{ filing.petitioner_name || '-' }}</td>
-              <td class="fw-medium text-success">{{ filing.e_filing_number || '-' }}</td>
+              <td class="fw-medium filing-number">{{ filing.e_filing_number || '-' }}</td>
               <td>{{ filing.case_type?.type_name || '-' }}</td>
               <td>{{ filing.petitioner_contact || '-' }}</td>
               <td>{{ filing.created_at | date: 'dd MMM yyyy' }}</td>
               <td>
                 <span
-                  class="badge rounded-pill px-3 py-1 fw-normal"
+                  class="badge rounded-pill px-2 py-1 fw-normal"
                   [ngClass]="{
                     'status-warning': getStatusTone(filing.status) === 'warning',
                     'status-success': getStatusTone(filing.status) === 'success',
@@ -157,8 +156,8 @@
       </div>
 
       <div *ngIf="!isLoading && registeredCasesPreview.length > 0" class="table-responsive">
-        <table class="table align-middle mb-0 table-hover">
-          <thead style="background-color: #f1f5f9">
+        <table class="table table-hover align-middle mb-0">
+          <thead style="background-color: #eef2ff">
             <tr class="text-secondary small fw-normal">
               <th>#</th>
               <th>Petitioner Name</th>
@@ -171,24 +170,23 @@
               <th>Status</th>
             </tr>
           </thead>
-
           <tbody class="text-muted small">
             <tr
               *ngFor="let filing of registeredCasesPreview; let i = index"
-              style="border-bottom: 1px solid #e5e7eb; cursor: pointer"
+              style="cursor: pointer"
               [routerLink]="['/scrutiny-officers/dashboard/filed-cases/details', filing.id]"
             >
               <td>{{ i + 1 }}</td>
               <td class="fw-medium text-dark">{{ filing.petitioner_name || '-' }}</td>
-              <td class="fw-medium text-success">{{ filing.e_filing_number || '-' }}</td>
-              <td class="fw-medium">{{ filing.case_number || '-' }}</td>
+              <td class="fw-medium filing-number">{{ filing.e_filing_number || '-' }}</td>
+              <td class="fw-medium text-dark">{{ filing.case_number || '-' }}</td>
               <td>{{ filing.case_type?.type_name || '-' }}</td>
               <td>{{ filing.petitioner_contact || '-' }}</td>
               <td>{{ filing.created_at | date: 'dd MMM yyyy' }}</td>
               <td>{{ filing.accepted_at ? (filing.accepted_at | date: 'dd MMM yyyy') : '-' }}</td>
               <td>
                 <span
-                  class="badge rounded-pill px-3 py-1 fw-normal"
+                  class="badge rounded-pill px-2 py-1 fw-normal"
                   [ngClass]="{
                     'status-warning': getStatusTone(filing.status) === 'warning',
                     'status-success': getStatusTone(filing.status) === 'success',

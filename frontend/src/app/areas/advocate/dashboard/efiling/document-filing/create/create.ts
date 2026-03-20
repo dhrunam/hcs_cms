@@ -1,55 +1,46 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
-import { RouterLink } from '@angular/router';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { forkJoin } from 'rxjs';
 import { HttpEventType } from '@angular/common/http';
+import { Component, OnInit } from '@angular/core';
+import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { forkJoin } from 'rxjs';
 
-import { CaseTypeService } from '../../../../../../services/master/case-type.services';
 import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
 import { UploadDocuments } from '../../new-filing/upload-documents/upload-documents';
 
 @Component({
-  selector: 'app-create',
+  selector: 'app-document-filing-create',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, UploadDocuments],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink, UploadDocuments],
   templateUrl: './create.html',
   styleUrl: './create.css',
 })
-export class Create {
-  searchForm!: FormGroup;
-  caseTypes: any[] = [];
+export class Create implements OnInit {
+  uploadFilingDocForm!: FormGroup;
 
-  isSearching = false;
-  searchMatches: any[] = [];
+  filings: any[] = [];
+  filingsWithLitigants: Array<{ filing: any; petitioners: string[]; respondents: string[] }> = [];
+  searchQuery = '';
+  isDropdownOpen = false;
   selectedFiling: any = null;
 
+  isLoadingFilings = true;
   isLoadingCase = false;
   caseDetails: any = null;
   docList: any[] = [];
 
-  // UploadDocuments inputs
   isUploadingDocuments = false;
   uploadFileProgresses: number[] = [];
   uploadCompletedToken = 0;
-  uploadFilingDocForm!: FormGroup;
 
-  // Store for upload API calls
   selectedEfilingId: number | null = null;
-  selectedEfilingNumber: string = '';
+  selectedEfilingNumber = '';
 
   constructor(
     private fb: FormBuilder,
-    private caseTypeService: CaseTypeService,
     private eFilingService: EfilingService,
   ) {
-    this.searchForm = this.fb.group({
-      case_type: ['', Validators.required],
-      case_no: ['', Validators.required],
-      case_year: ['', Validators.required],
-    });
-
     this.uploadFilingDocForm = this.fb.group({
       document_type: [null, Validators.required],
       final_document: [[], Validators.required],
@@ -57,71 +48,11 @@ export class Create {
   }
 
   ngOnInit(): void {
-    this.caseTypeService.get_case_types().subscribe({
-      next: (data) => {
-        this.caseTypes = data?.results ?? data ?? [];
-      },
-      error: () => {
-        this.caseTypes = [];
-      },
-    });
+    this.loadFilings();
   }
 
-  private normalizeNumber(value: string): string {
-    const trimmed = String(value ?? '').trim();
-    if (!trimmed) return '';
-    const noLeadingZeros = trimmed.replace(/^0+/, '');
-    return noLeadingZeros === '' ? '0' : noLeadingZeros;
-  }
-
-  private parseEfilingNumber(efilingNumber: string): { year: string; seq7: string; seq5: string } | null {
-    const raw = String(efilingNumber ?? '');
-    // Example: ASK2024{seq7}C{year}{seq5}
-    const m = raw.match(/^ASK\d{4}(\d{7})C(\d{4})(\d{5})/);
-    if (!m) return null;
-    return { seq7: m[1], year: m[2], seq5: m[3] };
-  }
-
-  private efilingMatchesCase(
-    efiling: any,
-    caseTypeId: number,
-    caseNo: string,
-    caseYear: string,
-  ): boolean {
-    if (!efiling) return false;
-
-    const filingCaseTypeId = efiling?.case_type?.id;
-    if (!filingCaseTypeId || Number(filingCaseTypeId) !== Number(caseTypeId)) return false;
-
-    const parsed = this.parseEfilingNumber(efiling?.e_filing_number);
-    if (!parsed) return false;
-
-    const inputYear = String(caseYear ?? '').trim();
-    if (!inputYear || parsed.year !== inputYear) return false;
-
-    const inputNoNorm = this.normalizeNumber(caseNo);
-    if (!inputNoNorm) return false;
-
-    const seq7Norm = this.normalizeNumber(parsed.seq7);
-    const seq5Norm = this.normalizeNumber(parsed.seq5);
-
-    return seq7Norm === inputNoNorm || seq5Norm === inputNoNorm;
-  }
-
-  searchCase(): void {
-    if (this.searchForm.invalid) return;
-
-    const { case_type, case_no, case_year } = this.searchForm.value;
-    const caseTypeId = Number(case_type);
-    const inputCaseNo = String(case_no ?? '');
-    const inputYear = String(case_year ?? '');
-
-    this.isSearching = true;
-    this.searchMatches = [];
-    this.selectedFiling = null;
-    this.docList = [];
-    this.caseDetails = null;
-
+  loadFilings(): void {
+    this.isLoadingFilings = true;
     forkJoin({
       draft: this.eFilingService.get_filings_under_draft(),
       scrutiny: this.eFilingService.get_filings_under_scrutiny(),
@@ -130,32 +61,81 @@ export class Create {
         const draftRows = draft?.results ?? [];
         const scrutinyRows = scrutiny?.results ?? [];
         const merged = [...draftRows, ...scrutinyRows];
-
-        this.searchMatches = merged.filter((f: any) =>
-          this.efilingMatchesCase(f, caseTypeId, inputCaseNo, inputYear),
-        );
-
-        if (this.searchMatches.length === 1) {
-          this.selectFiling(this.searchMatches[0]);
-        }
-
-        this.isSearching = false;
+        this.filings = merged.filter((f: any) => f?.id && f?.e_filing_number);
+        this.loadLitigantsForFilings();
       },
       error: () => {
-        this.isSearching = false;
-        this.searchMatches = [];
+        this.filings = [];
+        this.isLoadingFilings = false;
       },
     });
   }
 
-  selectFiling(efiling: any): void {
-    if (!efiling?.id) return;
+  private loadLitigantsForFilings(): void {
+    if (this.filings.length === 0) {
+      this.filingsWithLitigants = [];
+      this.isLoadingFilings = false;
+      return;
+    }
+    const requests = this.filings.map((f) =>
+      this.eFilingService.get_litigant_list_by_filing_id(Number(f.id)),
+    );
+    forkJoin(requests).subscribe({
+      next: (litigantResults) => {
+        this.filingsWithLitigants = this.filings.map((filing, i) => {
+          const list = Array.isArray(litigantResults[i])
+            ? litigantResults[i]
+            : litigantResults[i]?.results ?? [];
+          const petitioners = list.filter((l: any) => l.is_petitioner).map((l: any) => l.name || '');
+          const respondents = list.filter((l: any) => !l.is_petitioner).map((l: any) => l.name || '');
+          return { filing, petitioners, respondents };
+        });
+        this.isLoadingFilings = false;
+      },
+      error: () => {
+        this.filingsWithLitigants = this.filings.map((f) => ({
+          filing: f,
+          petitioners: [],
+          respondents: [],
+        }));
+        this.isLoadingFilings = false;
+      },
+    });
+  }
 
-    this.selectedFiling = efiling;
-    this.selectedEfilingId = efiling.id;
-    this.selectedEfilingNumber = String(efiling.e_filing_number ?? '');
+  get filteredFilingsWithLitigants(): Array<{ filing: any; petitioners: string[]; respondents: string[] }> {
+    const q = (this.searchQuery || '').trim().toLowerCase();
+    if (!q) return this.filingsWithLitigants;
+    return this.filingsWithLitigants.filter((item) => {
+      const ef = (item.filing.e_filing_number || '').toLowerCase();
+      const ct = (item.filing.case_type?.type_name || '').toLowerCase();
+      const pn = (item.filing.petitioner_name || '').toLowerCase();
+      const petNames = item.petitioners.join(' ').toLowerCase();
+      const resNames = item.respondents.join(' ').toLowerCase();
+      return ef.includes(q) || ct.includes(q) || pn.includes(q) || petNames.includes(q) || resNames.includes(q);
+    });
+  }
 
+  getLitigantLabel(item: { filing: any; petitioners: string[]; respondents: string[] }): string {
+    const p = item.petitioners.filter(Boolean).join(', ') || item.filing?.petitioner_name || '-';
+    const r = item.respondents.filter(Boolean).join(', ') || '-';
+    return `${p} vs ${r}`;
+  }
+
+  selectFiling(item: { filing: any }): void {
+    this.selectedFiling = item.filing;
+    this.selectedEfilingId = item.filing.id;
+    this.selectedEfilingNumber = String(item.filing.e_filing_number ?? '');
+    this.isDropdownOpen = false;
+    this.searchQuery = '';
     this.loadSelectedCaseDetailsAndDocs();
+  }
+
+  getSelectedLabel(): string {
+    if (!this.selectedFiling) return '';
+    const item = this.filingsWithLitigants.find((x) => x.filing.id === this.selectedFiling.id);
+    if (!item) return `${this.selectedFiling.e_filing_number} | ${this.selectedFiling.case_type?.type_name || 'N/A'}`;
+    return `${this.selectedFiling.e_filing_number} | ${this.selectedFiling.case_type?.type_name || 'N/A'} | ${this.getLitigantLabel(item)}`;
   }
 
   private loadSelectedCaseDetailsAndDocs(): void {
@@ -177,7 +157,6 @@ export class Create {
         const mainDocs = documents?.results ?? [];
         const indexParts = documentIndexes?.results ?? [];
 
-        // Build docList as: main document + its index parts grouped by document id
         this.docList = mainDocs.map((doc: any) => {
           const partsForDoc = indexParts
             .filter((p: any) => Number(p.document) === Number(doc.id))
@@ -197,16 +176,12 @@ export class Create {
     });
   }
 
-  trackByEfilingId(_: number, item: any): number {
-    return item?.id;
-  }
-
   trackByDocId(_: number, item: any): number {
-    return item?.id;
+    return item?.id ?? 0;
   }
 
-  openUploadDocumentsEnabled(): boolean {
-    return Boolean(this.selectedEfilingId);
+  trackFilingItem(_: number, item: { filing: any }): number {
+    return item?.filing?.id ?? 0;
   }
 
   async handleDocUpload(data: any): Promise<void> {
@@ -280,4 +255,3 @@ export class Create {
     });
   }
 }
-
