@@ -1,4 +1,5 @@
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError
 
 from apps.core.models import Efiling, EfilingDocuments, EfilingDocumentsIndex, EfilingDocumentsScrutinyHistory
 
@@ -161,6 +162,33 @@ def derive_filing_status(filing):
             filing.accepted_at = None
 
     filing.save(update_fields=["status", "accepted_at", "updated_at"])
+    return filing
+
+
+def finalize_approved_filing(filing, user=None):
+    filing = derive_filing_status(filing)
+    active_document_indexes = EfilingDocumentsIndex.objects.filter(
+        document__e_filing=filing,
+        is_active=True,
+    )
+
+    if filing.is_draft:
+        raise ValidationError("Draft filings cannot be submitted as approved cases.")
+
+    if not active_document_indexes.exists():
+        raise ValidationError("At least one active document is required before submitting the case.")
+
+    if active_document_indexes.exclude(
+        scrutiny_status=EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED
+    ).exists():
+        raise ValidationError("All active documents must be approved before submitting the case.")
+
+    if filing.case_number:
+        return filing
+
+    filing.case_number = filing.build_case_number()
+    filing.updated_by = user
+    filing.save(update_fields=["case_number", "updated_by", "updated_at"])
     return filing
 
 

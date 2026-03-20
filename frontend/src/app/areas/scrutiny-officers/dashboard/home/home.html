@@ -3,7 +3,6 @@
 >
   <div>
     <h5 class="mb-1 fw-semibold text-dark">Scrutiny Officer Dashboard</h5>
-    <p class="text-muted small mb-0">Review all e-filed cases submitted by advocates</p>
   </div>
 </div>
 
@@ -25,6 +24,16 @@
           <i class="fa-regular fa-clock text-warning mb-2"></i>
           <div class="text-muted small">Under Scrutiny</div>
           <h5 class="mb-0 fw-semibold">{{ underScrutinyCount }}</h5>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100 summary-card">
+        <div class="card-body py-3 px-3">
+          <i class="fa-regular fa-address-card text-info mb-2"></i>
+          <div class="text-muted small">Registered Cases</div>
+          <h5 class="mb-0 fw-semibold">{{ totalRegisteredCases }}</h5>
         </div>
       </div>
     </div>
@@ -103,6 +112,80 @@
               <td>{{ filing.case_type?.type_name || '-' }}</td>
               <td>{{ filing.petitioner_contact || '-' }}</td>
               <td>{{ filing.created_at | date: 'dd MMM yyyy' }}</td>
+              <td>
+                <span
+                  class="badge rounded-pill px-3 py-1 fw-normal"
+                  [ngClass]="{
+                    'status-warning': getStatusTone(filing.status) === 'warning',
+                    'status-success': getStatusTone(filing.status) === 'success',
+                    'status-danger': getStatusTone(filing.status) === 'danger'
+                  }"
+                >
+                  {{ getStatusLabel(filing.status) }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm rounded-4 border-0 mt-4">
+    <div
+      class="card-header bg-dark text-white fw-semibold fs-6 border-0 rounded-top-4 d-flex justify-content-between align-items-center"
+    >
+      <span>Registered Cases</span>
+      <a
+        [routerLink]="['/scrutiny-officers/dashboard/filed-cases/view']"
+        class="small fw-lighter text-decoration-none px-2"
+        style="color: #dbeafe; cursor: pointer; transition: all 0.2s ease"
+      >
+        view all
+        <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem"></i>
+      </a>
+    </div>
+
+    <div class="card-body">
+      <p class="text-secondary small mb-3">
+        These cases have been submitted after document approval and assigned a case number.
+      </p>
+
+      <div *ngIf="!isLoading && registeredCases.length === 0" class="empty-state text-center py-4">
+        <i class="fa-regular fa-address-card mb-2"></i>
+        <p class="mb-0 text-muted">No registered cases found yet.</p>
+      </div>
+
+      <div *ngIf="!isLoading && registeredCasesPreview.length > 0" class="table-responsive">
+        <table class="table align-middle mb-0 table-hover">
+          <thead style="background-color: #f1f5f9">
+            <tr class="text-secondary small fw-normal">
+              <th>#</th>
+              <th>Petitioner Name</th>
+              <th>Filing No</th>
+              <th>Case No</th>
+              <th>Case Type</th>
+              <th>Contact No</th>
+              <th>Filing Date</th>
+              <th>Registered Date</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+
+          <tbody class="text-muted small">
+            <tr
+              *ngFor="let filing of registeredCasesPreview; let i = index"
+              style="border-bottom: 1px solid #e5e7eb; cursor: pointer"
+              [routerLink]="['/scrutiny-officers/dashboard/filed-cases/details', filing.id]"
+            >
+              <td>{{ i + 1 }}</td>
+              <td class="fw-medium text-dark">{{ filing.petitioner_name || '-' }}</td>
+              <td class="fw-medium text-success">{{ filing.e_filing_number || '-' }}</td>
+              <td class="fw-medium">{{ filing.case_number || '-' }}</td>
+              <td>{{ filing.case_type?.type_name || '-' }}</td>
+              <td>{{ filing.petitioner_contact || '-' }}</td>
+              <td>{{ filing.created_at | date: 'dd MMM yyyy' }}</td>
+              <td>{{ filing.accepted_at ? (filing.accepted_at | date: 'dd MMM yyyy') : '-' }}</td>
               <td>
                 <span
                   class="badge rounded-pill px-3 py-1 fw-normal"

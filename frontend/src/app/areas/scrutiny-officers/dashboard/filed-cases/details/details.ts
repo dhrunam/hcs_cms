@@ -36,6 +36,7 @@ export class FiledCaseDetails {
   reviewNote = '';
   isLoading = false;
   isSavingReview = false;
+  isSubmittingApprovedCase = false;
   missingFilingId = false;
 
   constructor(
@@ -175,21 +176,42 @@ export class FiledCaseDetails {
     this.submitReview('REJECTED');
   }
 
+  submitApprovedFiling(): void {
+    if (!this.canSubmitApprovedFiling || !this.filingId) {
+      return;
+    }
+
+    this.isSubmittingApprovedCase = true;
+    this.efilingService.submit_approved_filing(this.filingId).subscribe({
+      next: (filing) => {
+        this.isSubmittingApprovedCase = false;
+        this.filing = filing;
+      },
+      error: (error) => {
+        console.error('Failed to submit approved filing', error);
+        this.isSubmittingApprovedCase = false;
+      },
+    });
+  }
+
   submitReview(status: string): void {
     if (!this.selectedDocument?.id || !this.filingId || this.isSavingReview) {
       return;
     }
 
+    const currentDocumentId = this.selectedDocument.id;
     this.isSavingReview = true;
     this.efilingService
-      .review_document(this.selectedDocument.id, {
+      .review_document(currentDocumentId, {
         comments: this.reviewNote,
         scrutiny_status: status,
       })
       .subscribe({
-        next: () => {
+        next: (updatedDocument) => {
           this.isSavingReview = false;
-          this.loadWorkspace(this.filingId!, this.selectedDocument.id);
+          this.applyReviewedDocument(updatedDocument);
+          this.refreshFilingSummary();
+          this.selectDocument(this.getNextDocumentForReview(currentDocumentId));
         },
         error: (error) => {
           console.error('Failed to update review', error);
@@ -317,5 +339,66 @@ export class FiledCaseDetails {
 
   get pendingCount(): number {
     return this.documents.filter((document) => this.getStatusTone(document.scrutiny_status) === 'warning').length;
+  }
+
+  private applyReviewedDocument(updatedDocument: any): void {
+    if (!updatedDocument?.id) {
+      return;
+    }
+
+    this.documents = this.documents.map((document) =>
+      document.id === updatedDocument.id ? { ...document, ...updatedDocument } : document,
+    );
+    this.groupedDocuments = this.groupDocumentsByType(this.documents);
+  }
+
+  private refreshFilingSummary(): void {
+    if (!this.filingId) {
+      return;
+    }
+
+    this.efilingService.get_filing_by_id(this.filingId).subscribe({
+      next: (filing) => {
+        this.filing = filing;
+      },
+      error: (error) => {
+        console.error('Failed to refresh filing summary', error);
+      },
+    });
+  }
+
+  private getNextDocumentForReview(currentDocumentId: number): any {
+    const nextPendingDocument =
+      this.documents.find(
+        (document) =>
+          document.id !== currentDocumentId && this.getStatusTone(document.scrutiny_status) === 'warning',
+      ) ?? null;
+
+    if (nextPendingDocument) {
+      return nextPendingDocument;
+    }
+
+    const currentIndex = this.documents.findIndex((document) => document.id === currentDocumentId);
+    if (currentIndex === -1) {
+      return this.documents[0] ?? null;
+    }
+
+    return this.documents[currentIndex + 1] ?? this.documents[currentIndex - 1] ?? this.documents[currentIndex];
+  }
+
+  get allDocumentsApproved(): boolean {
+    return (
+      this.documents.length > 0 &&
+      this.documents.every((document) => this.getStatusTone(document?.scrutiny_status) === 'success')
+    );
+  }
+
+  get canSubmitApprovedFiling(): boolean {
+    return Boolean(
+      this.filingId &&
+        !this.isSubmittingApprovedCase &&
+        !this.filing?.case_number &&
+        this.allDocumentsApproved,
+    );
   }
 }
