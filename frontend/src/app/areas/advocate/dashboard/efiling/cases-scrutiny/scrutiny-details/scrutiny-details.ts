@@ -8,7 +8,7 @@ import { EfilingService } from '../../../../../../services/advocate/efiling/efil
 @Component({
   selector: 'app-scrutiny-details',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule],
   templateUrl: './scrutiny-details.html',
   styleUrl: './scrutiny-details.css',
 })
@@ -34,7 +34,8 @@ export class ScrutinyDetails {
   isLoading = false;
   isReplacing = false;
   notesPopupOpen = false;
-  canShowReplaceBtn:boolean = false;
+  canShowReplaceBtn: boolean = false;
+  activeTab: 'filing' | 'documents' = 'filing';
 
   constructor(
     private route: ActivatedRoute,
@@ -48,6 +49,10 @@ export class ScrutinyDetails {
 
   closeNotesPopup(): void {
     this.notesPopupOpen = false;
+  }
+
+  setActiveTab(tab: 'filing' | 'documents'): void {
+    this.activeTab = tab;
   }
 
   ngOnInit(): void {
