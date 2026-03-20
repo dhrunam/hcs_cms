@@ -111,6 +111,20 @@ export class EFile {
     return '-';
   }
 
+  private resolveLocationLabel(value: any): string {
+    if (!value) return '-';
+    if (typeof value === 'string' || typeof value === 'number') return String(value);
+    return value.state || value.district || value.name || value.label || value.title || '-';
+  }
+
+  getDisputeStateLabel(): string {
+    return this.resolveLocationLabel(this.caseDetailsView?.dispute_state);
+  }
+
+  getDisputeDistrictLabel(): string {
+    return this.resolveLocationLabel(this.caseDetailsView?.dispute_district);
+  }
+
   get_organisation_list() {
     this.organisationService.get_organisations().subscribe({
       next: (data) => {
