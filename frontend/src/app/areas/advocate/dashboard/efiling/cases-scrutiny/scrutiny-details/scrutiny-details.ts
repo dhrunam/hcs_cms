@@ -30,12 +30,22 @@ export class ScrutinyDetails {
   documentHistory: any[] = [];
   isLoading = false;
   isReplacing = false;
+  notesPopupOpen = false;
+  canShowReplaceBtn:boolean = false;
 
   constructor(
     private route: ActivatedRoute,
     private efilingService: EfilingService,
     private sanitizer: DomSanitizer,
   ) {}
+
+  openNotesPopup(): void {
+    this.notesPopupOpen = true;
+  }
+
+  closeNotesPopup(): void {
+    this.notesPopupOpen = false;
+  }
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((params) => {
@@ -91,6 +101,8 @@ export class ScrutinyDetails {
 
   selectDocument(document: any): void {
     this.selectedDocument = document;
+    // this.canShowReplaceBtn = this.canShowReplaceButton(document);
+    this.canShowReplaceBtn = document && document.scrutiny_status.toLowerCase().includes('rejected');
     this.updatePreviewUrl(document?.file_url ?? null);
 
     if (!document?.id) {
