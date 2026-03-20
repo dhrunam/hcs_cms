@@ -166,17 +166,12 @@ export class FiledCaseDetails {
     return Array.from(map.entries()).map(([document_type, items]) => ({ document_type, items }));
   }
 
-  saveNotes(): void {
-    const currentStatus =
-      this.selectedDocument?.scrutiny_status === 'REJECTED' ? 'REJECTED' : 'UNDER_SCRUTINY';
-    this.submitReview(currentStatus);
-  }
-
   acceptDocument(): void {
     this.submitReview('ACCEPTED');
   }
 
   rejectDocument(): void {
+    // Rejecting a document also persists the current notes in the same review update.
     this.submitReview('REJECTED');
   }
 
