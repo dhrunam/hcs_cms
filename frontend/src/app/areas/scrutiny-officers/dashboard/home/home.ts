@@ -12,6 +12,8 @@ interface EfilingItem {
   petitioner_name: string;
   petitioner_contact: string;
   e_filing_number: string;
+  case_number?: string | null;
+  accepted_at?: string | null;
   created_at: string;
   status: string | null;
   case_type: EfilingCaseType | null;
@@ -34,11 +36,15 @@ export class ScrutinyOfficerHome {
   }
 
   get totalFiledCases(): number {
-    return this.filedCases.length;
+    return this.openFiledCases.length;
+  }
+
+  get totalRegisteredCases(): number {
+    return this.registeredCases.length;
   }
 
   get underScrutinyCount(): number {
-    return this.filedCases.filter((item) => this.getStatusTone(item.status) === 'warning').length;
+    return this.openFiledCases.filter((item) => this.getStatusTone(item.status) === 'warning').length;
   }
 
   get acceptedCount(): number {
@@ -46,11 +52,23 @@ export class ScrutinyOfficerHome {
   }
 
   get objectionsCount(): number {
-    return this.filedCases.filter((item) => this.getStatusTone(item.status) === 'danger').length;
+    return this.openFiledCases.filter((item) => this.getStatusTone(item.status) === 'danger').length;
   }
 
   get dashboardPreviewCases(): EfilingItem[] {
-    return this.filedCases.slice(0, 5);
+    return this.openFiledCases.slice(0, 5);
+  }
+
+  get registeredCasesPreview(): EfilingItem[] {
+    return this.registeredCases.slice(0, 5);
+  }
+
+  get openFiledCases(): EfilingItem[] {
+    return this.filedCases.filter((item) => !item.case_number);
+  }
+
+  get registeredCases(): EfilingItem[] {
+    return this.filedCases.filter((item) => !!item.case_number);
   }
 
   getFiledCases(): void {
