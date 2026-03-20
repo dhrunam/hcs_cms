@@ -64,6 +64,10 @@ export class EfilingService {
     return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/${id}/`);
   }
 
+  get_filing_by_efiling_id(id: number): Observable<any> {
+    return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/?e_filing_id=${id}`);
+  }
+
   submit_approved_filing(id: number): Observable<any> {
     return this.http.post<any>(`${app_url}/api/v1/efiling/efilings/${id}/submit-approved/`, {});
   }

@@ -73,8 +73,7 @@ export class Litigant {
   get_organisation_list() {
     this.organisationService.get_organisations().subscribe({
       next: (data) => {
-        this.organisations = data.results;
-        console.log(this.organisations);
+        this.organisations = Array.isArray(data?.results) ? data.results : data || [];
       },
     });
   }
@@ -82,7 +81,7 @@ export class Litigant {
   get_state_list() {
     this.stateService.get_states().subscribe({
       next: (data) => {
-        this.states = data.results;
+        this.states = Array.isArray(data?.results) ? data.results : data || [];
       },
     });
   }
@@ -98,7 +97,7 @@ export class Litigant {
   get_district_list_by_state_id(state_id: number) {
     this.stateService.get_district_by_state_id(state_id).subscribe({
       next: (data) => {
-        this.districts = data.results;
+        this.districts = Array.isArray(data?.results) ? data.results : data || [];
       },
     });
   }

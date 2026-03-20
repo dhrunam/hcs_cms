@@ -43,7 +43,7 @@ export class CaseDetails implements OnChanges {
   get_state_list() {
     this.stateService.get_states().subscribe({
       next: (data) => {
-        this.states = data.results;
+        this.states = Array.isArray(data?.results) ? data.results : data || [];
       },
     });
   }
@@ -51,14 +51,14 @@ export class CaseDetails implements OnChanges {
     const stateId = parseInt(event.target.value);
     this.stateService.get_district_by_state_id(stateId).subscribe({
       next: (data) => {
-        this.districts = data.results;
+        this.districts = Array.isArray(data?.results) ? data.results : data || [];
       },
     });
   }
   get_act_types() {
     this.actService.get_act_types().subscribe({
       next: (data) => {
-        this.acts = data.results;
+        this.acts = Array.isArray(data?.results) ? data.results : data || [];
       },
     });
   }

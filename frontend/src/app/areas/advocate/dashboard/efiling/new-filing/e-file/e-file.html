@@ -7,44 +7,32 @@
       <div class="row g-3">
         <div class="col-md-6">
           <label class="text-muted small">Bench</label>
-          <div class="fw-semibold">{{ initialInputsForm.value.bench }}</div>
+          <div class="fw-semibold">{{ initialInputsView.bench || '-' }}</div>
         </div>
 
         <div class="col-md-6">
           <label class="text-muted small">Case Type</label>
-          <div class="fw-semibold">
-            {{
-              initialInputsForm.value.case_type?.type_name ||
-                get_case_type_name(initialInputsForm.value.case_type)
-            }}
-          </div>
-          <div
-            class="text-muted small"
-            *ngIf="
-              initialInputsForm.value.case_type?.full_form ||
-              get_case_type_full_form(initialInputsForm.value.case_type)
-            "
-          >
-            {{
-              initialInputsForm.value.case_type?.full_form ||
-                get_case_type_full_form(initialInputsForm.value.case_type)
-            }}
+          <div class="fw-semibold">{{ caseTypeLabel || '-' }}</div>
+          <div class="text-muted small" *ngIf="caseTypeFullForm">
+            {{ caseTypeFullForm }}
           </div>
         </div>
 
         <div class="col-md-6">
           <label class="text-muted small">Petitioner Name</label>
-          <div class="fw-semibold">{{ initialInputsForm.value.petitioner_name }}</div>
+          <div class="fw-semibold">{{ initialInputsView.petitioner_name || '-' }}</div>
         </div>
 
         <div class="col-md-6">
           <label class="text-muted small">Petitioner Contact</label>
-          <div class="fw-semibold">{{ initialInputsForm.value.petitioner_contact }}</div>
+          <div class="fw-semibold">{{ initialInputsView.petitioner_contact || '-' }}</div>
         </div>
 
         <div class="col-md-6">
           <label class="text-muted small">E-Filing Number</label>
-          <div class="fw-semibold text-success">{{ initialInputsForm.value.e_filing_number }}</div>
+          <div class="fw-semibold text-success">
+            {{ initialInputsView.e_filing_number || '-' }}
+          </div>
         </div>
       </div>
     </div>
@@ -232,7 +220,7 @@
               style="background-color: #f8fafc"
             >
               <div>
-                <div class="fw-semibold">{{ i + 1 }}. {{ act.actname }}</div>
+                <div class="fw-semibold">{{ i + 1 }}. {{ getActLabel(act) }}</div>
                 <div class="text-muted small">Section: {{ act.section }}</div>
               </div>
             </div>
