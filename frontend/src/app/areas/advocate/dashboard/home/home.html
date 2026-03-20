@@ -24,7 +24,7 @@
         <div class="card-body py-3 px-3">
           <i class="fa-regular fa-folder-open text-primary mb-2"></i>
           <div class="text-muted small">Total Filings</div>
-          <h5 class="mb-0 fw-semibold" [attr.data-value]="totalFilings">0</h5>
+          <h5 class="mb-0 fw-semibold">{{ isLoading ? '-' : totalFilings }}</h5>
         </div>
       </div>
     </div>
@@ -34,7 +34,7 @@
         <div class="card-body py-3 px-3">
           <i class="fa-regular fa-clock text-warning mb-2"></i>
           <div class="text-muted small">Pending</div>
-          <h5 class="mb-0 fw-semibold" [attr.data-value]="pendingFilings">0</h5>
+          <h5 class="mb-0 fw-semibold">{{ isLoading ? '-' : pendingFilings }}</h5>
         </div>
       </div>
     </div>
@@ -44,7 +44,7 @@
         <div class="card-body py-3 px-3">
           <i class="fa-regular fa-circle-check text-success mb-2"></i>
           <div class="text-muted small">Approved</div>
-          <h5 class="mb-0 fw-semibold" [attr.data-value]="approvedFilings">0</h5>
+          <h5 class="mb-0 fw-semibold">{{ isLoading ? '-' : approvedFilings }}</h5>
         </div>
       </div>
     </div>
@@ -54,85 +54,8 @@
         <div class="card-body py-3 px-3">
           <i class="fa-regular fa-circle-xmark text-danger mb-2"></i>
           <div class="text-muted small">Objections</div>
-          <h5 class="mb-0 fw-semibold" [attr.data-value]="objections">0</h5>
+          <h5 class="mb-0 fw-semibold">{{ isLoading ? '-' : objections }}</h5>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- SCRUTINY TABLE -->
-  <div class="card shadow-sm rounded-4 border-0 mt-4">
-    <div
-      class="card-header bg-dark text-white fw-semibold fs-6 border-0 rounded-top-4 d-flex justify-content-between align-items-center"
-    >
-      <span>Filings Under Scrutiny</span>
-
-      <a
-        href="#"
-        class="small fw-lighter text-decoration-none px-2"
-        style="color: #fef3c7; cursor: pointer; transition: all 0.2s ease"
-      >
-        view all
-        <i class="fa-solid fa-chevron-right" style="font-size: 0.75rem"></i>
-      </a>
-    </div>
-
-    <div class="card-body">
-      <p class="text-secondary small mb-2">
-        Submitted cases are under scrutiny and pending verification.
-      </p>
-
-      <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-          <thead style="background-color: #f8fafc">
-            <tr class="text-secondary small fw-normal">
-              <th>#</th>
-              <th>Filing No</th>
-              <th>Case Type</th>
-              <th>Case Title</th>
-              <th>Filing Date</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody class="text-muted small">
-            <tr>
-              <td>1</td>
-              <td class="fw-medium text-dark">EF-2026-001</td>
-              <td>Civil</td>
-              <td>Property Dispute</td>
-              <td>12 Mar 2026</td>
-              <td>
-                <span class="badge rounded-pill px-2 py-1" style="background: #fef3c7; color: #92400e">
-                  Under Scrutiny
-                </span>
-              </td>
-            </tr>
-            <tr>
-              <td>2</td>
-              <td class="fw-medium text-dark">EF-2026-002</td>
-              <td>Criminal</td>
-              <td>Theft Complaint</td>
-              <td>14 Mar 2026</td>
-              <td>
-                <span class="badge rounded-pill px-2 py-1" style="background: #fef3c7; color: #92400e">
-                  Under Scrutiny
-                </span>
-              </td>
-            </tr>
-            <tr>
-              <td>3</td>
-              <td class="fw-medium text-dark">EF-2026-003</td>
-              <td>Family</td>
-              <td>Divorce Petition</td>
-              <td>15 Mar 2026</td>
-              <td>
-                <span class="badge rounded-pill px-2 py-1" style="background: #fef3c7; color: #92400e">
-                  Under Scrutiny
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
       </div>
     </div>
   </div>
