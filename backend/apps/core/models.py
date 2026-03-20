@@ -325,7 +325,7 @@ class EfilingDocuments(BaseModel):
     e_filing_number = models.CharField(max_length=100, blank=True, null=True)
     document_type = models.CharField(max_length=512, blank=True, null=True) 
     parent_e_filing_document = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='child_documents')
-    final_document = models.FileField(upload_to='efile/final_documents/', max_length=512, blank=True, null=True)
+    final_document = models.FileField(upload_to='media/efile/final_documents/', max_length=512, blank=True, null=True)
     is_ia = models.BooleanField(default=False) 
     class Meta:
       
@@ -341,7 +341,6 @@ class EfilingDocumentsIndex(BaseModel):
 
     document= models.ForeignKey(EfilingDocuments, on_delete=models.SET_NULL, null=True, blank=True)
     index= models.ForeignKey(DocumentIndex,on_delete=models.SET_NULL, null=True, blank=True)
-    
     document_part_name = models.CharField(max_length=256, blank=False, null=False)
     def file_part_upload_to(instance, filename):
         efiling_number = None
@@ -408,8 +407,8 @@ class EfilingDocumentsScrutinyHistory(BaseModel):
 class Vakalatnama(BaseModel):
     e_filing = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name='vakalatnamas')
     e_filing_number = models.CharField(max_length=100, blank=True, null=True)
-    vakalatnama_document = models.FileField(upload_to='efile/vakalatnamas/', max_length=512, blank=True, null=True)
-    is_final = models.BooleanField(default=False)
+    vakalatnama_document = models.FileField(upload_to='media/efile/vakalatnamas/', max_length=512, blank=True, null=True)
+    
 
     class Meta:
       
