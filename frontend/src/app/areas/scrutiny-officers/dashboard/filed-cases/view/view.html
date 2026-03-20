@@ -1,5 +1,5 @@
 <section class="filed-cases-view">
-  <div class="card border-0 shadow-sm">
+  <div class="card border-0 shadow-sm" *ngIf="showFiledCasesSection">
     <div class="card-body p-0">
       <div *ngIf="isLoading" class="text-muted small py-4 px-4">Loading filed cases...</div>
       <div *ngIf="!isLoading && filedCases.length === 0" class="text-muted small py-5 px-4 text-center">
@@ -31,7 +31,12 @@
               <td>{{ filing.case_type?.type_name || '-' }}</td>
               <td>{{ filing.petitioner_contact || '-' }}</td>
               <td>{{ filing.created_at | date: 'dd MMM yyyy' }}</td>
-              <td>{{ getStatusLabel(filing.status) }}</td>
+              <td>
+                <span *ngIf="hasNewForScrutiny(filing.id)" class="badge rounded-pill text-bg-danger me-2">
+                  New
+                </span>
+                {{ getStatusLabel(filing.status) }}
+              </td>
               <td>
                 <a
                   [routerLink]="['/scrutiny-officers/dashboard/filed-cases/details', filing.id]"
@@ -49,7 +54,7 @@
     </div>
   </div>
 
-  <div class="card border-0 shadow-sm mt-4">
+  <div class="card border-0 shadow-sm mt-4" [class.mt-4]="showFiledCasesSection" *ngIf="showRegisteredCasesSection">
     <div class="card-header px-4 py-3" style="background-color: #eef2ff; border-bottom: 1px solid #e0e7ff">
       <h6 class="fw-semibold mb-0 text-dark">Registered Cases</h6>
     </div>
@@ -85,7 +90,12 @@
               <td>{{ filing.case_type?.type_name || '-' }}</td>
               <td>{{ filing.petitioner_contact || '-' }}</td>
               <td>{{ filing.created_at | date: 'dd MMM yyyy' }}</td>
-              <td>{{ getStatusLabel(filing.status) }}</td>
+              <td>
+                <span *ngIf="hasNewForScrutiny(filing.id)" class="badge rounded-pill text-bg-danger me-2">
+                  New
+                </span>
+                {{ getStatusLabel(filing.status) }}
+              </td>
               <td>
                 <a
                   [routerLink]="['/scrutiny-officers/dashboard/filed-cases/details', filing.id]"

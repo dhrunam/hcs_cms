@@ -13,11 +13,22 @@ def delete_old_file_on_update(sender, instance, **kwargs):
         old_instance = EfilingDocumentsIndex.objects.get(pk=instance.pk)
     except EfilingDocumentsIndex.DoesNotExist:
         return
-    old_file = old_instance.file_part_path.path if old_instance.file_part_path else None
-    new_file = instance.file_part_path.path if instance.file_part_path else None
-    if old_file and new_file and old_file != new_file:
-        if os.path.exists(old_file):
-            os.remove(old_file)
+
+    new_file = getattr(instance, "file_part_path", None)
+    if not new_file or getattr(new_file, "_committed", True):
+        return
+
+    old_file_name = getattr(old_instance.file_part_path, "name", None)
+    if not old_file_name:
+        return
+
+    try:
+        old_instance.file_part_path.storage.delete(old_file_name)
+        return
+    except Exception:
+        old_file_path = getattr(old_instance.file_part_path, "path", None)
+        if old_file_path and os.path.exists(old_file_path):
+            os.remove(old_file_path)
 
 
 @receiver(post_delete, sender=EfilingDocumentsIndex)

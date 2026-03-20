@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { EfilingService } from '../../../../../services/advocate/efiling/efiling.services';
 
 interface EfilingCaseType {
@@ -27,24 +28,39 @@ interface EfilingItem {
 })
 export class FiledCasesView {
   allCases: EfilingItem[] = [];
+  newIncomingFilingIds = new Set<number>();
   isLoading = false;
+  mode: 'all' | 'registered' = 'all';
 
-  constructor(private eFilingService: EfilingService) {}
+  constructor(
+    private eFilingService: EfilingService,
+    private route: ActivatedRoute,
+  ) {}
 
   ngOnInit(): void {
+    this.mode = this.route.snapshot.data['mode'] === 'registered' ? 'registered' : 'all';
     this.getFiledCases();
   }
 
   getFiledCases(): void {
     this.isLoading = true;
-    this.eFilingService.get_filings_under_scrutiny().subscribe({
-      next: (data) => {
-        this.allCases = data?.results ?? [];
+    forkJoin({
+      filings: this.eFilingService.get_filings_under_scrutiny(),
+      incoming: this.eFilingService.get_new_scrutiny_documents(),
+    }).subscribe({
+      next: ({ filings, incoming }) => {
+        this.allCases = filings?.results ?? [];
+        this.newIncomingFilingIds = new Set<number>(
+          (incoming?.results ?? incoming ?? [])
+            .map((item: any) => item?.e_filing_id)
+            .filter((id: number | null | undefined) => typeof id === 'number'),
+        );
         this.isLoading = false;
       },
       error: (error) => {
         console.error('Failed to load filed cases', error);
         this.allCases = [];
+        this.newIncomingFilingIds = new Set<number>();
         this.isLoading = false;
       },
     });
@@ -58,10 +74,22 @@ export class FiledCasesView {
     return this.allCases.filter((filing) => !!filing.case_number);
   }
 
+  get showFiledCasesSection(): boolean {
+    return this.mode !== 'registered';
+  }
+
+  get showRegisteredCasesSection(): boolean {
+    return this.mode === 'registered';
+  }
+
+  hasNewForScrutiny(filingId: number | null | undefined): boolean {
+    return typeof filingId === 'number' && this.newIncomingFilingIds.has(filingId);
+  }
+
   getStatusLabel(status: string | null): string {
     const normalizedStatus = (status ?? '').trim().toLowerCase();
 
-    if (!normalizedStatus || normalizedStatus === 'submitted') {
+    if (!normalizedStatus || normalizedStatus === 'submitted' || normalizedStatus === 'under_scrutiny') {
       return 'Under Scrutiny';
     }
 
@@ -69,12 +97,16 @@ export class FiledCasesView {
       return 'Accepted';
     }
 
+    if (normalizedStatus.includes('partially')) {
+      return 'Partially Rejected';
+    }
+
     if (
       normalizedStatus.includes('reject') ||
       normalizedStatus.includes('object') ||
       normalizedStatus.includes('defect')
     ) {
-      return 'Objection';
+      return 'Rejected';
     }
 
     return status ?? 'Under Scrutiny';
