@@ -5,6 +5,6 @@ from apps.master.serializers.orgname_t_serializers import OrgnameTSerializer
 
 
 class OrgnameTListView(ListAPIView):
-    queryset = OrgnameT.objects.all()
+    queryset = OrgnameT.objects.all().order_by('orgname')
     serializer_class = OrgnameTSerializer
     pagination_class = None  # Disable pagination for this view
