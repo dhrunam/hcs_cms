@@ -10,7 +10,7 @@ import { EfilingService } from '../../../../../services/advocate/efiling/efiling
 import { EFile } from './e-file/e-file';
 import { UploadDocuments } from './upload-documents/upload-documents';
 import Swal from 'sweetalert2';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { HttpEventType } from '@angular/common/http';
 
@@ -48,6 +48,7 @@ export class NewFiling {
   uploadCompletedToken = 0;
   caseDetailsLocked = false;
   caseDetailsData: any = null;
+  filingData: any = null;
 
   form!: FormGroup;
 
@@ -56,6 +57,7 @@ export class NewFiling {
     private toastr: ToastrService,
     private eFilingService: EfilingService,
     private route: ActivatedRoute,
+    private router: Router,
   ) {
     this.form = this.fb.group({
       initialInputs: this.fb.group({
@@ -72,7 +74,7 @@ export class NewFiling {
           gender: [''],
           age: [''],
 
-          sequence_number: [1, Validators.required],
+          sequence_number: ['', Validators.required],
 
           is_diffentially_abled: [false],
           is_petitioner: [true],
@@ -148,9 +150,11 @@ export class NewFiling {
 
   ngOnInit() {
     this.route.queryParams.subscribe((params) => {
-      this.filingId = Number(params['id'] || 0) || null;
-      this.eFilingNumber = params['e_filing_number'];
+      const idParam = params['id'] ?? params['efiling_id'] ?? params['e_filing_id'];
+      this.filingId = Number(idParam || 0) || null;
+      this.eFilingNumber = params['e_filing_number'] || this.eFilingNumber;
       if (this.filingId) {
+        this.loadInitialInputs();
         this.loadCaseDetails();
         this.loadActList();
       }
@@ -259,6 +263,7 @@ export class NewFiling {
 
   next() {
     const currentForm = this.getCurrentForm();
+    const isCaseDetailsStep = this.step === 3;
 
     if (this.step === 2 && !this.hasRequiredLitigants()) {
       const message = this.hasPetitionerOnly()
@@ -279,9 +284,9 @@ export class NewFiling {
       this.step++;
     }
 
-    if (this.step === 3) {
-      if (this.isCaseDetailsNextDisabled()) {
-        currentForm.markAllAsTouched();
+    if (isCaseDetailsStep) {
+      if (!this.step3Saved) {
+        this.saveStep3();
         return;
       }
     } else if (currentForm.invalid) {
@@ -340,7 +345,7 @@ export class NewFiling {
       this.initialInputsForm.disable();
       this.step = 2;
       this.toastr.success('Saved successfully. E Filing number: ' + this.eFilingNumber, '', {
-        timeOut: 11000,
+        timeOut: 3000,
         closeButton: true,
         progressBar: true,
         positionClass: 'toast-bottom-right',
@@ -410,12 +415,10 @@ export class NewFiling {
 
       console.log('Litigant details are', res);
 
-      const nextSequence = this.getNextSequenceNumber(formValue.is_petitioner);
-
       form.reset({
         is_diffentially_abled: false,
         is_petitioner: formValue.is_petitioner,
-        sequence_number: nextSequence,
+        sequence_number: '',
         gender: '',
         organization: '',
       });
@@ -502,6 +505,10 @@ export class NewFiling {
 
     this.eFilingService.post_case_details(payload).subscribe(() => {
       this.step3Saved = true;
+      this.caseDetailsLocked = true;
+      this.caseDetailsForm.disable({ emitEvent: false });
+      this.caseDetailsForm.get('act')?.enable({ emitEvent: false });
+      this.caseDetailsForm.get('section')?.enable({ emitEvent: false });
       this.step = 4;
     });
   }
@@ -559,6 +566,30 @@ export class NewFiling {
     });
   }
 
+  private loadInitialInputs() {
+    this.eFilingService.get_filing_by_efiling_id(this.filingId || 0).subscribe({
+      next: (data) => {
+        const record = Array.isArray(data?.results) ? data.results[0] : data;
+        if (!record) return;
+
+        this.filingData = record;
+
+        this.initialInputsForm.patchValue({
+          bench: record.bench || 'High Court Of Sikkim',
+          case_type: record.case_type || '',
+          petitioner_name: record.petitioner_name || '',
+          petitioner_contact: record.petitioner_contact || '',
+          e_filing_number: record.e_filing_number || this.eFilingNumber,
+        });
+        if (record.e_filing_number) {
+          this.eFilingNumber = record.e_filing_number;
+        }
+        this.step1Saved = true;
+        this.initialInputsForm.disable({ emitEvent: false });
+      },
+    });
+  }
+
   private loadActList() {
     this.eFilingService.get_acts_by_filing_id(this.filingId || 0).subscribe({
       next: (data) => {
@@ -566,7 +597,13 @@ export class NewFiling {
         this.actList = rows.map((item: any) => ({
           id: item.id,
           act: item.act,
-          actname: item.actname || item.act_name || item.act,
+          actname:
+            item.actname ||
+            item.act_name ||
+            item.act?.actname ||
+            item.act?.act_name ||
+            item.act?.act ||
+            item.act,
           section: item.section,
         }));
       },
@@ -703,33 +740,101 @@ export class NewFiling {
       cancelButtonText: 'Cancel',
     }).then((result) => {
       if (result.isConfirmed) {
-        const payload = {
-          e_filing: this.filingId,
-          e_filing_number: this.eFilingNumber,
-          is_draft: false,
+        this.toastr.success('OTP has been sent successfully.', '', {
+          timeOut: 3000,
+          closeButton: true,
+        });
+
+        this.promptOtpAndSubmit();
+      }
+    });
+  }
+
+  private promptOtpAndSubmit() {
+    if (!this.filingId) return;
+
+    let submitting = false;
+
+    Swal.fire({
+      title: 'Enter OTP',
+      html:
+        '<div style="display:flex;gap:8px;justify-content:center">' +
+        ['otp-1', 'otp-2', 'otp-3', 'otp-4']
+          .map(
+            (id) =>
+              `<input id="${id}" type="text" inputmode="numeric" maxlength="1" style="width:48px;height:48px;text-align:center;font-size:20px;border:1px solid #d1d5db;border-radius:8px;" />`,
+          )
+          .join('') +
+        '</div>' +
+        '<div id="otp-status" style="margin-top:12px;font-size:14px;text-align:center"></div>',
+      showCancelButton: true,
+      showConfirmButton: false,
+      allowOutsideClick: false,
+      didOpen: () => {
+        const ids = ['otp-1', 'otp-2', 'otp-3', 'otp-4'];
+        const inputs = ids
+          .map((id) => document.getElementById(id) as HTMLInputElement | null)
+          .filter((el): el is HTMLInputElement => !!el);
+        const statusEl = document.getElementById('otp-status');
+
+        const setStatus = (message: string, color: string) => {
+          if (!statusEl) return;
+          statusEl.textContent = message;
+          statusEl.style.color = color;
         };
 
-        this.eFilingService.final_submit_efiling(this.filingId || 0).subscribe({
-          next: (res) => {
-            Swal.fire({
-              icon: 'success',
-              title: 'Filed Successfully',
-              text: 'Your filing has been submitted for scrutiny.',
-            });
+        const getOtp = () => inputs.map((el) => el.value || '').join('');
 
-            console.log('Final submit response', res);
-          },
-          error: (err) => {
-            Swal.fire({
-              icon: 'error',
-              title: 'Submission Failed',
-              text: 'Something went wrong. Please try again.',
-            });
+        const validateOtp = () => {
+          const otp = getOtp();
+          if (otp.length < 4) {
+            setStatus('', '');
+            return;
+          }
 
-            console.error(err);
-          },
+          if (otp !== '0000') {
+            setStatus('OTP error. Please try again.', '#dc2626');
+            return;
+          }
+
+          setStatus('OTP verified.', '#16a34a');
+          if (submitting) return;
+          submitting = true;
+
+          this.eFilingService.final_submit_efiling(this.filingId || 0).subscribe({
+            next: () => {
+              Swal.fire({
+                icon: 'success',
+                title: 'Filed Successfully',
+                text: 'Your filing has been submitted for scrutiny.',
+              }).then(() => {
+                this.router.navigate(['/advocate/dashboard/efiling/pending-scrutiny']);
+              });
+            },
+            error: (err) => {
+              submitting = false;
+              setStatus('Submission failed. Please try again.', '#dc2626');
+              console.error(err);
+            },
+          });
+        };
+
+        inputs.forEach((input, index) => {
+          input.addEventListener('input', () => {
+            input.value = input.value.replace(/\D/g, '').slice(0, 1);
+            if (input.value && inputs[index + 1]) inputs[index + 1].focus();
+            validateOtp();
+          });
+
+          input.addEventListener('keydown', (event) => {
+            if (event.key === 'Backspace' && !input.value && inputs[index - 1]) {
+              inputs[index - 1].focus();
+            }
+          });
         });
-      }
+
+        inputs[0]?.focus();
+      },
     });
   }
 }
