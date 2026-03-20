@@ -125,6 +125,58 @@ class DocumentReviewFlowTest(TestCase):
         )
         self.assertEqual(blocked_response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_replacing_rejected_review_item_returns_it_to_scrutiny(self):
+        self.upload_document()
+        document = EfilingDocuments.objects.get()
+        primary_index = EfilingDocumentsIndex.objects.get(document=document)
+
+        self.client.patch(
+            f"/api/v1/efiling/efilings/{self.filing.id}/",
+            {"is_draft": "false"},
+            format="multipart",
+        )
+
+        secondary_index = EfilingDocumentsIndex.objects.create(
+            document=document,
+            document_part_name="Annexure",
+            file_part_path=primary_index.file_part_path.name,
+            document_sequence=(primary_index.document_sequence or 1) + 1,
+            scrutiny_status=EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED,
+            is_new_for_scrutiny=False,
+        )
+
+        self.client.patch(
+            f"/api/v1/efiling/efiling-documents-index/{primary_index.id}/",
+            {
+                "scrutiny_status": EfilingDocumentsIndex.ScrutinyStatus.REJECTED,
+                "comments": "Main petition is blurred.",
+            },
+            format="json",
+        )
+
+        replace_response = self.client.patch(
+            f"/api/v1/efiling/efiling-documents-index/{primary_index.id}/",
+            {
+                "file_part_path": SimpleUploadedFile(
+                    "petition-fixed.pdf",
+                    b"%PDF-1.4 replacement",
+                    content_type="application/pdf",
+                ),
+            },
+            format="multipart",
+        )
+        self.assertEqual(replace_response.status_code, status.HTTP_200_OK)
+
+        self.filing.refresh_from_db()
+        primary_index.refresh_from_db()
+        secondary_index.refresh_from_db()
+
+        self.assertEqual(self.filing.status, "UNDER_SCRUTINY")
+        self.assertEqual(primary_index.scrutiny_status, EfilingDocumentsIndex.ScrutinyStatus.UNDER_SCRUTINY)
+        self.assertTrue(primary_index.is_new_for_scrutiny)
+        self.assertEqual(secondary_index.scrutiny_status, EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED)
+        self.assertFalse(secondary_index.is_new_for_scrutiny)
+
     def test_review_endpoints_filter_by_filing_and_document_index(self):
         self.upload_document()
         document = EfilingDocuments.objects.get()

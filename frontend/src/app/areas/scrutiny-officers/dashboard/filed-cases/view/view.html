@@ -34,7 +34,12 @@
               <td>{{ filing.case_type?.type_name || '-' }}</td>
               <td>{{ filing.petitioner_contact || '-' }}</td>
               <td>{{ filing.created_at | date: 'dd MMMM, yyyy' }}</td>
-              <td>{{ getStatusLabel(filing.status) }}</td>
+              <td>
+                <span *ngIf="hasNewForScrutiny(filing.id)" class="badge rounded-pill text-bg-danger me-2">
+                  New
+                </span>
+                {{ getStatusLabel(filing.status) }}
+              </td>
               <td>
                 <a
                   [routerLink]="['/scrutiny-officers/dashboard/filed-cases/details', filing.id]"
@@ -89,7 +94,12 @@
               <td>{{ filing.case_type?.type_name || '-' }}</td>
               <td>{{ filing.petitioner_contact || '-' }}</td>
               <td>{{ filing.created_at | date: 'dd MMMM, yyyy' }}</td>
-              <td>{{ getStatusLabel(filing.status) }}</td>
+              <td>
+                <span *ngIf="hasNewForScrutiny(filing.id)" class="badge rounded-pill text-bg-danger me-2">
+                  New
+                </span>
+                {{ getStatusLabel(filing.status) }}
+              </td>
               <td>
                 <a
                   [routerLink]="['/scrutiny-officers/dashboard/filed-cases/details', filing.id]"

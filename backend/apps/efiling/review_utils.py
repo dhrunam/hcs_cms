@@ -17,7 +17,7 @@ def create_scrutiny_history(document_index, comments=None, user=None, scrutiny_s
     return history
 
 
-def sync_document_index_for_upload(document, user=None):
+def sync_document_index_for_upload(document, user=None, document_index_id=None):
     filing = document.e_filing
     status = (
         EfilingDocumentsIndex.ScrutinyStatus.DRAFT
@@ -26,9 +26,12 @@ def sync_document_index_for_upload(document, user=None):
     )
     is_new_for_scrutiny = not filing.is_draft
     now = timezone.now()
-    document_index = (
-        EfilingDocumentsIndex.objects.filter(document=document).order_by("id").first()
-    )
+    document_indexes = EfilingDocumentsIndex.objects.filter(document=document, is_active=True).order_by("id")
+
+    if document_index_id is not None:
+        document_indexes = document_indexes.filter(id=document_index_id)
+
+    document_index = document_indexes.first()
 
     if document_index is None:
         last_sequence = (
@@ -59,31 +62,32 @@ def sync_document_index_for_upload(document, user=None):
         )
         return document_index
 
-    document_index.document_part_name = document.document_type or document_index.document_part_name
-    document_index.file_part_path = document.final_document.name
-    document_index.scrutiny_status = status
-    document_index.is_compliant = False
-    document_index.is_new_for_scrutiny = is_new_for_scrutiny
-    document_index.last_resubmitted_at = now if is_new_for_scrutiny else document_index.last_resubmitted_at
-    document_index.updated_by = user
-    document_index.save(
-        update_fields=[
-            "document_part_name",
-            "file_part_path",
-            "scrutiny_status",
-            "is_compliant",
-            "is_new_for_scrutiny",
-            "last_resubmitted_at",
-            "updated_by",
-            "updated_at",
-        ]
-    )
-    create_scrutiny_history(
-        document_index,
-        comments="Document re-uploaded by advocate.",
-        user=user,
-        scrutiny_status=status,
-    )
+    for document_index in document_indexes:
+        document_index.document_part_name = document.document_type or document_index.document_part_name
+        document_index.file_part_path = document.final_document.name
+        document_index.scrutiny_status = status
+        document_index.is_compliant = False
+        document_index.is_new_for_scrutiny = is_new_for_scrutiny
+        document_index.last_resubmitted_at = now if is_new_for_scrutiny else document_index.last_resubmitted_at
+        document_index.updated_by = user
+        document_index.save(
+            update_fields=[
+                "document_part_name",
+                "file_part_path",
+                "scrutiny_status",
+                "is_compliant",
+                "is_new_for_scrutiny",
+                "last_resubmitted_at",
+                "updated_by",
+                "updated_at",
+            ]
+        )
+        create_scrutiny_history(
+            document_index,
+            comments="Document re-uploaded by advocate.",
+            user=user,
+            scrutiny_status=status,
+        )
     return document_index
 
 
@@ -192,16 +196,16 @@ def finalize_approved_filing(filing, user=None):
     return filing
 
 
-def can_replace_document(document):
+def can_replace_document(document, document_index_id=None):
     if document.e_filing.is_draft:
         return True
 
-    document_index = (
+    document_indexes = (
         EfilingDocumentsIndex.objects.filter(document=document, is_active=True)
-        .order_by("id")
-        .first()
     )
-    return (
-        document_index is not None
-        and document_index.scrutiny_status == EfilingDocumentsIndex.ScrutinyStatus.REJECTED
-    )
+    if document_index_id is not None:
+        document_indexes = document_indexes.filter(id=document_index_id)
+
+    return document_indexes.filter(
+        scrutiny_status=EfilingDocumentsIndex.ScrutinyStatus.REJECTED
+    ).exists()

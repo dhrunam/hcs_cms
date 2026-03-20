@@ -1,9 +1,16 @@
 from django.db import transaction
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.response import Response
 
 from apps.core.models import Efiling, EfilingDocumentsIndex
-from apps.efiling.review_utils import create_scrutiny_history, derive_filing_status, ensure_document_indexes_for_filing
+from apps.efiling.review_utils import (
+    can_replace_document,
+    create_scrutiny_history,
+    derive_filing_status,
+    ensure_document_indexes_for_filing,
+)
 from apps.efiling.serializers.efiling_document_index import EfilingDocumentsIndexSerializer
 
 
@@ -75,6 +82,56 @@ class EfilingDocumentsIndexRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIVie
     def _save_review_update(self, request, *args, partial=False, **kwargs):
         with transaction.atomic():
             instance = self.get_object()
+            is_file_replacement = "file_part_path" in request.FILES or "file_part_path" in request.data
+
+            if is_file_replacement and not can_replace_document(instance.document, document_index_id=instance.id):
+                raise ValidationError(
+                    {
+                        "file_part_path": (
+                            "This document can only be replaced after the scrutiny officer rejects it."
+                        )
+                    }
+                )
+
+            if is_file_replacement:
+                uploaded_file = request.FILES.get("file_part_path") or request.data.get("file_part_path")
+                if not uploaded_file:
+                    raise ValidationError({"file_part_path": "A PDF file is required."})
+
+                instance.file_part_path = uploaded_file
+                filing = instance.document.e_filing if instance.document else None
+                scrutiny_status = (
+                    EfilingDocumentsIndex.ScrutinyStatus.DRAFT
+                    if filing and filing.is_draft
+                    else EfilingDocumentsIndex.ScrutinyStatus.UNDER_SCRUTINY
+                )
+                instance.scrutiny_status = scrutiny_status
+                instance.is_compliant = False
+                instance.is_new_for_scrutiny = bool(filing and not filing.is_draft)
+                instance.last_resubmitted_at = timezone.now() if instance.is_new_for_scrutiny else None
+                instance.updated_by = request.user if request.user.is_authenticated else None
+                instance.save(
+                    update_fields=[
+                        "file_part_path",
+                        "scrutiny_status",
+                        "is_compliant",
+                        "is_new_for_scrutiny",
+                        "last_resubmitted_at",
+                        "updated_by",
+                        "updated_at",
+                    ]
+                )
+                create_scrutiny_history(
+                    instance,
+                    comments="Document re-uploaded by advocate.",
+                    user=request.user if request.user.is_authenticated else None,
+                    scrutiny_status=instance.scrutiny_status,
+                )
+                if filing:
+                    derive_filing_status(filing)
+                serializer = self.get_serializer(instance)
+                return Response(serializer.data)
+
             kwargs["partial"] = partial
             response = super().update(request, *args, **kwargs)
             instance.refresh_from_db()

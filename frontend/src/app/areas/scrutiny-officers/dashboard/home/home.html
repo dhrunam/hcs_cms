@@ -31,6 +31,16 @@
     <div class="col-md-3">
       <div class="card border-0 shadow-sm h-100 summary-card">
         <div class="card-body py-3 px-3">
+          <i class="fa-solid fa-bell text-danger mb-2"></i>
+          <div class="text-muted small">New Incoming</div>
+          <h5 class="mb-0 fw-semibold">{{ newIncomingCount }}</h5>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100 summary-card">
+        <div class="card-body py-3 px-3">
           <i class="fa-regular fa-address-card text-info mb-2"></i>
           <div class="text-muted small">Registered Cases</div>
           <h5 class="mb-0 fw-semibold">{{ totalRegisteredCases }}</h5>
@@ -113,6 +123,9 @@
               <td>{{ filing.petitioner_contact || '-' }}</td>
               <td>{{ filing.created_at | date: 'dd MMM yyyy' }}</td>
               <td>
+                <span *ngIf="hasNewForScrutiny(filing.id)" class="badge rounded-pill text-bg-danger me-2">
+                  New
+                </span>
                 <span
                   class="badge rounded-pill px-3 py-1 fw-normal"
                   [ngClass]="{
@@ -187,6 +200,9 @@
               <td>{{ filing.created_at | date: 'dd MMM yyyy' }}</td>
               <td>{{ filing.accepted_at ? (filing.accepted_at | date: 'dd MMM yyyy') : '-' }}</td>
               <td>
+                <span *ngIf="hasNewForScrutiny(filing.id)" class="badge rounded-pill text-bg-danger me-2">
+                  New
+                </span>
                 <span
                   class="badge rounded-pill px-3 py-1 fw-normal"
                   [ngClass]="{
