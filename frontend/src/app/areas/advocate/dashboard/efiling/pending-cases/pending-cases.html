@@ -8,31 +8,34 @@
 </div>
 
 <section class="pending-cases-section">
-  <div class="card shadow-sm">
+  <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
-      <table class="table table-hover mb-0 filing-table" *ngIf="hasCases; else emptyState">
-        <thead>
-          <tr>
-            <th>Case Title</th>
-            <th>Filing Type</th>
-            <th>Filed On</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let item of cases">
-            <td>{{ item.caseTitle }}</td>
-            <td>{{ item.filingType }}</td>
-            <td>{{ item.filedOn }}</td>
-            <td>
-              <span class="badge bg-warning text-dark">{{ item.status }}</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
+      <div class="table-responsive" *ngIf="hasCases; else emptyState">
+        <table class="table table-hover align-middle mb-0">
+          <thead style="background-color: #f8fafc">
+            <tr class="text-secondary small fw-normal">
+              <th>#</th>
+              <th>Case Title</th>
+              <th>Filing Type</th>
+              <th>Filed On</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody class="text-muted small">
+            <tr *ngFor="let item of cases; let i = index">
+              <td>{{ i + 1 }}</td>
+              <td class="fw-medium text-dark">{{ item.caseTitle }}</td>
+              <td>{{ item.filingType }}</td>
+              <td>{{ item.filedOn }}</td>
+              <td>
+                <span class="badge rounded-pill px-2 py-1 bg-secondary">{{ item.status }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
       <ng-template #emptyState>
-        <div class="empty-state text-center py-5">
+        <div class="empty-state text-center py-5 px-4">
           <h5 class="mb-2">No pending cases</h5>
           <p class="text-muted mb-3">
             Once your filings move to pending status, they will appear here.
