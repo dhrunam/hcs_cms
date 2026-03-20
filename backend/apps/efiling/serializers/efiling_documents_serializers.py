@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.core.models import EfilingDocumentsIndex, EfilingDocuments
+from apps.core.models import EfilingDocuments, EfilingDocumentsIndex
 
 
 class EfilingDocumentsSerializer(serializers.ModelSerializer):
@@ -18,6 +18,7 @@ class EfilingDocumentsSerializer(serializers.ModelSerializer):
             "id",
             "e_filing",
             "e_filing_number",
+            "ia_number",
             "document_type",
             "parent_e_filing_document",
             "final_document",
@@ -57,4 +58,3 @@ class EfilingDocumentsSerializer(serializers.ModelSerializer):
     def get_is_new_for_scrutiny(self, obj):
         document_index = self.get_document_index(obj)
         return document_index.is_new_for_scrutiny if document_index else False
-
