@@ -7,6 +7,7 @@ from apps.master.serializers.district_serializers import DistrictSerializer
 class DistrictListView(ListAPIView):
     queryset = District.objects.all()
     serializer_class = DistrictSerializer
+    pagination_class = None  # Disable pagination for this view
 
     def get_queryset(self):
         # Filter districts based on the optional state_id query parameter.
