@@ -38,7 +38,13 @@ export class FiledCaseDetails {
   isSavingReview = false;
   isSubmittingApprovedCase = false;
   missingFilingId = false;
-  activeTab: 'filing' | 'documents' = 'filing';
+  activeTab: 'filing' | 'documents' | 'ia' = 'filing';
+  iaList: any[] = [];
+  iaDocuments: any[] = [];
+  groupedIaDocuments: Array<{ document_type: string; items: any[] }> = [];
+  selectedIaDocument: any = null;
+  selectedIaDocumentUrl: SafeResourceUrl | null = null;
+  selectedIaDocumentBlobUrl: string | null = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -46,7 +52,7 @@ export class FiledCaseDetails {
     private sanitizer: DomSanitizer,
   ) {}
 
-  setActiveTab(tab: 'filing' | 'documents'): void {
+  setActiveTab(tab: 'filing' | 'documents' | 'ia'): void {
     this.activeTab = tab;
   }
 
@@ -71,15 +77,21 @@ export class FiledCaseDetails {
       litigants: this.efilingService.get_litigant_list_by_filing_id(id),
       caseDetails: this.efilingService.get_case_details_by_filing_id(id),
       acts: this.efilingService.get_acts_by_filing_id(id),
-      documents: this.efilingService.get_document_reviews_by_filing_id(id),
+      documents: this.efilingService.get_document_reviews_by_filing_id(id, false),
+      iaDocuments: this.efilingService.get_document_reviews_by_filing_id(id, true),
+      ias: this.efilingService.get_ias_by_efiling_id(id),
     }).subscribe({
-      next: ({ filing, litigants, caseDetails, acts, documents }) => {
+      next: ({ filing, litigants, caseDetails, acts, documents, iaDocuments, ias }) => {
         this.filing = filing;
         this.litigants = litigants?.results ?? [];
         this.caseDetails = caseDetails?.results?.[0] ?? null;
         this.acts = acts?.results ?? [];
         this.documents = documents?.results ?? [];
         this.groupedDocuments = this.groupDocumentsByType(this.documents);
+        this.iaDocuments = iaDocuments?.results ?? [];
+        this.groupedIaDocuments = this.groupDocumentsByType(this.iaDocuments);
+        this.iaList = Array.isArray(ias) ? ias : (ias?.results ?? []);
+        this.selectIaDocument(this.groupedIaDocuments[0]?.items[0] ?? null);
         this.loadChecklist();
         this.selectDocument(
           this.documents.find((document) => document.id === preferredDocumentId) ?? this.documents[0] ?? null,
@@ -389,6 +401,100 @@ export class FiledCaseDetails {
   }
   getActName(act: any): string {
     return act?.act?.actname ?? act?.actname ?? '-';
+  }
+
+  selectIaDocument(document: any): void {
+    this.selectedIaDocument = document;
+    this.reviewNoteIa = document?.draft_comments ?? document?.comments ?? '';
+    if (this.selectedIaDocumentBlobUrl) {
+      URL.revokeObjectURL(this.selectedIaDocumentBlobUrl);
+      this.selectedIaDocumentBlobUrl = null;
+    }
+    if (!document?.file_url) {
+      this.selectedIaDocumentUrl = null;
+      return;
+    }
+    this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(document.file_url);
+    this.efilingService.fetch_document_blob(document.file_url).subscribe({
+      next: (blob) => {
+        this.selectedIaDocumentBlobUrl = URL.createObjectURL(blob);
+        this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
+          this.selectedIaDocumentBlobUrl,
+        );
+      },
+      error: () => {
+        this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(document.file_url);
+      },
+    });
+
+    if (!document?.id) {
+      this.documentHistoryIa = [];
+      return;
+    }
+    this.efilingService.get_document_scrutiny_history(document.id).subscribe({
+      next: (data) => {
+        this.documentHistoryIa = data?.results ?? data ?? [];
+      },
+      error: () => {
+        this.documentHistoryIa = [];
+      },
+    });
+  }
+
+  reviewNoteIa = '';
+  documentHistoryIa: any[] = [];
+  isSavingReviewIa = false;
+
+  acceptIaDocument(): void {
+    this.submitIaReview('ACCEPTED');
+  }
+
+  rejectIaDocument(): void {
+    this.submitIaReview('REJECTED');
+  }
+
+  private submitIaReview(status: string): void {
+    if (!this.selectedIaDocument?.id || !this.filingId || this.isSavingReviewIa) {
+      return;
+    }
+
+    const currentDocumentId = this.selectedIaDocument.id;
+    this.isSavingReviewIa = true;
+    this.efilingService
+      .review_document(currentDocumentId, {
+        comments: this.reviewNoteIa,
+        scrutiny_status: status,
+      })
+      .subscribe({
+        next: (updatedDocument) => {
+          this.isSavingReviewIa = false;
+          this.applyReviewedIaDocument(updatedDocument);
+          this.loadWorkspace(this.filingId!);
+        },
+        error: (error) => {
+          console.error('Failed to update IA document review', error);
+          this.isSavingReviewIa = false;
+        },
+      });
+  }
+
+  private applyReviewedIaDocument(updatedDocument: any): void {
+    if (!updatedDocument?.id) return;
+    this.iaDocuments = this.iaDocuments.map((doc) =>
+      doc.id === updatedDocument.id ? { ...doc, ...updatedDocument } : doc,
+    );
+    this.groupedIaDocuments = this.groupDocumentsByType(this.iaDocuments);
+  }
+
+  get visibleDocumentHistoryIa(): any[] {
+    return this.documentHistoryIa.filter((item) => {
+      const comment = (item?.comments ?? '').trim();
+      return Boolean(comment) && !this.hiddenHistoryComments.has(comment);
+    });
+  }
+
+  getDocumentFileLabel(document: any): string {
+    return this.getDocumentTitle(document);
   }
   private applyReviewedDocument(updatedDocument: any): void {
     if (!updatedDocument?.id) {

@@ -117,39 +117,92 @@
       </div>
       <div class="card-body">
         <div *ngIf="existingDocList.length === 0" class="text-muted small">No documents filed yet for this case.</div>
-        <div *ngIf="existingDocList.length > 0" class="card shadow-sm border-0">
-          <div class="list-group list-group-flush">
-            <div
-              style="border-left: 2px solid #1e293b"
-              class="list-group-item"
-              *ngFor="let doc of existingDocList; let i = index; trackBy: trackByDocId"
-            >
-              <div class="d-flex justify-content-between align-items-start gap-2">
-                <div class="text-start">
-                  <div class="fw-semibold">{{ i + 1 }}. {{ doc.document_type || '-' }}</div>
-                </div>
-              </div>
-              <div class="mt-2 ps-2" *ngIf="doc.document_indexes?.length > 0">
-                <div
-                  *ngFor="let filePart of doc.document_indexes; let j = index"
-                  class="d-flex justify-content-between align-items-center py-1"
-                >
-                  <div class="small text-muted text-start">
-                    {{ j + 1 }}. {{ filePart.document_part_name || 'Document Part' }}
+
+        <!-- Non-verified documents (pending scrutiny / rejected) -->
+        <div *ngIf="nonVerifiedDocList.length > 0" class="mb-4">
+          <div class="fw-semibold text-warning mb-2">
+            <i class="fa-solid fa-clock me-1"></i> Non-verified Documents ({{ nonVerifiedDocList.length }})
+          </div>
+          <p class="text-muted small mb-2">Documents awaiting scrutiny or requiring re-upload.</p>
+          <div class="card shadow-sm border-0 border-warning border-start">
+            <div class="list-group list-group-flush">
+              <div
+                style="border-left: 2px solid #ffc107"
+                class="list-group-item"
+                *ngFor="let doc of nonVerifiedDocList; let i = index; trackBy: trackByDocId"
+              >
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                  <div class="text-start">
+                    <div class="fw-semibold">{{ i + 1 }}. {{ doc.document_type || '-' }}</div>
                   </div>
-                  <a
-                    [href]="filePart.file_url || filePart.file_part_path"
-                    target="_blank"
-                    class="btn btn-sm btn-outline-primary"
+                </div>
+                <div class="mt-2 ps-2" *ngIf="doc.document_indexes?.length > 0">
+                  <div
+                    *ngFor="let filePart of doc.document_indexes; let j = index"
+                    class="d-flex justify-content-between align-items-center py-1"
                   >
+                    <div class="small text-muted text-start">
+                      {{ j + 1 }}. {{ filePart.document_part_name || 'Document Part' }}
+                    </div>
+                    <a
+                      [href]="filePart.file_url || filePart.file_part_path"
+                      target="_blank"
+                      class="btn btn-sm btn-outline-primary"
+                    >
+                      <i class="fa fa-eye"></i> view
+                    </a>
+                  </div>
+                </div>
+                <div class="mt-2 ps-2" *ngIf="!doc.document_indexes?.length && doc.final_document">
+                  <a [href]="doc.final_document" target="_blank" class="btn btn-sm btn-outline-primary">
                     <i class="fa fa-eye"></i> view
                   </a>
                 </div>
               </div>
-              <div class="mt-2 ps-2" *ngIf="!doc.document_indexes?.length && doc.final_document">
-                <a [href]="doc.final_document" target="_blank" class="btn btn-sm btn-outline-primary">
-                  <i class="fa fa-eye"></i> view
-                </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Verified documents (accepted) -->
+        <div *ngIf="verifiedDocList.length > 0">
+          <div class="fw-semibold text-success mb-2">
+            <i class="fa-solid fa-circle-check me-1"></i> Verified Documents ({{ verifiedDocList.length }})
+          </div>
+          <p class="text-muted small mb-2">Documents accepted during scrutiny.</p>
+          <div class="card shadow-sm border-0">
+            <div class="list-group list-group-flush">
+              <div
+                style="border-left: 2px solid #198754"
+                class="list-group-item"
+                *ngFor="let doc of verifiedDocList; let i = index; trackBy: trackByDocId"
+              >
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                  <div class="text-start">
+                    <div class="fw-semibold">{{ i + 1 }}. {{ doc.document_type || '-' }}</div>
+                  </div>
+                </div>
+                <div class="mt-2 ps-2" *ngIf="doc.document_indexes?.length > 0">
+                  <div
+                    *ngFor="let filePart of doc.document_indexes; let j = index"
+                    class="d-flex justify-content-between align-items-center py-1"
+                  >
+                    <div class="small text-muted text-start">
+                      {{ j + 1 }}. {{ filePart.document_part_name || 'Document Part' }}
+                    </div>
+                    <a
+                      [href]="filePart.file_url || filePart.file_part_path"
+                      target="_blank"
+                      class="btn btn-sm btn-outline-primary"
+                    >
+                      <i class="fa fa-eye"></i> view
+                    </a>
+                  </div>
+                </div>
+                <div class="mt-2 ps-2" *ngIf="!doc.document_indexes?.length && doc.final_document">
+                  <a [href]="doc.final_document" target="_blank" class="btn btn-sm btn-outline-primary">
+                    <i class="fa fa-eye"></i> view
+                  </a>
+                </div>
               </div>
             </div>
           </div>

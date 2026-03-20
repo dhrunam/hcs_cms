@@ -1,6 +1,6 @@
 <form [formGroup]="form" (ngSubmit)="submit()" class="form-group-block">
   <div class="row g-3 align-items-end mb-3 mt-2">
-    <div class="col-md-4 text-start">
+    <div class="col-md-4 text-start" *ngIf="!defaultDocumentType">
       <label class="form-label text-start ps-lg-2"
         >Document Type <small class="text-danger">*</small></label
       >
