@@ -6,6 +6,7 @@ import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { forkJoin } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
+import Swal from 'sweetalert2';
 
 import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
 import { UploadDocuments } from '../../new-filing/upload-documents/upload-documents';
@@ -207,6 +208,23 @@ export class Create implements OnInit {
     return item?.filing?.id ?? 0;
   }
 
+  private isDocumentVerified(doc: any): boolean {
+    const indexes = doc?.document_indexes ?? [];
+    if (indexes.length === 0) return false;
+    return indexes.every((p: any) => {
+      const s = (p?.scrutiny_status ?? '').trim().toLowerCase();
+      return s.includes('accept');
+    });
+  }
+
+  get verifiedDocList(): any[] {
+    return this.existingDocList.filter((doc) => this.isDocumentVerified(doc));
+  }
+
+  get nonVerifiedDocList(): any[] {
+    return this.existingDocList.filter((doc) => !this.isDocumentVerified(doc));
+  }
+
   async handleDocUpload(data: any): Promise<void> {
     const documentType = String(data?.document_type || '').trim();
     const uploadItems = Array.isArray(data?.items) ? data.items : [];
@@ -215,6 +233,9 @@ export class Create implements OnInit {
       this.toastr.warning('Please select an E-Filing and add documents with document type and index names.');
       return;
     }
+
+    const proceed = await this.promptOtpAndProceed('File Documents?', 'Upload these documents to the selected case.');
+    if (!proceed) return;
 
     this.isUploadingDocuments = true;
     this.uploadFileProgresses = uploadItems.map(() => 0);
@@ -260,6 +281,94 @@ export class Create implements OnInit {
     } finally {
       this.isUploadingDocuments = false;
     }
+  }
+
+  private async promptOtpAndProceed(title: string, text: string): Promise<boolean> {
+    const confirmed = await Swal.fire({
+      title,
+      text,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, Proceed',
+      cancelButtonText: 'Cancel',
+    });
+    if (!confirmed.isConfirmed) return false;
+
+    this.toastr.success('OTP has been sent successfully.', '', {
+      timeOut: 3000,
+      closeButton: true,
+    });
+
+    let resolved = false;
+    return new Promise<boolean>((resolve) => {
+      const finish = (value: boolean) => {
+        if (resolved) return;
+        resolved = true;
+        resolve(value);
+      };
+
+      Swal.fire({
+        title: 'Enter OTP',
+        html:
+          '<div style="display:flex;gap:8px;justify-content:center">' +
+          ['otp-1', 'otp-2', 'otp-3', 'otp-4']
+            .map(
+              (id) =>
+                `<input id="${id}" type="text" inputmode="numeric" maxlength="1" style="width:48px;height:48px;text-align:center;font-size:20px;border:1px solid #d1d5db;border-radius:8px;" />`,
+            )
+            .join('') +
+          '<div id="otp-status" style="margin-top:12px;font-size:14px;text-align:center"></div>',
+        showCancelButton: true,
+        showConfirmButton: false,
+        allowOutsideClick: false,
+        didOpen: () => {
+          const ids = ['otp-1', 'otp-2', 'otp-3', 'otp-4'];
+          const inputs = ids
+            .map((id) => document.getElementById(id) as HTMLInputElement | null)
+            .filter((el): el is HTMLInputElement => !!el);
+          const statusEl = document.getElementById('otp-status');
+
+          const setStatus = (message: string, color: string) => {
+            if (!statusEl) return;
+            statusEl.textContent = message;
+            statusEl.style.color = color;
+          };
+
+          const getOtp = () => inputs.map((el) => el.value || '').join('');
+
+          const validateOtp = () => {
+            const otp = getOtp();
+            if (otp.length < 4) {
+              setStatus('', '');
+              return;
+            }
+            if (otp !== '0000') {
+              setStatus('OTP error. Please try again.', '#dc2626');
+              return;
+            }
+            setStatus('OTP verified.', '#16a34a');
+            Swal.close();
+            finish(true);
+          };
+
+          inputs.forEach((input, index) => {
+            input.addEventListener('input', () => {
+              input.value = input.value.replace(/\D/g, '').slice(0, 1);
+              if (input.value && inputs[index + 1]) inputs[index + 1].focus();
+              validateOtp();
+            });
+            input.addEventListener('keydown', (event) => {
+              if (event.key === 'Backspace' && !input.value && inputs[index - 1]) {
+                inputs[index - 1].focus();
+              }
+            });
+          });
+          inputs[0]?.focus();
+        },
+      }).then((result) => {
+        if (result.dismiss === Swal.DismissReason.cancel) finish(false);
+      });
+    });
   }
 
   private uploadIndexFileWithProgress(formData: FormData, index: number): Promise<any> {

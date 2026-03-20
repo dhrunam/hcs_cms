@@ -3,6 +3,8 @@ import { Component } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { forkJoin } from 'rxjs';
+import { ToastrService } from 'ngx-toastr';
+import Swal from 'sweetalert2';
 import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
 
 @Component({
@@ -35,6 +37,7 @@ export class ScrutinyDetails {
   isReplacing = false;
   notesPopupOpen = false;
   canShowReplaceBtn: boolean = false;
+  pendingReplacements: Array<{ documentId: number; document: any; file: File }> = [];
   activeTab: 'filing' | 'documents' | 'ia' = 'filing';
   iaList: any[] = [];
   iaDocuments: any[] = [];
@@ -47,6 +50,7 @@ export class ScrutinyDetails {
     private route: ActivatedRoute,
     private efilingService: EfilingService,
     private sanitizer: DomSanitizer,
+    private toastr: ToastrService,
   ) {}
 
   openNotesPopup(): void {
@@ -170,7 +174,7 @@ export class ScrutinyDetails {
     });
   }
 
-  triggerReplace(input: HTMLInputElement): void {
+  triggerReplace(input: HTMLInputElement, document: any): void {
     input.value = '';
     input.click();
   }
@@ -178,32 +182,187 @@ export class ScrutinyDetails {
   startReplace(document: any, input: HTMLInputElement, event?: Event): void {
     event?.stopPropagation();
     this.selectDocument(document);
-    this.triggerReplace(input);
+    (input as any)._replaceDoc = document;
+    this.triggerReplace(input, document);
   }
 
-  replaceSelectedDocument(event: Event): void {
+  startReplaceIa(doc: any, input: HTMLInputElement, event?: Event): void {
+    event?.stopPropagation();
+    this.selectIaDocument(doc);
+    (input as any)._replaceDoc = doc;
+    input.value = '';
+    input.click();
+  }
+
+  addPendingReplacement(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
+    const doc = (input as any)._replaceDoc ?? this.selectedDocument;
 
-    if (!file || !this.selectedDocument?.id || this.isReplacing) {
+    if (!file || !doc?.id) {
+      input.value = '';
       return;
     }
 
+    const existing = this.pendingReplacements.find((p) => p.documentId === doc.id);
+    if (existing) {
+      existing.file = file;
+    } else {
+      this.pendingReplacements.push({ documentId: doc.id, document: doc, file });
+    }
+    input.value = '';
+  }
+
+  removePendingReplacement(documentId: number): void {
+    this.pendingReplacements = this.pendingReplacements.filter((p) => p.documentId !== documentId);
+  }
+
+  hasPendingReplacement(documentId: number): boolean {
+    return this.pendingReplacements.some((p) => p.documentId === documentId);
+  }
+
+  getPendingFileForDocument(documentId: number): File | null {
+    const p = this.pendingReplacements.find((pr) => pr.documentId === documentId);
+    return p?.file ?? null;
+  }
+
+  viewPendingFile(documentId: number): void {
+    const p = this.pendingReplacements.find((pr) => pr.documentId === documentId);
+    if (!p?.file) return;
+    const url = URL.createObjectURL(p.file);
+    window.open(url, '_blank', 'noopener');
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+
+  async submitAllReplacements(): Promise<void> {
+    if (this.pendingReplacements.length === 0 || this.isReplacing) return;
+
+    const count = this.pendingReplacements.length;
+    const confirmed = await Swal.fire({
+      title: 'Replace All Documents?',
+      text: `You are about to replace ${count} document${count > 1 ? 's' : ''} with new files. This action cannot be undone.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Yes, replace all',
+      cancelButtonText: 'Cancel',
+    });
+
+    if (!confirmed.isConfirmed) return;
+
+    const proceed = await this.promptOtpAndProceed();
+    if (!proceed) return;
+
     this.isReplacing = true;
-    this.efilingService
-      .replace_document_review_item(this.selectedDocument.id, file)
-      .subscribe({
-        next: () => {
-          this.isReplacing = false;
-          this.loadDetails(this.filingId!, this.selectedDocument.id);
-          input.value = '';
-        },
+    const toReplace = [...this.pendingReplacements];
+    this.pendingReplacements = [];
+
+    const replaceNext = (index: number): void => {
+      if (index >= toReplace.length) {
+        this.isReplacing = false;
+        this.loadDetails(this.filingId!);
+        Swal.fire({
+          title: 'Replaced',
+          text: `${toReplace.length} document(s) have been replaced successfully.`,
+          icon: 'success',
+          timer: 2000,
+          showConfirmButton: false,
+        });
+        return;
+      }
+
+      const { documentId, file } = toReplace[index];
+      this.efilingService.replace_document_review_item(documentId, file).subscribe({
+        next: () => replaceNext(index + 1),
         error: (error) => {
           console.error('Failed to replace document', error);
           this.isReplacing = false;
-          input.value = '';
+          this.pendingReplacements = [...toReplace.slice(index)];
+          Swal.fire({ title: 'Error', text: 'Failed to replace document. Please try again.', icon: 'error' });
         },
       });
+    };
+
+    replaceNext(0);
+  }
+
+  private async promptOtpAndProceed(): Promise<boolean> {
+    this.toastr.success('OTP has been sent successfully.', '', {
+      timeOut: 3000,
+      closeButton: true,
+    });
+
+    let resolved = false;
+    return new Promise<boolean>((resolve) => {
+      const finish = (value: boolean) => {
+        if (resolved) return;
+        resolved = true;
+        resolve(value);
+      };
+
+      Swal.fire({
+        title: 'Enter OTP',
+        html:
+          '<div style="display:flex;gap:8px;justify-content:center">' +
+          ['otp-1', 'otp-2', 'otp-3', 'otp-4']
+            .map(
+              (id) =>
+                `<input id="${id}" type="text" inputmode="numeric" maxlength="1" style="width:48px;height:48px;text-align:center;font-size:20px;border:1px solid #d1d5db;border-radius:8px;" />`,
+            )
+            .join('') +
+          '<div id="otp-status" style="margin-top:12px;font-size:14px;text-align:center"></div>',
+        showCancelButton: true,
+        showConfirmButton: false,
+        allowOutsideClick: false,
+        didOpen: () => {
+          const ids = ['otp-1', 'otp-2', 'otp-3', 'otp-4'];
+          const inputs = ids
+            .map((id) => document.getElementById(id) as HTMLInputElement | null)
+            .filter((el): el is HTMLInputElement => !!el);
+          const statusEl = document.getElementById('otp-status');
+
+          const setStatus = (message: string, color: string) => {
+            if (!statusEl) return;
+            statusEl.textContent = message;
+            statusEl.style.color = color;
+          };
+
+          const getOtp = () => inputs.map((el) => el.value || '').join('');
+
+          const validateOtp = () => {
+            const otp = getOtp();
+            if (otp.length < 4) {
+              setStatus('', '');
+              return;
+            }
+            if (otp !== '0000') {
+              setStatus('OTP error. Please try again.', '#dc2626');
+              return;
+            }
+            setStatus('OTP verified.', '#16a34a');
+            Swal.close();
+            finish(true);
+          };
+
+          inputs.forEach((input, index) => {
+            input.addEventListener('input', () => {
+              input.value = input.value.replace(/\D/g, '').slice(0, 1);
+              if (input.value && inputs[index + 1]) inputs[index + 1].focus();
+              validateOtp();
+            });
+            input.addEventListener('keydown', (event) => {
+              if (event.key === 'Backspace' && !input.value && inputs[index - 1]) {
+                inputs[index - 1].focus();
+              }
+            });
+          });
+          inputs[0]?.focus();
+        },
+      }).then((result) => {
+        if (result.dismiss === Swal.DismissReason.cancel) finish(false);
+      });
+    });
   }
 
   openInNewTab(): void {
@@ -249,6 +408,10 @@ export class ScrutinyDetails {
 
   canReplace(document: any): boolean {
     return Boolean(document?.can_replace && document?.document);
+  }
+
+  canReplaceIa(doc: any): boolean {
+    return this.canReplace(doc);
   }
 
   trackById(_: number, item: any): number {

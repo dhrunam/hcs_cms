@@ -79,6 +79,17 @@
               Documents
             </button>
           </li>
+          <li class="nav-item" *ngIf="iaList.length > 0">
+            <button
+              type="button"
+              class="nav-link"
+              [class.active]="activeTab === 'ia'"
+              (click)="setActiveTab('ia')"
+            >
+              <i class="fa-solid fa-file-contract me-2"></i>
+              IA
+            </button>
+          </li>
         </ul>
       </div>
       <div class="card-body p-0">
@@ -351,6 +362,112 @@
             </div>
           </div>
         </div>
+        <div *ngIf="activeTab === 'ia' && iaList.length > 0" class="ia-tab-content">
+          <div class="filing-summary-section filing-summary-body">
+            <div class="filing-summary-section-title">
+              <i class="fa-solid fa-file-contract me-2"></i>
+              Interlocutory Applications
+            </div>
+            <div class="ia-list">
+              <div class="ia-card" *ngFor="let ia of iaList; trackBy: trackById">
+                <div class="ia-card-header">
+                  <div>
+                    <span class="ia-number filing-number">{{ ia.ia_number || '-' }}</span>
+                    <span class="badge rounded-pill px-2 py-1 ms-2" [ngClass]="ia.status ? 'bg-primary' : 'bg-secondary'">
+                      {{ ia.status || 'Pending' }}
+                    </span>
+                  </div>
+                </div>
+                <div class="ia-card-body" *ngIf="ia.ia_text">
+                  <span class="filing-summary-label d-block mb-1">Relief Sought</span>
+                  <div class="ia-text">{{ ia.ia_text }}</div>
+                </div>
+                <div class="ia-card-meta text-muted small mt-2">
+                  <span *ngIf="ia.created_at">Created: {{ ia.created_at | date: 'dd MMM yyyy' }}</span>
+                  <span *ngIf="ia.disposal_date" class="ms-3">Disposal: {{ ia.disposal_date | date: 'dd MMM yyyy' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="filing-summary-section" *ngIf="groupedIaDocuments.length > 0">
+            <div class="filing-summary-section-title">
+              <i class="fa-solid fa-folder-open me-2"></i>
+              IA Filed Documents
+            </div>
+            <div class="row g-4">
+              <div class="col-xl-3">
+                <div class="card border-0 shadow-sm h-100">
+                  <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                      <div class="section-title">IA Documents</div>
+                      <span class="small text-muted">{{ iaDocuments.length }} total</span>
+                    </div>
+                    <div class="document-list">
+                      <div
+                        class="document-group"
+                        *ngFor="let group of groupedIaDocuments; trackBy: trackByGroupIndex"
+                      >
+                        <div class="document-type-header">{{ group.document_type || 'Main Document' }}</div>
+                        <button
+                          type="button"
+                          class="document-item"
+                          *ngFor="let doc of group.items; trackBy: trackById"
+                          [class.document-item-active]="selectedIaDocument?.id === doc.id"
+                          (click)="selectIaDocument(doc)"
+                        >
+                          <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div class="document-title">{{ doc.document_part_name || getDocumentFileLabel(doc) }}</div>
+                            <span class="status-badge status-badge-sm" [ngClass]="getDocumentStatusClass(doc)">
+                              {{ getDocumentStatusLabel(doc) }}
+                            </span>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-xl-9">
+                <div class="card border-0 shadow-sm h-100">
+                  <div class="card-body" *ngIf="selectedIaDocument">
+                    <div class="review-panel">
+                      <div class="section-title mb-2">Remarks</div>
+                      <textarea
+                        class="form-control"
+                        [(ngModel)]="reviewNoteIa"
+                        placeholder="Add notes for the advocate. These notes stay in the review history."
+                        rows="3"
+                      ></textarea>
+                      <div class="d-flex gap-2 flex-wrap mt-3">
+                        <button type="button" class="btn btn-success btn-sm" (click)="acceptIaDocument()" [disabled]="isSavingReviewIa">
+                          Accept
+                        </button>
+                        <button type="button" class="btn btn-danger btn-sm" (click)="rejectIaDocument()" [disabled]="isSavingReviewIa">
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                    <div class="review-panel mb-3 mt-3">
+                      <div class="preview-frame" *ngIf="selectedIaDocumentUrl; else noPreviewIa">
+                        <iframe [src]="selectedIaDocumentUrl" title="IA document preview"></iframe>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="card-body p-4 text-muted small" *ngIf="!selectedIaDocument">
+                    Select a document to review.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div *ngIf="groupedIaDocuments.length === 0" class="filing-summary-section filing-summary-body">
+            <div class="text-muted small">No IA documents filed yet.</div>
+          </div>
+        </div>
       </div>
   </ng-container>
+
+  <ng-template #noPreviewIa>
+    <div class="preview-empty text-muted small">PDF preview will appear here once a file is available.</div>
+  </ng-template>
 </div>

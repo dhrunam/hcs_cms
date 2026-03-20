@@ -47,6 +47,8 @@ export class UploadDocuments implements OnInit, OnChanges {
   @Input() isUploading = false;
   @Input() fileProgresses: number[] = [];
   @Input() uploadCompletedToken = 0;
+  /** When set, hides the document type field and uses this value (e.g. 'IA' for IA filing). */
+  @Input() defaultDocumentType: string | null = null;
 
   entries: DocumentUploadEntry[] = [];
   indexMasters: DocumentIndexMaster[] = [];
@@ -150,11 +152,18 @@ export class UploadDocuments implements OnInit, OnChanges {
     moveItemInArray(this.entries, event.previousIndex, event.currentIndex);
   }
 
+  getEffectiveDocumentType(): string {
+    if (this.defaultDocumentType) {
+      return String(this.defaultDocumentType).trim();
+    }
+    return String(this.form?.value?.document_type || '').trim();
+  }
+
   canUpload(): boolean {
     return (
       !this.isUploading &&
       this.entries.length > 0 &&
-      !!String(this.form.value.document_type || '').trim() &&
+      !!this.getEffectiveDocumentType() &&
       this.entries.every((entry) => entry.index_name && entry.index_name.trim().length > 0)
     );
   }
@@ -164,7 +173,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     if (!this.canUpload()) return;
 
     const payload: UploadDocumentsPayload = {
-      document_type: String(this.form.value.document_type || '').trim(),
+      document_type: this.getEffectiveDocumentType(),
       items: this.entries.map((entry) => ({
         file: entry.file,
         index_name: entry.index_name.trim(),

@@ -145,31 +145,68 @@ class EfilingDocumentsIndexRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIVie
                 return Response(serializer.data)
 
             if "scrutiny_status" in request.data or "comments" in request.data:
-                draft_status = request.data.get("scrutiny_status", instance.draft_scrutiny_status)
-                if draft_status not in (
+                review_status = request.data.get("scrutiny_status", instance.draft_scrutiny_status)
+                if review_status not in (
                     EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED,
                     EfilingDocumentsIndex.ScrutinyStatus.REJECTED,
                 ):
                     raise ValidationError(
-                        {"scrutiny_status": "Draft review status must be ACCEPTED or REJECTED."}
+                        {"scrutiny_status": "Review status must be ACCEPTED or REJECTED."}
                     )
-                instance.draft_scrutiny_status = draft_status
-                instance.draft_comments = request.data.get("comments", instance.draft_comments)
-                instance.draft_reviewed_at = timezone.now()
-                instance.is_active = True
-                instance.is_new_for_scrutiny = False
-                instance.updated_by = request.user if request.user.is_authenticated else None
-                instance.save(
-                    update_fields=[
-                        "is_active",
-                        "draft_scrutiny_status",
-                        "draft_comments",
-                        "draft_reviewed_at",
-                        "is_new_for_scrutiny",
-                        "updated_by",
-                        "updated_at",
-                    ]
-                )
+                review_comments = request.data.get("comments", instance.draft_comments)
+                filing = instance.document.e_filing if instance.document else None
+                case_already_accepted = bool(filing and filing.case_number)
+
+                if case_already_accepted:
+                    instance.scrutiny_status = review_status
+                    instance.comments = review_comments
+                    instance.is_compliant = review_status == EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED
+                    instance.draft_scrutiny_status = None
+                    instance.draft_comments = None
+                    instance.draft_reviewed_at = None
+                    instance.last_reviewed_at = timezone.now()
+                    instance.is_new_for_scrutiny = False
+                    instance.updated_by = request.user if request.user.is_authenticated else None
+                    instance.save(
+                        update_fields=[
+                            "scrutiny_status",
+                            "comments",
+                            "is_compliant",
+                            "draft_scrutiny_status",
+                            "draft_comments",
+                            "draft_reviewed_at",
+                            "last_reviewed_at",
+                            "is_new_for_scrutiny",
+                            "updated_by",
+                            "updated_at",
+                        ]
+                    )
+                    create_scrutiny_history(
+                        instance,
+                        comments=review_comments,
+                        user=request.user if request.user.is_authenticated else None,
+                        scrutiny_status=review_status,
+                    )
+                    if filing:
+                        derive_filing_status(filing)
+                else:
+                    instance.draft_scrutiny_status = review_status
+                    instance.draft_comments = review_comments
+                    instance.draft_reviewed_at = timezone.now()
+                    instance.is_active = True
+                    instance.is_new_for_scrutiny = False
+                    instance.updated_by = request.user if request.user.is_authenticated else None
+                    instance.save(
+                        update_fields=[
+                            "is_active",
+                            "draft_scrutiny_status",
+                            "draft_comments",
+                            "draft_reviewed_at",
+                            "is_new_for_scrutiny",
+                            "updated_by",
+                            "updated_at",
+                        ]
+                    )
                 serializer = self.get_serializer(instance)
                 return Response(serializer.data)
 
