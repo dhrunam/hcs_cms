@@ -1,3 +1,2 @@
-# from django.db import models
-# from apps.core import signals
+default_app_config = "apps.core.apps.CoreConfig"
 

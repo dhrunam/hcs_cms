@@ -23,7 +23,6 @@ class EfilingDocumentsIndexListCreateView(ListCreateAPIView):
                 ensure_document_indexes_for_filing(filing)
 
         qs = EfilingDocumentsIndex.objects.select_related("document", "document__e_filing").all()
-
         if is_active is not None:
             qs = qs.filter(is_active=is_active.lower() in ["true", "1"])
         if efiling_id is not None:
@@ -34,7 +33,6 @@ class EfilingDocumentsIndexListCreateView(ListCreateAPIView):
             qs = qs.filter(scrutiny_status=scrutiny_status)
         if is_new_for_scrutiny is not None:
             qs = qs.filter(is_new_for_scrutiny=is_new_for_scrutiny.lower() in ["true", "1"])
-
         if efiling_id is not None:
             return qs.order_by("document_sequence", "id")
         return qs.order_by("-id")

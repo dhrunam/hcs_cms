@@ -88,33 +88,41 @@
 
             <div *ngIf="documents.length === 0" class="text-muted small">No uploaded documents available yet.</div>
 
-            <div class="document-list" *ngIf="documents.length > 0">
-              <button
-                type="button"
-                class="document-item"
-                *ngFor="let document of documents; trackBy: trackById"
-                [class.document-item-active]="selectedDocument?.id === document.id"
-                (click)="selectDocument(document)"
+            <div class="document-list" *ngIf="groupedDocuments.length > 0">
+              <div
+                class="document-group"
+                *ngFor="let group of groupedDocuments; trackBy: trackByGroupIndex"
               >
-                <div class="d-flex justify-content-between align-items-start gap-2">
-                  <div>
-                    <div class="document-title">
-                      #{{ document.document_sequence || '-' }} {{ getDocumentTitle(document) }}
-                    </div>
-                    <div class="document-meta">{{ getDocumentMeta(document) }}</div>
-                    <div class="document-meta" *ngIf="getDocumentDate(document)">
-                      {{ getDocumentDate(document) | date: 'dd MMM yyyy, hh:mm a' }}
-                    </div>
-                  </div>
-
-                  <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
-                    <span class="new-tag" *ngIf="document.is_new_for_scrutiny">new</span>
-                    <span class="status-badge status-badge-sm" [ngClass]="getStatusClass(document.scrutiny_status)">
-                      {{ getStatusLabel(document.scrutiny_status) }}
-                    </span>
-                  </div>
+                <div class="document-type-header">
+                  {{ group.document_type || 'Main Document' }}
                 </div>
-              </button>
+
+                <button
+                  type="button"
+                  class="document-item"
+                  *ngFor="let document of group.items; trackBy: trackById"
+                  [class.document-item-active]="selectedDocument?.id === document.id"
+                  (click)="selectDocument(document)"
+                >
+                  <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div>
+                      <!-- Treat document_part_name as the actual "file" row -->
+                      <div class="document-title">{{ document.document_part_name || getDocumentTitle(document) }}</div>
+                      <div class="document-meta">Seq {{ document.document_sequence || '-' }}</div>
+                      <div class="document-meta" *ngIf="getDocumentDate(document)">
+                        {{ getDocumentDate(document) | date: 'dd MMM yyyy, hh:mm a' }}
+                      </div>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                      <span class="new-tag" *ngIf="document.is_new_for_scrutiny">new</span>
+                      <span class="status-badge status-badge-sm" [ngClass]="getStatusClass(document.scrutiny_status)">
+                        {{ getStatusLabel(document.scrutiny_status) }}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              </div>
             </div>
           </div>
         </div>

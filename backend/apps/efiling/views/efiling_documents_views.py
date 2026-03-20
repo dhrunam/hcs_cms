@@ -24,7 +24,15 @@ class EfilingDocumentsListCreateView(ListCreateAPIView):
 
     def perform_create(self, serializer):
         document = serializer.save()
-        sync_document_index_for_upload(document, user=self.request.user if self.request.user.is_authenticated else None)
+        # In this app flow we often create the EfilingDocuments row first (with only document_type),
+        # then upload actual PDF "parts" via EfilingDocumentsIndex endpoint.
+        # sync_document_index_for_upload() would otherwise insert a placeholder index row where
+        # `document_part_name` is set to `document_type`.
+        has_final_document = bool(getattr(document, "final_document", None) and getattr(document.final_document, "name", None))
+        if has_final_document:
+            sync_document_index_for_upload(
+                document, user=self.request.user if self.request.user.is_authenticated else None
+            )
         derive_filing_status(document.e_filing)
 
 class EfilingDocumentsRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
