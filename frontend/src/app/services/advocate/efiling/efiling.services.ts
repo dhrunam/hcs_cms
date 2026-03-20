@@ -124,4 +124,20 @@ export class EfilingService {
   get_document_index_master(): Observable<any> {
     return this.http.get<any>(`${app_url}/api/v1/efiling/document-index/`);
   }
+
+  post_ia_filing(payload: { e_filing: number; e_filing_number: string; ia_text: string }): Observable<any> {
+    return this.http.post<any>(`${app_url}/api/v1/efiling/ias/`, payload);
+  }
+
+  get_ias(): Observable<any> {
+    return this.http.get<any>(`${app_url}/api/v1/efiling/ias/`);
+  }
+
+  get_ia_by_id(id: number): Observable<any> {
+    return this.http.get<any>(`${app_url}/api/v1/efiling/ias/${id}/`);
+  }
+
+  get_ia_acts_by_ia_id(iaId: number): Observable<any> {
+    return this.http.get<any>(`${app_url}/api/v1/efiling/ia-acts/?ia=${iaId}`);
+  }
 }

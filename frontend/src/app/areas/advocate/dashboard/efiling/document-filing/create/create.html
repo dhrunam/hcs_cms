@@ -6,72 +6,70 @@
   </div>
 
   <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-dark text-white fw-semibold">Select E-Filing</div>
     <div class="card-body">
-      <div class="section-title mb-2">Search Case</div>
-
-      <form [formGroup]="searchForm" (ngSubmit)="searchCase()">
-        <div class="row g-3 align-items-end">
-          <div class="col-md-4">
-            <label class="form-label">Case Type</label>
-            <select class="form-control" formControlName="case_type">
-              <option value="" disabled>Select case type</option>
-              <option *ngFor="let ct of caseTypes" [value]="ct.id">{{ ct.type_name || ct.case_type }}</option>
-            </select>
+      <label class="form-label">Search & Select E-Filing</label>
+      <div class="searchable-select position-relative" [class.open]="isDropdownOpen">
+        <div
+          *ngIf="isDropdownOpen"
+          class="searchable-select-backdrop"
+          (click)="isDropdownOpen = false"
+        ></div>
+        <button
+          type="button"
+          class="form-select-selector d-flex align-items-center justify-content-between w-100"
+          [disabled]="isLoadingFilings"
+          (click)="isDropdownOpen = !isDropdownOpen"
+        >
+          <span *ngIf="selectedFiling" class="text-dark">{{ getSelectedLabel() }}</span>
+          <span *ngIf="!selectedFiling" class="text-muted">-- Search by E-Filing No, Case Type, Petitioner or Respondent --</span>
+          <i class="fa-solid fa-chevron-down ms-2" [class.rotate-180]="isDropdownOpen"></i>
+        </button>
+        <div *ngIf="isDropdownOpen" class="searchable-select-dropdown">
+          <div class="searchable-select-search">
+            <i class="fa-solid fa-search text-muted"></i>
+            <input
+              type="text"
+              class="form-control border-0"
+              placeholder="Type to search..."
+              [(ngModel)]="searchQuery"
+              [ngModelOptions]="{standalone: true}"
+              (click)="$event.stopPropagation()"
+            />
           </div>
-
-          <div class="col-md-3">
-            <label class="form-label">Case No</label>
-            <input type="text" class="form-control" formControlName="case_no" placeholder="Enter case no" />
-          </div>
-
-          <div class="col-md-3">
-            <label class="form-label">Case Year</label>
-            <input type="text" class="form-control" formControlName="case_year" placeholder="Enter year (e.g., 2026)" />
-          </div>
-
-          <div class="col-md-2 d-grid">
-            <button class="btn btn-dark" type="submit" [disabled]="isSearching || searchForm.invalid">
-              {{ isSearching ? 'Searching...' : 'Search' }}
+          <div class="searchable-select-list">
+            <button
+              *ngFor="let item of filteredFilingsWithLitigants; trackBy: trackFilingItem"
+              type="button"
+              class="searchable-select-option"
+              [class.selected]="selectedFiling?.id == item.filing.id"
+              (click)="selectFiling(item)"
+            >
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <div>
+                  <span class="fw-semibold text-dark">{{ item.filing.e_filing_number }}</span>
+                  <span class="text-muted small ms-1">({{ item.filing.case_type?.type_name || 'N/A' }})</span>
+                </div>
+              </div>
+              <div class="text-muted small mt-1 petitioner-vs-respondent">
+                <span class="badge bg-dark me-1">P</span>{{ item.petitioners.join(', ') || item.filing.petitioner_name || '-' }}
+                <span class="mx-1">vs</span>
+                <span class="badge bg-secondary me-1">R</span>{{ item.respondents.join(', ') || '-' }}
+              </div>
             </button>
+            <div *ngIf="filteredFilingsWithLitigants.length === 0" class="text-muted small p-3 text-center">
+              No matching e-filing found.
+            </div>
           </div>
         </div>
-      </form>
-    </div>
-  </div>
-
-  <div *ngIf="searchMatches.length > 1" class="mb-4">
-    <div class="section-title mb-2">Select Matching Case</div>
-    <div class="table-responsive">
-      <table class="table table-hover align-middle">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Petitioner</th>
-            <th>Filing No</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody class="text-muted small">
-          <tr *ngFor="let f of searchMatches; let i = index" style="cursor: pointer">
-            <td>{{ i + 1 }}</td>
-            <td class="text-dark">{{ f.petitioner_name || '-' }}</td>
-            <td class="text-success">{{ f.e_filing_number || '-' }}</td>
-            <td>{{ f.status || '-' }}</td>
-            <td>
-              <button type="button" class="btn btn-sm btn-outline-dark" (click)="selectFiling(f)">
-                Select
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      </div>
+      <div *ngIf="isLoadingFilings" class="text-muted small mt-1">Loading filings...</div>
     </div>
   </div>
 
   <div *ngIf="isLoadingCase" class="text-muted small mb-2">Loading case details...</div>
 
-  <div *ngIf="selectedFiling" class="mb-4">
+  <div *ngIf="selectedFiling && !isLoadingCase" class="mb-4">
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-header bg-dark text-white fw-semibold">Case Details</div>
       <div class="card-body">
@@ -82,13 +80,12 @@
           </div>
           <div class="col-md-4">
             <div class="text-muted small">E-Filing Number</div>
-            <div class="fw-semibold text-success">{{ selectedFiling.e_filing_number || '-' }}</div>
+            <div class="fw-semibold text-dark">{{ selectedFiling.e_filing_number || '-' }}</div>
           </div>
           <div class="col-md-4">
             <div class="text-muted small">Petitioner</div>
             <div class="fw-semibold">{{ selectedFiling.petitioner_name || '-' }}</div>
           </div>
-
           <div class="col-md-6">
             <div class="text-muted small">Cause of Action</div>
             <div class="fw-semibold">{{ caseDetails?.cause_of_action || '-' }}</div>
@@ -96,7 +93,7 @@
           <div class="col-md-6">
             <div class="text-muted small">Date of Cause of Action</div>
             <div class="fw-semibold">
-              {{ caseDetails?.date_of_cause_of_action | date: 'dd MMM yyyy' }}
+              {{ caseDetails?.date_of_cause_of_action ? (caseDetails.date_of_cause_of_action | date: 'dd MMM yyyy') : '-' }}
             </div>
           </div>
         </div>
@@ -104,7 +101,7 @@
     </div>
 
     <div class="card border-0 shadow-sm mb-4">
-      <div class="card-header bg-dark text-white fw-semibold">Existing Uploaded Documents</div>
+      <div class="card-header bg-dark text-white fw-semibold">Existing Documents (View Only)</div>
       <div class="card-body">
         <div *ngIf="docList.length === 0" class="text-muted small">No documents found.</div>
 
@@ -121,9 +118,9 @@
                   *ngIf="doc.final_document"
                   [href]="doc.final_document"
                   target="_blank"
-                  class="btn btn-sm btn-outline-primary"
+                  class="btn btn-sm btn-outline-dark"
                 >
-                  <i class="fa fa-eye"></i> view
+                  <i class="fa fa-eye me-1"></i> View
                 </a>
               </div>
             </div>
@@ -135,11 +132,12 @@
               >
                 <div>{{ j + 1 }}. {{ part.document_part_name || '-' }}</div>
                 <a
+                  *ngIf="part.file_url || part.file_part_path"
                   [href]="part.file_url || part.file_part_path"
                   target="_blank"
-                  class="btn btn-sm btn-outline-primary"
+                  class="btn btn-sm btn-outline-dark"
                 >
-                  <i class="fa fa-eye"></i> view
+                  <i class="fa fa-eye me-1"></i> View
                 </a>
               </div>
             </div>
@@ -148,13 +146,18 @@
       </div>
     </div>
 
-    <app-upload-documents
-      [form]="uploadFilingDocForm"
-      [isUploading]="isUploadingDocuments"
-      [fileProgresses]="uploadFileProgresses"
-      [uploadCompletedToken]="uploadCompletedToken"
-      (submitDoc)="handleDocUpload($event)"
-    ></app-upload-documents>
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-dark text-white fw-semibold">Upload New Documents</div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">Add new documents to this e-filing.</p>
+        <app-upload-documents
+          [form]="uploadFilingDocForm"
+          [isUploading]="isUploadingDocuments"
+          [fileProgresses]="uploadFileProgresses"
+          [uploadCompletedToken]="uploadCompletedToken"
+          (submitDoc)="handleDocUpload($event)"
+        ></app-upload-documents>
+      </div>
+    </div>
   </div>
 </div>
-

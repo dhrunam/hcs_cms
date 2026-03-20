@@ -27,7 +27,7 @@
 
         <div class="col-md-6">
           <label class="text-muted small">E-Filing Number</label>
-          <div class="fw-semibold text-success">{{ initialInputsForm.value.e_filing_number }}</div>
+          <div class="fw-semibold text-dark">{{ initialInputsForm.value.e_filing_number }}</div>
         </div>
       </div>
     </div>
@@ -53,17 +53,17 @@
 
     <div class="card-body">
       <div class="table-responsive">
-        <table class="table table-borderless align-middle mb-0">
+        <table class="table table-borderless table-hover align-middle mb-0">
           <thead style="background-color: #f8fafc">
-            <tr class="text-muted small fw-light">
-              <th class="fw-light">#</th>
-              <th class="fw-light">Type</th>
-              <th class="fw-light">Name</th>
-              <th class="fw-light">Gender</th>
-              <th class="fw-light">Age</th>
-              <th class="fw-light">Contact</th>
-              <th class="fw-light">Address</th>
-              <th class="fw-light">Action</th>
+            <tr class="text-secondary small fw-normal">
+              <th>#</th>
+              <th>Type</th>
+              <th>Name</th>
+              <th>Gender</th>
+              <th>Age</th>
+              <th>Contact</th>
+              <th>Address</th>
+              <th>Action</th>
             </tr>
           </thead>
 
@@ -77,8 +77,8 @@
                   <span
                     class="d-inline-flex align-items-center gap-1 px-2 py-1"
                     [ngStyle]="{
-                      'background-color': item.is_petitioner ? '#ecfdf5' : '#fef9c3',
-                      color: item.is_petitioner ? '#065f46' : '#713f12',
+                      'background-color': item.is_petitioner ? '#f1f5f9' : '#f8fafc',
+                      color: item.is_petitioner ? '#1e293b' : '#475569',
                       'border-radius': '20px',
                       'font-size': '12px',
                     }"

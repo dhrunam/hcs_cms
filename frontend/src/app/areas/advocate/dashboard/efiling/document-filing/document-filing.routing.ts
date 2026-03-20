@@ -8,6 +8,7 @@ export const DocumentFilingRoutes: Routes = [
     children: [
       { path: 'view', loadComponent: () => import('./view/view').then((c) => c.View) },
       { path: 'create', loadComponent: () => import('./create/create').then((c) => c.Create) },
+      { path: 'edit/:id', loadComponent: () => import('./edit/edit').then((c) => c.Edit) },
     ],
   },
 ];
