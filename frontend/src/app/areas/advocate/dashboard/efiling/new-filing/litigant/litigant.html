@@ -11,7 +11,7 @@
             <th class="fw-light">Name</th>
             <th class="fw-light">Gender</th>
             <th class="fw-light">Age</th>
-            <th class="fw-light">Contact</th>
+            <!-- <th class="fw-light">Contact</th> -->
             <th class="fw-light">Address</th>
             <th class="fw-light">Action</th>
           </tr>
@@ -54,9 +54,9 @@
                 {{ item.age || '-' }}
               </td>
 
-              <td class="text-muted small">
+              <!-- <td class="text-muted small">
                 {{ item.contact || '-' }}
-              </td>
+              </td> -->
 
               <td class="text-muted small">
                 {{ item.address || '-' }}
@@ -66,7 +66,7 @@
                 <!-- More / Less -->
                 <button
                   type="button"
-                  class="btn btn-sm btn-secondary d-flex align-items-center justify-content-center gap-1"
+                  class="btn btn-sm btn-outline-secondary d-flex align-items-center justify-content-center gap-1"
                   style="min-width: 80px; height: 32px; font-size: 13px"
                   (click)="toggleRow(i)"
                 >
@@ -96,9 +96,12 @@
               <td colspan="8" style="background-color: #f8fafc">
                 <div class="p-3 small text-muted">
                   <div>
-                    <strong>Organization:</strong> {{ get_organisation_name(item.organization) }}
+                    <strong>Organization:</strong> {{ item.organization_detail?.orgname || '' }}
                   </div>
-                  <div><strong>Sequence No:</strong> {{ item.sequence_number }}</div>
+                  <div>
+                    <strong>{{ item.is_petitioner ? 'Petitioner No' : 'Respondent No' }}:</strong>
+                    {{ item.sequence_number }}
+                  </div>
                   <div><strong>Email:</strong> {{ item.email || '-' }}</div>
                   <div><strong>Religion:</strong> {{ item.religion || '-' }}</div>
                   <div><strong>Caste:</strong> {{ item.caste || '-' }}</div>
@@ -107,8 +110,8 @@
                     <strong>Differently Abled:</strong>
                     {{ item.is_diffentially_abled ? 'Yes' : 'No' }}
                   </div>
-                  <div><strong>State ID:</strong> {{ item.state_id || '-' }}</div>
-                  <div><strong>District ID:</strong> {{ item.district_id || '-' }}</div>
+                  <div><strong>State :</strong> {{ item.state_detail?.state || '-' }}</div>
+                  <div><strong>District :</strong> {{ item.district_detail?.district || '-' }}</div>
                   <div><strong>Taluka:</strong> {{ item.taluka || '-' }}</div>
                 </div>
               </td>
@@ -121,6 +124,11 @@
 </div>
 
 <form [formGroup]="form" class="form-wrapper">
+  <div class="alert alert-warning px-2 p-0 py-1 mb-3" *ngIf="!hasRequiredLitigants">
+    <small>
+      Note: Please add at least one petitioner and one respondent before moving forward.
+    </small>
+  </div>
   <!-- GROUP 1 -->
   <div class="form-group-block">
     <div class="section-title">Litigant</div>
@@ -129,32 +137,30 @@
       <div class="col-md-6 d-flex align-items-center">
         <label class="form-label pe-3">Litigant Type</label>
 
-        <div class="d-flex gap-4 mb-1">
-          <div class="form-check">
-            <input
-              type="radio"
-              class="form-check-input"
-              [value]="true"
-              formControlName="is_petitioner"
-            />
-            <label class="form-check-label">Petitioner</label>
-          </div>
+        <div class="btn-group btn-group-sm" role="group" aria-label="Litigant Type">
+          <input
+            type="radio"
+            class="btn-check"
+            id="litigantTypePetitioner"
+            [value]="true"
+            formControlName="is_petitioner"
+          />
+          <label class="btn btn-outline-dark" for="litigantTypePetitioner">Petitioner</label>
 
-          <div class="form-check">
-            <input
-              type="radio"
-              class="form-check-input"
-              [value]="false"
-              formControlName="is_petitioner"
-            />
-            <label class="form-check-label">Respondent</label>
-          </div>
+          <input
+            type="radio"
+            class="btn-check"
+            id="litigantTypeRespondent"
+            [value]="false"
+            formControlName="is_petitioner"
+          />
+          <label class="btn btn-outline-dark" for="litigantTypeRespondent">Respondent</label>
         </div>
       </div>
       <div class="col-md-6">
         <div class="d-flex gap-4 mb-1">
           <div class="form-check">
-            <label class="form-check-label">Is Organisation? </label>
+            <label class="form-check-label">Is Organisation?</label>
             <input
               type="checkbox"
               class="form-check-input"
@@ -202,7 +208,10 @@
       </div>
 
       <div class="col-md-4">
-        <label class="form-label">Sequence Number <small class="text-danger">*</small></label>
+        <label class="form-label">
+          {{ form.get('is_petitioner')?.value ? 'Petitioner No' : 'Respondent No' }}
+          <small class="text-danger">*</small>
+        </label>
 
         <input
           type="number"
@@ -214,21 +223,39 @@
         />
       </div>
 
-      <div class="col-md-4">
+      <div class="col-md-4" *ngIf="!form.get('is_organisation')?.value">
         <label class="form-label"
           >Gender
           <small *ngIf="!form.get('is_organisation')?.value" class="text-danger">*</small></label
         >
 
-        <select class="form-control form-select" formControlName="gender">
+        <select
+          class="form-control form-select"
+          formControlName="gender"
+          [class.is-invalid]="
+            !form.get('is_organisation')?.value &&
+            form.get('gender')?.value === '' &&
+            form.get('gender')?.touched
+          "
+        >
           <option value="">Select</option>
           <option value="M">Male</option>
           <option value="F">Female</option>
           <option value="O">Other</option>
         </select>
+        <small
+          class="text-danger"
+          *ngIf="
+            !form.get('is_organisation')?.value &&
+            form.get('gender')?.value === '' &&
+            form.get('gender')?.touched
+          "
+        >
+          gender is required
+        </small>
       </div>
 
-      <div class="col-md-4">
+      <div class="col-md-4" *ngIf="!form.get('is_organisation')?.value">
         <label class="form-label"
           >Age
           <small *ngIf="!form.get('is_organisation')?.value" class="text-danger">*</small></label
@@ -246,7 +273,7 @@
         />
       </div>
 
-      <div class="col-md-4 d-flex align-items-center">
+      <div class="col-md-4 d-flex align-items-center" *ngIf="!form.get('is_organisation')?.value">
         <div class="form-check mt-4">
           <input type="checkbox" class="form-check-input" formControlName="is_diffentially_abled" />
           <label class="form-check-label">Differently Abled</label>
@@ -263,13 +290,34 @@
       <div class="col-md-6">
         <label class="form-label">Email</label>
 
-        <input class="form-control" formControlName="email" />
+        <input
+          class="form-control"
+          formControlName="email"
+          [class.is-invalid]="form.get('email')?.invalid && form.get('email')?.touched"
+        />
+        <small class="text-danger" *ngIf="form.get('email')?.invalid && form.get('email')?.touched">
+          Please enter a valid email address
+        </small>
       </div>
 
       <div class="col-md-6">
         <label class="form-label">Mobile No</label>
 
-        <input class="form-control" formControlName="contact" />
+        <input
+          class="form-control"
+          formControlName="contact"
+          type="tel"
+          inputmode="numeric"
+          pattern="[0-9]{10}"
+          maxlength="10"
+          [class.is-invalid]="form.get('contact')?.invalid && form.get('contact')?.touched"
+        />
+        <small
+          class="text-danger"
+          *ngIf="form.get('contact')?.invalid && form.get('contact')?.touched"
+        >
+          Mobile number must be 10 digits
+        </small>
       </div>
 
       <div class="col-md-6">
@@ -291,9 +339,20 @@
       </div>
 
       <div class="col-md-6">
-        <label class="form-label">Address</label>
+        <label class="form-label">Address <small class="text-danger">*</small></label>
 
-        <textarea class="form-control" rows="2" formControlName="address"></textarea>
+        <textarea
+          class="form-control"
+          rows="2"
+          formControlName="address"
+          [class.is-invalid]="form.get('address')?.invalid && form.get('address')?.touched"
+        ></textarea>
+        <small
+          class="text-danger"
+          *ngIf="form.get('address')?.invalid && form.get('address')?.touched"
+        >
+          address is required
+        </small>
       </div>
     </div>
   </div>
