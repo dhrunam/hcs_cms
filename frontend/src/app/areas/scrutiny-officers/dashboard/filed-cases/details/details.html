@@ -49,101 +49,162 @@
             }}
           </button>
         </div>
+        <span class="status-badge" [ngClass]="getStatusClass(filing.status)" *ngIf="filing.status">
+          {{ getStatusLabel(filing.status) }}
+        </span>
       </div>
     </div>
-    <div class="accordion" id="accordionExample">
-      <div class="accordion-item">
-        <h2 class="accordion-header" id="headingOne">
-          <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
-            Filing Summary
-          </button>
-        </h2>
-        <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#accordionExample">
-          <div class="accordion-body">
-            <div class="row g-4">
-              <div class="col-lg-4">
-                <div class="card border-0 shadow-sm h-100">
-                  <div class="card-body p-4">
-                    <div class="section-title mb-3">Case Filing Information</div>
-                    <div class="meta-row">
-                      <span>Cause Of Action</span>
-                      <strong>{{ caseDetails?.cause_of_action || '-' }}</strong>
+    <div class="card border-0 shadow-sm scrutiny-tabs-card">
+      <div class="card-header scrutiny-tabs-header p-0">
+        <ul class="nav scrutiny-nav-tabs">
+          <li class="nav-item">
+            <button
+              type="button"
+              class="nav-link"
+              [class.active]="activeTab === 'filing'"
+              (click)="setActiveTab('filing')"
+            >
+              <i class="fa-solid fa-file-lines me-2"></i>
+              Filing Summary
+            </button>
+          </li>
+          <li class="nav-item">
+            <button
+              type="button"
+              class="nav-link"
+              [class.active]="activeTab === 'documents'"
+              (click)="setActiveTab('documents')"
+            >
+              <i class="fa-solid fa-folder-open me-2"></i>
+              Documents
+            </button>
+          </li>
+        </ul>
+      </div>
+      <div class="card-body p-0">
+        <div *ngIf="activeTab === 'filing'" class="file-summary-section filing-summary-body">
+            <div class="filing-summary-section">
+              <div class="filing-summary-section-title">
+                <i class="fa-solid fa-file-lines me-2"></i>
+                Filing Information
+              </div>
+              <div class="filing-summary-grid">
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Bench</span>
+                  <span class="filing-summary-value">{{ filing.bench || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Case Type</span>
+                  <span class="filing-summary-value">{{ filing.case_type?.type_name || filing.case_type?.full_form || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Petitioner Name</span>
+                  <span class="filing-summary-value">{{ filing.petitioner_name || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Petitioner Contact</span>
+                  <span class="filing-summary-value">{{ filing.petitioner_contact || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">E-Filing Number</span>
+                  <span class="filing-summary-value filing-number">{{ filing.e_filing_number || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Accepted At</span>
+                  <span class="filing-summary-value">{{ filing.accepted_at | date: 'dd MMM yyyy, hh:mm a' }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="filing-summary-section" *ngIf="caseDetails">
+              <div class="filing-summary-section-title">
+                <i class="fa-solid fa-scale-balanced me-2"></i>
+                Case Details
+              </div>
+              <div class="filing-summary-grid">
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Cause of Action</span>
+                  <span class="filing-summary-value">{{ caseDetails.cause_of_action || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Date of Cause</span>
+                  <span class="filing-summary-value">{{ caseDetails.date_of_cause_of_action | date: 'dd MMM yyyy' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Dispute State</span>
+                  <span class="filing-summary-value">{{ caseDetails.dispute_state || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Dispute District</span>
+                  <span class="filing-summary-value">{{ caseDetails.dispute_district || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Dispute Taluka</span>
+                  <span class="filing-summary-value">{{ caseDetails.dispute_taluka || '-' }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Litigants -->
+            <div class="filing-summary-section" *ngIf="litigants.length > 0">
+              <div class="filing-summary-section-title">
+                <i class="fa-solid fa-users me-2"></i>
+                Litigant Details
+              </div>
+              <div class="litigants-layout">
+                <div class="party-block">
+                  <div class="party-heading">
+                    <i class="fa-solid fa-user-check me-1"></i>
+                    Petitioners
+                  </div>
+                  <div *ngIf="petitioners.length === 0" class="text-muted small">No petitioners available.</div>
+                  <div class="litigant-list" *ngIf="petitioners.length > 0">
+                    <div class="litigant-card" *ngFor="let litigant of petitioners; trackBy: trackById">
+                      <div class="litigant-name">{{ litigant.name || '-' }}</div>
+                      <div class="litigant-meta">{{ litigant.contact || 'No contact' }}</div>
+                      <div class="litigant-meta" *ngIf="litigant.address">{{ litigant.address }}</div>
                     </div>
-                    <div class="meta-row">
-                      <span>Date Of Cause</span>
-                      <strong>{{ caseDetails?.date_of_cause_of_action | date: 'dd MMM yyyy' }}</strong>
-                    </div>
-                    <div class="meta-row">
-                      <span>Dispute Taluka</span>
-                      <strong>{{ caseDetails?.dispute_taluka || '-' }}</strong>
-                    </div>
-                    <div class="meta-row">
-                      <span>Filing Number</span>
-                      <strong>{{ filing.e_filing_number || '-' }}</strong>
+                  </div>
+                </div>
+                <div class="party-divider">vs</div>
+                <div class="party-block">
+                  <div class="party-heading party-heading-respondent">
+                    <i class="fa-solid fa-user-xmark me-1"></i>
+                    Respondents
+                  </div>
+                  <div *ngIf="respondents.length === 0" class="text-muted small">No respondents available.</div>
+                  <div class="litigant-list" *ngIf="respondents.length > 0">
+                    <div class="litigant-card" *ngFor="let litigant of respondents; trackBy: trackById">
+                      <div class="litigant-name">{{ litigant.name || '-' }}</div>
+                      <div class="litigant-meta">{{ litigant.contact || 'No contact' }}</div>
+                      <div class="litigant-meta" *ngIf="litigant.address">{{ litigant.address }}</div>
                     </div>
                   </div>
                 </div>
               </div>
-        
-              <div class="col-lg-4">
-                <div class="card border-0 shadow-sm h-100">
-                  <div class="card-body p-4">
-                    <div class="section-title mb-3">Acts And Sections</div>
-                    <div *ngIf="acts.length === 0" class="text-muted small">No acts or sections available.</div>
-                    <div class="simple-list" *ngIf="acts.length > 0">
-                      <div class="simple-item" *ngFor="let act of acts; trackBy: trackById">
-                        <div class="fw-semibold">{{ act.act || 'Act' }}</div>
-                        <div class="text-muted small">Section: {{ act.section || '-' }}</div>
-                        <div class="text-muted small" *ngIf="act.sub_section">Sub-section: {{ act.sub_section }}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+            </div>
+
+            <!-- Acts & Sections -->
+            <div class="filing-summary-section">
+              <div class="filing-summary-section-title">
+                <i class="fa-solid fa-gavel me-2"></i>
+                Acts & Sections
               </div>
-        
-              <div class="col-lg-4">
-                <div class="card border-0 shadow-sm h-100">
-                  <div class="card-body p-4">
-                    <div class="section-title mb-3">Litigants</div>
-                    <div class="party-block">
-                      <div class="party-heading">Petitioners</div>
-                      <div *ngIf="petitioners.length === 0" class="text-muted small">No petitioners available.</div>
-                      <div class="simple-list" *ngIf="petitioners.length > 0">
-                        <div class="simple-item" *ngFor="let litigant of petitioners; trackBy: trackById">
-                          <div class="fw-semibold">#{{ litigant.sequence_number }} {{ litigant.name || '-' }}</div>
-                          <div class="text-muted small">{{ litigant.contact || 'No contact' }}</div>
-                        </div>
-                      </div>
-                    </div>
-        
-                    <div class="party-divider">vs</div>
-        
-                    <div class="party-block">
-                      <div class="party-heading">Respondents</div>
-                      <div *ngIf="respondents.length === 0" class="text-muted small">No respondents available.</div>
-                      <div class="simple-list" *ngIf="respondents.length > 0">
-                        <div class="simple-item" *ngFor="let litigant of respondents; trackBy: trackById">
-                          <div class="fw-semibold">#{{ litigant.sequence_number }} {{ litigant.name || '-' }}</div>
-                          <div class="text-muted small">{{ litigant.contact || 'No contact' }}</div>
-                        </div>
-                      </div>
-                    </div>
+              <div *ngIf="acts.length === 0" class="text-muted small">No acts or sections added.</div>
+              <div class="acts-list" *ngIf="acts.length > 0">
+                <div class="act-card" *ngFor="let act of acts; let i = index; trackBy: trackById">
+                  <div class="act-index">{{ i + 1 }}</div>
+                  <div class="act-content">
+                    <div class="act-name">{{ getActName(act) }}</div>
+                    <div class="act-section">Section: {{ act.section || '-' }}</div>
+                    <div class="act-subsection text-muted small" *ngIf="act.sub_section">Sub-section: {{ act.sub_section }}</div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-      <div class="accordion-item">
-        <h2 class="accordion-header" id="headingTwo">
-          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
-            Documents
-          </button>
-        </h2>
-        <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#accordionExample">
-          <div class="accordion-body">
-            <div class="row g-4">
+        <div *ngIf="activeTab === 'documents'" class="document-summary-section">
+          <div class="row g-4">
               <div class="col-xl-3">
                 <div class="card border-0 shadow-sm h-100">
                   <div class="card-body p-4">
@@ -199,7 +260,7 @@
               <div class="col-xl-9">
                 <div class="card border-0 shadow-sm h-100">
                   <div class="card-body">
-                    <div *ngIf="selectedDocument; else noSelection">
+                    <div *ngIf="selectedDocument">
                       <div class="row g-4 align-items-start">
                         <div class="col-lg-12">
                           <div class="review-panel">
@@ -273,13 +334,11 @@
                               </div>
                             </div>
                           </div> -->
-                        </div>
                       </div>
                     </div>
-        
-                    <ng-template #noSelection>
-                      <div class="text-muted small">Choose a document from the ordered list to begin review.</div>
-                    </ng-template>
+                    <div *ngIf="!selectedDocument" class="text-muted small">
+                      Choose a document from the ordered list to begin review.
+                    </div>
         
                     <ng-template #noPreview>
                       <div class="preview-empty text-muted small">
@@ -293,6 +352,5 @@
           </div>
         </div>
       </div>
-    </div>
   </ng-container>
 </div>

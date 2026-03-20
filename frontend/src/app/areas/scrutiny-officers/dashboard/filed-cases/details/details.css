@@ -2,6 +2,56 @@
   padding: 0 0.25rem 1.5rem;
 }
 
+/* Scrutiny Tabs Card */
+.scrutiny-tabs-card {
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.scrutiny-tabs-header {
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.scrutiny-nav-tabs {
+  display: flex;
+  gap: 0;
+  border: 0;
+  padding: 0 1rem;
+}
+
+.scrutiny-nav-tabs .nav-item {
+  margin-bottom: 0;
+}
+
+.scrutiny-nav-tabs .nav-link {
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: -1px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.scrutiny-nav-tabs .nav-link:hover {
+  color: #4f46e5;
+}
+
+.scrutiny-nav-tabs .nav-link.active {
+  color: #4f46e5;
+  border-bottom-color: #6366f1;
+  background: #ffffff;
+}
+
+.document-summary-section {
+  padding: 1.25rem 1.5rem;
+}
+
 .eyebrow-text {
   color: #4f46e5;
   font-size: 0.78rem;
@@ -255,4 +305,196 @@
   color: #334155;
   font-weight: 700;
   padding: 0.45rem 0.65rem;
+}
+
+/* Filing Summary Accordion */
+.filing-summary-body {
+  background: #ffffff;
+  padding: 1.5rem 1.75rem;
+}
+
+.filing-summary-section {
+  margin-bottom: 1.75rem;
+}
+
+.filing-summary-section:last-child {
+  margin-bottom: 0;
+}
+
+.filing-summary-section-title {
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+}
+
+.filing-summary-section-title i {
+  color: #4f46e5;
+}
+
+.filing-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem 1.5rem;
+}
+
+.filing-summary-item {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.filing-summary-label {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.filing-summary-value {
+  color: #0f172a;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.filing-summary-value.filing-number {
+  color: #4f46e5;
+  font-family: ui-monospace, monospace;
+}
+
+/* Litigants layout */
+.litigants-layout {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .litigants-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.filing-summary-body .party-block {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+}
+
+.filing-summary-body .party-heading {
+  color: #4338ca;
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+}
+
+.filing-summary-body .party-heading-respondent {
+  color: #5b21b6;
+}
+
+.filing-summary-body .party-divider {
+  color: #6366f1;
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 0.5rem 0;
+  text-align: center;
+  align-self: center;
+  letter-spacing: 0.1em;
+}
+
+.litigant-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.litigant-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.6rem 0.85rem;
+}
+
+.litigant-name {
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.litigant-meta {
+  color: #64748b;
+  font-size: 0.8rem;
+  margin-top: 0.2rem;
+}
+
+/* Acts list */
+.acts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.act-card {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  transition: border-color 0.2s ease;
+}
+
+.act-card:hover {
+  border-color: #c7d2fe;
+}
+
+.act-index {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #4f46e5;
+}
+
+.act-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.act-name {
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.act-section {
+  color: #64748b;
+  font-size: 0.82rem;
+  margin-top: 0.2rem;
+}
+
+.act-subsection {
+  font-size: 0.78rem;
+  margin-top: 0.15rem;
 }

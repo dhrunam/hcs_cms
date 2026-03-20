@@ -8,7 +8,7 @@ import { EfilingService } from '../../../../../../services/advocate/efiling/efil
 @Component({
   selector: 'app-scrutiny-details',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule],
   templateUrl: './scrutiny-details.html',
   styleUrl: './scrutiny-details.css',
 })
@@ -24,6 +24,9 @@ export class ScrutinyDetails {
   filing: any = null;
   documents: any[] = [];
   groupedDocuments: Array<{ document_type: string; items: any[] }> = [];
+  litigantList: any[] = [];
+  caseDetails: any = null;
+  actList: any[] = [];
   selectedDocument: any = null;
   selectedDocumentUrl: SafeResourceUrl | null = null;
   selectedDocumentBlobUrl: string | null = null;
@@ -31,7 +34,8 @@ export class ScrutinyDetails {
   isLoading = false;
   isReplacing = false;
   notesPopupOpen = false;
-  canShowReplaceBtn:boolean = false;
+  canShowReplaceBtn: boolean = false;
+  activeTab: 'filing' | 'documents' = 'filing';
 
   constructor(
     private route: ActivatedRoute,
@@ -45,6 +49,10 @@ export class ScrutinyDetails {
 
   closeNotesPopup(): void {
     this.notesPopupOpen = false;
+  }
+
+  setActiveTab(tab: 'filing' | 'documents'): void {
+    this.activeTab = tab;
   }
 
   ngOnInit(): void {
@@ -63,12 +71,17 @@ export class ScrutinyDetails {
     forkJoin({
       filing: this.efilingService.get_filing_by_id(id),
       documents: this.efilingService.get_document_reviews_by_filing_id(id),
+      litigants: this.efilingService.get_litigant_list_by_filing_id(id),
+      caseDetails: this.efilingService.get_case_details_by_filing_id(id),
+      acts: this.efilingService.get_acts_by_filing_id(id),
     }).subscribe({
-      next: ({ filing, documents }) => {
+      next: ({ filing, documents, litigants, caseDetails, acts }) => {
         this.filing = filing;
         this.documents = documents?.results ?? [];
         this.groupedDocuments = this.groupDocumentsByType(this.documents);
-        console.log(this.groupedDocuments);
+        this.litigantList = litigants?.results ?? [];
+        this.caseDetails = caseDetails?.results?.[0] ?? null;
+        this.actList = acts?.results ?? [];
         this.selectDocument(
           this.documents.find((document) => document.id === preferredDocumentId) ?? this.documents[0] ?? null,
         );
@@ -261,5 +274,21 @@ export class ScrutinyDetails {
       const comment = (item?.comments ?? '').trim();
       return Boolean(comment) && !this.hiddenHistoryComments.has(comment);
     });
+  }
+
+  get sortedLitigants(): any[] {
+    return [...this.litigantList].sort((a, b) => (a?.sequence_number ?? 0) - (b?.sequence_number ?? 0));
+  }
+
+  get petitioners(): any[] {
+    return this.sortedLitigants.filter((litigant) => litigant.is_petitioner);
+  }
+
+  get respondents(): any[] {
+    return this.sortedLitigants.filter((litigant) => !litigant.is_petitioner);
+  }
+
+  getActName(act: any): string {
+    return act?.act?.actname ?? act?.actname ?? '-';
   }
 }
