@@ -1,59 +1,66 @@
-<header class="d-flex justify-content-between align-items-center mb-2">
-  <h5 class="mb-0">
-    <span class="text-success ms-2 small">
-      <span class="text-muted">Filing Number :</span>
-      {{ eFilingNumber }}
-    </span>
-  </h5>
-
-  <a
-    [routerLink]="['/advocate/dashboard/efiling/draft-filings']"
-    class="btn btn-sm btn-light border"
-    style="font-size: 12px"
-  >
-    <i class="fa-solid fa-arrow-left me-1"></i>
-    Back
-  </a>
-</header>
-<!-- STEPPER -->
-<div class="chevron-container mb-4">
-  <div class="chevron" [class.active]="step >= 2" (click)="goToStep(2)">
-    <span>
-      <i class="fa-solid fa-users me-2"></i>
-      Litigant
-    </span>
-  </div>
-
-  <div class="chevron" [class.active]="step >= 3" (click)="goToStep(3)">
-    <span>
-      <i class="fa-solid fa-scale-balanced me-2"></i>
-      Case Details
-    </span>
-  </div>
-  <div class="chevron" [class.active]="step >= 4" (click)="goToStep(4)">
-    <span>
-      <i class="fa-solid fa-file-pdf me-2"></i>
-      Documents
-    </span>
-  </div>
-
-  <div class="chevron" [class.active]="step >= 5" (click)="goToStep(5)">
-    <span>
-      <i class="fa-solid fa-paper-plane me-2"></i>
-      eFile
-    </span>
-  </div>
-</div>
-
 <div class="card border-0 p-4">
+  <div class="chevron-container mb-4">
+    <div class="chevron" [class.active]="step >= 1" (click)="goToStep(1)">
+      <span>
+        <i class="fa-solid fa-pen-to-square me-2"></i>
+        Initial Inputs
+      </span>
+    </div>
+
+    <div class="chevron" [class.active]="step >= 2" (click)="goToStep(2)">
+      <span>
+        <i class="fa-solid fa-users me-2"></i>
+        Litigant
+      </span>
+    </div>
+
+    <div class="chevron" [class.active]="step >= 3" (click)="goToStep(3)">
+      <span>
+        <i class="fa-solid fa-scale-balanced me-2"></i>
+        Case Details
+      </span>
+    </div>
+
+    <div class="chevron" [class.active]="step >= 4" (click)="goToStep(4)">
+      <span>
+        <i class="fa-solid fa-file-pdf me-2"></i>
+        Documents
+      </span>
+    </div>
+
+    <div class="chevron" [class.active]="step >= 5" (click)="goToStep(5)">
+      <span>
+        <i class="fa-solid fa-paper-plane me-2"></i>
+        eFile
+      </span>
+    </div>
+  </div>
+
+  <header *ngIf="step === 2" style="padding: 8px 12px" class="d-flex justify-content-between">
+    <h6 class="mb-0">
+      <span class="text-success" style="font-size: 0.85rem">
+        <span class="text-muted">Filing Number :</span>
+        {{ eFilingNumber }}
+      </span>
+    </h6>
+
+    <a
+      [routerLink]="['/advocate/dashboard/efiling/draft-filings']"
+      class="btn btn-sm btn-light border"
+      style="font-size: 12px"
+    >
+      <i class="fa-solid fa-arrow-left me-1"></i>
+      Back
+    </a>
+  </header>
   <!-- STEP 1 -->
   <div *ngIf="step === 1">
-    <app-initial-inputs [form]="initialInputsForm"> </app-initial-inputs>
+    <app-initial-inputs [form]="initialInputsForm" [isDraft]="true"> </app-initial-inputs>
 
     <div class="alert alert-warning px-2 p-0 py-1">
       <small>
-        Note: Once the E-Filing Number is generated, you will not be able to make changes to
-        these details.
+        Note: Once the E-Filing Number is generated, you will not be able to make changes to these
+        details.
       </small>
     </div>
 
@@ -67,7 +74,6 @@
       >
         <i class="fa-regular fa-floppy-disk" *ngIf="!eFilingNumber"></i>
         <i class="fa-solid fa-check" *ngIf="eFilingNumber"></i>
-
         {{ eFilingNumber ? 'Saved' : 'Save' }}
       </button>
 
@@ -80,11 +86,7 @@
 
   <!-- STEP 2 -->
   <div *ngIf="step === 2">
-    <app-litigant
-      (deleted)="onDelete($event)"
-      [form]="litigantsForm"
-      [litigantList]="litigantList"
-    >
+    <app-litigant (deleted)="onDelete($event)" [form]="litigantsForm" [litigantList]="litigantList">
     </app-litigant>
 
     <div class="d-flex justify-content-between mt-4">
@@ -100,10 +102,10 @@
         >
           <i class="fa-regular fa-plus" *ngIf="!step2Saved"></i>
           <i class="fa-solid fa-check" *ngIf="step2Saved"></i>
-
           {{ step2Saved ? 'Saved' : 'Add Litigant' }}
         </button>
-        <button class="btn btn-outline-dark" (click)="next()">
+
+        <button class="btn btn-outline-dark" (click)="next()" [disabled]="!hasRequiredLitigants()">
           Next
           <i class="fa-solid fa-chevron-right ms-2"></i>
         </button>
@@ -117,6 +119,7 @@
       [form]="caseDetailsForm"
       [actList]="actList"
       (actListChange)="receiveActList($event)"
+      (actRemoved)="removeAct($event)"
     >
     </app-case-details>
 
@@ -129,14 +132,17 @@
           [class.btn-dark]="!step3Saved"
           [class.btn-success]="step3Saved"
           (click)="!step3Saved && saveStep3()"
-          [disabled]="step3Saved"
         >
           <i class="fa-regular fa-floppy-disk" *ngIf="!step3Saved"></i>
           <i class="fa-solid fa-check" *ngIf="step3Saved"></i>
-
           {{ step3Saved ? 'Saved' : 'Save' }}
         </button>
-        <button class="btn btn-outline-dark" (click)="next()">
+
+        <button
+          class="btn btn-outline-dark"
+          (click)="next()"
+          [disabled]="isCaseDetailsNextDisabled()"
+        >
           Next
           <i class="fa-solid fa-chevron-right ms-2"></i>
         </button>
@@ -144,6 +150,7 @@
     </div>
   </div>
 
+  <!-- STEP 4 -->
   <div *ngIf="step === 4" class="preview-page rounded-3 p-3">
     <div class="text-center rounded-3 p-3" style="box-shadow: 0 0 3px rgba(0, 0, 0, 0.2)">
       <h5 class="section-title text-start">Upload Case Documents</h5>
@@ -154,23 +161,45 @@
 
       <!-- Uploaded Documents List -->
       <div *ngIf="docList.length > 0" class="mb-4">
-        <!-- <h6 class="text-start mb-3">Uploaded Documents</h6> -->
-
         <div class="card shadow-sm border-0">
           <div class="list-group list-group-flush">
             <div
               style="border-left: 2px solid black"
-              class="list-group-item d-flex justify-content-between align-items-center"
+              class="list-group-item"
               *ngFor="let doc of docList; let i = index"
             >
-              <!-- Left -->
-              <div class="text-start">
-                <div class="fw-semibold">{{ i + 1 }}. {{ doc.document_type }}</div>
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <div class="text-start">
+                  <div class="fw-semibold">{{ i + 1 }}. {{ doc.document_type }}</div>
+                </div>
+
+                <button class="btn btn-sm btn-outline-danger" (click)="deleteDoc(doc.id, i)">
+                  <i class="fa fa-trash"></i>
+                  delete
+                </button>
               </div>
 
-              <!-- Right Actions -->
-              <div class="d-flex gap-2">
-                <!-- Preview -->
+              <div class="mt-2 ps-2" *ngIf="doc.document_indexes?.length > 0">
+                <div
+                  *ngFor="let filePart of doc.document_indexes; let j = index"
+                  class="d-flex justify-content-between align-items-center py-1"
+                >
+                  <div class="small text-muted text-start">
+                    {{ filePart.document_sequence || j + 1 }}.
+                    {{ filePart.document_part_name || 'Document Part' }}
+                  </div>
+
+                  <a
+                    [href]="filePart.file_url || filePart.file_part_path"
+                    target="_blank"
+                    class="btn btn-sm btn-outline-primary"
+                  >
+                    <i class="fa fa-eye"></i> view
+                  </a>
+                </div>
+              </div>
+
+              <div class="mt-2 ps-2" *ngIf="!doc.document_indexes?.length && doc.final_document">
                 <a
                   [href]="doc.final_document"
                   target="_blank"
@@ -178,12 +207,6 @@
                 >
                   <i class="fa fa-eye"></i> view
                 </a>
-
-                <!-- Delete -->
-                <button class="btn btn-sm btn-outline-danger" (click)="deleteDoc(doc.id, i)">
-                  <i class="fa fa-trash"></i>
-                  delete
-                </button>
               </div>
             </div>
           </div>
@@ -203,7 +226,6 @@
       <button class="btn btn-light border" (click)="prev()">Back</button>
 
       <div class="d-flex gap-2">
-        <!-- Next -->
         <button class="btn btn-outline-dark" (click)="next()">
           Next
           <i class="fa-solid fa-chevron-right ms-2"></i>
@@ -212,7 +234,7 @@
     </div>
   </div>
 
-  <!-- STEP 4 -->
+  <!-- STEP 5 -->
   <div *ngIf="step === 5" class="preview-page rounded-3 p-3">
     <div class="text-center">
       <h5 class="mt-0">Review & Submit</h5>
@@ -225,18 +247,15 @@
         [docList]="docList"
         [actList]="actList"
         [litigantList]="litigantList"
+        [caseDetailsData]="caseDetailsData"
+        [filingData]="filingData"
       ></app-e-file>
     </div>
 
-    <!-- Declaration -->
     <div class="alert alert- text-start mt-4">
       <form [formGroup]="setDeclarationForm">
         <div class="form-check">
-          <input
-            class="form-check-input"
-            type="checkbox"
-            formControlName="isDeclarationChecked"
-          />
+          <input class="form-check-input" type="checkbox" formControlName="isDeclarationChecked" />
 
           <label class="form-check-label" for="declaration">
             I hereby declare that the information provided is true and correct to the best of my
@@ -247,15 +266,10 @@
       </form>
     </div>
 
-    <!-- Buttons -->
     <div class="d-flex justify-content-between mt-4">
       <button class="btn btn-light border" (click)="prev()">Back</button>
 
-      <button
-        class="btn btn-success"
-        (click)="submit()"
-        [disabled]="setDeclarationForm.invalid"
-      >
+      <button class="btn btn-success" (click)="submit()" [disabled]="setDeclarationForm.invalid">
         <i class="fa-solid fa-paper-plane me-2"></i>
         Submit Filing
       </button>

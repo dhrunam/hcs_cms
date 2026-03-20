@@ -1,15 +1,13 @@
-<section class="pending-cases-section">
-  <div class="card border-1 rounded-4" *ngIf="showFiledCasesSection">
-    <div class="card-body">
-      <div *ngIf="isLoading" class="text-muted small py-4">Loading filed cases...</div>
-
-      <div *ngIf="!isLoading && filedCases.length === 0" class="text-muted small py-4">
+<section class="filed-cases-view">
+  <div class="card border-0 shadow-sm" *ngIf="showFiledCasesSection">
+    <div class="card-body p-0">
+      <div *ngIf="isLoading" class="text-muted small py-4 px-4">Loading filed cases...</div>
+      <div *ngIf="!isLoading && filedCases.length === 0" class="text-muted small py-5 px-4 text-center">
         No filed cases found yet.
       </div>
-
       <div *ngIf="!isLoading && filedCases.length > 0" class="table-responsive">
-        <table class="table align-middle mb-0 table-hover">
-          <thead style="background-color: #f1f5f9">
+        <table class="table table-hover align-middle mb-0">
+          <thead style="background-color: #eef2ff">
             <tr class="text-secondary small fw-normal">
               <th>#</th>
               <th>Petitioner Name</th>
@@ -21,19 +19,18 @@
               <th>Action</th>
             </tr>
           </thead>
-
           <tbody class="text-muted small">
             <tr
               *ngFor="let filing of filedCases; let i = index"
-              style="border-bottom: 1px solid #e5e7eb; cursor: pointer"
+              style="cursor: pointer"
               [routerLink]="['/scrutiny-officers/dashboard/filed-cases/details', filing.id]"
             >
               <td>{{ i + 1 }}</td>
               <td class="fw-medium text-dark">{{ filing.petitioner_name || '-' }}</td>
-              <td class="fw-medium text-success">{{ filing.e_filing_number || '-' }}</td>
+              <td class="fw-medium filing-number">{{ filing.e_filing_number || '-' }}</td>
               <td>{{ filing.case_type?.type_name || '-' }}</td>
               <td>{{ filing.petitioner_contact || '-' }}</td>
-              <td>{{ filing.created_at | date: 'dd MMMM, yyyy' }}</td>
+              <td>{{ filing.created_at | date: 'dd MMM yyyy' }}</td>
               <td>
                 <span *ngIf="hasNewForScrutiny(filing.id)" class="badge rounded-pill text-bg-danger me-2">
                   New
@@ -43,8 +40,8 @@
               <td>
                 <a
                   [routerLink]="['/scrutiny-officers/dashboard/filed-cases/details', filing.id]"
-                  class="text-decoration-none small"
-                  style="color: #2563eb; font-weight: 500"
+                  class="btn btn-sm btn-scrutiny-outline"
+                  (click)="$event.stopPropagation()"
                 >
                   <i class="fa-regular fa-eye me-1"></i>
                   View
@@ -57,17 +54,17 @@
     </div>
   </div>
 
-  <div class="card border-1 rounded-4" [class.mt-4]="showFiledCasesSection" *ngIf="showRegisteredCasesSection">
-    <div class="card-body">
-      <h6 class="fw-semibold mb-3">Registered Cases</h6>
-
-      <div *ngIf="!isLoading && registeredCases.length === 0" class="text-muted small py-4">
+  <div class="card border-0 shadow-sm mt-4" [class.mt-4]="showFiledCasesSection" *ngIf="showRegisteredCasesSection">
+    <div class="card-header px-4 py-3" style="background-color: #eef2ff; border-bottom: 1px solid #e0e7ff">
+      <h6 class="fw-semibold mb-0 text-dark">Registered Cases</h6>
+    </div>
+    <div class="card-body p-0">
+      <div *ngIf="!isLoading && registeredCases.length === 0" class="text-muted small py-5 px-4 text-center">
         No registered cases found yet.
       </div>
-
       <div *ngIf="!isLoading && registeredCases.length > 0" class="table-responsive">
-        <table class="table align-middle mb-0 table-hover">
-          <thead style="background-color: #f1f5f9">
+        <table class="table table-hover align-middle mb-0">
+          <thead style="background-color: #eef2ff">
             <tr class="text-secondary small fw-normal">
               <th>#</th>
               <th>Petitioner Name</th>
@@ -80,20 +77,19 @@
               <th>Action</th>
             </tr>
           </thead>
-
           <tbody class="text-muted small">
             <tr
               *ngFor="let filing of registeredCases; let i = index"
-              style="border-bottom: 1px solid #e5e7eb; cursor: pointer"
+              style="cursor: pointer"
               [routerLink]="['/scrutiny-officers/dashboard/filed-cases/details', filing.id]"
             >
               <td>{{ i + 1 }}</td>
               <td class="fw-medium text-dark">{{ filing.petitioner_name || '-' }}</td>
-              <td class="fw-medium text-success">{{ filing.e_filing_number || '-' }}</td>
-              <td class="fw-medium">{{ filing.case_number || '-' }}</td>
+              <td class="fw-medium filing-number">{{ filing.e_filing_number || '-' }}</td>
+              <td class="fw-medium text-dark">{{ filing.case_number || '-' }}</td>
               <td>{{ filing.case_type?.type_name || '-' }}</td>
               <td>{{ filing.petitioner_contact || '-' }}</td>
-              <td>{{ filing.created_at | date: 'dd MMMM, yyyy' }}</td>
+              <td>{{ filing.created_at | date: 'dd MMM yyyy' }}</td>
               <td>
                 <span *ngIf="hasNewForScrutiny(filing.id)" class="badge rounded-pill text-bg-danger me-2">
                   New
@@ -103,8 +99,8 @@
               <td>
                 <a
                   [routerLink]="['/scrutiny-officers/dashboard/filed-cases/details', filing.id]"
-                  class="text-decoration-none small"
-                  style="color: #2563eb; font-weight: 500"
+                  class="btn btn-sm btn-scrutiny-outline"
+                  (click)="$event.stopPropagation()"
                 >
                   <i class="fa-regular fa-eye me-1"></i>
                   View
@@ -116,6 +112,4 @@
       </div>
     </div>
   </div>
-
-
 </section>

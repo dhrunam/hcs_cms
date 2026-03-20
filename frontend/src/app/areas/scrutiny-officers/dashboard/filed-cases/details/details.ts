@@ -450,7 +450,11 @@ export class FiledCaseDetails {
 
   private isPendingDraftReview(document: any): boolean {
     const draftStatus = this.getNormalizedStatus(document?.draft_scrutiny_status);
-    return !['accepted', 'rejected'].includes(draftStatus);
+    if (['accepted', 'rejected'].includes(draftStatus)) {
+      return false;
+    }
+    const finalStatus = this.getNormalizedStatus(document?.scrutiny_status);
+    return !['accepted', 'rejected'].includes(finalStatus);
   }
 
   private getEffectiveReviewStatus(document: any): string | null {

@@ -233,16 +233,21 @@ def finalize_scrutiny_submission(filing, user=None):
     if not document_indexes.exists():
         raise ValidationError("At least one document is required before final submit.")
 
-    pending_review = document_indexes.filter(draft_scrutiny_status__isnull=True).exists()
-    if pending_review:
-        raise ValidationError("Please review all documents before final submit.")
-
     now = timezone.now()
     final_statuses = []
     for document_index in document_indexes:
-        final_status = document_index.draft_scrutiny_status
+        final_status = document_index.draft_scrutiny_status or document_index.scrutiny_status
+        if final_status not in (
+            EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED,
+            EfilingDocumentsIndex.ScrutinyStatus.REJECTED,
+        ):
+            raise ValidationError("Please review all documents before final submit.")
         final_statuses.append(final_status)
-        draft_comments = document_index.draft_comments
+        draft_comments = (
+            document_index.draft_comments
+            if document_index.draft_scrutiny_status is not None
+            else document_index.comments
+        )
         final_is_compliant = final_status == EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED
         reviewed_at = document_index.draft_reviewed_at or now
         document_index.scrutiny_status = final_status
