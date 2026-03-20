@@ -5,6 +5,7 @@ import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } 
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { forkJoin } from 'rxjs';
+import { ToastrService } from 'ngx-toastr';
 
 import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
 import { UploadDocuments } from '../../new-filing/upload-documents/upload-documents';
@@ -28,7 +29,9 @@ export class Create implements OnInit {
   isLoadingFilings = true;
   isLoadingCase = false;
   caseDetails: any = null;
-  docList: any[] = [];
+
+  existingDocList: any[] = [];
+  uploadedDocList: any[] = [];
 
   isUploadingDocuments = false;
   uploadFileProgresses: number[] = [];
@@ -40,10 +43,11 @@ export class Create implements OnInit {
   constructor(
     private fb: FormBuilder,
     private eFilingService: EfilingService,
+    private toastr: ToastrService,
   ) {
     this.uploadFilingDocForm = this.fb.group({
-      document_type: [null, Validators.required],
-      final_document: [[], Validators.required],
+      document_type: ['', Validators.required],
+      final_document: [null],
     });
   }
 
@@ -128,6 +132,7 @@ export class Create implements OnInit {
     this.selectedEfilingNumber = String(item.filing.e_filing_number ?? '');
     this.isDropdownOpen = false;
     this.searchQuery = '';
+    this.uploadedDocList = [];
     this.loadSelectedCaseDetailsAndDocs();
   }
 
@@ -143,12 +148,12 @@ export class Create implements OnInit {
 
     this.isLoadingCase = true;
     this.caseDetails = null;
-    this.docList = [];
+    this.existingDocList = [];
 
     forkJoin({
       caseDetails: this.eFilingService.get_case_details_by_filing_id(this.selectedEfilingId),
       documents: this.eFilingService.get_documents_by_filing_id(this.selectedEfilingId),
-      documentIndexes: this.eFilingService.get_document_reviews_by_filing_id(this.selectedEfilingId),
+      documentIndexes: this.eFilingService.get_document_reviews_by_filing_id(this.selectedEfilingId, false),
     }).subscribe({
       next: ({ caseDetails, documents, documentIndexes }) => {
         const caseRows = caseDetails?.results ?? [];
@@ -157,7 +162,7 @@ export class Create implements OnInit {
         const mainDocs = documents?.results ?? [];
         const indexParts = documentIndexes?.results ?? [];
 
-        this.docList = mainDocs.map((doc: any) => {
+        this.existingDocList = mainDocs.map((doc: any) => {
           const partsForDoc = indexParts
             .filter((p: any) => Number(p.document) === Number(doc.id))
             .sort((a: any, b: any) => Number(a.document_sequence) - Number(b.document_sequence));
@@ -172,6 +177,24 @@ export class Create implements OnInit {
       },
       error: () => {
         this.isLoadingCase = false;
+        this.toastr.error('Failed to load case details.');
+      },
+    });
+  }
+
+  deleteDoc(id: number, index: number): void {
+    const confirmDelete = confirm(
+      'Your document will be deleted and you need to re-upload it. Continue?',
+    );
+    if (!confirmDelete) return;
+
+    this.eFilingService.delete_case_documnets_before_final_filing(id).subscribe({
+      next: () => {
+        this.uploadedDocList.splice(index, 1);
+        this.toastr.success('Document deleted.');
+      },
+      error: () => {
+        this.toastr.error('Failed to delete document.');
       },
     });
   }
@@ -188,7 +211,10 @@ export class Create implements OnInit {
     const documentType = String(data?.document_type || '').trim();
     const uploadItems = Array.isArray(data?.items) ? data.items : [];
 
-    if (!documentType || uploadItems.length === 0 || !this.selectedEfilingId) return;
+    if (!documentType || uploadItems.length === 0 || !this.selectedEfilingId) {
+      this.toastr.warning('Please select an E-Filing and add documents with document type and index names.');
+      return;
+    }
 
     this.isUploadingDocuments = true;
     this.uploadFileProgresses = uploadItems.map(() => 0);
@@ -201,7 +227,7 @@ export class Create implements OnInit {
 
       const documentRes = await firstValueFrom(this.eFilingService.upload_case_documnets(documentPayload));
       const documentId = documentRes?.id;
-      if (!documentId) return;
+      if (!documentId) throw new Error('Document creation failed');
 
       const uploadedDocumentParts: any[] = [];
 
@@ -220,15 +246,17 @@ export class Create implements OnInit {
         uploadedDocumentParts.push(indexRes);
       }
 
-      this.docList.push({
+      this.uploadedDocList.push({
         ...documentRes,
         document_indexes: uploadedDocumentParts,
         final_document: uploadedDocumentParts[0]?.file_url || documentRes?.final_document,
       });
 
       this.uploadCompletedToken++;
+      this.toastr.success('Documents uploaded successfully.');
     } catch (error) {
       console.error('Document upload failed', error);
+      this.toastr.error('Failed to upload documents. Please try again.');
     } finally {
       this.isUploadingDocuments = false;
     }

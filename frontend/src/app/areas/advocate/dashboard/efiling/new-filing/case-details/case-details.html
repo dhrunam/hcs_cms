@@ -6,14 +6,24 @@
     <div class="row g-3">
       <div class="col-md-6">
         <label class="form-label"> Cause of Action <small class="text-danger">*</small> </label>
-        <textarea class="form-control" rows="2" formControlName="cause_of_action"></textarea>
+        <textarea
+          class="form-control"
+          rows="2"
+          formControlName="cause_of_action"
+          [class.is-invalid]="isControlInvalid('cause_of_action')"
+        ></textarea>
       </div>
 
       <div class="col-md-6">
         <label class="form-label">
           Date of Cause of Action <small class="text-danger">*</small>
         </label>
-        <input type="date" class="form-control" formControlName="date_of_cause_of_action" />
+        <input
+          type="date"
+          class="form-control"
+          formControlName="date_of_cause_of_action"
+          [class.is-invalid]="isControlInvalid('date_of_cause_of_action')"
+        />
       </div>
     </div>
   </div>
@@ -25,7 +35,11 @@
     <div class="row g-3">
       <div class="col-md-6">
         <label class="form-label">State</label>
-        <select class="form-control form-select" formControlName="dispute_state" (change)="get_districts($event)">
+        <select
+          class="form-control form-select"
+          formControlName="dispute_state"
+          (change)="get_districts($event)"
+        >
           <option value="">Select State</option>
           <option *ngFor="let s of states" [value]="s.id">{{ s.state }}</option>
         </select>
@@ -54,8 +68,8 @@
       <div class="col-md-6">
         <label class="form-label">Act <small class="text-danger">*</small></label>
 
-        <select class="form-control form-select" name="act">
-          <option #actInput value="">Select Act</option>
+        <select #actInput class="form-control form-select" name="act">
+          <option value="">Select Act</option>
           <option *ngFor="let act of acts" [value]="act.actcode">
             {{ act.actname }}
           </option>
@@ -81,7 +95,11 @@
       <div class="col-md-6">
         <label class="form-label">Act <small class="text-danger">*</small></label>
 
-        <select class="form-control form-select" formControlName="act">
+        <select
+          class="form-control form-select"
+          formControlName="act"
+          [class.is-invalid]="isActControlInvalid('act')"
+        >
           <option value="">Select Act</option>
           <option *ngFor="let act of acts" [value]="act.actcode">
             {{ act.actname }}
@@ -91,7 +109,11 @@
 
       <div class="col-md-6">
         <label class="form-label">Section <small class="text-danger">*</small></label>
-        <input class="form-control" formControlName="section" />
+        <input
+          class="form-control"
+          formControlName="section"
+          [class.is-invalid]="isActControlInvalid('section')"
+        />
       </div>
 
       <div class="col-md-12">
@@ -112,6 +134,9 @@
             <div class="fw-normal">{{ i + 1 }}. {{ act.actname }}</div>
             <div class="text-muted small">Section: {{ act.section }}</div>
           </div>
+          <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeAct(i)">
+            Delete
+          </button>
         </div>
       </div>
     </div>

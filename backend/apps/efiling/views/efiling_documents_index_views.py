@@ -16,6 +16,7 @@ class EfilingDocumentsIndexListCreateView(ListCreateAPIView):
         document_id = self.request.query_params.get("document_id")
         scrutiny_status = self.request.query_params.get("scrutiny_status")
         is_new_for_scrutiny = self.request.query_params.get("is_new_for_scrutiny")
+        is_ia = self.request.query_params.get("is_ia")
 
         if efiling_id is not None:
             filing = Efiling.objects.filter(pk=efiling_id).first()
@@ -27,6 +28,8 @@ class EfilingDocumentsIndexListCreateView(ListCreateAPIView):
             qs = qs.filter(is_active=is_active.lower() in ["true", "1"])
         if efiling_id is not None:
             qs = qs.filter(document__e_filing=efiling_id)
+        if is_ia is not None:
+            qs = qs.filter(document__is_ia=is_ia.lower() in ["true", "1"])
         if document_id is not None:
             qs = qs.filter(document=document_id)
         if scrutiny_status is not None:

@@ -7,27 +7,32 @@
       <div class="row g-3">
         <div class="col-md-6">
           <label class="text-muted small">Bench</label>
-          <div class="fw-semibold">{{ initialInputsForm.value.bench }}</div>
+          <div class="fw-semibold">{{ initialInputsView.bench || '-' }}</div>
         </div>
 
         <div class="col-md-6">
           <label class="text-muted small">Case Type</label>
-          <div class="fw-semibold">{{ get_case_type_name(initialInputsForm.value.case_type) }}</div>
+          <div class="fw-semibold">{{ caseTypeLabel || '-' }}</div>
+          <div class="text-muted small" *ngIf="caseTypeFullForm">
+            {{ caseTypeFullForm }}
+          </div>
         </div>
 
         <div class="col-md-6">
           <label class="text-muted small">Petitioner Name</label>
-          <div class="fw-semibold">{{ initialInputsForm.value.petitioner_name }}</div>
+          <div class="fw-semibold">{{ initialInputsView.petitioner_name || '-' }}</div>
         </div>
 
         <div class="col-md-6">
           <label class="text-muted small">Petitioner Contact</label>
-          <div class="fw-semibold">{{ initialInputsForm.value.petitioner_contact }}</div>
+          <div class="fw-semibold">{{ initialInputsView.petitioner_contact || '-' }}</div>
         </div>
 
         <div class="col-md-6">
           <label class="text-muted small">E-Filing Number</label>
-          <div class="fw-semibold text-dark">{{ initialInputsForm.value.e_filing_number }}</div>
+          <div class="fw-semibold text-success">
+            {{ initialInputsView.e_filing_number || '-' }}
+          </div>
         </div>
       </div>
     </div>
@@ -179,30 +184,30 @@
         <div class="col-md-6">
           <label class="text-muted small">Cause Of Action</label>
           <div class="fw-semibold">
-            {{ caseDetailsForm.value.cause_of_action }}
+            {{ caseDetailsView?.cause_of_action || '-' }}
           </div>
         </div>
 
         <div class="col-md-6">
           <label class="text-muted small">Cause Of Action Date</label>
           <div class="fw-semibold">
-            {{ caseDetailsForm.value.date_of_cause_of_action | date: 'dd MMM, yyyy' }}
+            {{ caseDetailsView?.date_of_cause_of_action | date: 'dd MMM, yyyy' }}
           </div>
         </div>
 
         <div class="col-md-3">
           <label class="text-muted small">State</label>
-          <div class="fw-semibold">{{ caseDetailsForm.value.state }}</div>
+          <div class="fw-semibold">{{ caseDetailsView?.dispute_state || '-' }}</div>
         </div>
 
         <div class="col-md-3">
           <label class="text-muted small">District</label>
-          <div class="fw-semibold">{{ caseDetailsForm.value.district }}</div>
+          <div class="fw-semibold">{{ caseDetailsView?.dispute_district || '-' }}</div>
         </div>
 
         <div class="col-md-3">
           <label class="text-muted small">Taluka</label>
-          <div class="fw-semibold">{{ caseDetailsForm.value.taluka }}</div>
+          <div class="fw-semibold">{{ caseDetailsView?.dispute_taluka || '-' }}</div>
         </div>
 
         <div class="col-md-12 mt-3">
@@ -215,7 +220,7 @@
               style="background-color: #f8fafc"
             >
               <div>
-                <div class="fw-semibold">{{ i + 1 }}. {{ act.actname }}</div>
+                <div class="fw-semibold">{{ i + 1 }}. {{ getActLabel(act) }}</div>
                 <div class="text-muted small">Section: {{ act.section }}</div>
               </div>
             </div>
@@ -262,7 +267,9 @@
             </div>
 
             <div class="text-start">
-              <div class="fw-semibold" style="color: #0f172a">{{ i + 1 }}. {{ doc.document_type }}</div>
+              <div class="fw-semibold" style="color: #0f172a">
+                {{ i + 1 }}. {{ doc.document_type }}
+              </div>
             </div>
           </div>
 
@@ -271,7 +278,9 @@
               *ngFor="let filePart of doc.document_indexes; let j = index"
               class="d-flex justify-content-between align-items-center py-1"
             >
-              <div class="small text-muted">{{ j + 1 }}. {{ filePart.document_part_name || 'Document Part' }}</div>
+              <div class="small text-muted">
+                {{ j + 1 }}. {{ filePart.document_part_name || 'Document Part' }}
+              </div>
               <a
                 [href]="filePart.file_url || filePart.file_part_path"
                 target="_blank"

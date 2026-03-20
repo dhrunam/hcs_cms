@@ -4,7 +4,7 @@ import { FormGroup, FormBuilder, Validators, ReactiveFormsModule } from '@angula
 import { ToastrService } from 'ngx-toastr';
 
 import Swal from 'sweetalert2';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { InitialInputs } from '../../new-filing/initial-inputs/initial-inputs';
 import { Litigant } from '../../new-filing/litigant/litigant';
 import { CaseDetails } from '../../new-filing/case-details/case-details';
@@ -48,6 +48,9 @@ export class Edit {
   isUploadingDocuments = false;
   uploadFileProgresses: number[] = [];
   uploadCompletedToken = 0;
+  caseDetailsLocked = false;
+  caseDetailsData: any = null;
+  filingData: any = null;
 
   form!: FormGroup;
 
@@ -56,13 +59,14 @@ export class Edit {
     private toastr: ToastrService,
     private eFilingService: EfilingService,
     private route: ActivatedRoute,
+    private router: Router,
   ) {
     this.form = this.fb.group({
       initialInputs: this.fb.group({
         bench: ['High Court Of Sikkim', Validators.required],
         case_type: ['', Validators.required],
         petitioner_name: ['', Validators.required],
-        petitioner_contact: ['', Validators.required],
+        petitioner_contact: ['', [Validators.required, Validators.pattern(/^[0-9]{10}$/)]],
         e_filing_number: [this.eFilingNumber],
       }),
 
@@ -72,7 +76,7 @@ export class Edit {
           gender: [''],
           age: [''],
 
-          sequence_number: [1, Validators.required],
+          sequence_number: ['', Validators.required],
 
           is_diffentially_abled: [false],
           is_petitioner: [true],
@@ -80,14 +84,14 @@ export class Edit {
           is_organisation: [false],
           organization: [''],
 
-          contact: [''],
-          email: [''],
+          contact: ['', [Validators.pattern(/^[0-9]{10}$/)]],
+          email: ['', [Validators.email]],
 
           religion: [''],
           caste: [''],
           occupation: [''],
 
-          address: [''],
+          address: ['', Validators.required],
 
           state_id: [''],
           district_id: [''],
@@ -101,6 +105,7 @@ export class Edit {
             const isOrg = group.get('is_organisation')?.value;
             const org = group.get('organization')?.value;
             const age = group.get('age')?.value;
+            const gender = group.get('gender')?.value;
 
             if (isOrg && !org) {
               return { orgRequired: true };
@@ -108,6 +113,10 @@ export class Edit {
 
             if (!isOrg && !age) {
               return { ageRequired: true };
+            }
+
+            if (!isOrg && !gender) {
+              return { genderRequired: true };
             }
 
             return null;
@@ -143,9 +152,16 @@ export class Edit {
 
   ngOnInit() {
     this.route.queryParams.subscribe((params) => {
-      this.filingId = params['id'];
-      this.eFilingNumber = params['e_filing_number'];
+      const idParam = params['id'] ?? params['efiling_id'] ?? params['e_filing_id'];
+      this.filingId = Number(idParam || 0) || null;
+      this.eFilingNumber = params['e_filing_number'] || this.eFilingNumber;
       this.get_litigant_list_by_filing_id();
+      if (this.filingId) {
+        this.loadInitialInputs();
+        this.loadCaseDetails();
+        this.loadActList();
+        this.loadDocuments();
+      }
     });
   }
 
@@ -160,7 +176,15 @@ export class Edit {
   get_case_details_by_filing_id() {
     this.eFilingService.get_case_details_by_filing_id(this.filingId || 0).subscribe({
       next: (data) => {
-        this.litigantList = data.results;
+        this.caseDetailsForm.patchValue({
+          cause_of_action: data.results?.[0]?.cause_of_action || '',
+          date_of_cause_of_action: data.results?.[0]?.date_of_cause_of_action || '',
+          dispute_state: data.results?.[0]?.dispute_state || '',
+          dispute_district: data.results?.[0]?.dispute_district || '',
+          dispute_taluka: data.results?.[0]?.dispute_taluka || '',
+          act: '',
+          section: '',
+        });
       },
     });
   }
@@ -169,7 +193,11 @@ export class Edit {
 
   receiveActList(data: any[]) {
     this.actList = [...this.actList, ...data];
-    if (this.caseDetailsForm.disabled) {
+    const shouldPersistActs =
+      !!this.filingId &&
+      (this.step3Saved || this.caseDetailsForm.disabled || this.caseDetailsLocked);
+
+    if (shouldPersistActs) {
       data.forEach((item: any) => {
         const payload = new FormData();
 
@@ -178,7 +206,9 @@ export class Edit {
         payload.append('act', item.act);
         payload.append('section', item.section);
 
-        this.eFilingService.add_case_details_act(payload).subscribe();
+        this.eFilingService.add_case_details_act(payload).subscribe(() => {
+          this.loadActList();
+        });
       });
     }
 
@@ -195,6 +225,18 @@ export class Edit {
     group.get('act')?.markAsUntouched();
     group.get('section')?.markAsPristine();
     group.get('section')?.markAsUntouched();
+  }
+
+  removeAct(index: number) {
+    const act = this.actList[index];
+    if (act?.id && this.filingId) {
+      this.eFilingService.delete_case_details_act(act.id).subscribe(() => {
+        this.actList = this.actList.filter((_: any, i: number) => i !== index);
+      });
+      return;
+    }
+
+    this.actList = this.actList.filter((_: any, i: number) => i !== index);
   }
 
   pdfOnlyValidator(control: any) {
@@ -249,16 +291,36 @@ export class Edit {
 
   next() {
     const currentForm = this.getCurrentForm();
+    const isCaseDetailsStep = this.step === 3;
+
+    if (this.step === 2 && !this.hasRequiredLitigants()) {
+      const message = this.hasPetitionerOnly()
+        ? 'At least one respondent should be added.'
+        : 'Please complete the form before continuing.';
+      this.toastr.error(message, '', {
+        timeOut: 3000,
+        closeButton: true,
+      });
+      return;
+    }
 
     if (this.step == 2 && this.litigantList.length > 0) {
       this.step++;
+      if (this.step === 3 && !this.caseDetailsData && this.filingId) {
+        this.loadCaseDetails();
+      }
     }
 
     if (this.step == 4 && this.docList.length > 0) {
       this.step++;
     }
 
-    if (currentForm.invalid) {
+    if (isCaseDetailsStep) {
+      if (!this.step3Saved) {
+        this.saveStep3();
+        return;
+      }
+    } else if (currentForm.invalid) {
       currentForm.markAllAsTouched();
       return;
     }
@@ -266,6 +328,8 @@ export class Edit {
     if (this.step < 4) {
       this.step++;
     }
+
+    this.setCaseDetailsReviewState(this.step === 5);
 
     window.scrollTo({
       top: 0,
@@ -277,13 +341,25 @@ export class Edit {
     if (this.step > 1) {
       this.step--;
     }
+
+    this.setCaseDetailsReviewState(this.step === 5);
   }
 
   goToStep(stepNumber: number) {
-    // if (stepNumber <= this.step) {
-    //   this.step = stepNumber;
-    // }
+    const maxStep = this.getMaxAllowedStep();
+    if (stepNumber > maxStep) {
+      this.toastr.error('Please complete the form before continuing.', '', {
+        timeOut: 3000,
+        closeButton: true,
+      });
+      return;
+    }
+
     this.step = stepNumber;
+    if (this.step === 3 && !this.caseDetailsData && this.filingId) {
+      this.loadCaseDetails();
+    }
+    this.setCaseDetailsReviewState(this.step === 5);
   }
 
   saveStep1() {
@@ -342,12 +418,23 @@ export class Edit {
     const form = this.form.get('litigants') as FormGroup;
     const formValue = { ...form.value };
 
+    if (!this.isSequenceNumberUnique(formValue.sequence_number, formValue.is_petitioner)) {
+      const typeLabel = this.getLitigantTypeLabel(formValue.is_petitioner);
+      this.toastr.error(`Sequence number must be unique for ${typeLabel}.`, '', {
+        timeOut: 3000,
+      });
+      form.get('sequence_number')?.markAsTouched();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     if (formValue.is_organisation) {
       formValue.age = 0;
     }
 
     if (form.invalid) {
       form.markAllAsTouched();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
@@ -362,19 +449,20 @@ export class Edit {
 
       console.log('Litigant details are', res);
 
-      this.sequenceNumber_litigant++;
+      const nextSequence = this.getNextSequenceNumber(formValue.is_petitioner);
 
       form.reset({
         is_diffentially_abled: false,
-        is_petitioner: true,
-        sequence_number: this.sequenceNumber_litigant,
+        is_petitioner: formValue.is_petitioner,
+        sequence_number: nextSequence,
         gender: '',
         organization: '',
       });
 
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
-      this.toastr.success('Litigant added to table', '', {
+      const typeLabel = this.getLitigantTypeLabel(formValue.is_petitioner);
+      this.toastr.success(`1 ${typeLabel} added`, '', {
         timeOut: 3000,
       });
     });
@@ -384,13 +472,55 @@ export class Edit {
     this.litigantList = this.litigantList.filter((item) => item.id !== id);
   }
 
+  private isSequenceNumberUnique(sequenceNumber: number, isPetitioner: boolean): boolean {
+    if (!sequenceNumber && sequenceNumber !== 0) return false;
+    return !this.litigantList.some(
+      (item) =>
+        this.normalizeIsPetitioner(item.is_petitioner) ===
+          this.normalizeIsPetitioner(isPetitioner) &&
+        Number(item.sequence_number) === Number(sequenceNumber),
+    );
+  }
+
+  private normalizeIsPetitioner(value: any): boolean {
+    return value === true || value === 'true' || value === 1 || value === '1';
+  }
+
+  private getLitigantTypeLabel(isPetitioner: boolean): string {
+    return this.normalizeIsPetitioner(isPetitioner) ? 'petitioner' : 'respondent';
+  }
+
+  private getNextSequenceNumber(isPetitioner: boolean): number {
+    const maxSequence = this.litigantList
+      .filter((item) => item.is_petitioner === isPetitioner)
+      .reduce((max, item) => Math.max(max, Number(item.sequence_number) || 0), 0);
+    return maxSequence + 1;
+  }
+
+  private hasPetitionerOnly(): boolean {
+    const hasPetitioner = this.litigantList.some((item) => item.is_petitioner);
+    const hasRespondent = this.litigantList.some((item) => !item.is_petitioner);
+    return hasPetitioner && !hasRespondent;
+  }
+
   updateStep2() {}
 
   saveStep3() {
     const form = this.caseDetailsForm;
 
-    if (this.actList.length === 0 && (!form.value.act || !form.value.section)) {
-      form.markAllAsTouched();
+    form.markAllAsTouched();
+
+    const missingRequiredActs = this.actList.length === 0;
+    const missingRequiredDetails =
+      form.get('cause_of_action')?.invalid || form.get('date_of_cause_of_action')?.invalid;
+
+    if (missingRequiredActs || missingRequiredDetails) {
+      this.toastr.error('Please add at least one act and complete required fields.', '', {
+        timeOut: 3000,
+      });
+      if (missingRequiredDetails) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
       return;
     }
 
@@ -410,13 +540,141 @@ export class Edit {
     };
 
     this.eFilingService.post_case_details(payload).subscribe(() => {
+      this.step3Saved = true;
+      this.caseDetailsLocked = true;
+      this.caseDetailsForm.disable({ emitEvent: false });
+      this.caseDetailsForm.get('act')?.enable({ emitEvent: false });
+      this.caseDetailsForm.get('section')?.enable({ emitEvent: false });
       this.step = 4;
-      this.caseDetailsForm.disable();
     });
+  }
+
+  hasRequiredLitigants(): boolean {
+    const hasPetitioner = this.litigantList.some((item) => item.is_petitioner);
+    const hasRespondent = this.litigantList.some((item) => !item.is_petitioner);
+    return hasPetitioner && hasRespondent;
+  }
+
+  isCaseDetailsNextDisabled(): boolean {
+    const form = this.caseDetailsForm;
+    const hasCause = !form.get('cause_of_action')?.invalid;
+    const hasDate = !form.get('date_of_cause_of_action')?.invalid;
+    const hasActs = this.actList.length > 0;
+    return !hasCause || !hasDate || !hasActs;
+  }
+
+  private getMaxAllowedStep(): number {
+    if (!this.eFilingNumber) return 1;
+    if (!this.hasRequiredLitigants()) return 2;
+    if (!this.step3Saved) return 3;
+    return 5;
   }
 
   goToPageFromPreview(step: number) {
     this.step = step;
+    this.setCaseDetailsReviewState(this.step === 5);
+  }
+
+  private loadCaseDetails() {
+    this.eFilingService.get_case_details_by_filing_id(this.filingId || 0).subscribe({
+      next: (data) => {
+        console.log('Case details data is', data);
+        const details = Array.isArray(data?.results)
+          ? data.results[0]
+          : Array.isArray(data)
+            ? data[0]
+            : data;
+        if (!details) return;
+
+        this.caseDetailsData = details;
+
+        const disputeState =
+          details.dispute_state_id ?? details.dispute_state?.id ?? details.dispute_state ?? '';
+        const disputeDistrict =
+          details.dispute_district_id ??
+          details.dispute_district?.id ??
+          details.dispute_district ??
+          '';
+        const dateOfCause = details.date_of_cause_of_action
+          ? String(details.date_of_cause_of_action).slice(0, 10)
+          : '';
+
+        this.caseDetailsForm.enable({ emitEvent: false });
+        this.caseDetailsForm.patchValue({
+          cause_of_action: details.cause_of_action || '',
+          date_of_cause_of_action: dateOfCause,
+          dispute_state: disputeState,
+          dispute_district: disputeDistrict,
+          dispute_taluka: details.dispute_taluka || '',
+          act: '',
+          section: '',
+        });
+
+        this.step3Saved = true;
+        this.caseDetailsLocked = true;
+        this.caseDetailsForm.disable({ emitEvent: false });
+        this.caseDetailsForm.get('act')?.enable({ emitEvent: false });
+        this.caseDetailsForm.get('section')?.enable({ emitEvent: false });
+        this.setCaseDetailsReviewState(false);
+      },
+    });
+  }
+
+  private loadInitialInputs() {
+    this.eFilingService.get_filing_by_efiling_id(this.filingId || 0).subscribe({
+      next: (data) => {
+        const record = Array.isArray(data?.results) ? data.results[0] : data;
+        if (!record) return;
+
+        this.filingData = record;
+        this.initialInputsForm.patchValue({
+          bench: record.bench || 'High Court Of Sikkim',
+          case_type: record.case_type || '',
+          petitioner_name: record.petitioner_name || '',
+          petitioner_contact: record.petitioner_contact || '',
+          e_filing_number: record.e_filing_number || this.eFilingNumber,
+        });
+        if (record.e_filing_number) {
+          this.eFilingNumber = record.e_filing_number;
+        }
+        this.step1Saved = true;
+        this.initialInputsForm.disable({ emitEvent: false });
+      },
+    });
+  }
+
+  private loadActList() {
+    this.eFilingService.get_acts_by_filing_id(this.filingId || 0).subscribe({
+      next: (data) => {
+        const rows = Array.isArray(data?.results) ? data.results : [];
+        this.actList = rows.map((item: any) => ({
+          id: item.id,
+          act: item.act,
+          actname:
+            item.actname ||
+            item.act_name ||
+            item.act?.actname ||
+            item.act?.act_name ||
+            item.act?.act ||
+            item.act,
+          section: item.section,
+        }));
+      },
+    });
+  }
+
+  private setCaseDetailsReviewState(isReview: boolean) {
+    const form = this.caseDetailsForm;
+    if (!form) return;
+
+    if (isReview || this.caseDetailsLocked) {
+      form.disable({ emitEvent: false });
+      form.get('act')?.enable({ emitEvent: false });
+      form.get('section')?.enable({ emitEvent: false });
+      return;
+    }
+
+    form.enable({ emitEvent: false });
   }
 
   previewDoc(doc: any) {
@@ -436,6 +694,7 @@ export class Edit {
       next: (res) => {
         console.log('Deleted response', res);
         this.docList.splice(index, 1);
+        this.loadDocuments();
       },
     });
   }
@@ -455,7 +714,9 @@ export class Edit {
       documentPayload.append('e_filing', String(this.filingId));
       documentPayload.append('e_filing_number', this.eFilingNumber);
 
-      const documentRes = await firstValueFrom(this.eFilingService.upload_case_documnets(documentPayload));
+      const documentRes = await firstValueFrom(
+        this.eFilingService.upload_case_documnets(documentPayload),
+      );
       const documentId = documentRes?.id;
       if (!documentId) return;
 
@@ -484,11 +745,57 @@ export class Edit {
       });
 
       this.uploadCompletedToken++;
+      this.loadDocuments();
     } catch (error) {
       console.error('Document upload failed', error);
     } finally {
       this.isUploadingDocuments = false;
     }
+  }
+
+  private loadDocuments() {
+    if (!this.filingId) return;
+
+    this.eFilingService.get_document_reviews_by_filing_id(this.filingId).subscribe({
+      next: (data) => {
+        const rows = Array.isArray(data?.results) ? data.results : [];
+        const grouped = new Map<string, any>();
+
+        rows.forEach((item: any) => {
+          const type = String(item?.document_type || '').trim() || 'Document';
+          const existing = grouped.get(type);
+          const documentId = item?.document || item?.document_id || item?.documentId || item?.id;
+
+          if (existing) {
+            existing.document_indexes.push(item);
+            if (!existing.id && documentId) {
+              existing.id = documentId;
+            }
+          } else {
+            grouped.set(type, {
+              id: documentId || null,
+              document_type: type,
+              document_indexes: [item],
+            });
+          }
+        });
+
+        this.docList = Array.from(grouped.values()).map((doc) => {
+          const sortedIndexes = Array.isArray(doc.document_indexes)
+            ? [...doc.document_indexes].sort((a: any, b: any) => {
+                const left = Number(a?.document_sequence) || 0;
+                const right = Number(b?.document_sequence) || 0;
+                return left - right;
+              })
+            : [];
+
+          return {
+            ...doc,
+            document_indexes: sortedIndexes,
+          };
+        });
+      },
+    });
   }
 
   private uploadIndexFileWithProgress(formData: FormData, index: number): Promise<any> {
@@ -534,32 +841,101 @@ export class Edit {
       cancelButtonText: 'Cancel',
     }).then((result) => {
       if (result.isConfirmed) {
-        const payload = {
-          e_filing: this.filingId,
-          e_filing_number: this.eFilingNumber,
+        this.toastr.success('OTP has been sent successfully.', '', {
+          timeOut: 3000,
+          closeButton: true,
+        });
+
+        this.promptOtpAndSubmit();
+      }
+    });
+  }
+
+  private promptOtpAndSubmit() {
+    if (!this.filingId) return;
+
+    let submitting = false;
+
+    Swal.fire({
+      title: 'Enter OTP',
+      html:
+        '<div style="display:flex;gap:8px;justify-content:center">' +
+        ['otp-1', 'otp-2', 'otp-3', 'otp-4']
+          .map(
+            (id) =>
+              `<input id="${id}" type="text" inputmode="numeric" maxlength="1" style="width:48px;height:48px;text-align:center;font-size:20px;border:1px solid #d1d5db;border-radius:8px;" />`,
+          )
+          .join('') +
+        '</div>' +
+        '<div id="otp-status" style="margin-top:12px;font-size:14px;text-align:center"></div>',
+      showCancelButton: true,
+      showConfirmButton: false,
+      allowOutsideClick: false,
+      didOpen: () => {
+        const ids = ['otp-1', 'otp-2', 'otp-3', 'otp-4'];
+        const inputs = ids
+          .map((id) => document.getElementById(id) as HTMLInputElement | null)
+          .filter((el): el is HTMLInputElement => !!el);
+        const statusEl = document.getElementById('otp-status');
+
+        const setStatus = (message: string, color: string) => {
+          if (!statusEl) return;
+          statusEl.textContent = message;
+          statusEl.style.color = color;
         };
 
-        this.eFilingService.final_submit_efiling(this.filingId || 0).subscribe({
-          next: (res) => {
-            Swal.fire({
-              icon: 'success',
-              title: 'Filed Successfully',
-              text: 'Your filing has been submitted for scrutiny.',
-            });
+        const getOtp = () => inputs.map((el) => el.value || '').join('');
 
-            console.log('Final submit response', res);
-          },
-          error: (err) => {
-            Swal.fire({
-              icon: 'error',
-              title: 'Submission Failed',
-              text: 'Something went wrong. Please try again.',
-            });
+        const validateOtp = () => {
+          const otp = getOtp();
+          if (otp.length < 4) {
+            setStatus('', '');
+            return;
+          }
 
-            console.error(err);
-          },
+          if (otp !== '0000') {
+            setStatus('OTP error. Please try again.', '#dc2626');
+            return;
+          }
+
+          setStatus('OTP verified.', '#16a34a');
+          if (submitting) return;
+          submitting = true;
+
+          this.eFilingService.final_submit_efiling(this.filingId || 0).subscribe({
+            next: () => {
+              Swal.fire({
+                icon: 'success',
+                title: 'Filed Successfully',
+                text: 'Your filing has been submitted for scrutiny.',
+              }).then(() => {
+                this.router.navigate(['/advocate/dashboard/efiling/pending-scrutiny']);
+              });
+            },
+            error: (err) => {
+              submitting = false;
+              setStatus('Submission failed. Please try again.', '#dc2626');
+              console.error(err);
+            },
+          });
+        };
+
+        inputs.forEach((input, index) => {
+          input.addEventListener('input', () => {
+            input.value = input.value.replace(/\D/g, '').slice(0, 1);
+            if (input.value && inputs[index + 1]) inputs[index + 1].focus();
+            validateOtp();
+          });
+
+          input.addEventListener('keydown', (event) => {
+            if (event.key === 'Backspace' && !input.value && inputs[index - 1]) {
+              inputs[index - 1].focus();
+            }
+          });
         });
-      }
+
+        inputs[0]?.focus();
+      },
     });
   }
 }

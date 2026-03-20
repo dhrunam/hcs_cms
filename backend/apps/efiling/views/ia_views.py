@@ -13,6 +13,9 @@ class IAListCreateView(ListCreateAPIView):
         is_active = self.request.query_params.get("is_active")
         if is_active is not None:
             qs = qs.filter(is_active=is_active.lower() in ["true", "1"])
+        e_filing = self.request.query_params.get("e_filing")
+        if e_filing is not None:
+            qs = qs.filter(e_filing=e_filing)
         return qs
 
 

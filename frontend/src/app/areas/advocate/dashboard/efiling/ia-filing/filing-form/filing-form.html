@@ -149,6 +149,62 @@
         <p class="text-muted small mb-3">
           Upload supporting documents for this IA filing. Add document type and index name for each file.
         </p>
+        <div *ngIf="docList.length > 0" class="mb-4">
+          <div class="card shadow-sm border-0">
+            <div class="list-group list-group-flush">
+              <div
+                style="border-left: 2px solid black"
+                class="list-group-item"
+                *ngFor="let doc of docList; let i = index; trackBy: trackById"
+              >
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                  <div class="text-start">
+                    <div class="fw-semibold">{{ i + 1 }}. {{ doc.document_type }}</div>
+                  </div>
+
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-danger"
+                    (click)="deleteDoc(doc.id, i)"
+                    [disabled]="isUploadingDocuments"
+                  >
+                    <i class="fa fa-trash"></i>
+                    delete
+                  </button>
+                </div>
+
+                <div class="mt-2 ps-2" *ngIf="doc.document_indexes?.length > 0">
+                  <div
+                    *ngFor="let filePart of doc.document_indexes; let j = index"
+                    class="d-flex justify-content-between align-items-center py-1"
+                  >
+                    <div class="small text-muted text-start">
+                      {{ j + 1 }}. {{ filePart.document_part_name || 'Document Part' }}
+                    </div>
+
+                    <a
+                      [href]="filePart.file_url || filePart.file_part_path"
+                      target="_blank"
+                      class="btn btn-sm btn-outline-primary"
+                    >
+                      <i class="fa fa-eye"></i> view
+                    </a>
+                  </div>
+                </div>
+
+                <div class="mt-2 ps-2" *ngIf="!doc.document_indexes?.length && doc.final_document">
+                  <a
+                    [href]="doc.final_document"
+                    target="_blank"
+                    class="btn btn-sm btn-outline-primary"
+                  >
+                    <i class="fa fa-eye"></i> view
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
         <app-upload-documents
           [form]="uploadFilingDocForm"
           [isUploading]="isUploadingDocuments"

@@ -20,21 +20,32 @@
       </div>
       <div class="col-md-6">
         <label class="form-label">Case Type<small class="text-danger">*</small> </label>
-        <select
-          class="form-control form-select"
-          formControlName="case_type"
-          [class.is-invalid]="form.get('case_type')?.invalid && form.get('case_type')?.touched"
-        >
-          <option value="">Select</option>
-          <option *ngFor="let l of case_types" [value]="l.id">{{ l.type_name }}</option>
-        </select>
+        <ng-container *ngIf="!isDraft; else draftCaseType">
+          <select
+            class="form-control form-select"
+            formControlName="case_type"
+            [class.is-invalid]="form.get('case_type')?.invalid && form.get('case_type')?.touched"
+          >
+            <option value="">Select</option>
+            <option *ngFor="let l of case_types" [value]="l.id">{{ l.type_name }}</option>
+          </select>
 
-        <small
-          class="text-danger"
-          *ngIf="form.get('case_type')?.invalid && form.get('case_type')?.touched"
-        >
-          case type is required
-        </small>
+          <small
+            class="text-danger"
+            *ngIf="form.get('case_type')?.invalid && form.get('case_type')?.touched"
+          >
+            case type is required
+          </small>
+        </ng-container>
+
+        <ng-template #draftCaseType>
+          <input
+            class="form-control"
+            [value]="get_case_type_label(form.get('case_type')?.value)"
+            readonly
+            disabled
+          />
+        </ng-template>
       </div>
       <div class="col-md-6">
         <label class="form-label"> Main Party Name <small class="text-danger">*</small> </label>
@@ -57,8 +68,11 @@
       <div class="col-md-6">
         <label class="form-label"> Contact No <small class="text-danger">*</small> </label>
         <input
+          type="tel"
           class="form-control"
           formControlName="petitioner_contact"
+          maxlength="10"
+          pattern="[0-9]{10}"
           [class.is-invalid]="
             form.get('petitioner_contact')?.invalid && form.get('petitioner_contact')?.touched
           "
@@ -68,7 +82,7 @@
           class="text-danger"
           *ngIf="form.get('petitioner_contact')?.invalid && form.get('petitioner_contact')?.touched"
         >
-          contact number is required
+          contact number must be 10 digits
         </small>
       </div>
     </div>
