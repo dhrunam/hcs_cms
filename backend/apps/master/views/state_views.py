@@ -5,6 +5,6 @@ from apps.master.serializers.state_serializers import StateSerializer
 
 
 class StateListView(ListAPIView):
-    queryset = State.objects.all()
+    queryset = State.objects.all().order_by('state')
     serializer_class = StateSerializer
     pagination_class = None  # Disable pagination for this view
