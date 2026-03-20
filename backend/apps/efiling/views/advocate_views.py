@@ -1,11 +1,11 @@
 from django.db.models import Q
-from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.generics import ListAPIView, ListCreateAPIView, RetrieveAPIView
 
 from apps.core.models import AdvocateT
 from apps.efiling.serializers.advocate_serializers import AdvocateSerializer
 
 
-class AdvocateListView(ListAPIView):
+class AdvocateListView(ListCreateAPIView):
     serializer_class = AdvocateSerializer
     queryset = AdvocateT.objects.all()
 
