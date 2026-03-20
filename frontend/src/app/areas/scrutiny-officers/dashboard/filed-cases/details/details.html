@@ -54,15 +54,35 @@
         </span>
       </div>
     </div>
-    <div class="accordion" id="accordionExample">
-      <div class="accordion-item">
-        <h2 class="accordion-header" id="headingOne">
-          <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
-            Filing Summary
-          </button>
-        </h2>
-        <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#accordionExample">
-          <div class="accordion-body filing-summary-body">
+    <div class="card border-0 shadow-sm scrutiny-tabs-card">
+      <div class="card-header scrutiny-tabs-header p-0">
+        <ul class="nav scrutiny-nav-tabs">
+          <li class="nav-item">
+            <button
+              type="button"
+              class="nav-link"
+              [class.active]="activeTab === 'filing'"
+              (click)="setActiveTab('filing')"
+            >
+              <i class="fa-solid fa-file-lines me-2"></i>
+              Filing Summary
+            </button>
+          </li>
+          <li class="nav-item">
+            <button
+              type="button"
+              class="nav-link"
+              [class.active]="activeTab === 'documents'"
+              (click)="setActiveTab('documents')"
+            >
+              <i class="fa-solid fa-folder-open me-2"></i>
+              Documents
+            </button>
+          </li>
+        </ul>
+      </div>
+      <div class="card-body p-0">
+        <div *ngIf="activeTab === 'filing'" class="file-summary-section filing-summary-body">
             <div class="filing-summary-section">
               <div class="filing-summary-section-title">
                 <i class="fa-solid fa-file-lines me-2"></i>
@@ -183,16 +203,8 @@
             </div>
           </div>
         </div>
-      </div>
-      <div class="accordion-item">
-        <h2 class="accordion-header" id="headingTwo">
-          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
-            Documents
-          </button>
-        </h2>
-        <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#accordionExample">
-          <div class="accordion-body">
-            <div class="row g-4">
+        <div *ngIf="activeTab === 'documents'" class="document-summary-section">
+          <div class="row g-4">
               <div class="col-xl-3">
                 <div class="card border-0 shadow-sm h-100">
                   <div class="card-body p-4">
@@ -248,7 +260,7 @@
               <div class="col-xl-9">
                 <div class="card border-0 shadow-sm h-100">
                   <div class="card-body">
-                    <div *ngIf="selectedDocument; else noSelection">
+                    <div *ngIf="selectedDocument">
                       <div class="row g-4 align-items-start">
                         <div class="col-lg-12">
                           <div class="review-panel">
@@ -322,13 +334,11 @@
                               </div>
                             </div>
                           </div> -->
-                        </div>
                       </div>
                     </div>
-        
-                    <ng-template #noSelection>
-                      <div class="text-muted small">Choose a document from the ordered list to begin review.</div>
-                    </ng-template>
+                    <div *ngIf="!selectedDocument" class="text-muted small">
+                      Choose a document from the ordered list to begin review.
+                    </div>
         
                     <ng-template #noPreview>
                       <div class="preview-empty text-muted small">
@@ -342,6 +352,5 @@
           </div>
         </div>
       </div>
-    </div>
   </ng-container>
 </div>
