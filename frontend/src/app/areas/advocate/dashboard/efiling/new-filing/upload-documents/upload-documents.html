@@ -47,26 +47,14 @@
     (cdkDropListDropped)="reorderEntries($event)"
   >
     <div class="file-row" *ngFor="let entry of entries; let i = index; trackBy: trackByEntry" cdkDrag>
-      <label class="form-label text-start mb-1">Index Name:</label>
-      <input
-        type="text"
-        class="form-control"
-        [value]="entry.index_name"
-        (input)="updateDocumentType(i, $any($event.target).value)"
-        [attr.list]="entry.index_name && entry.index_name.trim() ? 'index-name-suggestions-' + i : null"
-        placeholder="Eg. Synopsis/List of Dates and Events ...."
-        [disabled]="isUploading"
-      />
+      <div class="file-header">
+        <div class="file-header-left">
+          <span class="drag-handle" cdkDragHandle title="Drag to reorder" [class.disabled]="isUploading">
+            <i class="fa-solid fa-grip-vertical"></i>
+          </span>
+          <span class="file-name" [title]="entry.file.name">{{ entry.file.name }}</span>
+        </div>
 
-      <datalist *ngIf="entry.index_name && entry.index_name.trim()" [id]="'index-name-suggestions-' + i">
-        <option *ngFor="let name of getIndexSuggestions(entry.index_name)" [value]="name"></option>
-      </datalist>
-
-      <div class="file-main">
-        <span class="drag-handle" cdkDragHandle title="Drag to reorder" [class.disabled]="isUploading">
-          <i class="fa-solid fa-grip-vertical"></i>
-        </span>
-        <span class="file-name" [title]="entry.file.name">{{ entry.file.name }}</span>
         <button
           type="button"
           class="btn btn-sm btn-outline-danger"
@@ -77,7 +65,24 @@
         </button>
       </div>
 
-      <div class="upload-progress-wrap" *ngIf="isUploading || getFileProgress(i) > 0">
+      <div class="index-field">
+        <label class="form-label text-start mb-1">Index Name:</label>
+        <input
+          type="text"
+          class="form-control"
+          [value]="entry.index_name"
+          (input)="updateDocumentType(i, $any($event.target).value)"
+          [attr.list]="entry.index_name && entry.index_name.trim() ? 'index-name-suggestions-' + i : null"
+          placeholder="Eg. Synopsis/List of Dates and Events ...."
+          [disabled]="isUploading"
+        />
+
+        <datalist *ngIf="entry.index_name && entry.index_name.trim()" [id]="'index-name-suggestions-' + i">
+          <option *ngFor="let name of getIndexSuggestions(entry.index_name)" [value]="name"></option>
+        </datalist>
+      </div>
+
+      <div class="upload-progress-wrap" *ngIf="isUploading">
         <div class="upload-progress-label">
           <span>Upload progress</span>
           <span>{{ getFileProgress(i) }}%</span>

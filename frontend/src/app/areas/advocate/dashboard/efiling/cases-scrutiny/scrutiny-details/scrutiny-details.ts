@@ -23,6 +23,7 @@ export class ScrutinyDetails {
   filingId: number | null = null;
   filing: any = null;
   documents: any[] = [];
+  groupedDocuments: Array<{ document_type: string; items: any[] }> = [];
   selectedDocument: any = null;
   selectedDocumentUrl: SafeResourceUrl | null = null;
   selectedDocumentBlobUrl: string | null = null;
@@ -56,6 +57,8 @@ export class ScrutinyDetails {
       next: ({ filing, documents }) => {
         this.filing = filing;
         this.documents = documents?.results ?? [];
+        this.groupedDocuments = this.groupDocumentsByType(this.documents);
+        console.log(this.groupedDocuments);
         this.selectDocument(
           this.documents.find((document) => document.id === preferredDocumentId) ?? this.documents[0] ?? null,
         );
@@ -66,6 +69,24 @@ export class ScrutinyDetails {
         this.isLoading = false;
       },
     });
+  }
+
+  groupDocumentsByType(docs: any[]): Array<{ document_type: string; items: any[] }> {
+    if (!Array.isArray(docs) || docs.length === 0) return [];
+
+    // Preserve original ordering (as returned by the API) while grouping by "main document type".
+    const map = new Map<string, any[]>();
+    for (const doc of docs) {
+      const type = (doc?.document_type ?? '').trim() || 'Main Document';
+      const bucket = map.get(type);
+      if (bucket && !bucket.some((item: any) => item.file_part_path === null)) {
+        bucket.push(doc);
+      } else {
+        map.set(type, [doc]);
+      }
+    }
+
+    return Array.from(map.entries()).map(([document_type, items]) => ({ document_type, items }));
   }
 
   selectDocument(document: any): void {
@@ -135,7 +156,7 @@ export class ScrutinyDetails {
       .replace_document(
         this.selectedDocument.document,
         file,
-        this.selectedDocument.document_type || this.selectedDocument.document_part_name,
+        this.selectedDocument.document_part_name || this.selectedDocument.document_type,
       )
       .subscribe({
         next: () => {
@@ -198,6 +219,29 @@ export class ScrutinyDetails {
 
   trackById(_: number, item: any): number {
     return item.id;
+  }
+
+  trackByGroupIndex(index: number, group: any): string {
+    return `${index}__${group?.document_type ?? 'unknown'}`;
+  }
+
+  private extractFileName(value: string | null | undefined): string {
+    const raw = (value ?? '').trim();
+    if (!raw) return '';
+
+    // Remove query string if it's a URL.
+    const withoutQuery = raw.split('?')[0];
+    const parts = withoutQuery.split('/');
+    return parts[parts.length - 1] || '';
+  }
+
+  getDocumentFileLabel(document: any): string {
+    const partName = (document?.document_part_name ?? '').trim();
+    if (partName) return partName;
+
+    const fileUrl = document?.file_url ?? document?.file_part_path;
+    const fileName = this.extractFileName(fileUrl);
+    return fileName || 'Document';
   }
 
   get visibleDocumentHistory(): any[] {

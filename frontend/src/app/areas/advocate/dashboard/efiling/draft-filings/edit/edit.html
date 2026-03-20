@@ -199,6 +199,9 @@
 
           <app-upload-documents
             [form]="uploadFilingDocForm"
+            [isUploading]="isUploadingDocuments"
+            [fileProgresses]="uploadFileProgresses"
+            [uploadCompletedToken]="uploadCompletedToken"
             (submitDoc)="handleDocUpload($event)"
           ></app-upload-documents>
         </div>

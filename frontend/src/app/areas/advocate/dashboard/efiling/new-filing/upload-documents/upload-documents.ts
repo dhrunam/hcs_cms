@@ -152,7 +152,7 @@ export class UploadDocuments implements OnInit, OnChanges {
         index_id: entry.index_id,
       })),
     };
-
+    // console.log(payload);
     this.submitDoc.emit(payload);
   }
 

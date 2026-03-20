@@ -25,7 +25,7 @@
     <div class="row g-3">
       <div class="col-md-6">
         <label class="form-label">State</label>
-        <select class="form-control form-select" formControlName="dispute_state">
+        <select class="form-control form-select" formControlName="dispute_state" (change)="get_districts($event)">
           <option value="">Select State</option>
           <option *ngFor="let s of states" [value]="s.id">{{ s.state }}</option>
         </select>
@@ -35,6 +35,7 @@
         <label class="form-label">District</label>
         <select class="form-control form-select" formControlName="dispute_district">
           <option value="">Select District</option>
+          <option *ngFor="let d of districts" [value]="d.id">{{ d.district }}</option>
         </select>
       </div>
 
