@@ -25,13 +25,9 @@
 
               <td>
                 <span
-                  class="d-inline-flex align-items-center gap-1 px-2 py-1"
-                  [ngStyle]="{
-                    'background-color': item.is_petitioner ? '#f1f5f9' : '#f8fafc',
-                    color: item.is_petitioner ? '#1e293b' : '#475569',
-                    'border-radius': '20px',
-                    'font-size': '12px',
-                  }"
+                  class="d-inline-flex align-items-center gap-1 px-2 py-1 litigant-type-badge"
+                  [class.litigant-petitioner-badge]="item.is_petitioner"
+                  [class.litigant-respondent-badge]="!item.is_petitioner"
                 >
                   <i
                     class="fa-solid"
@@ -93,7 +89,7 @@
 
             <!-- EXPANDED ROW -->
             <tr *ngIf="expandedRows[i]">
-              <td colspan="8" style="background-color: #f8fafc">
+              <td colspan="8">
                 <div class="p-3 small text-muted">
                   <div>
                     <strong>Organization:</strong> {{ item.organization_detail?.orgname || '' }}
