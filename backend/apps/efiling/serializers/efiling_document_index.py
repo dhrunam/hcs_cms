@@ -70,5 +70,5 @@ class EfilingDocumentsIndexSerializer(serializers.ModelSerializer):
     def get_can_replace(self, obj):
         if not obj.document_id or not obj.document:
             return False
-        return can_replace_document(obj.document)
+        return can_replace_document(obj.document, document_index_id=obj.id)
 

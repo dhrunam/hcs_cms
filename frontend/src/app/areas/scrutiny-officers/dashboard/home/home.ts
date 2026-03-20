@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { EfilingService } from '../../../../services/advocate/efiling/efiling.services';
 
 interface EfilingCaseType {
@@ -27,6 +28,7 @@ interface EfilingItem {
 })
 export class ScrutinyOfficerHome {
   filedCases: EfilingItem[] = [];
+  newIncomingFilingIds = new Set<number>();
   isLoading = false;
 
   constructor(private eFilingService: EfilingService) {}
@@ -41,6 +43,10 @@ export class ScrutinyOfficerHome {
 
   get totalRegisteredCases(): number {
     return this.registeredCases.length;
+  }
+
+  get newIncomingCount(): number {
+    return this.newIncomingFilingIds.size;
   }
 
   get underScrutinyCount(): number {
@@ -73,17 +79,30 @@ export class ScrutinyOfficerHome {
 
   getFiledCases(): void {
     this.isLoading = true;
-    this.eFilingService.get_filings_under_scrutiny().subscribe({
-      next: (data) => {
-        this.filedCases = data?.results ?? [];
+    forkJoin({
+      filings: this.eFilingService.get_filings_under_scrutiny(),
+      incoming: this.eFilingService.get_new_scrutiny_documents(),
+    }).subscribe({
+      next: ({ filings, incoming }) => {
+        this.filedCases = filings?.results ?? [];
+        this.newIncomingFilingIds = new Set<number>(
+          (incoming?.results ?? incoming ?? [])
+            .map((item: any) => item?.e_filing_id)
+            .filter((id: number | null | undefined) => typeof id === 'number'),
+        );
         this.isLoading = false;
       },
       error: (error) => {
         console.error('Failed to load filed cases', error);
         this.filedCases = [];
+        this.newIncomingFilingIds = new Set<number>();
         this.isLoading = false;
       },
     });
+  }
+
+  hasNewForScrutiny(filingId: number | null | undefined): boolean {
+    return typeof filingId === 'number' && this.newIncomingFilingIds.has(filingId);
   }
 
   getStatusLabel(status: string | null): string {
