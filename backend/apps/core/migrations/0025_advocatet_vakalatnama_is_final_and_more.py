@@ -78,7 +78,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='efilingdocuments',
             name='final_document',
-            field=models.FileField(blank=True, max_length=512, null=True, upload_to=apps.core.models.EfilingDocuments.final_document_upload_to),
+            field=models.FileField(blank=True, max_length=512, null=True, upload_to=apps.core.models.EfilingDocuments.final_document),
         ),
         migrations.AlterField(
             model_name='vakalatnama',
