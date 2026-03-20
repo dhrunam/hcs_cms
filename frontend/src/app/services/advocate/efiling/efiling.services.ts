@@ -48,6 +48,10 @@ export class EfilingService {
     return this.http.post<any>(`${app_url}/api/v1/efiling/efiling-acts/`, fd);
   }
 
+  delete_case_details_act(id: number): Observable<any> {
+    return this.http.delete<any>(`${app_url}/api/v1/efiling/efiling-acts/${id}/`);
+  }
+
   get_filings_under_scrutiny(): Observable<any> {
     return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/?is_draft=false`);
   }
@@ -58,6 +62,10 @@ export class EfilingService {
 
   get_filing_by_id(id: number): Observable<any> {
     return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/${id}/`);
+  }
+
+  get_filing_by_efiling_id(id: number): Observable<any> {
+    return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/?e_filing_id=${id}`);
   }
 
   submit_approved_filing(id: number): Observable<any> {
@@ -86,7 +94,9 @@ export class EfilingService {
   }
 
   get_document_reviews_by_filing_id(id: number): Observable<any> {
-    return this.http.get<any>(`${app_url}/api/v1/efiling/efiling-documents-index/?efiling_id=${id}`);
+    return this.http.get<any>(
+      `${app_url}/api/v1/efiling/efiling-documents-index/?efiling_id=${id}`,
+    );
   }
 
   get_document_scrutiny_history(documentIndexId: number): Observable<any> {
@@ -99,7 +109,10 @@ export class EfilingService {
     return this.http.get(fileUrl, { responseType: 'blob' });
   }
 
-  review_document(documentIndexId: number, payload: FormData | Record<string, any>): Observable<any> {
+  review_document(
+    documentIndexId: number,
+    payload: FormData | Record<string, any>,
+  ): Observable<any> {
     return this.http.patch<any>(
       `${app_url}/api/v1/efiling/efiling-documents-index/${documentIndexId}/`,
       payload,
@@ -133,5 +146,21 @@ export class EfilingService {
 
   get_document_index_master(): Observable<any> {
     return this.http.get<any>(`${app_url}/api/v1/efiling/document-index/`);
+  }
+
+  post_ia_filing(payload: { e_filing: number; e_filing_number: string; ia_text: string }): Observable<any> {
+    return this.http.post<any>(`${app_url}/api/v1/efiling/ias/`, payload);
+  }
+
+  get_ias(): Observable<any> {
+    return this.http.get<any>(`${app_url}/api/v1/efiling/ias/`);
+  }
+
+  get_ia_by_id(id: number): Observable<any> {
+    return this.http.get<any>(`${app_url}/api/v1/efiling/ias/${id}/`);
+  }
+
+  get_ia_acts_by_ia_id(iaId: number): Observable<any> {
+    return this.http.get<any>(`${app_url}/api/v1/efiling/ia-acts/?ia=${iaId}`);
   }
 }

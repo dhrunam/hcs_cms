@@ -1,5 +1,13 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
+import {
+  Component,
+  EventEmitter,
+  Input,
+  OnChanges,
+  OnInit,
+  Output,
+  SimpleChanges,
+} from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
@@ -42,6 +50,7 @@ export class UploadDocuments implements OnInit, OnChanges {
 
   entries: DocumentUploadEntry[] = [];
   indexMasters: DocumentIndexMaster[] = [];
+  submitAttempted = false;
 
   constructor(private eFilingService: EfilingService) {}
 
@@ -71,6 +80,15 @@ export class UploadDocuments implements OnInit, OnChanges {
 
   onTopDocumentTypeInput(value: string) {
     this.form.patchValue({ document_type: value });
+  }
+
+  isDocumentTypeInvalid(): boolean {
+    const control = this.form?.get('document_type');
+    return !!control && control.invalid && (control.touched || control.dirty);
+  }
+
+  isFilesInvalid(): boolean {
+    return this.submitAttempted && this.entries.length === 0;
   }
 
   onFileChange(event: Event) {
@@ -142,6 +160,7 @@ export class UploadDocuments implements OnInit, OnChanges {
   }
 
   submit() {
+    this.submitAttempted = true;
     if (!this.canUpload()) return;
 
     const payload: UploadDocumentsPayload = {
@@ -154,6 +173,12 @@ export class UploadDocuments implements OnInit, OnChanges {
     };
     // console.log(payload);
     this.submitDoc.emit(payload);
+    this.submitAttempted = false;
+  }
+
+  isIndexNameInvalid(entry: DocumentUploadEntry): boolean {
+    if (!this.submitAttempted) return false;
+    return !entry.index_name || entry.index_name.trim().length === 0;
   }
 
   getFileProgress(index: number): number {

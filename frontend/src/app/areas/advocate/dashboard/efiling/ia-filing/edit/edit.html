@@ -1,0 +1,187 @@
+<div class="ia-filing-edit">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h5 class="mb-0">IA Filing Details</h5>
+    <a [routerLink]="['/advocate/dashboard/efiling/ia-filing/view']" class="btn btn-outline-dark btn-sm">
+      <i class="fa-solid fa-arrow-left me-1"></i>
+      Back to List
+    </a>
+  </div>
+
+  <div *ngIf="isLoading" class="card border-0 shadow-sm">
+    <div class="card-body p-4 text-muted small">Loading...</div>
+  </div>
+
+  <div *ngIf="notFound" class="card border-0 shadow-sm">
+    <div class="card-body py-5 text-center text-muted">
+      <i class="fa-solid fa-circle-exclamation fa-2x mb-3 d-block"></i>
+      <p class="mb-0">IA Filing not found.</p>
+      <a [routerLink]="['/advocate/dashboard/efiling/ia-filing/view']" class="btn btn-outline-dark btn-sm mt-3">
+        Back to List
+      </a>
+    </div>
+  </div>
+
+  <ng-container *ngIf="!isLoading && !notFound && ia">
+    <div class="card border-0 shadow-sm ia-tabs-card">
+      <div class="card-body p-0">
+        <ul class="nav ia-nav-tabs">
+          <li class="nav-item">
+            <button
+              type="button"
+              class="nav-link"
+              [class.active]="activeTab === 'filing'"
+              (click)="setActiveTab('filing')"
+            >
+              <i class="fa-solid fa-file-lines me-2"></i>
+              Filing Summary
+            </button>
+          </li>
+          <li class="nav-item">
+            <button
+              type="button"
+              class="nav-link"
+              [class.active]="activeTab === 'documents'"
+              (click)="setActiveTab('documents')"
+            >
+              <i class="fa-solid fa-folder-open me-2"></i>
+              Documents
+            </button>
+          </li>
+        </ul>
+
+        <div *ngIf="activeTab === 'filing'" class="filing-summary-body">
+          <!-- IA Filing Info -->
+          <div class="filing-summary-section">
+            <div class="filing-summary-section-title">
+              <i class="fa-solid fa-file-lines me-2"></i>
+              IA Filing Information
+            </div>
+            <div class="filing-summary-grid">
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">IA Filing No</span>
+                <span class="filing-summary-value">{{ ia.ia_number || '-' }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">E-Filing Number</span>
+                <span class="filing-summary-value filing-number">{{ ia.e_filing_number || '-' }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Status</span>
+                <span class="filing-summary-value">
+                  <span class="badge rounded-pill px-2 py-1" [ngClass]="ia.status === 'Submitted' ? 'bg-dark' : 'bg-secondary'">
+                    {{ ia.status || '-' }}
+                  </span>
+                </span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Created Date</span>
+                <span class="filing-summary-value">{{ ia.created_at ? (ia.created_at | date: 'dd MMM yyyy') : '-' }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Disposal Date</span>
+                <span class="filing-summary-value">{{ ia.disposal_date ? (ia.disposal_date | date: 'dd MMM yyyy') : '-' }}</span>
+              </div>
+            </div>
+            <div *ngIf="ia.ia_text" class="mt-3">
+              <span class="filing-summary-label d-block mb-1">Relief Sought</span>
+              <div class="p-3 bg-light rounded">{{ ia.ia_text }}</div>
+            </div>
+          </div>
+
+          <!-- E-Filing Details -->
+          <div *ngIf="filing" class="filing-summary-section">
+            <div class="filing-summary-section-title">
+              <i class="fa-solid fa-folder-open me-2"></i>
+              E-Filing Details
+            </div>
+            <div class="filing-summary-grid">
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Bench</span>
+                <span class="filing-summary-value">{{ filing.bench || '-' }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Case Type</span>
+                <span class="filing-summary-value">{{ filing.case_type?.type_name || '-' }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Petitioner</span>
+                <span class="filing-summary-value">{{ filing.petitioner_name || '-' }}</span>
+              </div>
+              <div class="filing-summary-item" *ngIf="caseDetails">
+                <span class="filing-summary-label">Cause of Action</span>
+                <span class="filing-summary-value">{{ caseDetails.cause_of_action || '-' }}</span>
+              </div>
+              <div class="filing-summary-item" *ngIf="caseDetails">
+                <span class="filing-summary-label">Date of Cause</span>
+                <span class="filing-summary-value">{{ caseDetails.date_of_cause_of_action ? (caseDetails.date_of_cause_of_action | date: 'dd MMM yyyy') : '-' }}</span>
+              </div>
+            </div>
+            <div *ngIf="litigants.length > 0" class="mt-3">
+              <span class="filing-summary-label d-block mb-1">Litigants</span>
+              <div class="d-flex gap-4 flex-wrap">
+                <div *ngIf="petitioners.length > 0">
+                  <span class="badge bg-dark me-1">Petitioners:</span>
+                  <span *ngFor="let p of petitioners; let i = index">{{ p.name }}{{ i < petitioners.length - 1 ? ', ' : '' }}</span>
+                </div>
+                <div *ngIf="respondents.length > 0">
+                  <span class="badge bg-secondary me-1">Respondents:</span>
+                  <span *ngFor="let r of respondents; let i = index">{{ r.name }}{{ i < respondents.length - 1 ? ', ' : '' }}</span>
+                </div>
+              </div>
+            </div>
+            <div *ngIf="acts.length > 0" class="mt-3">
+              <span class="filing-summary-label d-block mb-1">Acts & Sections (E-Filing)</span>
+              <span *ngFor="let act of acts; let i = index" class="badge bg-light text-dark border me-1 mb-1">
+                {{ getActName(act) }} - Sec {{ act.section || '-' }}
+              </span>
+            </div>
+            <div *ngIf="iaActs.length > 0" class="mt-3">
+              <span class="filing-summary-label d-block mb-1">IA Acts & Sections</span>
+              <span *ngFor="let act of iaActs; let i = index" class="badge bg-primary me-1 mb-1">
+                {{ getActName(act) }} - Sec {{ act.section || '-' }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="activeTab === 'documents'" class="document-summary-section">
+          <div *ngIf="groupedDocuments.length === 0" class="text-muted small text-center py-5">
+            No documents filed for this IA.
+          </div>
+          <div *ngIf="groupedDocuments.length > 0" class="row g-4">
+            <div class="col-xl-3">
+              <div class="document-list">
+                <div
+                  class="document-group"
+                  *ngFor="let group of groupedDocuments; trackBy: trackByGroupIndex"
+                >
+                  <div class="document-type-header">{{ group.document_type || 'Main Document' }}</div>
+                  <button
+                    type="button"
+                    class="document-item"
+                    *ngFor="let doc of group.items; trackBy: trackById"
+                    [class.document-item-active]="selectedDocument?.id === doc.id"
+                    (click)="selectDocument(doc)"
+                  >
+                    <div class="document-title">{{ doc.document_part_name || doc.document_type || 'Document' }}</div>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl-9">
+              <div *ngIf="selectedDocument">
+                <div class="preview-frame" *ngIf="selectedDocumentUrl; else noPreview">
+                  <iframe [src]="selectedDocumentUrl" title="Document preview"></iframe>
+                </div>
+                <ng-template #noPreview>
+                  <div class="preview-empty text-muted small">PDF preview will appear here once a file is available.</div>
+                </ng-template>
+              </div>
+              <div *ngIf="!selectedDocument" class="text-muted small">Select a document to preview.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+</div>

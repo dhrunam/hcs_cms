@@ -32,6 +32,21 @@ export class Litigant {
   ngOnInit() {
     this.get_organisation_list();
     this.get_state_list();
+    this.bindOrganisationToggle();
+  }
+
+  private bindOrganisationToggle() {
+    const orgCtrl = this.form?.get('is_organisation');
+    if (!orgCtrl) return;
+
+    orgCtrl.valueChanges.subscribe((isOrg) => {
+      if (isOrg) {
+        this.form.patchValue({ gender: '', age: '' }, { emitEvent: false });
+        return;
+      }
+
+      this.form.patchValue({ organization: '' }, { emitEvent: false });
+    });
   }
 
   delete_ligitant_details(id: number) {
@@ -48,11 +63,17 @@ export class Litigant {
     );
   }
 
+  get hasRequiredLitigants(): boolean {
+    const list = Array.isArray(this.litigantList) ? this.litigantList : [];
+    const hasPetitioner = list.some((item) => item.is_petitioner);
+    const hasRespondent = list.some((item) => !item.is_petitioner);
+    return hasPetitioner && hasRespondent;
+  }
+
   get_organisation_list() {
     this.organisationService.get_organisations().subscribe({
       next: (data) => {
-        this.organisations = data.results;
-        console.log(this.organisations);
+        this.organisations = Array.isArray(data?.results) ? data.results : data || [];
       },
     });
   }
@@ -60,7 +81,7 @@ export class Litigant {
   get_state_list() {
     this.stateService.get_states().subscribe({
       next: (data) => {
-        this.states = data.results;
+        this.states = Array.isArray(data?.results) ? data.results : data || [];
       },
     });
   }
@@ -76,7 +97,7 @@ export class Litigant {
   get_district_list_by_state_id(state_id: number) {
     this.stateService.get_district_by_state_id(state_id).subscribe({
       next: (data) => {
-        this.districts = data.results;
+        this.districts = Array.isArray(data?.results) ? data.results : data || [];
       },
     });
   }
