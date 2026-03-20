@@ -25,6 +25,29 @@
       <div class="card-body p-4 d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div>
           <h5 class="mb-1">{{ filing.case_type?.type_name || 'Case Type Pending' }} • {{ filing.e_filing_number || '-' }}</h5>
+          <div class="text-muted small">
+            Case Number:
+            <strong>{{ filing.case_number || 'Will be generated after final submit' }}</strong>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <span class="status-badge" [ngClass]="getStatusClass(filing.status)">
+            {{ getStatusLabel(filing.status) }}
+          </span>
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            (click)="submitApprovedFiling()"
+            [disabled]="!canSubmitApprovedFiling"
+          >
+            {{
+              isSubmittingApprovedCase
+                ? 'Submitting...'
+                : filing.case_number
+                  ? 'Submitted'
+                  : 'Submit'
+            }}
+          </button>
         </div>
       </div>
     </div>

@@ -18,6 +18,10 @@
       <div class="card-body p-4 d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div>
           <h5 class="mb-1">{{ filing.case_type?.type_name || 'Case Type Pending' }} • {{ filing.e_filing_number || '-' }}</h5>
+          <div class="text-muted small">
+            Case Number:
+            <strong>{{ filing.case_number || '-' }}</strong>
+          </div>
         </div>
 
         <span class="status-badge" [ngClass]="getStatusClass(filing.status)">

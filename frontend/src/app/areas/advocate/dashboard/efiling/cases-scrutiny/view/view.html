@@ -8,6 +8,7 @@
               <th>#</th>
               <th>Petitoner Name</th>
               <th>Filing No</th>
+              <th>Case No</th>
               <th>Case Type</th>
               <th>Contact No</th>
               <th>Filing Date</th>
@@ -24,6 +25,7 @@
               <td>{{ i + 1 }}</td>
               <td class="fw-medium text-dark">{{ c.petitioner_name }}</td>
               <td class="fw-medium text-success">{{ c.e_filing_number }}</td>
+              <td class="fw-medium">{{ c.case_number || '-' }}</td>
               <td>{{ c.case_type.type_name }}</td>
               <td>{{ c.petitioner_contact }}</td>
               <td>{{ c.created_at | date: 'dd MMMM, yyyy' }}</td>

@@ -15,6 +15,7 @@ from apps.efiling.views.efiling_litigant_views import (
 from apps.efiling.views.efiling_views import (
     EfilingListCreateView,
     EfilingRetrieveUpdateDestroyView,
+    EfilingSubmitApprovedView,
 )
 from apps.efiling.views.document_index_views import (
     DocumentIndexListCreateView,
@@ -62,6 +63,11 @@ urlpatterns = [
         "efilings/<int:pk>/",
         EfilingRetrieveUpdateDestroyView.as_view(),
         name="efiling-detail",
+    ),
+    path(
+        "efilings/<int:pk>/submit-approved/",
+        EfilingSubmitApprovedView.as_view(),
+        name="efiling-submit-approved",
     ),
     path(
         "ias/",

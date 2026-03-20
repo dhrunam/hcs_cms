@@ -1,7 +1,10 @@
+from django.shortcuts import get_object_or_404
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from apps.core.models import Efiling
 from apps.efiling.serializers.efiling_serializers import EfilingSerializer
-from apps.efiling.review_utils import derive_filing_status, submit_documents_for_scrutiny
+from apps.efiling.review_utils import derive_filing_status, finalize_approved_filing, submit_documents_for_scrutiny
 
  
 class EfilingListCreateView(ListCreateAPIView):
@@ -51,5 +54,15 @@ class EfilingRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
             derive_filing_status(filing)
 
         return response
+
+
+class EfilingSubmitApprovedView(APIView):
+    def post(self, request, pk):
+        filing = get_object_or_404(Efiling.objects.all(), pk=pk)
+        filing = finalize_approved_filing(
+            filing,
+            user=request.user if request.user.is_authenticated else None,
+        )
+        return Response(EfilingSerializer(filing).data)
 
 
