@@ -228,6 +228,7 @@ class Efiling(BaseModel):
     petitioner_name = models.CharField(max_length=300, blank=True, null=True)
     petitioner_contact = models.CharField(max_length=10, blank=True, null=True)
     e_filing_number = models.CharField(max_length=100, unique=True, blank=True, null=True) # Should be genrated at last submission step and should be unique.
+    case_number = models.CharField(max_length=120, unique=True, blank=True, null=True)
     is_draft = models.BooleanField(default=True)
     status = models.CharField(max_length=50, blank=True, null=True) # e.g., DRAFT, SUBMITTED, ACCEPTED, REJECTED, etc.
     accepted_at = models.DateTimeField(blank=True, null=True)
@@ -259,6 +260,12 @@ class Efiling(BaseModel):
                 self.e_filing_number = f"ASK2024{seq7}C{current_year}{seq5}"
 
         super().save(*args, **kwargs)
+
+    def build_case_number(self) -> str:
+        filing_number = (self.e_filing_number or "").strip()
+        if not filing_number:
+            raise ValueError("E-filing number is required before generating a case number.")
+        return f"CASE-{filing_number}"
 
 class DocumentIndex(BaseModel):
     name=models.CharField(max_length=215, null=False, blank=False)

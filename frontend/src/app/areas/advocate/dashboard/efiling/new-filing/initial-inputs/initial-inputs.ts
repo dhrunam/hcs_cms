@@ -22,7 +22,7 @@ export class InitialInputs {
   get_case_types() {
     this.caseTypeService.get_case_types().subscribe({
       next: (data) => {
-        this.case_types = data.results;
+        this.case_types = data;
       },
     });
   }

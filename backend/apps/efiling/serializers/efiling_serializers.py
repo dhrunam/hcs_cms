@@ -25,6 +25,7 @@ class EfilingSerializer(serializers.ModelSerializer):
             'petitioner_name',
             'petitioner_contact',
             'e_filing_number',
+            'case_number',
             'is_draft',
             'status',
             'accepted_at',
@@ -34,7 +35,15 @@ class EfilingSerializer(serializers.ModelSerializer):
             'created_by',
             'updated_by',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = [
+            'id',
+            'e_filing_number',
+            'case_number',
+            'status',
+            'accepted_at',
+            'created_at',
+            'updated_at',
+        ]
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

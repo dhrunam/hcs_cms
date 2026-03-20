@@ -51,4 +51,59 @@
       </div>
     </div>
   </div>
+
+  <div class="card border-1 rounded-4 mt-4">
+    <div class="card-body">
+      <h6 class="fw-semibold mb-3">Registered Cases</h6>
+
+      <div *ngIf="!isLoading && registeredCases.length === 0" class="text-muted small py-4">
+        No registered cases found yet.
+      </div>
+
+      <div *ngIf="!isLoading && registeredCases.length > 0" class="table-responsive">
+        <table class="table align-middle mb-0 table-hover">
+          <thead style="background-color: #f1f5f9">
+            <tr class="text-secondary small fw-normal">
+              <th>#</th>
+              <th>Petitioner Name</th>
+              <th>Filing No</th>
+              <th>Case No</th>
+              <th>Case Type</th>
+              <th>Contact No</th>
+              <th>Filing Date</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+
+          <tbody class="text-muted small">
+            <tr
+              *ngFor="let filing of registeredCases; let i = index"
+              style="border-bottom: 1px solid #e5e7eb; cursor: pointer"
+              [routerLink]="['/scrutiny-officers/dashboard/filed-cases/details', filing.id]"
+            >
+              <td>{{ i + 1 }}</td>
+              <td class="fw-medium text-dark">{{ filing.petitioner_name || '-' }}</td>
+              <td class="fw-medium text-success">{{ filing.e_filing_number || '-' }}</td>
+              <td class="fw-medium">{{ filing.case_number || '-' }}</td>
+              <td>{{ filing.case_type?.type_name || '-' }}</td>
+              <td>{{ filing.petitioner_contact || '-' }}</td>
+              <td>{{ filing.created_at | date: 'dd MMMM, yyyy' }}</td>
+              <td>{{ getStatusLabel(filing.status) }}</td>
+              <td>
+                <a
+                  [routerLink]="['/scrutiny-officers/dashboard/filed-cases/details', filing.id]"
+                  class="text-decoration-none small"
+                  style="color: #2563eb; font-weight: 500"
+                >
+                  <i class="fa-regular fa-eye me-1"></i>
+                  View
+                </a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </section>

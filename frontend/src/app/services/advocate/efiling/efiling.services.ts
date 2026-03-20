@@ -60,6 +60,10 @@ export class EfilingService {
     return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/${id}/`);
   }
 
+  submit_approved_filing(id: number): Observable<any> {
+    return this.http.post<any>(`${app_url}/api/v1/efiling/efilings/${id}/submit-approved/`, {});
+  }
+
   get_litigant_list_by_filing_id(id: number): Observable<any> {
     console.log(`${app_url}/api/v1/efiling/efiling-litigants/?efiling_id=${id}`);
     return this.http.get<any>(`${app_url}/api/v1/efiling/efiling-litigants/?efiling_id=${id}`);
