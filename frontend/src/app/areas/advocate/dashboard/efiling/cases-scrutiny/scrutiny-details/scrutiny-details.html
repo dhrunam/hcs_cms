@@ -401,68 +401,141 @@
       </div>
         </div>
         <div *ngIf="activeTab === 'ia' && iaList.length > 0" class="ia-tab-content">
-          <div class="filing-summary-section filing-summary-body">
-            <div class="filing-summary-section-title">
-              <i class="fa-solid fa-file-contract me-2"></i>
-              Interlocutory Applications
-            </div>
-            <div class="ia-list">
-              <div class="ia-card" *ngFor="let ia of iaList; trackBy: trackById">
-                <div class="ia-card-header">
-                  <div>
-                    <span class="ia-number filing-number">{{ ia.ia_number || '-' }}</span>
-                    <span class="badge rounded-pill px-2 py-1 ms-2" [ngClass]="ia.status ? 'bg-dark' : 'bg-secondary'">
-                      {{ ia.status || 'Pending' }}
-                    </span>
+          <div class="accordion" id="iaAccordion">
+            <div
+              class="accordion-item"
+              *ngFor="let item of iaWithDocuments; let i = index; trackBy: trackByIaItem"
+            >
+              <h2 class="accordion-header">
+                <button
+                  class="accordion-button collapsed"
+                  type="button"
+                  [attr.data-bs-toggle]="'collapse'"
+                  [attr.data-bs-target]="'#ia-collapse-' + item.ia.id"
+                  [attr.aria-expanded]="false"
+                  [attr.aria-controls]="'ia-collapse-' + item.ia.id"
+                >
+                  <span class="ia-number filing-number me-2">{{ item.ia.ia_number || '-' }}</span>
+                  <span class="badge rounded-pill px-2 py-1 me-2" [ngClass]="getIaStatusBadgeClass(item.ia.status)">
+                    {{ item.ia.status || 'Pending' }}
+                  </span>
+                  <span class="text-muted small">({{ item.documents.length }} document{{ item.documents.length !== 1 ? 's' : '' }})</span>
+                </button>
+              </h2>
+              <div
+                [id]="'ia-collapse-' + item.ia.id"
+                class="accordion-collapse collapse"
+                data-bs-parent="#iaAccordion"
+              >
+                <div class="accordion-body">
+                  <div class="ia-accordion-details mb-4">
+                    <div *ngIf="item.ia.ia_text" class="mb-3">
+                      <span class="filing-summary-label d-block mb-1">Relief Sought</span>
+                      <div class="ia-text">{{ item.ia.ia_text }}</div>
+                    </div>
+                    <div class="ia-card-meta text-muted small">
+                      <span *ngIf="item.ia.created_at">Created: {{ item.ia.created_at | date: 'dd MMM yyyy' }}</span>
+                      <span *ngIf="item.ia.disposal_date" class="ms-3">Disposal: {{ item.ia.disposal_date | date: 'dd MMM yyyy' }}</span>
+                    </div>
                   </div>
-                </div>
-                <div class="ia-card-body" *ngIf="ia.ia_text">
-                  <span class="filing-summary-label d-block mb-1">Relief Sought</span>
-                  <div class="ia-text">{{ ia.ia_text }}</div>
-                </div>
-                <div class="ia-card-meta text-muted small mt-2">
-                  <span *ngIf="ia.created_at">Created: {{ ia.created_at | date: 'dd MMM yyyy' }}</span>
-                  <span *ngIf="ia.disposal_date" class="ms-3">Disposal: {{ ia.disposal_date | date: 'dd MMM yyyy' }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="filing-summary-section" *ngIf="groupedIaDocuments.length > 0">
-            <div class="filing-summary-section-title">
-              <i class="fa-solid fa-folder-open me-2"></i>
-              IA Filed Documents
-            </div>
-            <div class="row g-4">
-              <div class="col-xl-3">
-                <div class="card border-0 shadow-sm h-100">
-                  <div class="card-body p-4">
-                    <div class="document-list">
-                      <div
-                        class="document-group"
-                        *ngFor="let group of groupedIaDocuments; trackBy: trackByGroupIndex"
-                      >
-                        <div class="document-type-header">{{ group.document_type || 'Main Document' }}</div>
-                        <div
-                          *ngFor="let doc of group.items; trackBy: trackById"
-                          class="document-item"
-                          [class.document-item-active]="selectedIaDocument?.id === doc.id"
-                          (click)="selectIaDocument(doc)"
-                          role="button"
-                          tabindex="0"
-                          (keydown.enter)="selectIaDocument(doc)"
-                          (keydown.space)="selectIaDocument(doc); $event.preventDefault()"
-                        >
-                          <div class="d-flex justify-content-between align-items-start gap-2">
-                            <div class="document-title">{{ doc.document_part_name || getDocumentFileLabel(doc) }}</div>
-                            <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end" (click)="$event.stopPropagation()">
-                              <span
-                                class="status-badge status-badge-sm"
-                                [ngClass]="getStatusClass(doc.scrutiny_status)"
+                  <div class="ia-accordion-docs" *ngIf="item.groupedDocs.length > 0">
+                    <div class="row g-4">
+                      <div class="col-xl-3">
+                        <div class="card border-0 shadow-sm h-100">
+                          <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                              <div class="section-title">IA Documents</div>
+                              <span class="small text-muted">{{ item.documents.length }} total</span>
+                            </div>
+                            <div class="document-list">
+                              <div
+                                class="document-group"
+                                *ngFor="let group of item.groupedDocs; trackBy: trackByGroupIndex"
                               >
-                                {{ getStatusLabel(doc.scrutiny_status) }}
-                              </span>
+                                <div class="document-type-header">{{ group.document_type || 'Main Document' }}</div>
+                                <div
+                                  *ngFor="let doc of group.items; trackBy: trackById"
+                                  class="document-item"
+                                  [class.document-item-active]="selectedIaDocument?.id === doc.id"
+                                  (click)="selectIaDocument(doc)"
+                                  role="button"
+                                  tabindex="0"
+                                  (keydown.enter)="selectIaDocument(doc)"
+                                  (keydown.space)="selectIaDocument(doc); $event.preventDefault()"
+                                >
+                                  <div class="d-flex justify-content-between align-items-start gap-2">
+                                    <div class="document-title">{{ doc.document_part_name || getDocumentFileLabel(doc) }}</div>
+                                    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end" (click)="$event.stopPropagation()">
+                                      <span class="status-badge status-badge-sm" [ngClass]="getStatusClass(doc.scrutiny_status)">
+                                        {{ getStatusLabel(doc.scrutiny_status) }}
+                                      </span>
+                                      <input
+                                        #iaRowReplaceInput
+                                        type="file"
+                                        accept="application/pdf"
+                                        hidden
+                                        (change)="addPendingReplacement($event)"
+                                      />
+                                      <button
+                                        type="button"
+                                        class="btn btn-danger btn-sm"
+                                        *ngIf="canReplaceIa(doc)"
+                                        [disabled]="isReplacing"
+                                        (click)="startReplaceIa(doc, iaRowReplaceInput, $event)"
+                                      >
+                                        {{ hasPendingReplacement(doc.id) ? 'Change file' : 'Select file' }}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        class="btn btn-outline-primary btn-sm"
+                                        *ngIf="canReplaceIa(doc) && hasPendingReplacement(doc.id)"
+                                        (click)="viewPendingFile(doc.id)"
+                                      >
+                                        <i class="fa fa-eye"></i> View
+                                      </button>
+                                      <button
+                                        type="button"
+                                        class="btn btn-outline-secondary btn-sm"
+                                        *ngIf="canReplaceIa(doc) && hasPendingReplacement(doc.id)"
+                                        [disabled]="isReplacing"
+                                        (click)="removePendingReplacement(doc.id)"
+                                      >
+                                        Clear
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-xl-9">
+                        <div class="card border-0 shadow-sm h-100">
+                          <div class="card-body" *ngIf="selectedIaDocumentBelongsToIa(item)">
+                            <div class="alert alert-light border small mb-3" *ngIf="canReplaceIa(selectedIaDocument)">
+                              This document was rejected during scrutiny. Upload a fresh PDF to send it back for review.
+                            </div>
+                            <div class="d-flex justify-content-end mb-2 flex-wrap gap-2">
+                              <button
+                                type="button"
+                                class="btn btn-danger btn-sm"
+                                *ngIf="pendingReplacements.length > 0"
+                                [disabled]="isReplacing"
+                                (click)="submitAllReplacements()"
+                              >
+                                {{ isReplacing ? 'Replacing...' : 'Submit All Replacements (' + pendingReplacements.length + ')' }}
+                              </button>
+                              <button
+                                type="button"
+                                class="btn btn-outline-primary btn-sm"
+                                *ngIf="selectedIaDocument && hasPendingReplacement(selectedIaDocument.id)"
+                                (click)="viewPendingFile(selectedIaDocument.id)"
+                              >
+                                <i class="fa fa-eye me-1"></i> View selected file
+                              </button>
                               <input
-                                #iaRowReplaceInput
+                                #iaPopupReplaceInput
                                 type="file"
                                 accept="application/pdf"
                                 hidden
@@ -470,99 +543,38 @@
                               />
                               <button
                                 type="button"
-                                class="btn btn-danger btn-sm"
-                                *ngIf="canReplaceIa(doc)"
-                                [disabled]="isReplacing"
-                                (click)="startReplaceIa(doc, iaRowReplaceInput, $event)"
+                                class="btn btn-outline-danger btn-sm"
+                                *ngIf="canReplaceIa(selectedIaDocument) && !hasPendingReplacement(selectedIaDocument.id)"
+                                (click)="startReplaceIa(selectedIaDocument, iaPopupReplaceInput, $event)"
                               >
-                                {{ hasPendingReplacement(doc.id) ? 'Change file' : 'Select file' }}
-                              </button>
-                              <button
-                                type="button"
-                                class="btn btn-outline-primary btn-sm"
-                                *ngIf="canReplaceIa(doc) && hasPendingReplacement(doc.id)"
-                                (click)="viewPendingFile(doc.id)"
-                              >
-                                <i class="fa fa-eye"></i> View
+                                Select replacement file
                               </button>
                               <button
                                 type="button"
                                 class="btn btn-outline-secondary btn-sm"
-                                *ngIf="canReplaceIa(doc) && hasPendingReplacement(doc.id)"
-                                [disabled]="isReplacing"
-                                (click)="removePendingReplacement(doc.id)"
+                                *ngIf="canReplaceIa(selectedIaDocument) && hasPendingReplacement(selectedIaDocument.id)"
+                                (click)="removePendingReplacement(selectedIaDocument.id)"
                               >
-                                Clear
+                                Clear selected file
                               </button>
                             </div>
+                            <div class="preview-frame" *ngIf="selectedIaDocumentUrl; else noPreviewIa">
+                              <iframe [src]="selectedIaDocumentUrl" title="IA document preview"></iframe>
+                            </div>
+                          </div>
+                          <div class="card-body p-4 text-muted small" *ngIf="!selectedIaDocumentBelongsToIa(item)">
+                            Select a document to view or replace.
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
-              <div class="col-xl-9">
-                <div class="card border-0 shadow-sm">
-                  <div class="card-body p-4" *ngIf="selectedIaDocument">
-                    <div class="alert alert-light border small mb-3" *ngIf="canReplaceIa(selectedIaDocument)">
-                      This document was rejected during scrutiny. Upload a fresh PDF to send it back for review.
-                    </div>
-                    <div class="d-flex justify-content-end mb-2 flex-wrap gap-2">
-                      <button
-                        type="button"
-                        class="btn btn-danger btn-sm"
-                        *ngIf="pendingReplacements.length > 0"
-                        [disabled]="isReplacing"
-                        (click)="submitAllReplacements()"
-                      >
-                        {{ isReplacing ? 'Replacing...' : 'Submit All Replacements (' + pendingReplacements.length + ')' }}
-                      </button>
-                      <button
-                        type="button"
-                        class="btn btn-outline-primary btn-sm"
-                        *ngIf="selectedIaDocument && hasPendingReplacement(selectedIaDocument.id)"
-                        (click)="viewPendingFile(selectedIaDocument.id)"
-                      >
-                        <i class="fa fa-eye me-1"></i> View selected file
-                      </button>
-                      <input
-                        #iaPopupReplaceInput
-                        type="file"
-                        accept="application/pdf"
-                        hidden
-                        (change)="addPendingReplacement($event)"
-                      />
-                      <button
-                        type="button"
-                        class="btn btn-outline-danger btn-sm"
-                        *ngIf="canReplaceIa(selectedIaDocument) && !hasPendingReplacement(selectedIaDocument.id)"
-                        (click)="startReplaceIa(selectedIaDocument, iaPopupReplaceInput, $event)"
-                      >
-                        Select replacement file
-                      </button>
-                      <button
-                        type="button"
-                        class="btn btn-outline-secondary btn-sm"
-                        *ngIf="canReplaceIa(selectedIaDocument) && hasPendingReplacement(selectedIaDocument.id)"
-                        (click)="removePendingReplacement(selectedIaDocument.id)"
-                      >
-                        Clear selected file
-                      </button>
-                    </div>
-                    <div class="preview-frame" *ngIf="selectedIaDocumentUrl; else noPreviewIa">
-                      <iframe [src]="selectedIaDocumentUrl" title="IA document preview"></iframe>
-                    </div>
-                  </div>
-                  <div class="card-body p-4 text-muted small" *ngIf="!selectedIaDocument">
-                    Select a document to preview.
+                  <div *ngIf="item.groupedDocs.length === 0" class="ia-no-docs text-muted small p-4">
+                    No documents filed for this IA yet.
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-          <div *ngIf="groupedIaDocuments.length === 0" class="filing-summary-section filing-summary-body">
-            <div class="text-muted small">No IA documents filed yet.</div>
           </div>
         </div>
       </div>

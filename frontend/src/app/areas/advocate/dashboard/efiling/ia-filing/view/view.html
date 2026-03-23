@@ -47,8 +47,8 @@
               <td class="fw-medium text-dark">{{ item.e_filing_number || '-' }}</td>
               <td>{{ item.ia_text || '-' }}</td>
               <td>
-                <span class="badge rounded-pill px-2 py-1 clean-badge">
-                  {{ item.status || '-' }}
+                <span class="badge rounded-pill px-2 py-1" [ngClass]="getStatusBadgeClass(item.status)">
+                  {{ getStatusLabel(item.status) || '-' }}
                 </span>
               </td>
               <td>{{ item.created_at | date: 'dd MMM yyyy' }}</td>

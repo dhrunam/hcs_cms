@@ -114,9 +114,9 @@
                 <span
                   class="badge rounded-pill px-2 py-1 fw-normal"
                   [ngClass]="{
-                    'status-warning': getStatusTone(filing.status) === 'warning',
-                    'status-success': getStatusTone(filing.status) === 'success',
-                    'status-danger': getStatusTone(filing.status) === 'danger'
+                    'status-badge-warning': getStatusTone(filing.status) === 'warning',
+                    'status-badge-success': getStatusTone(filing.status) === 'success',
+                    'status-badge-danger': getStatusTone(filing.status) === 'danger'
                   }"
                 >
                   {{ getStatusLabel(filing.status) }}
