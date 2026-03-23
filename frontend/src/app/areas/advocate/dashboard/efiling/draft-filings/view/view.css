@@ -1,3 +1,66 @@
+.clean-view {
+  --clean-ink: #1f2937;
+  --clean-muted: #6b7280;
+  --clean-border: #e5e7eb;
+}
 
-  
-  
+.clean-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.clean-title {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--clean-ink);
+}
+
+.clean-subtitle {
+  font-size: 0.8rem;
+  color: var(--clean-muted);
+}
+
+.clean-card {
+  background: #ffffff;
+  border: none;
+  border-radius: 18px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.clean-table thead th {
+  background: #f9fafb;
+  color: #6b7280;
+  border-bottom: 1px solid var(--clean-border);
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
+.clean-table tbody td {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.clean-table tbody td:nth-child(n + 2) {
+  font-weight: 400;
+}
+
+.clean-table tbody tr {
+  border-bottom: 1px solid #eef2f7;
+}
+
+.clean-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.clean-btn-outline {
+  background: transparent;
+  color: #1f2937;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 4px 10px;
+  font-weight: 500;
+  font-size: 0.8rem;
+}

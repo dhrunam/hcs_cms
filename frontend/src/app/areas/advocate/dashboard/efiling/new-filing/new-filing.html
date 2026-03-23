@@ -86,7 +86,6 @@
           [class.btn-dark]="!step2Saved"
           [class.btn-success]="step2Saved"
           (click)="!step2Saved && saveStep2()"
-          [disabled]="litigantsForm.invalid"
         >
           <i class="fa-regular fa-plus" *ngIf="!step2Saved"></i>
           <i class="fa-solid fa-check" *ngIf="step2Saved"></i>
