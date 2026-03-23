@@ -103,17 +103,17 @@ export class FiledCasesView {
 
   getStatusTone(status: string | null): 'warning' | 'success' | 'danger' {
     const normalizedStatus = (status ?? '').trim().toLowerCase();
-    if (!normalizedStatus || normalizedStatus === 'submitted' || normalizedStatus === 'UNDER_SCRUTINY') {
+    if (!normalizedStatus || normalizedStatus === 'submitted' || normalizedStatus === 'under_scrutiny') {
       return 'warning';
     }
-    if (normalizedStatus.includes('ACCEPTED')) {
+    if (normalizedStatus.includes('accepted')) {
       return 'success';
     }
     if (
-      normalizedStatus.includes('PARTIALLY') ||
-      normalizedStatus.includes('REJECTED') ||
-      normalizedStatus.includes('OBJECT') ||
-      normalizedStatus.includes('DEFECT')
+      normalizedStatus.includes('partially') ||
+      normalizedStatus.includes('rejected') ||
+      normalizedStatus.includes('object') ||
+      normalizedStatus.includes('defect')
     ) {
       return 'danger';
     }

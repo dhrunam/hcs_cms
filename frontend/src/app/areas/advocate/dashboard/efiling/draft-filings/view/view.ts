@@ -45,7 +45,7 @@ export class View {
     this.eFilingService.get_filings_under_draft().subscribe({
       next: (data) => {
         this.filingsUnderDraft = data.results;
-        console.log(this.filingsUnderDraft);
+        console.log('Filings in draft is', this.filingsUnderDraft);
       },
     });
   }

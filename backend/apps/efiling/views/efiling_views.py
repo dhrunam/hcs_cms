@@ -42,7 +42,12 @@ class EfilingListCreateView(ListCreateAPIView):
         if is_draft is not None:
             qs = qs.filter(is_draft=is_draft)
         if status is not None:
-            qs = qs.filter(status=status)
+            # typo handling: ACCPETED -> ACCEPTED.
+            if status.strip().upper() == 'ACCEPTED':
+                qs = qs.filter(status='ACCEPTED')
+            else:
+                # all non-accepted records for any other status value.
+                qs = qs.exclude(status='ACCEPTED')
         return qs
 
 
