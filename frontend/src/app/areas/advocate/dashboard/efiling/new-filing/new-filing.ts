@@ -580,9 +580,9 @@ export class NewFiling {
           case_type: record.case_type || '',
           petitioner_name: record.petitioner_name || '',
           petitioner_contact: record.petitioner_contact || '',
-          e_filing_number: record.e_filing_number || this.eFilingNumber,
+          e_filing_number: this.eFilingNumber || record.e_filing_number,
         });
-        if (record.e_filing_number) {
+        if (!this.eFilingNumber && record.e_filing_number) {
           this.eFilingNumber = record.e_filing_number;
         }
         this.step1Saved = true;

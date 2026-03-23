@@ -53,12 +53,10 @@ export class EfilingService {
   }
 
   get_filings_under_scrutiny(): Observable<any> {
-    return this.http.get<any>(
-      `${app_url}/api/v1/efiling/efilings/?is_draft=false&status=UNDER_SCRUTINY`,
-    );
+    return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/?is_draft=false`);
   }
   get_approved_cases(): Observable<any> {
-    return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/?is_draft=false&status=Accepted`);
+    return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/?is_draft=false&status=ACCEPTED`);
   }
 
   get_filings_under_draft(): Observable<any> {
@@ -66,11 +64,12 @@ export class EfilingService {
   }
 
   get_filing_by_id(id: number): Observable<any> {
+    console.log(`${app_url}/api/v1/efiling/efilings/${id}/`);
     return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/${id}/`);
   }
 
   get_filing_by_efiling_id(id: number): Observable<any> {
-    return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/?e_filing_id=${id}`);
+    return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/${id}`);
   }
 
   submit_approved_filing(id: number): Observable<any> {

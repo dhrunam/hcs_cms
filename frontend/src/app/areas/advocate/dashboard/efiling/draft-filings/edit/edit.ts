@@ -153,8 +153,11 @@ export class Edit {
   ngOnInit() {
     this.route.queryParams.subscribe((params) => {
       const idParam = params['id'] ?? params['efiling_id'] ?? params['e_filing_id'];
+      // alert(idParam);
       this.filingId = Number(idParam || 0) || null;
+      // alert(this.filingId);
       this.eFilingNumber = params['e_filing_number'] || this.eFilingNumber;
+      alert(this.eFilingNumber);
       this.get_litigant_list_by_filing_id();
       if (this.filingId) {
         this.loadInitialInputs();
@@ -623,18 +626,20 @@ export class Edit {
   private loadInitialInputs() {
     this.eFilingService.get_filing_by_efiling_id(this.filingId || 0).subscribe({
       next: (data) => {
+        console.log('I am here', data);
         const record = Array.isArray(data?.results) ? data.results[0] : data;
         if (!record) return;
 
         this.filingData = record;
+        console.log('Filing data is ', this.filingData);
         this.initialInputsForm.patchValue({
           bench: record.bench || 'High Court Of Sikkim',
           case_type: record.case_type || '',
           petitioner_name: record.petitioner_name || '',
           petitioner_contact: record.petitioner_contact || '',
-          e_filing_number: record.e_filing_number || this.eFilingNumber,
+          e_filing_number: this.eFilingNumber || record.e_filing_number,
         });
-        if (record.e_filing_number) {
+        if (!this.eFilingNumber && record.e_filing_number) {
           this.eFilingNumber = record.e_filing_number;
         }
         this.step1Saved = true;
