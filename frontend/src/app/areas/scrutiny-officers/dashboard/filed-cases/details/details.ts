@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
+import Swal from 'sweetalert2';
 import { EfilingService } from '../../../../../services/advocate/efiling/efiling.services';
 
 @Component({
@@ -198,17 +199,30 @@ export class FiledCaseDetails {
       return;
     }
 
-    this.isSubmittingApprovedCase = true;
-    this.efilingService.submit_approved_filing(this.filingId).subscribe({
-      next: (filing) => {
-        this.isSubmittingApprovedCase = false;
-        this.filing = filing;
-        this.loadWorkspace(this.filingId!);
-      },
-      error: (error) => {
-        console.error('Failed to submit approved filing', error);
-        this.isSubmittingApprovedCase = false;
-      },
+    Swal.fire({
+      title: 'Submit Review?',
+      text: 'Are you sure you want to submit this scrutiny review?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, Submit',
+      cancelButtonText: 'Cancel',
+    }).then((result) => {
+      if (!result.isConfirmed) {
+        return;
+      }
+
+      this.isSubmittingApprovedCase = true;
+      this.efilingService.submit_approved_filing(this.filingId!).subscribe({
+        next: (filing) => {
+          this.isSubmittingApprovedCase = false;
+          this.filing = filing;
+          this.loadWorkspace(this.filingId!);
+        },
+        error: (error) => {
+          console.error('Failed to submit approved filing', error);
+          this.isSubmittingApprovedCase = false;
+        },
+      });
     });
   }
 
@@ -497,6 +511,49 @@ export class FiledCaseDetails {
     return this.getDocumentTitle(document);
   }
 
+  getIaReliefStatus(item: { ia: any; documents: any[] }): 'ACCEPTED' | 'REJECTED' | 'PENDING' {
+    const savedStatus = this.getNormalizedStatus(item?.ia?.status);
+    if (savedStatus.includes('accept')) {
+      return 'ACCEPTED';
+    }
+    if (savedStatus.includes('reject') || savedStatus.includes('object')) {
+      return 'REJECTED';
+    }
+
+    const docs = item?.documents ?? [];
+    if (!docs.length) {
+      return 'PENDING';
+    }
+
+    const allAccepted = docs.every((doc) => this.getStatusTone(this.getEffectiveReviewStatus(doc)) === 'success');
+    if (allAccepted) {
+      return 'ACCEPTED';
+    }
+
+    const hasRejected = docs.some((doc) => this.getStatusTone(this.getEffectiveReviewStatus(doc)) === 'danger');
+    if (hasRejected) {
+      return 'REJECTED';
+    }
+
+    return 'PENDING';
+  }
+
+  getIaReliefStatusLabel(item: { ia: any; documents: any[] }): string {
+    const status = this.getIaReliefStatus(item);
+    if (status === 'PENDING') {
+      return 'Pending';
+    }
+    return this.getStatusLabel(status);
+  }
+
+  getIaReliefStatusClass(item: { ia: any; documents: any[] }): string {
+    const status = this.getIaReliefStatus(item);
+    if (status === 'PENDING') {
+      return 'status-badge-warning';
+    }
+    return this.getStatusClass(status);
+  }
+
   get iaWithDocuments(): Array<{
     ia: any;
     documents: any[];
@@ -524,11 +581,15 @@ export class FiledCaseDetails {
     return item.documents.some((d) => d?.id === this.selectedIaDocument?.id);
   }
 
-  isIaDocumentAccepted(doc: any): boolean {
+  isDocumentAccepted(doc: any): boolean {
     if (!doc) return false;
     const status = doc?.draft_scrutiny_status || doc?.scrutiny_status || '';
     const norm = (status ?? '').trim().toLowerCase();
     return norm.includes('accept');
+  }
+
+  isIaDocumentAccepted(doc: any): boolean {
+    return this.isDocumentAccepted(doc);
   }
   private applyReviewedDocument(updatedDocument: any): void {
     if (!updatedDocument?.id) {
@@ -600,7 +661,19 @@ export class FiledCaseDetails {
       return this.allDocumentsReviewed;
     }
 
-    return this.allReviewCycleItemsReviewed;
+    // For already-registered cases, keep submit active throughout the
+    // new review cycle (pending or already reviewed items), until submit.
+    return this.hasReviewCycleItems;
+  }
+
+  get submitReviewButtonLabel(): string {
+    if (this.isSubmittingApprovedCase) {
+      return 'Submitting...';
+    }
+    if (this.isCaseRegistered) {
+      return this.hasReviewCycleItems ? 'Submit New Review' : 'Submitted';
+    }
+    return 'Submit Review';
   }
 
   private isPendingDraftReview(document: any): boolean {
@@ -640,6 +713,10 @@ export class FiledCaseDetails {
 
   private get hasPendingReviewItems(): boolean {
     return this.reviewCycleDocuments.some((document) => this.isPendingDraftReview(document));
+  }
+
+  private get hasReviewCycleItems(): boolean {
+    return this.reviewCycleDocuments.length > 0;
   }
 
   private get allReviewCycleItemsReviewed(): boolean {
