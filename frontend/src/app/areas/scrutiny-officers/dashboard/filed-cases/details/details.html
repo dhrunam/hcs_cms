@@ -1,9 +1,6 @@
 <div class="details-page">
   <div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-3 mb-2">
-    <a
-      [routerLink]="['/scrutiny-officers/dashboard/filed-cases/view']"
-      class="btn btn-light border btn-sm"
-    >
+    <a [routerLink]="['/scrutiny-officers/dashboard/filed-cases/view']" class="btn btn-light border btn-sm">
       <i class="fa-solid fa-arrow-left"></i>
       Back
     </a>
@@ -16,13 +13,8 @@
   <div *ngIf="!isLoading && missingFilingId" class="card border-0 shadow-sm">
     <div class="card-body p-4 text-center">
       <h6 class="mb-2">Select a filed case first</h6>
-      <p class="text-muted small mb-3">
-        Open this page from the filed cases list to review a case.
-      </p>
-      <a
-        [routerLink]="['/scrutiny-officers/dashboard/filed-cases/view']"
-        class="btn btn-outline-primary btn-sm"
-      >
+      <p class="text-muted small mb-3">Open this page from the filed cases list to review a case.</p>
+      <a [routerLink]="['/scrutiny-officers/dashboard/filed-cases/view']" class="btn btn-outline-primary btn-sm">
         Go to Filed Cases
       </a>
     </div>
@@ -32,10 +24,7 @@
     <div class="card border-0 shadow-sm overview-card mb-3">
       <div class="card-body p-4 d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div>
-          <h5 class="mb-1">
-            {{ filing.case_type?.type_name || 'Case Type Pending' }} •
-            {{ filing.e_filing_number || '-' }}
-          </h5>
+          <h5 class="mb-1">{{ filing.case_type?.type_name || 'Case Type Pending' }} • {{ filing.e_filing_number || '-' }}</h5>
           <div class="text-muted small">
             Case Number:
             <strong>{{ filing.case_number || 'Will be generated after final submit' }}</strong>
@@ -60,6 +49,7 @@
             }}
           </button>
         </div>
+      
       </div>
     </div>
     <div class="card border-0 shadow-sm scrutiny-tabs-card">
@@ -102,262 +92,228 @@
       </div>
       <div class="card-body p-0">
         <div *ngIf="activeTab === 'filing'" class="file-summary-section filing-summary-body">
-          <div class="filing-summary-section">
-            <div class="filing-summary-section-title">
-              <i class="fa-solid fa-file-lines me-2"></i>
-              Filing Information
-            </div>
-            <div class="filing-summary-grid">
-              <div class="filing-summary-item">
-                <span class="filing-summary-label">Bench</span>
-                <span class="filing-summary-value">{{ filing.bench || '-' }}</span>
+            <div class="filing-summary-section">
+              <div class="filing-summary-section-title">
+                <i class="fa-solid fa-file-lines me-2"></i>
+                Filing Information
               </div>
-              <div class="filing-summary-item">
-                <span class="filing-summary-label">Case Type</span>
-                <span class="filing-summary-value">{{
-                  filing.case_type?.type_name || filing.case_type?.full_form || '-'
-                }}</span>
-              </div>
-              <div class="filing-summary-item">
-                <span class="filing-summary-label">Petitioner Name</span>
-                <span class="filing-summary-value">{{ filing.petitioner_name || '-' }}</span>
-              </div>
-              <div class="filing-summary-item">
-                <span class="filing-summary-label">Petitioner Contact</span>
-                <span class="filing-summary-value">{{ filing.petitioner_contact || '-' }}</span>
-              </div>
-              <div class="filing-summary-item">
-                <span class="filing-summary-label">E-Filing Number</span>
-                <span class="filing-summary-value filing-number">{{
-                  filing.e_filing_number || '-'
-                }}</span>
-              </div>
-              <div class="filing-summary-item">
-                <span class="filing-summary-label">Accepted At</span>
-                <span class="filing-summary-value">{{
-                  filing.accepted_at | date: 'dd MMM yyyy, hh:mm a'
-                }}</span>
+              <div class="filing-summary-grid">
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Bench</span>
+                  <span class="filing-summary-value">{{ filing.bench || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Case Type</span>
+                  <span class="filing-summary-value">{{ filing.case_type?.type_name || filing.case_type?.full_form || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Petitioner Name</span>
+                  <span class="filing-summary-value">{{ filing.petitioner_name || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Petitioner Contact</span>
+                  <span class="filing-summary-value">{{ filing.petitioner_contact || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">E-Filing Number</span>
+                  <span class="filing-summary-value filing-number">{{ filing.e_filing_number || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Accepted At</span>
+                  <span class="filing-summary-value">{{ filing.accepted_at | date: 'dd MMM yyyy, hh:mm a' }}</span>
+                </div>
               </div>
             </div>
-          </div>
-          <div class="filing-summary-section" *ngIf="caseDetails">
-            <div class="filing-summary-section-title">
-              <i class="fa-solid fa-scale-balanced me-2"></i>
-              Case Details
-            </div>
-            <div class="filing-summary-grid">
-              <div class="filing-summary-item">
-                <span class="filing-summary-label">Cause of Action</span>
-                <span class="filing-summary-value">{{ caseDetails.cause_of_action || '-' }}</span>
+            <div class="filing-summary-section" *ngIf="caseDetails">
+              <div class="filing-summary-section-title">
+                <i class="fa-solid fa-scale-balanced me-2"></i>
+                Case Details
               </div>
-              <div class="filing-summary-item">
-                <span class="filing-summary-label">Date of Cause</span>
-                <span class="filing-summary-value">{{
-                  caseDetails.date_of_cause_of_action | date: 'dd MMM yyyy'
-                }}</span>
-              </div>
-              <div class="filing-summary-item">
-                <span class="filing-summary-label">Dispute State</span>
-                <span class="filing-summary-value">{{
-                  caseDetails.dispute_state?.state || '-'
-                }}</span>
-              </div>
-              <div class="filing-summary-item">
-                <span class="filing-summary-label">Dispute District</span>
-                <span class="filing-summary-value">{{
-                  caseDetails.dispute_district?.district || '-'
-                }}</span>
-              </div>
-              <div class="filing-summary-item">
-                <span class="filing-summary-label">Dispute Taluka</span>
-                <span class="filing-summary-value">{{ caseDetails.dispute_taluka || '-' }}</span>
+              <div class="filing-summary-grid">
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Cause of Action</span>
+                  <span class="filing-summary-value">{{ caseDetails.cause_of_action || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Date of Cause</span>
+                  <span class="filing-summary-value">{{ caseDetails.date_of_cause_of_action | date: 'dd MMM yyyy' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Dispute State</span>
+                  <span class="filing-summary-value">{{ caseDetails.dispute_state || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Dispute District</span>
+                  <span class="filing-summary-value">{{ caseDetails.dispute_district || '-' }}</span>
+                </div>
+                <div class="filing-summary-item">
+                  <span class="filing-summary-label">Dispute Taluka</span>
+                  <span class="filing-summary-value">{{ caseDetails.dispute_taluka || '-' }}</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- Litigants -->
-          <div class="filing-summary-section" *ngIf="litigants.length > 0">
-            <div class="filing-summary-section-title">
-              <i class="fa-solid fa-users me-2"></i>
-              Litigant Details
-            </div>
-            <div class="litigants-layout">
-              <div class="party-block">
-                <div class="party-heading">
-                  <i class="fa-solid fa-user-check me-1"></i>
-                  Petitioners
-                </div>
-                <div *ngIf="petitioners.length === 0" class="text-muted small">
-                  No petitioners available.
-                </div>
-                <div class="litigant-list" *ngIf="petitioners.length > 0">
-                  <div
-                    class="litigant-card"
-                    *ngFor="let litigant of petitioners; trackBy: trackById"
-                  >
-                    <div class="litigant-name">{{ litigant.name || '-' }}</div>
-                    <div class="litigant-meta">{{ litigant.contact || 'No contact' }}</div>
-                    <div class="litigant-meta" *ngIf="litigant.address">{{ litigant.address }}</div>
+            <!-- Litigants -->
+            <div class="filing-summary-section" *ngIf="litigants.length > 0">
+              <div class="filing-summary-section-title">
+                <i class="fa-solid fa-users me-2"></i>
+                Litigant Details
+              </div>
+              <div class="litigants-layout">
+                <div class="party-block">
+                  <div class="party-heading">
+                    <i class="fa-solid fa-user-check me-1"></i>
+                    Petitioners
+                  </div>
+                  <div *ngIf="petitioners.length === 0" class="text-muted small">No petitioners available.</div>
+                  <div class="litigant-list" *ngIf="petitioners.length > 0">
+                    <div class="litigant-card" *ngFor="let litigant of petitioners; trackBy: trackById">
+                      <div class="litigant-name">{{ litigant.name || '-' }}</div>
+                      <div class="litigant-meta">{{ litigant.contact || 'No contact' }}</div>
+                      <div class="litigant-meta" *ngIf="litigant.address">{{ litigant.address }}</div>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div class="party-divider">vs</div>
-              <div class="party-block">
-                <div class="party-heading party-heading-respondent">
-                  <i class="fa-solid fa-user-xmark me-1"></i>
-                  Respondents
-                </div>
-                <div *ngIf="respondents.length === 0" class="text-muted small">
-                  No respondents available.
-                </div>
-                <div class="litigant-list" *ngIf="respondents.length > 0">
-                  <div
-                    class="litigant-card"
-                    *ngFor="let litigant of respondents; trackBy: trackById"
-                  >
-                    <div class="litigant-name">{{ litigant.name || '-' }}</div>
-                    <div class="litigant-meta">{{ litigant.contact || 'No contact' }}</div>
-                    <div class="litigant-meta" *ngIf="litigant.address">{{ litigant.address }}</div>
+                <div class="party-divider">vs</div>
+                <div class="party-block">
+                  <div class="party-heading party-heading-respondent">
+                    <i class="fa-solid fa-user-xmark me-1"></i>
+                    Respondents
+                  </div>
+                  <div *ngIf="respondents.length === 0" class="text-muted small">No respondents available.</div>
+                  <div class="litigant-list" *ngIf="respondents.length > 0">
+                    <div class="litigant-card" *ngFor="let litigant of respondents; trackBy: trackById">
+                      <div class="litigant-name">{{ litigant.name || '-' }}</div>
+                      <div class="litigant-meta">{{ litigant.contact || 'No contact' }}</div>
+                      <div class="litigant-meta" *ngIf="litigant.address">{{ litigant.address }}</div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- Acts & Sections -->
-          <div class="filing-summary-section">
-            <div class="filing-summary-section-title">
-              <i class="fa-solid fa-gavel me-2"></i>
-              Acts & Sections
-            </div>
-            <div *ngIf="acts.length === 0" class="text-muted small">No acts or sections added.</div>
-            <div class="acts-list" *ngIf="acts.length > 0">
-              <div class="act-card" *ngFor="let act of acts; let i = index; trackBy: trackById">
-                <div class="act-index">{{ i + 1 }}</div>
-                <div class="act-content">
-                  <div class="act-name">{{ getActName(act) }}</div>
-                  <div class="act-section">Section: {{ act.section || '-' }}</div>
-                  <div class="act-subsection text-muted small" *ngIf="act.sub_section">
-                    Sub-section: {{ act.sub_section }}
+            <!-- Acts & Sections -->
+            <div class="filing-summary-section">
+              <div class="filing-summary-section-title">
+                <i class="fa-solid fa-gavel me-2"></i>
+                Acts & Sections
+              </div>
+              <div *ngIf="acts.length === 0" class="text-muted small">No acts or sections added.</div>
+              <div class="acts-list" *ngIf="acts.length > 0">
+                <div class="act-card" *ngFor="let act of acts; let i = index; trackBy: trackById">
+                  <div class="act-index">{{ i + 1 }}</div>
+                  <div class="act-content">
+                    <div class="act-name">{{ getActName(act) }}</div>
+                    <div class="act-section">Section: {{ act.section || '-' }}</div>
+                    <div class="act-subsection text-muted small" *ngIf="act.sub_section">Sub-section: {{ act.sub_section }}</div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-      <div *ngIf="activeTab === 'documents'" class="document-summary-section">
-        <div class="row g-4">
-          <div class="col-xl-3">
-            <div class="card border-0 shadow-sm h-100">
-              <div class="card-body p-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                  <div>
-                    <div class="section-title">Documents</div>
-                  </div>
-                  <span class="small text-muted">{{ documents.length }} total</span>
-                </div>
-
-                <div *ngIf="documents.length === 0" class="text-muted small">
-                  No uploaded documents available yet.
-                </div>
-
-                <div class="document-list" *ngIf="groupedDocuments.length > 0">
-                  <div
-                    class="document-group"
-                    *ngFor="let group of groupedDocuments; trackBy: trackByGroupIndex"
-                  >
-                    <div class="document-type-header">
-                      {{ group.document_type || 'Main Document' }}
-                    </div>
-
-                    <button
-                      type="button"
-                      class="document-item"
-                      *ngFor="let document of group.items; trackBy: trackById"
-                      [class.document-item-active]="selectedDocument?.id === document.id"
-                      (click)="selectDocument(document)"
-                    >
-                      <div class="d-flex justify-content-between align-items-start gap-2">
-                        <div>
-                          <!-- Treat document_part_name as the actual "file" row -->
-                          <div class="document-title">
-                            {{ document.document_part_name || getDocumentTitle(document) }}
-                          </div>
-                          <!-- <div class="document-meta">Seq {{ document.document_sequence || '-' }}</div> -->
-                          <div class="document-meta" *ngIf="getDocumentDate(document)">
-                            {{ getDocumentDate(document) | date: 'dd MMM yyyy' }}
-                          </div>
-                        </div>
-
-                        <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
-                          <span class="new-tag" *ngIf="document.is_new_for_scrutiny">new</span>
-                          <span
-                            class="status-badge status-badge-sm"
-                            [ngClass]="getDocumentStatusClass(document)"
-                          >
-                            {{ getDocumentStatusLabel(document) }}
-                          </span>
-                        </div>
+        <div *ngIf="activeTab === 'documents'" class="document-summary-section">
+          <div class="row g-4">
+              <div class="col-xl-3">
+                <div class="card border-0 shadow-sm h-100">
+                  <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                      <div>
+                        <div class="section-title"> Documents</div>
                       </div>
-                    </button>
+                      <span class="small text-muted">{{ documents.length }} total</span>
+                    </div>
+        
+                    <div *ngIf="documents.length === 0" class="text-muted small">No uploaded documents available yet.</div>
+        
+                    <div class="document-list" *ngIf="groupedDocuments.length > 0">
+                      <div
+                        class="document-group"
+                        *ngFor="let group of groupedDocuments; trackBy: trackByGroupIndex"
+                      >
+                        <div class="document-type-header">
+                          {{ group.document_type || 'Main Document' }}
+                        </div>
+        
+                        <button
+                          type="button"
+                          class="document-item"
+                          *ngFor="let document of group.items; trackBy: trackById"
+                          [class.document-item-active]="selectedDocument?.id === document.id"
+                          (click)="selectDocument(document)"
+                        >
+                          <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div>
+                              <!-- Treat document_part_name as the actual "file" row -->
+                              <div class="document-title">{{ document.document_part_name || getDocumentTitle(document) }}</div>
+                              <!-- <div class="document-meta">Seq {{ document.document_sequence || '-' }}</div> -->
+                              <div class="document-meta" *ngIf="getDocumentDate(document)">
+                                {{ getDocumentDate(document) | date: 'dd MMM yyyy' }}
+                              </div>
+                            </div>
+        
+                            <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                              <span class="new-tag" *ngIf="document.is_new_for_scrutiny">new</span>
+                              <span class="status-badge status-badge-sm" [ngClass]="getDocumentStatusClass(document)">
+                                {{ getDocumentStatusLabel(document) }}
+                              </span>
+                            </div>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-
-          <div class="col-xl-9">
-            <div class="card border-0 shadow-sm h-100">
-              <div class="card-body">
-                <div *ngIf="selectedDocument">
-                  <div class="row g-4 align-items-start">
-                    <div class="col-lg-12">
-                      <div class="review-panel mb-3">
-                        <!-- <div class="section-title mb-2">Inline PDF Preview</div> -->
-                        <div class="preview-frame" *ngIf="selectedDocumentUrl; else noPreview">
-                          <iframe [src]="selectedDocumentUrl" title="Scrutiny PDF preview"></iframe>
-                        </div>
-                      </div>
-                      <div class="col-lg-12">
-                        <div class="review-panel">
-                          <div class="section-title mb-2">Remarks</div>
-                          <textarea
-                            class="form-control"
-                            [(ngModel)]="reviewNote"
-                            placeholder="Add notes for the advocate. These notes stay in the review history."
-                            rows="3"
-                            [readonly]="!canReviewDocuments"
-                          ></textarea>
-
-                          <div class="d-flex gap-2 flex-wrap mt-3">
-                            <button
-                              type="button"
-                              class="btn btn-success btn-sm"
-                              (click)="acceptDocument()"
-                              [disabled]="!canReviewDocuments || isSavingReview"
-                            >
-                              Accept
-                            </button>
-                            <button
-                              type="button"
-                              class="btn btn-danger btn-sm"
-                              (click)="rejectDocument()"
-                              [disabled]="!canReviewDocuments || isSavingReview"
-                            >
-                              Reject
-                            </button>
+        
+              <div class="col-xl-9">
+                <div class="card border-0 shadow-sm h-100">
+                  <div class="card-body">
+                    <div *ngIf="selectedDocument">
+                      <div class="row g-4 align-items-start">
+                      
+                        <div class="col-lg-12">
+                          <div class="review-panel mb-3">
+                            <!-- <div class="section-title mb-2">Inline PDF Preview</div> -->
+                              <div class="preview-frame" *ngIf="selectedDocumentUrl; else noPreview">
+                                <iframe [src]="selectedDocumentUrl" title="Scrutiny PDF preview"></iframe>
+                              </div>
                           </div>
-                          <p
-                            *ngIf="isCaseRegistered && !canReviewDocuments"
-                            class="text-muted small mt-2 mb-0"
-                          >
-                            This case is registered; document acceptance and rejection are no longer
-                            available.
-                          </p>
-                        </div>
-
-                        <!-- <div class="review-panel mt-3">
+                          <div class="col-lg-12">
+                            <div class="review-panel">
+                              <div class="section-title mb-2">Remarks</div>
+                              <textarea
+                                class="form-control"
+                                [(ngModel)]="reviewNote"
+                                placeholder="Add notes for the advocate. These notes stay in the review history."
+                                rows="3"
+                                [readonly]="!canReviewDocuments"
+                              ></textarea>
+          
+                              <div class="d-flex gap-2 flex-wrap mt-3">
+                                <button
+                                  type="button"
+                                  class="btn btn-success btn-sm"
+                                  (click)="acceptDocument()"
+                                  [disabled]="!canReviewDocuments || isSavingReview"
+                                >
+                                  Accept
+                                </button>
+                                <button
+                                  type="button"
+                                  class="btn btn-danger btn-sm"
+                                  (click)="rejectDocument()"
+                                  [disabled]="!canReviewDocuments || isSavingReview"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                              <p *ngIf="isCaseRegistered && !canReviewDocuments" class="text-muted small mt-2 mb-0">
+                                This case is registered; document acceptance and rejection are no longer available.
+                              </p>
+                            </div>
+          
+                            <!-- <div class="review-panel mt-3">
                               <div class="d-flex justify-content-between align-items-center mb-2">
                                 <div class="section-title mb-0">Checklist</div>
                                 <span class="small text-muted">{{ scrutinyChecklist.length }}</span>
@@ -374,9 +330,9 @@
                                 </div>
                               </div>
                             </div> -->
-                      </div>
-
-                      <!-- <div class="review-panel">
+                          </div>
+                          
+                          <!-- <div class="review-panel">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                               <div class="section-title mb-0">Scrutiny Notes</div>
                               <span class="small text-muted">{{ visibleDocumentHistory.length }}</span>
@@ -402,195 +358,154 @@
                               </div>
                             </div>
                           </div> -->
+                      </div>
                     </div>
-                  </div>
-                  <div *ngIf="!selectedDocument" class="text-muted small">
-                    Choose a document from the ordered list to begin review.
-                  </div>
-
-                  <ng-template #noPreview>
-                    <div class="preview-empty text-muted small">
-                      PDF preview will appear here once a document file is available.
+                    <div *ngIf="!selectedDocument" class="text-muted small">
+                      Choose a document from the ordered list to begin review.
                     </div>
-                  </ng-template>
+        
+                    <ng-template #noPreview>
+                      <div class="preview-empty text-muted small">
+                        PDF preview will appear here once a document file is available.
+                      </div>
+                    </ng-template>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-      <div *ngIf="activeTab === 'ia' && iaList.length > 0" class="ia-tab-content">
-        <div class="accordion" id="iaAccordion">
-          <div
-            class="accordion-item"
-            *ngFor="let item of iaWithDocuments; let i = index; trackBy: trackByIaItem"
-          >
-            <h2 class="accordion-header">
-              <button
-                class="accordion-button"
-                [class.collapsed]="i !== 0"
-                type="button"
-                [attr.data-bs-toggle]="'collapse'"
-                [attr.data-bs-target]="'#ia-collapse-' + item.ia.id"
-                [attr.aria-expanded]="i === 0"
-                [attr.aria-controls]="'ia-collapse-' + item.ia.id"
-              >
-                <span class="ia-number filing-number me-2">{{ item.ia.ia_number || '-' }}</span>
-                <span
-                  class="badge rounded-pill px-2 py-1 me-2"
-                  [ngClass]="item.ia.status ? 'bg-primary' : 'bg-secondary'"
-                >
-                  {{ item.ia.status || 'Pending' }}
-                </span>
-                <span class="text-muted small"
-                  >({{ item.documents.length }} document{{
-                    item.documents.length !== 1 ? 's' : ''
-                  }})</span
-                >
-              </button>
-            </h2>
+        <div *ngIf="activeTab === 'ia' && iaList.length > 0" class="ia-tab-content">
+          <div class="accordion" id="iaAccordion">
             <div
-              [id]="'ia-collapse-' + item.ia.id"
-              class="accordion-collapse collapse"
-              [class.show]="i === 0"
-              data-bs-parent="#iaAccordion"
+              class="accordion-item"
+              *ngFor="let item of iaWithDocuments; let i = index; trackBy: trackByIaItem"
             >
-              <div class="accordion-body">
-                <div class="ia-accordion-details mb-4">
-                  <div *ngIf="item.ia.ia_text" class="mb-3">
-                    <span class="filing-summary-label d-block mb-1">Relief Sought</span>
-                    <div class="ia-text">{{ item.ia.ia_text }}</div>
+              <h2 class="accordion-header">
+                <button
+                  class="accordion-button collapsed"
+                  type="button"
+                  [attr.data-bs-toggle]="'collapse'"
+                  [attr.data-bs-target]="'#ia-collapse-' + item.ia.id"
+                  [attr.aria-expanded]="false"
+                  [attr.aria-controls]="'ia-collapse-' + item.ia.id"
+                >
+                  <span class="ia-number filing-number me-2">{{ item.ia.ia_number || '-' }}</span>
+                  <span class="badge rounded-pill px-2 py-1 me-2" [ngClass]="getIaStatusBadgeClass(item.ia.status)">
+                    {{ item.ia.status || 'Pending' }}
+                  </span>
+                  <span class="text-muted small">({{ item.documents.length }} document{{ item.documents.length !== 1 ? 's' : '' }})</span>
+                </button>
+              </h2>
+              <div
+                [id]="'ia-collapse-' + item.ia.id"
+                class="accordion-collapse collapse"
+                data-bs-parent="#iaAccordion"
+              >
+                <div class="accordion-body">
+                  <div class="ia-accordion-details mb-4">
+                    <div *ngIf="item.ia.ia_text" class="mb-3">
+                      <span class="filing-summary-label d-block mb-1">Relief Sought</span>
+                      <div class="ia-text">{{ item.ia.ia_text }}</div>
+                    </div>
+                    <div class="ia-card-meta text-muted small">
+                      <span *ngIf="item.ia.created_at">Created: {{ item.ia.created_at | date: 'dd MMM yyyy' }}</span>
+                      <span *ngIf="item.ia.disposal_date" class="ms-3">Disposal: {{ item.ia.disposal_date | date: 'dd MMM yyyy' }}</span>
+                    </div>
                   </div>
-                  <div class="ia-card-meta text-muted small">
-                    <span *ngIf="item.ia.created_at"
-                      >Created: {{ item.ia.created_at | date: 'dd MMM yyyy' }}</span
-                    >
-                    <span *ngIf="item.ia.disposal_date" class="ms-3"
-                      >Disposal: {{ item.ia.disposal_date | date: 'dd MMM yyyy' }}</span
-                    >
-                  </div>
-                </div>
-                <div class="ia-accordion-docs" *ngIf="item.groupedDocs.length > 0">
-                  <div class="row g-4">
-                    <div class="col-xl-3">
-                      <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body p-4">
-                          <div class="d-flex justify-content-between align-items-center mb-3">
-                            <div class="section-title">IA Documents</div>
-                            <span class="small text-muted">{{ item.documents.length }} total</span>
-                          </div>
-                          <div class="document-list">
-                            <div
-                              class="document-group"
-                              *ngFor="let group of item.groupedDocs; trackBy: trackByGroupIndex"
-                            >
-                              <div class="document-type-header">
-                                {{ group.document_type || 'Main Document' }}
-                              </div>
-                              <button
-                                type="button"
-                                class="document-item"
-                                *ngFor="let doc of group.items; trackBy: trackById"
-                                [class.document-item-active]="selectedIaDocument?.id === doc.id"
-                                (click)="selectIaDocument(doc)"
+                  <div class="ia-accordion-docs" *ngIf="item.groupedDocs.length > 0">
+                    <div class="row g-4">
+                      <div class="col-xl-3">
+                        <div class="card border-0 shadow-sm h-100">
+                          <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                              <div class="section-title">IA Documents</div>
+                              <span class="small text-muted">{{ item.documents.length }} total</span>
+                            </div>
+                            <div class="document-list">
+                              <div
+                                class="document-group"
+                                *ngFor="let group of item.groupedDocs; trackBy: trackByGroupIndex"
                               >
-                                <div class="d-flex justify-content-between align-items-start gap-2">
-                                  <div class="document-title">
-                                    {{ doc.document_part_name || getDocumentFileLabel(doc) }}
+                                <div class="document-type-header">{{ group.document_type || 'Main Document' }}</div>
+                                <button
+                                  type="button"
+                                  class="document-item"
+                                  *ngFor="let doc of group.items; trackBy: trackById"
+                                  [class.document-item-active]="selectedIaDocument?.id === doc.id"
+                                  (click)="selectIaDocument(doc)"
+                                >
+                                  <div class="d-flex justify-content-between align-items-start gap-2">
+                                    <div class="document-title">{{ doc.document_part_name || getDocumentFileLabel(doc) }}</div>
+                                    <span class="status-badge status-badge-sm" [ngClass]="getDocumentStatusClass(doc)">
+                                      {{ getDocumentStatusLabel(doc) }}
+                                    </span>
                                   </div>
-                                  <span
-                                    class="status-badge status-badge-sm"
-                                    [ngClass]="getDocumentStatusClass(doc)"
-                                  >
-                                    {{ getDocumentStatusLabel(doc) }}
-                                  </span>
-                                </div>
-                              </button>
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                    <div class="col-xl-9">
-                      <div class="card border-0 shadow-sm h-100">
-                        <div class="card-body" *ngIf="selectedIaDocumentBelongsToIa(item)">
-                          <div
-                            class="review-panel"
-                            *ngIf="!isIaDocumentAccepted(selectedIaDocument)"
-                          >
-                            <div class="section-title mb-2">Remarks</div>
-                            <textarea
-                              class="form-control"
-                              [(ngModel)]="reviewNoteIa"
-                              placeholder="Add notes for the advocate. These notes stay in the review history."
-                              rows="3"
-                              [readonly]="!canReviewDocuments"
-                            ></textarea>
-                            <div class="d-flex gap-2 flex-wrap mt-3">
-                              <button
-                                type="button"
-                                class="btn btn-success btn-sm"
-                                (click)="acceptIaDocument()"
-                                [disabled]="!canReviewDocuments || isSavingReviewIa"
-                              >
-                                Accept
-                              </button>
-                              <button
-                                type="button"
-                                class="btn btn-danger btn-sm"
-                                (click)="rejectIaDocument()"
-                                [disabled]="!canReviewDocuments || isSavingReviewIa"
-                              >
-                                Reject
-                              </button>
+                      <div class="col-xl-9">
+                        <div class="card border-0 shadow-sm h-100">
+                          <div class="card-body" *ngIf="selectedIaDocumentBelongsToIa(item)">
+                            <div class="review-panel" *ngIf="!isIaDocumentAccepted(selectedIaDocument)">
+                              <div class="section-title mb-2">Remarks</div>
+                              <textarea
+                                class="form-control"
+                                [(ngModel)]="reviewNoteIa"
+                                placeholder="Add notes for the advocate. These notes stay in the review history."
+                                rows="3"
+                                [readonly]="!canReviewDocuments"
+                              ></textarea>
+                              <div class="d-flex gap-2 flex-wrap mt-3">
+                                <button
+                                  type="button"
+                                  class="btn btn-success btn-sm"
+                                  (click)="acceptIaDocument()"
+                                  [disabled]="!canReviewDocuments || isSavingReviewIa"
+                                >
+                                  Accept
+                                </button>
+                                <button
+                                  type="button"
+                                  class="btn btn-danger btn-sm"
+                                  (click)="rejectIaDocument()"
+                                  [disabled]="!canReviewDocuments || isSavingReviewIa"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                              <p *ngIf="isCaseRegistered && !canReviewDocuments" class="text-muted small mt-2 mb-0">
+                                This case is registered; IA document acceptance and rejection are no longer available.
+                              </p>
                             </div>
-                            <p
-                              *ngIf="isCaseRegistered && !canReviewDocuments"
-                              class="text-muted small mt-2 mb-0"
-                            >
-                              This case is registered; IA document acceptance and rejection are no
-                              longer available.
-                            </p>
-                          </div>
-                          <div
-                            class="review-panel"
-                            [class.mt-3]="!isIaDocumentAccepted(selectedIaDocument)"
-                          >
-                            <div
-                              class="preview-frame"
-                              *ngIf="selectedIaDocumentUrl; else noPreviewIa"
-                            >
-                              <iframe
-                                [src]="selectedIaDocumentUrl"
-                                title="IA document preview"
-                              ></iframe>
+                            <div class="review-panel" [class.mt-3]="!isIaDocumentAccepted(selectedIaDocument)">
+                              <div class="preview-frame" *ngIf="selectedIaDocumentUrl; else noPreviewIa">
+                                <iframe [src]="selectedIaDocumentUrl" title="IA document preview"></iframe>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div
-                          class="card-body p-4 text-muted small"
-                          *ngIf="!selectedIaDocumentBelongsToIa(item)"
-                        >
-                          Select a document to review.
+                          <div class="card-body p-4 text-muted small" *ngIf="!selectedIaDocumentBelongsToIa(item)">
+                            Select a document to review.
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                <div *ngIf="item.groupedDocs.length === 0" class="ia-no-docs text-muted small p-4">
-                  No documents filed for this IA yet.
+                  <div *ngIf="item.groupedDocs.length === 0" class="ia-no-docs text-muted small p-4">
+                    No documents filed for this IA yet.
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
   </ng-container>
 
   <ng-template #noPreviewIa>
-    <div class="preview-empty text-muted small">
-      PDF preview will appear here once a file is available.
-    </div>
+    <div class="preview-empty text-muted small">PDF preview will appear here once a file is available.</div>
   </ng-template>
 </div>

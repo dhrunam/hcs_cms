@@ -61,8 +61,9 @@ export class IaFilingForm implements OnInit {
 
   loadFilings(): void {
     this.isLoadingFilings = true;
-    this.efilingService.get_filings_under_scrutiny().subscribe({
+    this.efilingService.get_filings().subscribe({
       next: (res) => {
+        console.log(res);
         const rows = Array.isArray(res) ? res : res?.results ?? [];
         this.filings = rows.filter((f: any) => f?.id && f?.e_filing_number);
         this.loadLitigantsForFilings();
@@ -217,6 +218,7 @@ export class IaFilingForm implements OnInit {
             e_filing: eFilingId,
             e_filing_number: eFilingNumber,
             ia_text: reliefSought,
+            status: 'UNDER_SCRUTINY',
           }),
         );
         this.createdIa = iaRes;
@@ -316,6 +318,7 @@ export class IaFilingForm implements OnInit {
         e_filing: eFilingId,
         e_filing_number: eFilingNumber,
         ia_text: reliefSought,
+        status: 'UNDER_SCRUTINY',
       })
       .subscribe({
         next: () => {

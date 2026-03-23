@@ -21,3 +21,9 @@ class IASerializer(serializers.ModelSerializer):
             "updated_by",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def validate_status(self, value):
+        if value:
+            normalized = str(value).strip().upper().replace(" ", "_")
+            return normalized
+        return value

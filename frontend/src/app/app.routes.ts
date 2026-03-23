@@ -7,6 +7,10 @@ export const routes: Routes = [
     component: AuthRedirectComponent,
   },
   {
+    path: 'user/login',
+    loadComponent: () => import('./areas/auth/login/login').then((m) => m.Login),
+  },
+  {
     path: 'advocate',
     loadChildren: () =>
       import('./areas/advocate/advocate-routing-module').then((m) => m.AdvocateRoutes),
@@ -20,7 +24,7 @@ export const routes: Routes = [
   },
   {
     path: '',
-    redirectTo: 'advocate',
+    redirectTo: 'user/login',
     pathMatch: 'full',
   },
 ];
