@@ -387,14 +387,26 @@ class EfilingDocumentsIndex(BaseModel):
             efiling_number = instance.document.e_filing_number
         else:
             efiling_number = "unknown"
+        part_name = _safe_folder_component(instance.document_part_name or "part", default="part")
+        doc = instance.document
+
+        # IA documents: /media/efile/<filing_no>/IA/<subfolder>/<part>.pdf
+        if doc and getattr(doc, "is_ia", False):
+            # IA filing (document_type is "IA"): use IA number as subfolder
+            # Document filing with IA selected: use document_type as subfolder
+            doc_type = (doc.document_type or "").strip()
+            ia_num = (doc.ia_number or "").strip()
+            if doc_type.upper() == "IA" and ia_num:
+                subfolder = _safe_folder_component(ia_num, default="IA")
+            else:
+                subfolder = _safe_folder_component(doc_type, default="document_type")
+            return f"efile/{efiling_number}/IA/{subfolder}/{part_name}.pdf"
+
+        # Case documents: /media/efile/<filing_no>/<document_type>/<part>.pdf
         document_type_folder = _safe_folder_component(
-            instance.document.document_type if instance.document else None,
+            doc.document_type if doc else None,
             default="document_type",
         )
-        part_name = _safe_folder_component(instance.document_part_name or "part", default="part")
-
-        # Store all PDF parts under: media/efile/<efiling_number>/<document_type>/
-        # (Django will prefix MEDIA_ROOT and serve it under MEDIA_URL).
         return f"efile/{efiling_number}/{document_type_folder}/{part_name}.pdf"
     file_part_path = models.FileField(upload_to=file_part_upload_to, max_length=512)
     is_locked = models.BooleanField(default=False)
