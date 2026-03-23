@@ -157,7 +157,7 @@ export class Edit {
       this.filingId = Number(idParam || 0) || null;
       // alert(this.filingId);
       this.eFilingNumber = params['e_filing_number'] || this.eFilingNumber;
-      alert(this.eFilingNumber);
+      // alert(this.eFilingNumber);
       this.get_litigant_list_by_filing_id();
       if (this.filingId) {
         this.loadInitialInputs();
