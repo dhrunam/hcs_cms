@@ -10,6 +10,23 @@ from apps.efiling.review_utils import (
     submit_documents_for_scrutiny,
 )
 
+
+def parse_bool(value):
+    """
+    Parse a query parameter string to a boolean.
+    Accepts: 'true', '1', 'yes' -> True
+    Accepts: 'false', '0', 'no' -> False
+    Returns: None if value is None or unrecognized.
+    """
+    if value is None:
+        return None
+    value_str = str(value).lower().strip()
+    if value_str in ('true', '1', 'yes'):
+        return True
+    elif value_str in ('false', '0', 'no'):
+        return False
+    return None
+
  
 class EfilingListCreateView(ListCreateAPIView):
     queryset = Efiling.objects.all()
@@ -17,14 +34,13 @@ class EfilingListCreateView(ListCreateAPIView):
 
     def get_queryset(self):
         qs = Efiling.objects.all().order_by('-id')
-        is_active = self.request.query_params.get('is_active')
-        is_draft = self.request.query_params.get('is_draft')
+        is_active = parse_bool(self.request.query_params.get('is_active'))
+        is_draft = parse_bool(self.request.query_params.get('is_draft'))
         status = self.request.query_params.get('status')
         if is_active is not None:
-            # treat "true"/"1" as True
-            qs = qs.filter(is_active=is_active.lower() in ['true', '1'])
+            qs = qs.filter(is_active=is_active)
         if is_draft is not None:
-            qs = qs.filter(is_draft=is_draft.lower() in ['true', '1'])
+            qs = qs.filter(is_draft=is_draft)
         if status is not None:
             qs = qs.filter(status=status)
         return qs
@@ -40,10 +56,9 @@ class EfilingRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
     serializer_class = EfilingSerializer
     def get_queryset(self):
         qs = Efiling.objects.all().order_by('-id')
-        is_active = self.request.query_params.get('is_active')
+        is_active = parse_bool(self.request.query_params.get('is_active'))
         if is_active is not None:
-            # treat "true"/"1" as True
-            qs = qs.filter(is_active=is_active.lower() in ['true', '1'])
+            qs = qs.filter(is_active=is_active)
         return qs
 
     def partial_update(self, request, *args, **kwargs):
