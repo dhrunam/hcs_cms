@@ -163,7 +163,12 @@
                     [class.document-item-active]="selectedDocument?.id === doc.id"
                     (click)="selectDocument(doc)"
                   >
-                    <div class="document-title">{{ doc.document_part_name || doc.document_type || 'Document' }}</div>
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                      <div class="document-title">{{ doc.document_part_name || doc.document_type || 'Document' }}</div>
+                      <span class="status-badge status-badge-sm" [ngClass]="getStatusClass(doc.scrutiny_status || doc.draft_scrutiny_status)">
+                        {{ getStatusLabel(doc.scrutiny_status || doc.draft_scrutiny_status) }}
+                      </span>
+                    </div>
                   </button>
                 </div>
               </div>

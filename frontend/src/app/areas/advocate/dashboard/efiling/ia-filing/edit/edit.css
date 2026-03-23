@@ -124,10 +124,10 @@
 }
 
 .document-type-header {
-  background: #eef2ff;
-  border: 1px solid #e0e7ff;
+  background: #1e293b;
+  border: 1px solid #1e293b;
   border-radius: 12px;
-  color: #1e293b;
+  color: white;
   font-weight: 700;
   padding: 0.45rem 0.65rem;
 }
@@ -152,6 +152,19 @@
 .document-title {
   color: #0f172a;
   font-weight: 600;
+}
+
+.status-badge {
+  display: inline-flex;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.42rem 0.8rem;
+  border-radius: 999px;
+}
+
+.status-badge-sm {
+  font-size: 0.72rem;
+  padding: 0.25rem 0.6rem;
 }
 
 .preview-frame {

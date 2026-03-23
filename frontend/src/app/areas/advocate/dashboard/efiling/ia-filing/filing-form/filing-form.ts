@@ -217,6 +217,7 @@ export class IaFilingForm implements OnInit {
             e_filing: eFilingId,
             e_filing_number: eFilingNumber,
             ia_text: reliefSought,
+            status: 'Under Scrutiny',
           }),
         );
         this.createdIa = iaRes;
@@ -316,6 +317,7 @@ export class IaFilingForm implements OnInit {
         e_filing: eFilingId,
         e_filing_number: eFilingNumber,
         ia_text: reliefSought,
+        status: 'Under Scrutiny',
       })
       .subscribe({
         next: () => {
