@@ -45,7 +45,7 @@ export class FiledCasesView {
   getFiledCases(): void {
     this.isLoading = true;
     forkJoin({
-      filings: this.eFilingService.get_filings_under_scrutiny(),
+      filings: this.eFilingService.get_scrutiny_cases(),
       incoming: this.eFilingService.get_new_scrutiny_documents().pipe(
         catchError((error) => {
           console.warn('Failed to load new scrutiny documents', error);

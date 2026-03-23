@@ -66,7 +66,9 @@ export class EfilingService {
   get_approved_cases(): Observable<any> {
     return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/?is_draft=false&status=ACCEPTED`);
   }
-
+  get_scrutiny_cases(): Observable<any> {
+    return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/?is_draft=false`);
+  }
   get_filings_under_draft(): Observable<any> {
     return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/?is_draft=true`);
   }
