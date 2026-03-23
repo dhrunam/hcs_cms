@@ -147,4 +147,11 @@ export class IaFilingEdit implements OnInit {
   trackByGroupIndex(_: number, group: { document_type: string; items: any[] }): string {
     return group.document_type;
   }
+
+  getIaStatusBadgeClass(status: string | null): string {
+    const s = (status ?? '').trim().toLowerCase();
+    if (s.includes('accept')) return 'status-badge-success';
+    if (s.includes('reject') || s.includes('partial')) return 'status-badge-danger';
+    return 'status-badge-warning';
+  }
 }

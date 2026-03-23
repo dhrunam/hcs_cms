@@ -21,6 +21,22 @@ export class View {
 
   constructor(private eFilingService: EfilingService) {}
 
+  getStatusLabel(status: string | null): string {
+    const s = (status ?? 'draft').trim().toLowerCase();
+    if (!s || s === 'draft') return 'Draft';
+    if (s.includes('accept')) return 'Accepted';
+    if (s.includes('reject') || s.includes('partial')) return s.includes('partial') ? 'Partially Rejected' : 'Rejected';
+    if (s.includes('scrutiny') || s.includes('submitted')) return 'Under Scrutiny';
+    return status ?? 'Draft';
+  }
+
+  getStatusBadgeClass(status: string | null): string {
+    const label = this.getStatusLabel(status).toLowerCase();
+    if (label.includes('accept')) return 'status-badge-success';
+    if (label.includes('reject') || label.includes('partial')) return 'status-badge-danger';
+    return 'status-badge-warning';
+  }
+
   ngOnInit() {
     this.get_filings_under_scrutiny();
   }

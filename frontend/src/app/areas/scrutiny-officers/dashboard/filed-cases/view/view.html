@@ -35,7 +35,16 @@
                 <span *ngIf="hasNewForScrutiny(filing.id)" class="badge rounded-pill text-bg-danger me-2">
                   New
                 </span>
-                {{ getStatusLabel(filing.status) }}
+                <span
+                  class="badge rounded-pill px-2 py-1 fw-normal"
+                  [ngClass]="{
+                    'status-badge-warning': getStatusTone(filing.status) === 'warning',
+                    'status-badge-success': getStatusTone(filing.status) === 'success',
+                    'status-badge-danger': getStatusTone(filing.status) === 'danger'
+                  }"
+                >
+                  {{ getStatusLabel(filing.status) }}
+                </span>
               </td>
               <td>
                 <a
@@ -94,7 +103,16 @@
                 <span *ngIf="hasNewForScrutiny(filing.id)" class="badge rounded-pill text-bg-danger me-2">
                   New
                 </span>
-                {{ getStatusLabel(filing.status) }}
+                <span
+                  class="badge rounded-pill px-2 py-1 fw-normal"
+                  [ngClass]="{
+                    'status-badge-warning': getStatusTone(filing.status) === 'warning',
+                    'status-badge-success': getStatusTone(filing.status) === 'success',
+                    'status-badge-danger': getStatusTone(filing.status) === 'danger'
+                  }"
+                >
+                  {{ getStatusLabel(filing.status) }}
+                </span>
               </td>
               <td>
                 <a

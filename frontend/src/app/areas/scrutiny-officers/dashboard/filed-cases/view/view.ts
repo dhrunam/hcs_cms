@@ -86,6 +86,25 @@ export class FiledCasesView {
     return typeof filingId === 'number' && this.newIncomingFilingIds.has(filingId);
   }
 
+  getStatusTone(status: string | null): 'warning' | 'success' | 'danger' {
+    const normalizedStatus = (status ?? '').trim().toLowerCase();
+    if (!normalizedStatus || normalizedStatus === 'submitted' || normalizedStatus === 'under_scrutiny') {
+      return 'warning';
+    }
+    if (normalizedStatus.includes('accept')) {
+      return 'success';
+    }
+    if (
+      normalizedStatus.includes('partially') ||
+      normalizedStatus.includes('reject') ||
+      normalizedStatus.includes('object') ||
+      normalizedStatus.includes('defect')
+    ) {
+      return 'danger';
+    }
+    return 'warning';
+  }
+
   getStatusLabel(status: string | null): string {
     const normalizedStatus = (status ?? '').trim().toLowerCase();
 

@@ -68,7 +68,7 @@
               <div class="filing-summary-item">
                 <span class="filing-summary-label">Status</span>
                 <span class="filing-summary-value">
-                  <span class="badge rounded-pill px-2 py-1" [ngClass]="ia.status === 'Submitted' ? 'bg-dark' : 'bg-secondary'">
+                  <span class="badge rounded-pill px-2 py-1" [ngClass]="getIaStatusBadgeClass(ia.status)">
                     {{ ia.status || '-' }}
                   </span>
                 </span>

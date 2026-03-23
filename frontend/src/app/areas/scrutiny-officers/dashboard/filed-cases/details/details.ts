@@ -519,6 +519,13 @@ export class FiledCaseDetails {
     return item?.ia?.id ?? 0;
   }
 
+  getIaStatusBadgeClass(status: string | null): string {
+    const s = (status ?? '').trim().toLowerCase();
+    if (s.includes('accept')) return 'status-badge-success';
+    if (s.includes('reject') || s.includes('partial')) return 'status-badge-danger';
+    return 'status-badge-warning';
+  }
+
   selectedIaDocumentBelongsToIa(item: { documents: any[] }): boolean {
     if (!this.selectedIaDocument?.id || !item?.documents?.length) return false;
     return item.documents.some((d) => d?.id === this.selectedIaDocument?.id);

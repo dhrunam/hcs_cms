@@ -189,6 +189,13 @@ export class Create implements OnInit {
     return ia?.id ?? 0;
   }
 
+  getIaStatusBadgeClass(status: string | null): string {
+    const s = (status ?? '').trim().toLowerCase();
+    if (s.includes('accept')) return 'status-badge-success';
+    if (s.includes('reject') || s.includes('partial')) return 'status-badge-danger';
+    return 'status-badge-warning';
+  }
+
   getSelectedLabel(): string {
     if (!this.selectedFiling) return '';
     const item = this.filingsWithLitigants.find((x) => x.filing.id === this.selectedFiling.id);
