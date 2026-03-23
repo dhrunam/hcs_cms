@@ -1,17 +1,15 @@
-<div class="dashboard-header mb-4">
+<div class="dashboard-header mb-4 clean-view">
   <div>
-    <h3 class="page-title mb-1">Pending Cases</h3>
-    <p class="text-muted small mb-0">
-      View cases that are filed but still pending.
-    </p>
+    <div class="clean-title">Pending Cases</div>
+    <div class="clean-subtitle">View cases that are filed but still pending.</div>
   </div>
 </div>
 
-<section class="pending-cases-section">
-  <div class="card border-0 shadow-sm">
+<section class="pending-cases-section clean-view">
+  <div class="card clean-card">
     <div class="card-body p-0">
       <div class="table-responsive" *ngIf="hasCases; else emptyState">
-        <table class="table table-hover align-middle mb-0">
+        <table class="table clean-table align-middle mb-0">
           <thead style="background-color: #f8fafc">
             <tr class="text-secondary small fw-normal">
               <th>#</th>
@@ -28,7 +26,7 @@
               <td>{{ item.filingType }}</td>
               <td>{{ item.filedOn }}</td>
               <td>
-                <span class="badge rounded-pill px-2 py-1 bg-secondary">{{ item.status }}</span>
+                <span class="badge rounded-pill px-2 py-1 clean-badge">{{ item.status }}</span>
               </td>
             </tr>
           </tbody>
@@ -45,4 +43,3 @@
     </div>
   </div>
 </section>
-
