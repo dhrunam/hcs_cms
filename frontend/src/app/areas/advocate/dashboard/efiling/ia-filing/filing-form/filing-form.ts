@@ -36,6 +36,7 @@ export class IaFilingForm implements OnInit {
   uploadCompletedToken = 0;
 
   docList: any[] = [];
+  createdIa: any = null;
 
   constructor(
     private fb: FormBuilder,
@@ -127,6 +128,8 @@ export class IaFilingForm implements OnInit {
 
   selectFiling(item: { filing: any }): void {
     this.form.patchValue({ e_filing_id: item.filing.id });
+    this.createdIa = null;
+    this.docList = [];
     this.onFilingSelect();
     this.isDropdownOpen = false;
     this.searchQuery = '';
@@ -193,9 +196,14 @@ export class IaFilingForm implements OnInit {
     const eFilingId = Number(this.form.value.e_filing_id);
     const selectedF = this.filings.find((f) => f.id === eFilingId);
     const eFilingNumber = selectedF?.e_filing_number ?? '';
+    const reliefSought = String(this.form.value.relief_sought || '').trim();
 
     if (!documentType || uploadItems.length === 0 || !eFilingId) {
       this.toastr.warning('Please select an E-Filing and add documents with index names.');
+      return;
+    }
+    if (!reliefSought) {
+      this.toastr.warning('Please enter Relief Sought before uploading documents.');
       return;
     }
 
@@ -203,11 +211,25 @@ export class IaFilingForm implements OnInit {
     this.uploadFileProgresses = uploadItems.map(() => 0);
 
     try {
+      if (!this.createdIa) {
+        const iaRes = await firstValueFrom(
+          this.efilingService.post_ia_filing({
+            e_filing: eFilingId,
+            e_filing_number: eFilingNumber,
+            ia_text: reliefSought,
+          }),
+        );
+        this.createdIa = iaRes;
+      }
+
+      const iaNumber = this.createdIa?.ia_number ?? '';
+
       const documentPayload = new FormData();
       documentPayload.append('document_type', documentType);
       documentPayload.append('e_filing', String(eFilingId));
       documentPayload.append('e_filing_number', eFilingNumber);
       documentPayload.append('is_ia', 'true');
+      documentPayload.append('ia_number', iaNumber);
 
       const documentRes = await firstValueFrom(
         this.efilingService.upload_case_documnets(documentPayload),
@@ -281,6 +303,14 @@ export class IaFilingForm implements OnInit {
     const reliefSought = String(this.form.value.relief_sought || '').trim();
 
     this.isSubmitting = true;
+
+    if (this.createdIa) {
+      this.toastr.success('IA Filing submitted successfully.');
+      this.router.navigate(['/advocate/dashboard/efiling/ia-filing/view']);
+      this.isSubmitting = false;
+      return;
+    }
+
     this.efilingService
       .post_ia_filing({
         e_filing: eFilingId,

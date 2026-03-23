@@ -17,15 +17,7 @@ interface PendingCase {
   styleUrls: ['./pending-cases.css'],
 })
 export class PendingCases {
-  cases: PendingCase[] = [
-    {
-      id: 1,
-      caseTitle: 'Sample pending case',
-      filingType: 'Petition',
-      filedOn: '10 Mar 2026',
-      status: 'Pending scrutiny',
-    },
-  ];
+  cases: PendingCase[] = [];
 
   get hasCases(): boolean {
     return this.cases.length > 0;

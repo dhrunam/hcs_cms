@@ -1,6 +1,10 @@
-<div class="ia-filing-view">
-  <div class="text-end mb-3">
-    <a [routerLink]="['/advocate/dashboard/efiling/ia-filing/create']" class="btn btn-dark">
+<div class="ia-filing-view clean-view">
+  <div class="clean-header">
+    <div>
+      <div class="clean-title">IA Filing</div>
+      <div class="clean-subtitle">Track interlocutory applications and status.</div>
+    </div>
+    <a [routerLink]="['/advocate/dashboard/efiling/ia-filing/create']" class="btn clean-btn">
       <i class="fa-solid fa-plus me-1"></i>
       New IA Filing
     </a>
@@ -8,20 +12,23 @@
 
   <div *ngIf="isLoading" class="text-muted small py-4">Loading...</div>
 
-  <div *ngIf="!isLoading && iaFilings.length === 0" class="card border-0 shadow-sm">
+  <div *ngIf="!isLoading && iaFilings.length === 0" class="card clean-card">
     <div class="card-body py-5 text-center text-muted">
       <i class="fa-solid fa-folder-open fa-2x mb-3 d-block"></i>
       <p class="mb-0">No IA filings found.</p>
-      <a [routerLink]="['/advocate/dashboard/efiling/ia-filing/create']" class="btn btn-outline-dark btn-sm mt-3">
+      <a
+        [routerLink]="['/advocate/dashboard/efiling/ia-filing/create']"
+        class="btn clean-btn-outline btn-sm mt-3"
+      >
         Create IA Filing
       </a>
     </div>
   </div>
 
-  <div *ngIf="!isLoading && iaFilings.length > 0" class="card border-0 shadow-sm">
+  <div *ngIf="!isLoading && iaFilings.length > 0" class="card clean-card">
     <div class="card-body p-0">
       <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <table class="table clean-table align-middle mb-0">
           <thead style="background-color: #f8fafc">
             <tr class="text-secondary small fw-normal">
               <th>#</th>
@@ -40,13 +47,16 @@
               <td class="fw-medium text-dark">{{ item.e_filing_number || '-' }}</td>
               <td>{{ item.ia_text || '-' }}</td>
               <td>
-                <span class="badge rounded-pill px-2 py-1" [ngClass]="item.status === 'Submitted' ? 'bg-dark' : 'bg-secondary'">
+                <span class="badge rounded-pill px-2 py-1 clean-badge">
                   {{ item.status || '-' }}
                 </span>
               </td>
               <td>{{ item.created_at | date: 'dd MMM yyyy' }}</td>
               <td>
-                <a [routerLink]="['/advocate/dashboard/efiling/ia-filing/edit', item.id]" class="btn btn-sm btn-outline-dark">
+                <a
+                  [routerLink]="['/advocate/dashboard/efiling/ia-filing/edit', item.id]"
+                  class="btn btn-sm clean-btn-outline"
+                >
                   View
                 </a>
               </td>

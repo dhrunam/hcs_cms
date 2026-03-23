@@ -1,8 +1,18 @@
-<section class="pending-cases-section">
-  <div class="card border-0 shadow-sm">
+<section class="pending-cases-section clean-view">
+  <div class="clean-header">
+    <div>
+      <div class="clean-title">Draft Filings</div>
+      <div class="clean-subtitle">Continue and complete your saved filings.</div>
+    </div>
+  </div>
+
+  <div class="card clean-card border-0">
     <div class="card-body p-0">
-      <div class="table-responsive" *ngIf="filingsUnderDraft && filingsUnderDraft.length > 0; else emptyState">
-        <table class="table table-hover align-middle mb-0">
+      <div
+        class="table-responsive"
+        *ngIf="filingsUnderDraft && filingsUnderDraft.length > 0; else emptyState"
+      >
+        <table class="table clean-table align-middle mb-0">
           <thead style="background-color: #f8fafc">
             <tr class="text-secondary small fw-normal">
               <th>#</th>
@@ -26,8 +36,11 @@
               <td>{{ c.case_type && c.case_type.type_name }}</td>
               <td>{{ c.created_at | date: 'dd MMM yyyy' }}</td>
               <td>
-                <a [routerLink]="['/advocate/dashboard/efiling/draft-filings/edit']"
-                [queryParams]="{ id: c.id, e_filing_number: c.e_filing_number }" class="btn btn-sm btn-outline-dark" (click)="$event.stopPropagation()">
+                <a
+                  [routerLink]="['/advocate/dashboard/efiling/edit', c.id]"
+                  class="btn btn-sm clean-btn-outline"
+                  (click)="$event.stopPropagation()"
+                >
                   <i class="fa-regular fa-pen-to-square me-1"></i>
                   Edit
                 </a>
@@ -39,9 +52,7 @@
       <ng-template #emptyState>
         <div class="empty-state text-center py-5 px-4">
           <h5 class="mb-2">No draft filings</h5>
-          <p class="text-muted mb-3">
-            Once you submit a filing, it will appear here.
-          </p>
+          <p class="text-muted mb-3">Once you submit a filing, it will appear here.</p>
         </div>
       </ng-template>
     </div>

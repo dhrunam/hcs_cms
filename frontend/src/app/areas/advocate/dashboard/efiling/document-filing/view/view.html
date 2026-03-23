@@ -1,0 +1,63 @@
+<div class="container clean-view">
+  <div class="clean-header">
+    <div>
+      <div class="clean-title">Document Filing</div>
+      <div class="clean-subtitle">Upload documents for existing filings.</div>
+    </div>
+    <a [routerLink]="['/advocate/dashboard/efiling/document-filing/create']" class="btn clean-btn">
+      <i class="fa-solid fa-plus me-1"></i>
+      File Document(s)
+    </a>
+  </div>
+
+  <div *ngIf="isLoading" class="text-muted small py-4">Loading...</div>
+
+  <div *ngIf="!isLoading && groupedByEfiling.length === 0" class="card clean-card border-0">
+    <div class="card-body py-5 text-center text-muted">
+      <i class="fa-solid fa-folder-open fa-2x mb-3 d-block"></i>
+      <p class="mb-0">No filed documents found.</p>
+      <a
+        [routerLink]="['/advocate/dashboard/efiling/document-filing/create']"
+        class="btn clean-btn-outline btn-sm mt-3"
+      >
+        File Document(s)
+      </a>
+    </div>
+  </div>
+
+  <div *ngIf="!isLoading && groupedByEfiling.length > 0" class="card clean-card border-0">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table clean-table align-middle mb-0">
+          <thead style="background-color: #f8fafc">
+            <tr class="text-secondary small fw-normal">
+              <th>#</th>
+              <th>E-Filing Number</th>
+              <th>Document Count</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody class="text-muted small">
+            <tr *ngFor="let group of groupedByEfiling; let i = index; trackBy: trackByEfilingId">
+              <td>{{ i + 1 }}</td>
+              <td class="fw-medium text-dark">{{ group.efilingNumber }}</td>
+              <td>{{ group.docs.length }}</td>
+              <td>
+                <a
+                  [routerLink]="[
+                    '/advocate/dashboard/efiling/document-filing/edit',
+                    group.efilingId,
+                  ]"
+                  class="btn btn-sm clean-btn-outline"
+                >
+                  <i class="fa-solid fa-eye me-1"></i>
+                  View
+                </a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

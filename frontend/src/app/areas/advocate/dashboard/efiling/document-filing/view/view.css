@@ -1,26 +1,15 @@
-.pending-cases-section .card {
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.filing-table thead th {
-  background-color: #f8f9fa;
-  font-weight: 600;
-  border-bottom-width: 1px;
-}
-
-.filing-table tbody tr:hover {
-  background-color: #f5f7fb;
-}
-
-.empty-state h5 {
-  font-weight: 600;
-}
-
 .clean-view {
   --clean-ink: #1f2937;
   --clean-muted: #6b7280;
   --clean-border: #e5e7eb;
+}
+
+.clean-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .clean-title {
@@ -66,10 +55,22 @@
   background: #f8fafc;
 }
 
-.clean-badge {
-  background: #f3f4f6;
-  color: #374151;
-  border: 1px solid #e5e7eb;
-  font-size: 0.8rem;
+.clean-btn {
+  background: #111827;
+  color: #ffffff;
+  border-radius: 10px;
+  border: none;
+  padding: 5px 10px;
   font-weight: 500;
+  font-size: 0.8rem;
+}
+
+.clean-btn-outline {
+  background: transparent;
+  color: #1f2937;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 4px 10px;
+  font-weight: 500;
+  font-size: 0.8rem;
 }

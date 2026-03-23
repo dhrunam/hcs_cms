@@ -71,6 +71,18 @@
   </div>
 
   <div *ngIf="step === 2">
+    <header
+      _ngcontent-ng-c2086404198=""
+      class="d-flex justify-content-between"
+      style="padding: 8px 12px"
+    >
+      <h6 _ngcontent-ng-c2086404198="" class="mb-0">
+        <span _ngcontent-ng-c2086404198="" class="text-success" style="font-size: 0.85rem"
+          ><span _ngcontent-ng-c2086404198="" class="text-muted">Filing Number :</span>
+          {{ eFilingNumber }}
+        </span>
+      </h6>
+    </header>
     <app-litigant
       (deleted)="onDelete($event)"
       [form]="litigantsForm"
@@ -86,7 +98,6 @@
           [class.btn-dark]="!step2Saved"
           [class.btn-success]="step2Saved"
           (click)="!step2Saved && saveStep2()"
-          [disabled]="litigantsForm.invalid"
         >
           <i class="fa-regular fa-plus" *ngIf="!step2Saved"></i>
           <i class="fa-solid fa-check" *ngIf="step2Saved"></i>

@@ -118,7 +118,7 @@ export class EFile {
   }
 
   getDisputeStateLabel(): string {
-    return this.resolveLocationLabel(this.caseDetailsView?.dispute_state);
+    return this.resolveLocationLabel(this.caseDetailsView?.state_detail?.state);
   }
 
   getDisputeDistrictLabel(): string {
