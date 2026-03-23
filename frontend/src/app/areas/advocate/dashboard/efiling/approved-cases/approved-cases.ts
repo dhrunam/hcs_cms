@@ -1,39 +1,32 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
-interface PendingCase {
-  id: number;
-  caseTitle: string;
-  filingType: string;
-  filedOn: string;
-  status: string;
-}
+import { EfilingService } from '../../../../../services/advocate/efiling/efiling.services';
 
 @Component({
-  selector: 'app-view',
+  selector: 'app-approved-cases',
   imports: [CommonModule, RouterLink],
-  templateUrl: './view.html',
-  styleUrl: './view.css',
+  templateUrl: './approved-cases.html',
+  styleUrl: './approved-cases.css',
 })
-export class View {
-  filingsUnderScrutiny: any[] | null = null;
+export class ApprovedCases {
+  approvedCases: any[] | null = null;
 
   get hasCases(): boolean {
-    return Array.isArray(this.filingsUnderScrutiny) && this.filingsUnderScrutiny.length > 0;
+    return Array.isArray(this.approvedCases) && this.approvedCases.length > 0;
   }
 
   constructor(private eFilingService: EfilingService) {}
 
   ngOnInit() {
-    this.get_filings_under_scrutiny();
+    this.get_approved_cases();
   }
 
-  get_filings_under_scrutiny() {
-    this.eFilingService.get_filings_under_scrutiny().subscribe({
+  get_approved_cases() {
+    this.eFilingService.get_approved_cases().subscribe({
       next: (data) => {
-        this.filingsUnderScrutiny = data?.results ?? [];
-        console.log(this.filingsUnderScrutiny);
+        this.approvedCases = data?.results ?? [];
+        console.log(this.approvedCases);
       },
     });
   }
