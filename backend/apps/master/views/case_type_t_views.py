@@ -5,6 +5,6 @@ from apps.master.serializers.case_type_t_serializers import CaseTypeTSerializer
 
 
 class CaseTypeTListView(ListCreateAPIView):
-    queryset = CaseTypeT.objects.all()
+    queryset = CaseTypeT.objects.all().order_by('type_name')
     serializer_class = CaseTypeTSerializer
     pagination_class = None  # Disable pagination for this view
