@@ -240,8 +240,11 @@
     <!-- Upload New Documents (like new filing) -->
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-header bg-dark text-white fw-semibold">
-        <i class="fa-solid fa-file-pdf me-2"></i>
-        Upload New Documents
+        <i class="fa-solid fa-file-pdf me-2"></i>Upload New Documents
+      </div>
+      <div class="alert alert-danger alert-dismissible py-2 small m-3 mb-0" *ngIf="mergeError">
+        {{ mergeError }}
+        <button type="button" class="btn-close btn-sm" (click)="mergeError = null" aria-label="Close"></button>
       </div>
       <div class="card-body">
         <p class="text-muted small mb-3">
@@ -252,6 +255,24 @@
         <div *ngIf="uploadedDocList.length > 0" class="mb-4">
           <div class="card shadow-sm border-0">
             <div class="list-group list-group-flush">
+              <div class="list-group-item d-flex justify-content-between align-items-center bg-light">
+                <span class="fw-semibold">Document Type</span>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"
+                  [disabled]="!canDownloadMerged() || isMergingPdf"
+                  (click)="downloadMergedPdf()"
+                >
+                  <span
+                    *ngIf="isMergingPdf"
+                    class="spinner-border spinner-border-sm"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
+                  <i class="fa-solid fa-file-pdf" *ngIf="!isMergingPdf"></i>
+                  {{ isMergingPdf ? 'Merging...' : 'Download Merged PDF' }}
+                </button>
+              </div>
               <div
                 style="border-left: 2px solid black"
                 class="list-group-item"

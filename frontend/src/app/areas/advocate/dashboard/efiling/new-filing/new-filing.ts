@@ -8,6 +8,7 @@ import { Litigant } from './litigant/litigant';
 import { CaseDetails } from './case-details/case-details';
 import { EfilingService } from '../../../../../services/advocate/efiling/efiling.services';
 import { CaseTypeService } from '../../../../../services/master/case-type.services';
+import { getValidationErrorMessage } from '../../../../../utils/pdf-validation';
 import { EFile } from './e-file/e-file';
 import { UploadDocuments } from './upload-documents/upload-documents';
 import Swal from 'sweetalert2';
@@ -722,6 +723,7 @@ export class NewFiling {
       this.uploadCompletedToken++;
     } catch (error) {
       console.error('Document upload failed', error);
+      this.toastr.error(getValidationErrorMessage(error) || 'Failed to upload documents. Please try again.');
     } finally {
       this.isUploadingDocuments = false;
     }

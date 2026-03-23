@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from apps.core.models import EfilingDocumentsIndex
+from apps.efiling.pdf_validators import validate_pdf_file
 from apps.efiling.review_utils import can_replace_document
 
 
@@ -79,4 +80,9 @@ class EfilingDocumentsIndexSerializer(serializers.ModelSerializer):
         if not obj.document_id or not obj.document:
             return False
         return can_replace_document(obj.document, document_index_id=obj.id)
+
+    def validate_file_part_path(self, value):
+        if value:
+            validate_pdf_file(value, "file_part_path")
+        return value
 

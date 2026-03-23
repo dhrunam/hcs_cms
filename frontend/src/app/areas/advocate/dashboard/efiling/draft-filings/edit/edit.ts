@@ -11,6 +11,7 @@ import { CaseDetails } from '../../new-filing/case-details/case-details';
 import { EFile } from '../../new-filing/e-file/e-file';
 import { UploadDocuments } from '../../new-filing/upload-documents/upload-documents';
 import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
+import { getValidationErrorMessage } from '../../../../../../utils/pdf-validation';
 import { HttpEventType } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 
@@ -753,6 +754,7 @@ export class Edit {
       this.loadDocuments();
     } catch (error) {
       console.error('Document upload failed', error);
+      this.toastr.error(getValidationErrorMessage(error) || 'Failed to upload documents. Please try again.');
     } finally {
       this.isUploadingDocuments = false;
     }
