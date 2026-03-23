@@ -213,7 +213,7 @@ export class FiledCaseDetails {
   }
 
   submitReview(status: string): void {
-    if (!this.selectedDocument?.id || !this.filingId || this.isSavingReview) {
+    if (!this.canReviewDocuments || !this.selectedDocument?.id || !this.filingId || this.isSavingReview) {
       return;
     }
 
@@ -454,7 +454,7 @@ export class FiledCaseDetails {
   }
 
   private submitIaReview(status: string): void {
-    if (!this.selectedIaDocument?.id || !this.filingId || this.isSavingReviewIa) {
+    if (!this.canReviewDocuments || !this.selectedIaDocument?.id || !this.filingId || this.isSavingReviewIa) {
       return;
     }
 
@@ -545,13 +545,28 @@ export class FiledCaseDetails {
     return activeDocuments.length > 0 && activeDocuments.every((document) => !this.isPendingDraftReview(document));
   }
 
+  /** Case is registered with the court. */
+  get isCaseRegistered(): boolean {
+    return Boolean(this.filing?.case_number);
+  }
+
+  get canReviewDocuments(): boolean {
+    if (!this.isCaseRegistered) {
+      return true;
+    }
+    return this.hasPendingReviewItems;
+  }
+
   get canSubmitApprovedFiling(): boolean {
-    return Boolean(
-      this.filingId &&
-        !this.isSubmittingApprovedCase &&
-        !this.filing?.case_number &&
-        this.allDocumentsReviewed,
-    );
+    if (!this.filingId || this.isSubmittingApprovedCase) {
+      return false;
+    }
+
+    if (!this.isCaseRegistered) {
+      return this.allDocumentsReviewed;
+    }
+
+    return this.allReviewCycleItemsReviewed;
   }
 
   private isPendingDraftReview(document: any): boolean {
@@ -574,5 +589,29 @@ export class FiledCaseDetails {
   private get activeDocuments(): any[] {
     const explicitlyActive = this.documents.filter((document) => document?.is_active !== false);
     return explicitlyActive.length > 0 ? explicitlyActive : this.documents;
+  }
+
+  private get activeIaDocuments(): any[] {
+    const explicitlyActive = this.iaDocuments.filter((document) => document?.is_active !== false);
+    return explicitlyActive.length > 0 ? explicitlyActive : this.iaDocuments;
+  }
+
+  private get reviewCycleDocuments(): any[] {
+    const allActive = [...this.activeDocuments, ...this.activeIaDocuments];
+    return allActive.filter((document) => {
+      const hasDraftStatus = Boolean(String(document?.draft_scrutiny_status ?? '').trim());
+      return Boolean(document?.is_new_for_scrutiny) || hasDraftStatus;
+    });
+  }
+
+  private get hasPendingReviewItems(): boolean {
+    return this.reviewCycleDocuments.some((document) => this.isPendingDraftReview(document));
+  }
+
+  private get allReviewCycleItemsReviewed(): boolean {
+    return (
+      this.reviewCycleDocuments.length > 0 &&
+      this.reviewCycleDocuments.every((document) => !this.isPendingDraftReview(document))
+    );
   }
 }

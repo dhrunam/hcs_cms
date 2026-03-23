@@ -414,7 +414,7 @@ class EfilingDocumentsIndex(BaseModel):
     )
     draft_comments = models.TextField(blank=True, null=True)
     draft_reviewed_at = models.DateTimeField(blank=True, null=True)
-    is_new_for_scrutiny = models.BooleanField(default=False)
+    is_new_for_scrutiny = models.BooleanField(default=False)#Added for allowing accept reject for new document (accepted cases)
     last_resubmitted_at = models.DateTimeField(blank=True, null=True)
     last_reviewed_at = models.DateTimeField(blank=True, null=True)
 
