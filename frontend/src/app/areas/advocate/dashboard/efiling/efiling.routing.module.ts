@@ -11,8 +11,8 @@ export const EfilingRoutes: Routes = [
       import('./draft-filings/draft-filing.routing').then((r) => r.DraftFilingRoutes),
   },
   {
-    path: 'pending-cases',
-    loadComponent: () => import('./pending-cases/pending-cases').then((c) => c.PendingCases),
+    path: 'approved-cases',
+    loadComponent: () => import('./approved-cases/approved-cases').then((c) => c.ApprovedCases),
   },
   {
     path: 'pending-scrutiny',
@@ -26,7 +26,6 @@ export const EfilingRoutes: Routes = [
   },
   {
     path: 'ia-filing',
-    loadChildren: () =>
-      import('./ia-filing/ia-filing.routing').then((r) => r.IaFilingRoutes),
+    loadChildren: () => import('./ia-filing/ia-filing.routing').then((r) => r.IaFilingRoutes),
   },
 ];

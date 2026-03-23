@@ -64,9 +64,6 @@
   </div>
 
   <div class="card border-0 shadow-sm mt-4" [class.mt-4]="showFiledCasesSection" *ngIf="showRegisteredCasesSection">
-    <div class="card-header px-4 py-3" style="background-color: #eef2ff; border-bottom: 1px solid #e0e7ff">
-      <h6 class="fw-semibold mb-0 text-dark">Registered Cases</h6>
-    </div>
     <div class="card-body p-0">
       <div *ngIf="!isLoading && registeredCases.length === 0" class="text-muted small py-5 px-4 text-center">
         No registered cases found yet.

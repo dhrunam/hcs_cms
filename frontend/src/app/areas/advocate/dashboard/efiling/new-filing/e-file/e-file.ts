@@ -1,8 +1,11 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { FormGroup } from '@angular/forms';
+import { forkJoin } from 'rxjs';
 import { CaseTypeService } from '../../../../../../services/master/case-type.services';
 import { OrganisationService } from '../../../../../../services/master/organisation.services';
+import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
+import { app_url } from '../../../../../../environment';
 
 @Component({
   selector: 'app-e-file',
@@ -22,6 +25,8 @@ export class EFile {
   caseTypes: any[] = [];
   expandedRows: { [key: number]: boolean } = {};
   organisations: any[] = [];
+  isMergingPdf = false;
+  mergeError: string | null = null;
 
   toggleRow(index: number) {
     this.expandedRows[index] = !this.expandedRows[index];
@@ -30,6 +35,7 @@ export class EFile {
   constructor(
     private caseTypeService: CaseTypeService,
     private organisationService: OrganisationService,
+    private efilingService: EfilingService,
   ) {}
 
   ngOnInit() {
@@ -139,5 +145,101 @@ export class EFile {
   }
   onUpdateClick(id: number) {
     this.goToPage.emit(id);
+  }
+
+  private getMergeItems(): { url: string; name: string }[] {
+    const items: { url: string; name: string }[] = [];
+    const list = Array.isArray(this.docList) ? this.docList : [];
+    for (const doc of list) {
+      const indexes = doc?.document_indexes;
+      if (Array.isArray(indexes) && indexes.length > 0) {
+        for (const part of indexes) {
+          const url = part?.file_url || part?.file_part_path;
+          if (url) {
+            const name = part?.document_part_name?.trim() || doc?.document_type || 'Document';
+            items.push({ url, name });
+          }
+        }
+      } else if (doc?.final_document) {
+        const url = doc.final_document;
+        const name = doc?.document_type?.trim() || 'Document';
+        items.push({ url, name });
+      }
+    }
+    return items;
+  }
+
+  private toAbsoluteUrl(url: string): string {
+    if (!url) return '';
+    const s = String(url).trim();
+    if (s.startsWith('http://') || s.startsWith('https://')) return s;
+    const base = app_url.replace(/\/$/, '');
+    return s.startsWith('/') ? `${base}${s}` : `${base}/${s}`;
+  }
+
+  canDownloadMerged(): boolean {
+    return this.getMergeItems().length > 0;
+  }
+
+  downloadMergedPdf(): void {
+    const items = this.getMergeItems();
+    if (items.length === 0 || this.isMergingPdf) return;
+
+    this.isMergingPdf = true;
+    this.mergeError = null;
+
+    const fetches = items.map((item) =>
+      this.efilingService.fetch_document_blob(this.toAbsoluteUrl(item.url)),
+    );
+
+    forkJoin(fetches).subscribe({
+      next: (blobs) => {
+        const files = blobs.map((blob, i) => {
+          const name = items[i].name.replace(/\.pdf$/i, '') + '.pdf';
+          return new File([blob], name, { type: 'application/pdf' });
+        });
+        const names = items.map((i) => i.name);
+        const petitioners = (this.litigantList || [])
+          .filter((l: any) => l.is_petitioner)
+          .map((l: any) => l.name || '')
+          .filter(Boolean)
+          .join(', ');
+        const respondents = (this.litigantList || [])
+          .filter((l: any) => !l.is_petitioner)
+          .map((l: any) => l.name || '')
+          .filter(Boolean)
+          .join(', ');
+        const init = this.initialInputsView || {};
+        const caseType = this.caseTypeFullForm || this.caseTypeLabel || '';
+        const frontPage = {
+          petitionerName: (init.petitioner_name || '').trim() || petitioners,
+          respondentName: respondents,
+          caseNo: (init.e_filing_number || '').trim(),
+          caseType,
+        };
+
+        this.efilingService.mergePdfs(files, names, frontPage).subscribe({
+          next: (mergedBlob) => {
+            const url = URL.createObjectURL(mergedBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            const docType = (this.docList?.[0]?.document_type || 'Documents').replace(/[^a-zA-Z0-9_-]/g, '_') || 'Documents';
+            const efilingNo = (this.initialInputsView?.e_filing_number || '').replace(/[^a-zA-Z0-9_-]/g, '') || 'merged';
+            a.download = `${docType}_${efilingNo}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+            this.isMergingPdf = false;
+          },
+          error: (err) => {
+            this.isMergingPdf = false;
+            this.mergeError = err?.error?.error || err?.message || 'Failed to merge PDFs.';
+          },
+        });
+      },
+      error: () => {
+        this.isMergingPdf = false;
+        this.mergeError = 'Failed to fetch documents.';
+      },
+    });
   }
 }

@@ -53,7 +53,17 @@ export class EfilingService {
   }
 
   get_filings_under_scrutiny(): Observable<any> {
-    return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/?is_draft=false`);
+    return this.http.get<any>(
+      `${app_url}/api/v1/efiling/efilings/?is_draft=false&status=UNDER_SCRUTINY`,
+    );
+  }
+  get_filings(): Observable<any> {
+    return this.http.get<any>(
+      `${app_url}/api/v1/efiling/efilings/`,
+    );
+  }
+  get_approved_cases(): Observable<any> {
+    return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/?is_draft=false&status=ACCEPTED`);
   }
 
   get_filings_under_draft(): Observable<any> {
@@ -135,11 +145,16 @@ export class EfilingService {
   replace_document_review_item(documentIndexId: number, file: File): Observable<any> {
     const fd = new FormData();
     fd.append('file_part_path', file);
-    return this.http.patch<any>(`${app_url}/api/v1/efiling/efiling-documents-index/${documentIndexId}/`, fd);
+    return this.http.patch<any>(
+      `${app_url}/api/v1/efiling/efiling-documents-index/${documentIndexId}/`,
+      fd,
+    );
   }
 
   get_new_scrutiny_documents(): Observable<any> {
-    return this.http.get<any>(`${app_url}/api/v1/efiling/efiling-documents-index/?is_new_for_scrutiny=true`);
+    return this.http.get<any>(
+      `${app_url}/api/v1/efiling/efiling-documents-index/?is_new_for_scrutiny=true`,
+    );
   }
 
   get_file_scrutiny_checklist(caseTypeId: number): Observable<any> {
@@ -152,8 +167,29 @@ export class EfilingService {
     return this.http.get<any>(`${app_url}/api/v1/efiling/document-index/`);
   }
 
+  mergePdfs(
+    files: File[],
+    names?: string[],
+    frontPage?: { petitionerName: string; respondentName: string; caseNo: string; caseType?: string }
+  ): Observable<Blob> {
+    const formData = new FormData();
+    files.forEach((f) => formData.append('files', f, f.name));
+    if (names && names.length === files.length) {
+      formData.append('names', JSON.stringify(names));
+    }
+    if (frontPage) {
+      formData.append('petitioner_name', frontPage.petitionerName);
+      formData.append('respondent_name', frontPage.respondentName);
+      formData.append('case_no', frontPage.caseNo);
+      if (frontPage.caseType) formData.append('case_type', frontPage.caseType);
+    }
+    return this.http.post(`${app_url}/api/v1/efiling/merge-pdfs/`, formData, {
+      responseType: 'blob',
+    });
+  }
+
   post_ia_filing(payload: { e_filing: number; e_filing_number: string; ia_text: string; status?: string }): Observable<any> {
-    const body = { status: 'Under Scrutiny', ...payload };
+    const body = { status: 'UNDER_SCRUTINY', ...payload };
     return this.http.post<any>(`${app_url}/api/v1/efiling/ias/`, body);
   }
 

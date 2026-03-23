@@ -1,0 +1,37 @@
+.pending-cases-section {
+  --clean-ink: #1f2937;
+  --clean-muted: #6b7280;
+  --clean-border: #e5e7eb;
+}
+
+.pending-cases-section .card {
+  border: none;
+  border-radius: 18px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+  overflow: hidden;
+}
+
+.pending-cases-section thead th {
+  background: #f9fafb;
+  color: black;
+  border-bottom: 1px solid var(--clean-border);
+  font-weight: bold;
+  font-size: 0.85rem;
+}
+
+.pending-cases-section tbody td {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.pending-cases-section tbody td:nth-child(n + 2) {
+  font-weight: 400;
+}
+
+.pending-cases-section tbody tr {
+  border-bottom: 1px solid #eef2f7;
+}
+
+.pending-cases-section tbody tr:hover {
+  background: #f8fafc;
+}
