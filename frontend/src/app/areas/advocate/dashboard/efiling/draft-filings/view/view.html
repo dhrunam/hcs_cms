@@ -42,6 +42,7 @@
               <td>
                 <a
                   [routerLink]="['/advocate/dashboard/efiling/draft-filings/edit']"
+                  [queryParams]="{ id: c.id, e_filing_number: c.e_filing_number }"
                   class="btn btn-sm clean-btn-outline"
                 >
                   <i class="fa-regular fa-pen-to-square me-1"></i>
