@@ -63,15 +63,9 @@ export class Create implements OnInit {
 
   loadFilings(): void {
     this.isLoadingFilings = true;
-    forkJoin({
-      draft: this.eFilingService.get_filings_under_draft(),
-      scrutiny: this.eFilingService.get_filings_under_scrutiny(),
-    }).subscribe({
-      next: ({ draft, scrutiny }) => {
-        const draftRows = draft?.results ?? [];
-        const scrutinyRows = scrutiny?.results ?? [];
-        const merged = [...draftRows, ...scrutinyRows];
-        this.filings = merged.filter((f: any) => f?.id && f?.e_filing_number);
+    this.eFilingService.get_filings().subscribe({
+      next: (data: any) => {
+        this.filings = data.results.filter((f: any) => f?.id && f?.e_filing_number);
         this.loadLitigantsForFilings();
       },
       error: () => {
@@ -264,7 +258,7 @@ export class Create implements OnInit {
   }
 
   getDocDisplayLabel(doc: any): string {
-    if (doc?.ia_number) return doc.ia_number;
+    if (doc?.ia_number && doc?.document_type === 'IA') return doc.ia_number;
     return doc?.document_type || '-';
   }
 
