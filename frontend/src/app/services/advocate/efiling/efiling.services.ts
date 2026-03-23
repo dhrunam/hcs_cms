@@ -53,9 +53,9 @@ export class EfilingService {
   }
 
   get_filings_under_scrutiny(): Observable<any> {
-    console.log(`${app_url}/api/v1/efiling/efilings/?is_draft=false&status=UNDER_SCRUTINY`);
+    console.log(`${app_url}/api/v1/efiling/efilings/?is_draft=false&status=NOT_ACCEPTED`);
     return this.http.get<any>(
-      `${app_url}/api/v1/efiling/efilings/?is_draft=false&status=UNDER_SCRUTINY`,
+      `${app_url}/api/v1/efiling/efilings/?is_draft=false&status=NOT_ACCEPTED`,
     );
   }
   get_approved_cases(): Observable<any> {
