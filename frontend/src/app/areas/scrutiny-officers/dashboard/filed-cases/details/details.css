@@ -540,3 +540,33 @@
   color: #334155;
   line-height: 1.5;
 }
+
+/* IA Accordion (Bootstrap accordion) */
+.ia-tab-content .accordion {
+  --bs-accordion-border-color: #e2e8f0;
+  --bs-accordion-btn-focus-box-shadow: none;
+}
+
+.ia-accordion-details {
+  margin-bottom: 1.5rem;
+}
+
+.ia-accordion-details .ia-text {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.ia-accordion-docs {
+  margin-top: 1rem;
+}
+
+.ia-no-docs {
+  border: 1px dashed #e2e8f0;
+  border-radius: 12px;
+  text-align: center;
+}

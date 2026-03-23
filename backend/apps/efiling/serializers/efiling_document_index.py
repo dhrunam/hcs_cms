@@ -14,6 +14,7 @@ class EfilingDocumentsIndexSerializer(serializers.ModelSerializer):
     e_filing_id = serializers.SerializerMethodField()
     e_filing_number = serializers.SerializerMethodField()
     document_type = serializers.SerializerMethodField()
+    ia_number = serializers.SerializerMethodField()
     history_count = serializers.SerializerMethodField()
     can_replace = serializers.SerializerMethodField()
 
@@ -40,6 +41,7 @@ class EfilingDocumentsIndexSerializer(serializers.ModelSerializer):
             "e_filing_id",
             "e_filing_number",
             "document_type",
+            "ia_number",
             "history_count",
             "can_replace",
             "is_active",
@@ -66,6 +68,9 @@ class EfilingDocumentsIndexSerializer(serializers.ModelSerializer):
 
     def get_document_type(self, obj):
         return obj.document.document_type if obj.document_id and obj.document else None
+
+    def get_ia_number(self, obj):
+        return obj.document.ia_number if obj.document_id and obj.document else None
 
     def get_history_count(self, obj):
         return obj.scrutiny_history.count()

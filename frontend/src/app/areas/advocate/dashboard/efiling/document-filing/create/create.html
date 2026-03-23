@@ -70,6 +70,64 @@
         </div>
       </div>
       <div *ngIf="isLoadingFilings" class="text-muted small mt-1">Loading filings...</div>
+
+      <!-- IA (visible only after e-filing selected) -->
+      <div *ngIf="selectedFiling" class="mt-4">
+        <label class="form-label">Search & select IA <span *ngIf="selectedIa" class="text-muted fw-normal">(<a href="#" class="text-decoration-none" (click)="selectIa(null); $event.preventDefault()">Clear</a>)</span></label>
+        <div class="searchable-select position-relative" [class.open]="iaDropdownOpen">
+          <div
+            *ngIf="iaDropdownOpen"
+            class="searchable-select-backdrop"
+            (click)="iaDropdownOpen = false"
+          ></div>
+          <button
+            type="button"
+            class="form-select-selector d-flex align-items-center justify-content-between w-100"
+            (click)="iaDropdownOpen = !iaDropdownOpen"
+          >
+            <span *ngIf="selectedIa" class="text-dark">{{ getSelectedIaLabel() }}</span>
+            <span *ngIf="!selectedIa" class="text-muted">-- Search by IA number, status or relief sought --</span>
+            <i class="fa-solid fa-chevron-down ms-2" [class.rotate-180]="iaDropdownOpen"></i>
+          </button>
+          <div *ngIf="iaDropdownOpen" class="searchable-select-dropdown">
+            <div class="searchable-select-search">
+              <i class="fa-solid fa-search text-muted"></i>
+              <input
+                type="text"
+                class="form-control border-0"
+                placeholder="Type to search..."
+                [(ngModel)]="iaSearchQuery"
+                [ngModelOptions]="{standalone: true}"
+                (click)="$event.stopPropagation()"
+              />
+            </div>
+            <div class="searchable-select-list">
+              <button
+                *ngFor="let ia of filteredIaList; trackBy: trackIa"
+                type="button"
+                class="searchable-select-option"
+                [class.selected]="selectedIa?.id === ia.id"
+                (click)="selectIa(ia)"
+              >
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                  <div>
+                    <span class="fw-semibold text-dark">{{ ia.ia_number || '-' }}</span>
+                    <span class="badge rounded-pill px-2 py-1 ms-2" [ngClass]="ia.status ? 'bg-primary' : 'bg-secondary'">
+                      {{ ia.status || 'Pending' }}
+                    </span>
+                  </div>
+                </div>
+                <div class="text-muted small mt-1" *ngIf="ia.ia_text">
+                  {{ (ia.ia_text || '').slice(0, 80) }}{{ ia.ia_text?.length > 80 ? '...' : '' }}
+                </div>
+              </button>
+              <div *ngIf="filteredIaList.length === 0" class="text-muted small p-3 text-center">
+                No IAs found for this e-filing.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -133,30 +191,16 @@
               >
                 <div class="d-flex justify-content-between align-items-start gap-2">
                   <div class="text-start">
-                    <div class="fw-semibold">{{ i + 1 }}. {{ doc.document_type || '-' }}</div>
+                    <div class="fw-semibold">{{ i + 1 }}. {{ getDocDisplayLabel(doc) }}</div>
                   </div>
                 </div>
                 <div class="mt-2 ps-2" *ngIf="doc.document_indexes?.length > 0">
                   <div
                     *ngFor="let filePart of doc.document_indexes; let j = index"
-                    class="d-flex justify-content-between align-items-center py-1"
+                    class="small text-muted py-1"
                   >
-                    <div class="small text-muted text-start">
-                      {{ j + 1 }}. {{ filePart.document_part_name || 'Document Part' }}
-                    </div>
-                    <a
-                      [href]="filePart.file_url || filePart.file_part_path"
-                      target="_blank"
-                      class="btn btn-sm btn-outline-primary"
-                    >
-                      <i class="fa fa-eye"></i> view
-                    </a>
+                    {{ j + 1 }}. {{ filePart.document_part_name || 'Document Part' }}
                   </div>
-                </div>
-                <div class="mt-2 ps-2" *ngIf="!doc.document_indexes?.length && doc.final_document">
-                  <a [href]="doc.final_document" target="_blank" class="btn btn-sm btn-outline-primary">
-                    <i class="fa fa-eye"></i> view
-                  </a>
                 </div>
               </div>
             </div>
@@ -178,30 +222,16 @@
               >
                 <div class="d-flex justify-content-between align-items-start gap-2">
                   <div class="text-start">
-                    <div class="fw-semibold">{{ i + 1 }}. {{ doc.document_type || '-' }}</div>
+                    <div class="fw-semibold">{{ i + 1 }}. {{ getDocDisplayLabel(doc) }}</div>
                   </div>
                 </div>
                 <div class="mt-2 ps-2" *ngIf="doc.document_indexes?.length > 0">
                   <div
                     *ngFor="let filePart of doc.document_indexes; let j = index"
-                    class="d-flex justify-content-between align-items-center py-1"
+                    class="small text-muted py-1"
                   >
-                    <div class="small text-muted text-start">
-                      {{ j + 1 }}. {{ filePart.document_part_name || 'Document Part' }}
-                    </div>
-                    <a
-                      [href]="filePart.file_url || filePart.file_part_path"
-                      target="_blank"
-                      class="btn btn-sm btn-outline-primary"
-                    >
-                      <i class="fa fa-eye"></i> view
-                    </a>
+                    {{ j + 1 }}. {{ filePart.document_part_name || 'Document Part' }}
                   </div>
-                </div>
-                <div class="mt-2 ps-2" *ngIf="!doc.document_indexes?.length && doc.final_document">
-                  <a [href]="doc.final_document" target="_blank" class="btn btn-sm btn-outline-primary">
-                    <i class="fa fa-eye"></i> view
-                  </a>
                 </div>
               </div>
             </div>

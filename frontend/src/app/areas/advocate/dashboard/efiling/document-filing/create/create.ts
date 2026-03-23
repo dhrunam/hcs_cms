@@ -27,6 +27,11 @@ export class Create implements OnInit {
   isDropdownOpen = false;
   selectedFiling: any = null;
 
+  iaList: any[] = [];
+  iaSearchQuery = '';
+  iaDropdownOpen = false;
+  selectedIa: any = null;
+
   isLoadingFilings = true;
   isLoadingCase = false;
   caseDetails: any = null;
@@ -133,8 +138,55 @@ export class Create implements OnInit {
     this.selectedEfilingNumber = String(item.filing.e_filing_number ?? '');
     this.isDropdownOpen = false;
     this.searchQuery = '';
+    this.selectedIa = null;
     this.uploadedDocList = [];
+    this.loadIasForFiling();
     this.loadSelectedCaseDetailsAndDocs();
+  }
+
+  private loadIasForFiling(): void {
+    if (!this.selectedEfilingId) {
+      this.iaList = [];
+      return;
+    }
+    this.eFilingService.get_ias_by_efiling_id(this.selectedEfilingId).subscribe({
+      next: (res) => {
+        const rows = Array.isArray(res) ? res : res?.results ?? [];
+        this.iaList = rows.filter((ia: any) => ia?.id);
+      },
+      error: () => {
+        this.iaList = [];
+      },
+    });
+  }
+
+  get filteredIaList(): any[] {
+    const q = (this.iaSearchQuery || '').trim().toLowerCase();
+    if (!q) return this.iaList;
+    return this.iaList.filter((ia) => {
+      const iaNum = (ia?.ia_number ?? '').toLowerCase();
+      const iaText = (ia?.ia_text ?? '').toLowerCase();
+      const status = (ia?.status ?? '').toLowerCase();
+      return iaNum.includes(q) || iaText.includes(q) || status.includes(q);
+    });
+  }
+
+  selectIa(ia: any): void {
+    this.selectedIa = ia;
+    this.iaDropdownOpen = false;
+    this.iaSearchQuery = '';
+  }
+
+  getSelectedIaLabel(): string {
+    if (!this.selectedIa) return '';
+    const iaNum = this.selectedIa.ia_number || '-';
+    const status = this.selectedIa.status || 'Pending';
+    const snippet = (this.selectedIa.ia_text || '').slice(0, 50);
+    return `${iaNum} (${status})${snippet ? ' - ' + snippet + (this.selectedIa.ia_text?.length > 50 ? '...' : '') : ''}`;
+  }
+
+  trackIa(_: number, ia: any): number {
+    return ia?.id ?? 0;
   }
 
   getSelectedLabel(): string {
@@ -204,6 +256,11 @@ export class Create implements OnInit {
     return item?.id ?? 0;
   }
 
+  getDocDisplayLabel(doc: any): string {
+    if (doc?.ia_number) return doc.ia_number;
+    return doc?.document_type || '-';
+  }
+
   trackFilingItem(_: number, item: { filing: any }): number {
     return item?.filing?.id ?? 0;
   }
@@ -234,7 +291,10 @@ export class Create implements OnInit {
       return;
     }
 
-    const proceed = await this.promptOtpAndProceed('File Documents?', 'Upload these documents to the selected case.');
+    const targetLabel = this.selectedIa
+      ? `the selected IA (${this.selectedIa.ia_number || ''})`
+      : 'the selected e-filing';
+    const proceed = await this.promptOtpAndProceed('File Documents?', `Upload these documents to ${targetLabel}.`);
     if (!proceed) return;
 
     this.isUploadingDocuments = true;
@@ -245,6 +305,13 @@ export class Create implements OnInit {
       documentPayload.append('document_type', documentType);
       documentPayload.append('e_filing', String(this.selectedEfilingId));
       documentPayload.append('e_filing_number', this.selectedEfilingNumber);
+
+      if (this.selectedIa) {
+        documentPayload.append('is_ia', 'true');
+        documentPayload.append('ia_number', String(this.selectedIa.ia_number ?? ''));
+      } else {
+        documentPayload.append('is_ia', 'false');
+      }
 
       const documentRes = await firstValueFrom(this.eFilingService.upload_case_documnets(documentPayload));
       const documentId = documentRes?.id;

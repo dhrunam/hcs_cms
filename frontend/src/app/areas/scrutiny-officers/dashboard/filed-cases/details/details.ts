@@ -496,6 +496,40 @@ export class FiledCaseDetails {
   getDocumentFileLabel(document: any): string {
     return this.getDocumentTitle(document);
   }
+
+  get iaWithDocuments(): Array<{
+    ia: any;
+    documents: any[];
+    groupedDocs: Array<{ document_type: string; items: any[] }>;
+  }> {
+    return this.iaList.map((ia) => {
+      const iaNum = (ia?.ia_number ?? '').trim();
+      const documents = this.iaDocuments.filter(
+        (doc) => ((doc?.ia_number ?? '').trim() || null) === (iaNum || null),
+      );
+      return {
+        ia,
+        documents,
+        groupedDocs: this.groupDocumentsByType(documents),
+      };
+    });
+  }
+
+  trackByIaItem(_: number, item: { ia: any }): number {
+    return item?.ia?.id ?? 0;
+  }
+
+  selectedIaDocumentBelongsToIa(item: { documents: any[] }): boolean {
+    if (!this.selectedIaDocument?.id || !item?.documents?.length) return false;
+    return item.documents.some((d) => d?.id === this.selectedIaDocument?.id);
+  }
+
+  isIaDocumentAccepted(doc: any): boolean {
+    if (!doc) return false;
+    const status = doc?.draft_scrutiny_status || doc?.scrutiny_status || '';
+    const norm = (status ?? '').trim().toLowerCase();
+    return norm.includes('accept');
+  }
   private applyReviewedDocument(updatedDocument: any): void {
     if (!updatedDocument?.id) {
       return;

@@ -1,7 +1,7 @@
 <section class="pending-cases-section">
   <div class="card border-0 shadow-sm">
     <div class="card-body p-0">
-      <div class="table-responsive">
+      <div class="table-responsive" *ngIf="hasCases; else emptyState">
         <table class="table table-hover align-middle mb-0">
           <thead style="background-color: #f8fafc">
             <tr class="text-secondary small fw-normal">
@@ -37,6 +37,11 @@
           </tbody>
         </table>
       </div>
+      <ng-template #emptyState>
+        <div class="empty-state text-center py-5 px-4">
+          <h5 class="mb-2">No Filings found</h5>
+        </div>
+      </ng-template>
     </div>
   </div>
 </section>

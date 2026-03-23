@@ -19,6 +19,10 @@ interface PendingCase {
 export class View {
   filingsUnderScrutiny: any[] | null = null;
 
+  get hasCases(): boolean {
+    return Array.isArray(this.filingsUnderScrutiny) && this.filingsUnderScrutiny.length > 0;
+  }
+
   constructor(private eFilingService: EfilingService) {}
 
   ngOnInit() {
@@ -28,8 +32,7 @@ export class View {
   get_filings_under_scrutiny() {
     this.eFilingService.get_filings_under_scrutiny().subscribe({
       next: (data) => {
-        this.filingsUnderScrutiny = data.results;
-        console.log(this.filingsUnderScrutiny);
+        this.filingsUnderScrutiny = data?.results ?? [];
       },
     });
   }
