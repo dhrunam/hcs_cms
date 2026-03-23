@@ -40,21 +40,6 @@
         ></span>
         {{ isUploading ? 'Uploading...' : 'Upload Documents' }}
       </button>
-      <button
-        type="button"
-        class="btn btn-outline-primary"
-        [disabled]="!canDownloadMerged()"
-        (click)="downloadMergedPdf()"
-      >
-        <span
-          *ngIf="isMerging"
-          class="spinner-border spinner-border-sm me-2"
-          role="status"
-          aria-hidden="true"
-        ></span>
-        <i class="fa-solid fa-file-pdf me-1" *ngIf="!isMerging"></i>
-        {{ isMerging ? 'Merging...' : 'Download Merged PDF' }}
-      </button>
     </div>
   </div>
 

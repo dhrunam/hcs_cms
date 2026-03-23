@@ -144,7 +144,30 @@
 
     <!-- Upload Documents -->
     <div class="card border-0 shadow-sm mb-4">
-      <div class="card-header bg-dark text-white fw-semibold">Upload Documents</div>
+      <div
+        class="card-header bg-dark text-white fw-semibold d-flex justify-content-between align-items-center"
+      >
+        <span>Upload Documents</span>
+        <button
+          type="button"
+          class="btn btn-sm btn-light d-flex align-items-center gap-1"
+          [disabled]="!canDownloadMerged() || isMergingPdf"
+          (click)="downloadMergedPdf()"
+        >
+          <span
+            *ngIf="isMergingPdf"
+            class="spinner-border spinner-border-sm"
+            role="status"
+            aria-hidden="true"
+          ></span>
+          <i class="fa-solid fa-file-pdf" *ngIf="!isMergingPdf"></i>
+          {{ isMergingPdf ? 'Merging...' : 'Download Merged PDF' }}
+        </button>
+      </div>
+      <div class="alert alert-danger alert-dismissible py-2 small m-3 mb-0" *ngIf="mergeError">
+        {{ mergeError }}
+        <button type="button" class="btn-close btn-sm" (click)="mergeError = null" aria-label="Close"></button>
+      </div>
       <div class="card-body">
         <p class="text-muted small mb-3">
           Upload supporting documents for this IA filing. Add index name for each file.

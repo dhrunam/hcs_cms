@@ -5,6 +5,7 @@ from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIV
 from rest_framework.response import Response
 
 from apps.core.models import Efiling, EfilingDocumentsIndex
+from apps.efiling.pdf_validators import validate_pdf_file
 from apps.efiling.review_utils import (
     can_replace_document,
     create_scrutiny_history,
@@ -117,6 +118,7 @@ class EfilingDocumentsIndexRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIVie
                 uploaded_file = request.FILES.get("file_part_path") or request.data.get("file_part_path")
                 if not uploaded_file:
                     raise ValidationError({"file_part_path": "A PDF file is required."})
+                validate_pdf_file(uploaded_file, "file_part_path")
 
                 instance.file_part_path = uploaded_file
                 instance.is_active = True

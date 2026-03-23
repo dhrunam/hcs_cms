@@ -52,11 +52,12 @@ export class EfilingService {
     return this.http.delete<any>(`${app_url}/api/v1/efiling/efiling-acts/${id}/`);
   }
 
-  get_filings_under_scrutiny(): Observable<any> {
-    console.log(`${app_url}/api/v1/efiling/efilings/?is_draft=false&status=NOT_ACCEPTED`);
-    return this.http.get<any>(
-      `${app_url}/api/v1/efiling/efilings/?is_draft=false&status=NOT_ACCEPTED`,
-    );
+  get_filings_under_scrutiny(params?: { page_size?: number }): Observable<any> {
+    let url = `${app_url}/api/v1/efiling/efilings/?is_draft=false&status=NOT_ACCEPTED`;
+    if (params?.page_size != null) {
+      url += `&page_size=${params.page_size}`;
+    }
+    return this.http.get<any>(url);
   }
   get_filings(): Observable<any> {
     return this.http.get<any>(
@@ -66,11 +67,19 @@ export class EfilingService {
   get_approved_cases(): Observable<any> {
     return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/?is_draft=false&status=ACCEPTED`);
   }
-  get_scrutiny_cases(): Observable<any> {
-    return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/?is_draft=false`);
+  get_scrutiny_cases(params?: { page_size?: number }): Observable<any> {
+    let url = `${app_url}/api/v1/efiling/efilings/?is_draft=false`;
+    if (params?.page_size != null) {
+      url += `&page_size=${params.page_size}`;
+    }
+    return this.http.get<any>(url);
   }
-  get_filings_under_draft(): Observable<any> {
-    return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/?is_draft=true`);
+  get_filings_under_draft(params?: { page_size?: number }): Observable<any> {
+    let url = `${app_url}/api/v1/efiling/efilings/?is_draft=true`;
+    if (params?.page_size != null) {
+      url += `&page_size=${params.page_size}`;
+    }
+    return this.http.get<any>(url);
   }
 
   get_filing_by_id(id: number): Observable<any> {
@@ -155,10 +164,12 @@ export class EfilingService {
     );
   }
 
-  get_new_scrutiny_documents(): Observable<any> {
-    return this.http.get<any>(
-      `${app_url}/api/v1/efiling/efiling-documents-index/?is_new_for_scrutiny=true`,
-    );
+  get_new_scrutiny_documents(params?: { page_size?: number }): Observable<any> {
+    let url = `${app_url}/api/v1/efiling/efiling-documents-index/?is_new_for_scrutiny=true`;
+    if (params?.page_size != null) {
+      url += `&page_size=${params.page_size}`;
+    }
+    return this.http.get<any>(url);
   }
 
   get_file_scrutiny_checklist(caseTypeId: number): Observable<any> {

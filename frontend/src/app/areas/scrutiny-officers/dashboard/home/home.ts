@@ -79,9 +79,10 @@ export class ScrutinyOfficerHome {
 
   getFiledCases(): void {
     this.isLoading = true;
+    const pageSize = 9999; // fetch all for accurate dashboard counts
     forkJoin({
-      filings: this.eFilingService.get_filings_under_scrutiny(),
-      incoming: this.eFilingService.get_new_scrutiny_documents().pipe(
+      filings: this.eFilingService.get_scrutiny_cases({ page_size: pageSize }),
+      incoming: this.eFilingService.get_new_scrutiny_documents({ page_size: pageSize }).pipe(
         catchError((error) => {
           console.warn('Failed to load new scrutiny documents', error);
           return of([]);

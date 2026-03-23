@@ -9,7 +9,9 @@ import {
   SimpleChanges,
 } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { ToastrService } from 'ngx-toastr';
 import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
+import { validatePdfFiles } from '../../../../../../utils/pdf-validation';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 
 interface DocumentUploadEntry {
@@ -60,7 +62,10 @@ export class UploadDocuments implements OnInit, OnChanges {
   isMerging = false;
   mergeError: string | null = null;
 
-  constructor(private eFilingService: EfilingService) {}
+  constructor(
+    private eFilingService: EfilingService,
+    private toastr: ToastrService,
+  ) {}
 
   ngOnInit(): void {
     this.eFilingService.get_document_index_master().subscribe({
@@ -103,13 +108,18 @@ export class UploadDocuments implements OnInit, OnChanges {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
 
-    const selectedEntries: DocumentUploadEntry[] = Array.from(input.files)
-      .filter((file) => file.type === 'application/pdf')
-      .map((file) => ({
-        file,
-        index_name: '',
-        index_id: null,
-      }));
+    const files = Array.from(input.files);
+    const { valid, errors } = validatePdfFiles(files);
+    if (errors.length > 0) {
+      this.toastr.error(errors.join(' '));
+    }
+    if (valid.length === 0) return;
+
+    const selectedEntries: DocumentUploadEntry[] = valid.map((file) => ({
+      file,
+      index_name: '',
+      index_id: null,
+    }));
 
     this.entries = [...this.entries, ...selectedEntries];
 
