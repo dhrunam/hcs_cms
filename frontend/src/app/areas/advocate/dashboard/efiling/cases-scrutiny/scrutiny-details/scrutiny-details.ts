@@ -96,10 +96,13 @@ export class ScrutinyDetails {
         this.litigantList = litigants?.results ?? [];
         this.caseDetails = caseDetails?.results?.[0] ?? null;
         this.actList = acts?.results ?? [];
+        console.log('Act llist is', this.actList);
         this.iaList = Array.isArray(ias) ? ias : (ias?.results ?? []);
         this.selectIaDocument(this.groupedIaDocuments[0]?.items[0] ?? null);
         this.selectDocument(
-          this.documents.find((document) => document.id === preferredDocumentId) ?? this.documents[0] ?? null,
+          this.documents.find((document) => document.id === preferredDocumentId) ??
+            this.documents[0] ??
+            null,
         );
         this.isLoading = false;
       },
@@ -131,7 +134,8 @@ export class ScrutinyDetails {
   selectDocument(document: any): void {
     this.selectedDocument = document;
     // this.canShowReplaceBtn = this.canShowReplaceButton(document);
-    this.canShowReplaceBtn = document && document.scrutiny_status.toLowerCase().includes('rejected');
+    this.canShowReplaceBtn =
+      document && document.scrutiny_status.toLowerCase().includes('rejected');
     this.updatePreviewUrl(document?.file_url ?? null);
 
     if (!document?.id) {
@@ -279,7 +283,11 @@ export class ScrutinyDetails {
           console.error('Failed to replace document', error);
           this.isReplacing = false;
           this.pendingReplacements = [...toReplace.slice(index)];
-          Swal.fire({ title: 'Error', text: 'Failed to replace document. Please try again.', icon: 'error' });
+          Swal.fire({
+            title: 'Error',
+            text: 'Failed to replace document. Please try again.',
+            icon: 'error',
+          });
         },
       });
     };
@@ -373,7 +381,11 @@ export class ScrutinyDetails {
 
   getStatusLabel(status: string | null): string {
     const normalizedStatus = (status ?? '').trim().toLowerCase();
-    if (!normalizedStatus || normalizedStatus === 'submitted' || normalizedStatus === 'under_scrutiny') {
+    if (
+      !normalizedStatus ||
+      normalizedStatus === 'submitted' ||
+      normalizedStatus === 'under_scrutiny'
+    ) {
       return 'Under Scrutiny';
     }
     if (normalizedStatus.includes('accept')) {
@@ -449,7 +461,9 @@ export class ScrutinyDetails {
   }
 
   get sortedLitigants(): any[] {
-    return [...this.litigantList].sort((a, b) => (a?.sequence_number ?? 0) - (b?.sequence_number ?? 0));
+    return [...this.litigantList].sort(
+      (a, b) => (a?.sequence_number ?? 0) - (b?.sequence_number ?? 0),
+    );
   }
 
   get petitioners(): any[] {
@@ -483,7 +497,9 @@ export class ScrutinyDetails {
         );
       },
       error: () => {
-        this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(document.file_url);
+        this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
+          document.file_url,
+        );
       },
     });
   }

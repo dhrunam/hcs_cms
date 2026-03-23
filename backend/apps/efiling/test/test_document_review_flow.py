@@ -335,3 +335,49 @@ class DocumentReviewFlowTest(TestCase):
             format="json",
         )
         self.assertEqual(submit_response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_new_document_index_created_after_registration_is_sent_for_scrutiny(self):
+        self.upload_document()
+        document = EfilingDocuments.objects.get()
+        document_index = EfilingDocumentsIndex.objects.get(document=document)
+
+        self.client.patch(
+            f"/api/v1/efiling/efilings/{self.filing.id}/",
+            {"is_draft": "false"},
+            format="multipart",
+        )
+        self.client.patch(
+            f"/api/v1/efiling/efiling-documents-index/{document_index.id}/",
+            {"scrutiny_status": EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED, "comments": "ok"},
+            format="json",
+        )
+        submit_response = self.client.post(
+            f"/api/v1/efiling/efilings/{self.filing.id}/submit-approved/",
+            {},
+            format="json",
+        )
+        self.assertEqual(submit_response.status_code, status.HTTP_200_OK)
+        self.filing.refresh_from_db()
+        self.assertIsNotNone(self.filing.case_number)
+
+        create_response = self.client.post(
+            "/api/v1/efiling/efiling-documents-index/",
+            {
+                "document": document.id,
+                "document_part_name": "Additional Affidavit",
+                "file_part_path": SimpleUploadedFile(
+                    "additional-affidavit.pdf",
+                    b"%PDF-1.4 additional",
+                    content_type="application/pdf",
+                ),
+                "document_sequence": 99,
+            },
+            format="multipart",
+        )
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+
+        new_index = EfilingDocumentsIndex.objects.order_by("-id").first()
+        self.assertIsNotNone(new_index)
+        self.assertEqual(new_index.scrutiny_status, EfilingDocumentsIndex.ScrutinyStatus.UNDER_SCRUTINY)
+        self.assertTrue(new_index.is_new_for_scrutiny)
+        self.assertIsNotNone(new_index.last_resubmitted_at)
