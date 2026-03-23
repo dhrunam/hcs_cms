@@ -49,10 +49,16 @@ export class UploadDocuments implements OnInit, OnChanges {
   @Input() uploadCompletedToken = 0;
   /** When set, hides the document type field and uses this value (e.g. 'IA' for IA filing). */
   @Input() defaultDocumentType: string | null = null;
+  /** Optional front page data for merged PDF (petitioner vs respondent, case no, case type). */
+  @Input() frontPage: { petitionerName: string; respondentName: string; caseNo: string; caseType?: string } | null = null;
+  /** E-Filing number for merged PDF filename (e.g. DocumentType_efilingno.pdf). */
+  @Input() eFilingNumber: string | null = null;
 
   entries: DocumentUploadEntry[] = [];
   indexMasters: DocumentIndexMaster[] = [];
   submitAttempted = false;
+  isMerging = false;
+  mergeError: string | null = null;
 
   constructor(private eFilingService: EfilingService) {}
 
@@ -198,5 +204,53 @@ export class UploadDocuments implements OnInit, OnChanges {
 
   hasAnyProgress(): boolean {
     return (this.fileProgresses || []).some((p) => typeof p === 'number' && p > 0);
+  }
+
+  canDownloadMerged(): boolean {
+    return (
+      !this.isUploading &&
+      !this.isMerging &&
+      this.entries.length > 0 &&
+      this.entries.every((e) => e.index_name && e.index_name.trim().length > 0)
+    );
+  }
+
+  downloadMergedPdf(): void {
+    if (!this.canDownloadMerged()) return;
+    const files = this.entries.map((e) => e.file);
+    const names = this.entries.map((e) => e.index_name.trim());
+    const frontPage = this.frontPage
+      ? {
+          petitionerName: this.frontPage.petitionerName || '',
+          respondentName: this.frontPage.respondentName || '',
+          caseNo: this.frontPage.caseNo || '',
+          caseType: this.frontPage.caseType || '',
+        }
+      : undefined;
+    this.isMerging = true;
+    this.mergeError = null;
+    this.eFilingService.mergePdfs(files, names, frontPage).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const docType = (this.getEffectiveDocumentType() || 'Documents').replace(/[^a-zA-Z0-9_-]/g, '_') || 'Documents';
+        const efilingNo = (this.eFilingNumber || '').replace(/[^a-zA-Z0-9_-]/g, '') || 'merged';
+        a.download = `${docType}_${efilingNo}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.isMerging = false;
+      },
+      error: (err) => {
+        this.isMerging = false;
+        const msg =
+          (typeof err?.error === 'object' && err?.error !== null && typeof err.error.error === 'string'
+            ? err.error.error
+            : null) ||
+          err?.message ||
+          'Failed to merge PDFs.';
+        this.mergeError = msg;
+      },
+    });
   }
 }

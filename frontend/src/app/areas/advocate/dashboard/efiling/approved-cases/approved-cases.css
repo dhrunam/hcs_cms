@@ -13,9 +13,9 @@
 
 .pending-cases-section thead th {
   background: #f9fafb;
-  color: var(--clean-muted);
+  color: black;
   border-bottom: 1px solid var(--clean-border);
-  font-weight: 500;
+  font-weight: bold;
   font-size: 0.85rem;
 }
 

@@ -98,7 +98,8 @@ export class ScrutinyDetails {
         this.actList = acts?.results ?? [];
         console.log('Act llist is', this.actList);
         this.iaList = Array.isArray(ias) ? ias : (ias?.results ?? []);
-        this.selectIaDocument(this.groupedIaDocuments[0]?.items[0] ?? null);
+        const firstWithDocs = this.iaWithDocuments.find((i) => i.documents.length > 0);
+        this.selectIaDocument(firstWithDocs?.groupedDocs[0]?.items[0] ?? null);
         this.selectDocument(
           this.documents.find((document) => document.id === preferredDocumentId) ??
             this.documents[0] ??
@@ -408,6 +409,13 @@ export class ScrutinyDetails {
     return 'status-badge-warning';
   }
 
+  getIaStatusBadgeClass(status: string | null): string {
+    const s = (status ?? '').trim().toLowerCase();
+    if (s.includes('accept')) return 'status-badge-success';
+    if (s.includes('reject') || s.includes('partial')) return 'status-badge-danger';
+    return 'status-badge-warning';
+  }
+
   historyClass(status: string | null): string {
     if (this.getStatusClass(status) === 'status-badge-success') {
       return 'history-success';
@@ -432,6 +440,33 @@ export class ScrutinyDetails {
 
   trackByGroupIndex(index: number, group: any): string {
     return `${index}__${group?.document_type ?? 'unknown'}`;
+  }
+
+  get iaWithDocuments(): Array<{
+    ia: any;
+    documents: any[];
+    groupedDocs: Array<{ document_type: string; items: any[] }>;
+  }> {
+    return this.iaList.map((ia) => {
+      const iaNum = (ia?.ia_number ?? '').trim();
+      const documents = this.iaDocuments.filter(
+        (doc) => ((doc?.ia_number ?? '').trim() || null) === (iaNum || null),
+      );
+      return {
+        ia,
+        documents,
+        groupedDocs: this.groupDocumentsByType(documents),
+      };
+    });
+  }
+
+  trackByIaItem(_: number, item: { ia: any }): number {
+    return item?.ia?.id ?? 0;
+  }
+
+  selectedIaDocumentBelongsToIa(item: { documents: any[] }): boolean {
+    if (!this.selectedIaDocument?.id || !item?.documents?.length) return false;
+    return item.documents.some((d) => d?.id === this.selectedIaDocument?.id);
   }
 
   private extractFileName(value: string | null | undefined): string {

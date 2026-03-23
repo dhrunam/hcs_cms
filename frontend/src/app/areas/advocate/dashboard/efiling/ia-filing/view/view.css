@@ -8,13 +8,13 @@
   --clean-border: #e5e7eb;
 }
 
-.clean-header {
+/* .clean-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
   gap: 12px;
   margin-bottom: 12px;
-}
+} */
 
 .clean-title {
   font-size: 1rem;
@@ -36,9 +36,9 @@
 
 .clean-table thead th {
   background: #f9fafb;
-  color: #6b7280;
+  color: black;
   border-bottom: 1px solid var(--clean-border);
-  font-weight: 500;
+  font-weight: bold;
   font-size: 0.85rem;
 }
 

@@ -112,9 +112,6 @@
                 <div class="d-flex justify-content-between align-items-start gap-2">
                   <div>
                     <span class="fw-semibold text-dark">{{ ia.ia_number || '-' }}</span>
-                    <span class="badge rounded-pill px-2 py-1 ms-2" [ngClass]="ia.status ? 'bg-primary' : 'bg-secondary'">
-                      {{ ia.status || 'Pending' }}
-                    </span>
                   </div>
                 </div>
                 <div class="text-muted small mt-1" *ngIf="ia.ia_text">

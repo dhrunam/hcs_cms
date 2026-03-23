@@ -35,9 +35,9 @@ export class Navbar implements OnInit {
     this.authService.login();
   }
 
-  async onLogout(event: Event): Promise<void> {
-    event.preventDefault();
-    await this.authService.logout();
+  onLogout(): void {
+    // simple redirect to root
+    window.location.href = '/user/login';
   }
 
   updateClock() {

@@ -35,7 +35,16 @@
                 <span *ngIf="hasNewForScrutiny(filing.id)" class="badge rounded-pill text-bg-danger me-2">
                   New
                 </span>
-                {{ getStatusLabel(filing.status) }}
+                <span
+                  class="badge rounded-pill px-2 py-1 fw-normal"
+                  [ngClass]="{
+                    'status-badge-warning': getStatusTone(filing.status) === 'warning',
+                    'status-badge-success': getStatusTone(filing.status) === 'success',
+                    'status-badge-danger': getStatusTone(filing.status) === 'danger'
+                  }"
+                >
+                  {{ getStatusLabel(filing.status) }}
+                </span>
               </td>
               <td>
                 <a
@@ -55,9 +64,6 @@
   </div>
 
   <div class="card border-0 shadow-sm mt-4" [class.mt-4]="showFiledCasesSection" *ngIf="showRegisteredCasesSection">
-    <div class="card-header px-4 py-3" style="background-color: #eef2ff; border-bottom: 1px solid #e0e7ff">
-      <h6 class="fw-semibold mb-0 text-dark">Registered Cases</h6>
-    </div>
     <div class="card-body p-0">
       <div *ngIf="!isLoading && registeredCases.length === 0" class="text-muted small py-5 px-4 text-center">
         No registered cases found yet.
@@ -94,7 +100,16 @@
                 <span *ngIf="hasNewForScrutiny(filing.id)" class="badge rounded-pill text-bg-danger me-2">
                   New
                 </span>
-                {{ getStatusLabel(filing.status) }}
+                <span
+                  class="badge rounded-pill px-2 py-1 fw-normal"
+                  [ngClass]="{
+                    'status-badge-warning': getStatusTone(filing.status) === 'warning',
+                    'status-badge-success': getStatusTone(filing.status) === 'success',
+                    'status-badge-danger': getStatusTone(filing.status) === 'danger'
+                  }"
+                >
+                  {{ getStatusLabel(filing.status) }}
+                </span>
               </td>
               <td>
                 <a

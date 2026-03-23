@@ -30,7 +30,7 @@
       </div>
       <small class="text-danger" *ngIf="isFilesInvalid()">at least one PDF is required</small>
     </div>
-    <div class="col-md-4 d-grid" *ngIf="entries.length > 0">
+    <div class="col-md-4 d-flex gap-2 flex-wrap align-items-center" *ngIf="entries.length > 0">
       <button class="btn btn-dark" type="submit" [disabled]="!canUpload()">
         <span
           *ngIf="isUploading"
@@ -40,7 +40,27 @@
         ></span>
         {{ isUploading ? 'Uploading...' : 'Upload Documents' }}
       </button>
+      <button
+        type="button"
+        class="btn btn-outline-primary"
+        [disabled]="!canDownloadMerged()"
+        (click)="downloadMergedPdf()"
+      >
+        <span
+          *ngIf="isMerging"
+          class="spinner-border spinner-border-sm me-2"
+          role="status"
+          aria-hidden="true"
+        ></span>
+        <i class="fa-solid fa-file-pdf me-1" *ngIf="!isMerging"></i>
+        {{ isMerging ? 'Merging...' : 'Download Merged PDF' }}
+      </button>
     </div>
+  </div>
+
+  <div class="alert alert-danger alert-dismissible py-2 small" *ngIf="mergeError">
+    {{ mergeError }}
+    <button type="button" class="btn-close btn-sm" (click)="mergeError = null" aria-label="Close"></button>
   </div>
 
   <div

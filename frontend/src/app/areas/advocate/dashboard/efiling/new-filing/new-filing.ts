@@ -7,6 +7,7 @@ import { InitialInputs } from './initial-inputs/initial-inputs';
 import { Litigant } from './litigant/litigant';
 import { CaseDetails } from './case-details/case-details';
 import { EfilingService } from '../../../../../services/advocate/efiling/efiling.services';
+import { CaseTypeService } from '../../../../../services/master/case-type.services';
 import { EFile } from './e-file/e-file';
 import { UploadDocuments } from './upload-documents/upload-documents';
 import Swal from 'sweetalert2';
@@ -49,6 +50,7 @@ export class NewFiling {
   caseDetailsLocked = false;
   caseDetailsData: any = null;
   filingData: any = null;
+  caseTypes: any[] = [];
 
   form!: FormGroup;
 
@@ -56,6 +58,7 @@ export class NewFiling {
     private fb: FormBuilder,
     private toastr: ToastrService,
     private eFilingService: EfilingService,
+    private caseTypeService: CaseTypeService,
     private route: ActivatedRoute,
     private router: Router,
   ) {
@@ -149,6 +152,11 @@ export class NewFiling {
   }
 
   ngOnInit() {
+    this.caseTypeService.get_case_types().subscribe({
+      next: (data) => {
+        this.caseTypes = Array.isArray(data?.results) ? data.results : data || [];
+      },
+    });
     this.route.queryParams.subscribe((params) => {
       const idParam = params['id'] ?? params['efiling_id'] ?? params['e_filing_id'];
       this.filingId = Number(idParam || 0) || null;
@@ -239,6 +247,27 @@ export class NewFiling {
 
   get uploadFilingDocForm(): FormGroup {
     return this.form.get('uploadFilingDoc') as FormGroup;
+  }
+
+  get mergeFrontPage(): { petitionerName: string; respondentName: string; caseNo: string; caseType: string } {
+    const init = this.initialInputsForm?.value;
+    const petitionerName = init?.petitioner_name?.trim() || '';
+    const petitioners = this.litigantList.filter((l: any) => l.is_petitioner).map((l: any) => l.name || '').filter(Boolean);
+    const respondents = this.litigantList.filter((l: any) => !l.is_petitioner).map((l: any) => l.name || '').filter(Boolean);
+    const caseTypeVal = init?.case_type;
+    let caseType = '';
+    if (caseTypeVal && typeof caseTypeVal === 'object') {
+      caseType = caseTypeVal.type_name || caseTypeVal.full_form || caseTypeVal.name || '';
+    } else if (caseTypeVal) {
+      const ct = this.caseTypes?.find((c: any) => Number(c.id) === Number(caseTypeVal));
+      caseType = ct?.type_name || ct?.full_form || ct?.name || '';
+    }
+    return {
+      petitionerName: petitionerName || petitioners.join(', ') || '',
+      respondentName: respondents.join(', ') || '',
+      caseNo: this.eFilingNumber || '',
+      caseType: caseType.trim(),
+    };
   }
 
   get setDeclarationForm(): FormGroup {

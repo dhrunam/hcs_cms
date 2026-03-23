@@ -62,11 +62,11 @@ export class View {
   getStatusBadgeClass(status: string | null): string {
     const label = this.getStatusLabel(status).toLowerCase();
     if (label.includes('accept')) {
-      return 'background: #f1f5f9; color: #1e293b';
+      return 'status-badge-success';
     }
     if (label.includes('reject') || label.includes('partial')) {
-      return 'background: #fee2e2; color: #991b1b';
+      return 'status-badge-danger';
     }
-    return 'background: #fef3c7; color: #92400e';
+    return 'status-badge-warning';
   }
 }
