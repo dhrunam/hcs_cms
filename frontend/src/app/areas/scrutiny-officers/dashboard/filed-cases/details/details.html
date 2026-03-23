@@ -40,13 +40,7 @@
             (click)="submitApprovedFiling()"
             [disabled]="!canSubmitApprovedFiling"
           >
-            {{
-              isSubmittingApprovedCase
-                ? 'Submitting...'
-                : filing.case_number
-                  ? 'Submitted'
-                  : 'Submit Review'
-            }}
+            {{ submitReviewButtonLabel }}
           </button>
         </div>
       
@@ -140,11 +134,11 @@
                 </div>
                 <div class="filing-summary-item">
                   <span class="filing-summary-label">Dispute State</span>
-                  <span class="filing-summary-value">{{ caseDetails.dispute_state || '-' }}</span>
+                  <span class="filing-summary-value">{{ caseDetails.dispute_state.state || '-' }}</span>
                 </div>
                 <div class="filing-summary-item">
                   <span class="filing-summary-label">Dispute District</span>
-                  <span class="filing-summary-value">{{ caseDetails.dispute_district || '-' }}</span>
+                  <span class="filing-summary-value">{{ caseDetails.dispute_district.district || '-' }}</span>
                 </div>
                 <div class="filing-summary-item">
                   <span class="filing-summary-label">Dispute Taluka</span>
@@ -287,10 +281,10 @@
                                 [(ngModel)]="reviewNote"
                                 placeholder="Add notes for the advocate. These notes stay in the review history."
                                 rows="3"
-                                [readonly]="!canReviewDocuments"
+                                [readonly]="!canReviewDocuments || isDocumentAccepted(selectedDocument)"
                               ></textarea>
           
-                              <div class="d-flex gap-2 flex-wrap mt-3">
+                              <div class="d-flex gap-2 flex-wrap mt-3" *ngIf="!isDocumentAccepted(selectedDocument)">
                                 <button
                                   type="button"
                                   class="btn btn-success btn-sm"
@@ -308,6 +302,9 @@
                                   Reject
                                 </button>
                               </div>
+                              <p *ngIf="isDocumentAccepted(selectedDocument)" class="text-muted small mt-2 mb-0">
+                                This document is already accepted and cannot be reviewed again.
+                              </p>
                               <p *ngIf="isCaseRegistered && !canReviewDocuments" class="text-muted small mt-2 mb-0">
                                 This case is registered; document acceptance and rejection are no longer available.
                               </p>
@@ -392,8 +389,8 @@
                   [attr.aria-controls]="'ia-collapse-' + item.ia.id"
                 >
                   <span class="ia-number filing-number me-2">{{ item.ia.ia_number || '-' }}</span>
-                  <span class="badge rounded-pill px-2 py-1 me-2" [ngClass]="item.ia.status ? 'bg-primary' : 'bg-secondary'">
-                    {{ item.ia.status || 'Pending' }}
+                  <span class="status-badge status-badge-sm me-2" [ngClass]="getIaReliefStatusClass(item)">
+                    {{ getIaReliefStatusLabel(item) }}
                   </span>
                   <span class="text-muted small">({{ item.documents.length }} document{{ item.documents.length !== 1 ? 's' : '' }})</span>
                 </button>

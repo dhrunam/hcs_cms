@@ -181,7 +181,9 @@ class EfilingDocumentsIndexRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIVie
                     instance.draft_comments = None
                     instance.draft_reviewed_at = None
                     instance.last_reviewed_at = timezone.now()
-                    instance.is_new_for_scrutiny = False
+                    # Keep this review item in the active scrutiny cycle until
+                    # scrutiny officer submits the new review batch.
+                    instance.is_new_for_scrutiny = True
                     instance.updated_by = request.user if request.user.is_authenticated else None
                     instance.save(
                         update_fields=[
