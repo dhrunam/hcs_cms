@@ -1,0 +1,62 @@
+<div class="login-page">
+  <div class="login-card">
+    <div class="logo-wrap">
+      <img src="/assets/icons/hcs_logo.jpeg" alt="High Court" />
+    </div>
+
+    <h1 class="title">High Court Paperless</h1>
+    <p class="subtitle text-muted">
+      <small> A modern paperless portal to simplify court filings and improve efficiency.</small>
+    </p>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <div class="form-group">
+        <label class="text-secondary">Phone number</label>
+        <input
+          type="tel"
+          formControlName="phone"
+          placeholder="Enter 10-digit phone number"
+          class="form-control"
+        />
+        <div class="invalid" *ngIf="form.get('phone')?.touched && form.get('phone')?.invalid">
+          <small *ngIf="form.get('phone')?.errors?.['required']">Phone is required.</small>
+          <small *ngIf="form.get('phone')?.errors?.['pattern']"
+            >Enter a valid 10-digit phone.</small
+          >
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="text-secondary">Password</label>
+        <input
+          type="password"
+          formControlName="password"
+          class="form-control"
+          placeholder="Password"
+        />
+        <div class="invalid" *ngIf="form.get('password')?.touched && form.get('password')?.invalid">
+          <small>Password is required.</small>
+        </div>
+      </div>
+
+      <div class="error" *ngIf="authError">{{ authError }}</div>
+
+      <div class="actions text-center mt-4">
+        <button
+          class="btn login-button"
+          style="border: 1px solid rgb(37, 37, 129); color: rgb(37, 37, 129)"
+          type="submit"
+          [disabled]="isLoading"
+        >
+          <span *ngIf="!isLoading">Login</span>
+          <span *ngIf="isLoading" class="loading">Loading...</span>
+        </button>
+      </div>
+    </form>
+
+    <div class="hint hint-warning" role="status" aria-live="polite">
+      <div class="hint-item"><strong>Advocate:</strong> 7584060563 / Advocate@123</div>
+      <div class="hint-item"><strong>Scrutiny:</strong> 8178429427 / Scrutiny@123</div>
+    </div>
+  </div>
+</div>
