@@ -152,8 +152,9 @@ export class EfilingService {
     return this.http.get<any>(`${app_url}/api/v1/efiling/document-index/`);
   }
 
-  post_ia_filing(payload: { e_filing: number; e_filing_number: string; ia_text: string }): Observable<any> {
-    return this.http.post<any>(`${app_url}/api/v1/efiling/ias/`, payload);
+  post_ia_filing(payload: { e_filing: number; e_filing_number: string; ia_text: string; status?: string }): Observable<any> {
+    const body = { status: 'Under Scrutiny', ...payload };
+    return this.http.post<any>(`${app_url}/api/v1/efiling/ias/`, body);
   }
 
   get_ias(): Observable<any> {

@@ -67,338 +67,393 @@
           </li>
         </ul>
         <div *ngIf="activeTab === 'filing'" class="file-summary-section filing-summary-body">
-      <div class="filing-summary-section">
-        <div class="filing-summary-section-title">
-          <i class="fa-solid fa-file-lines me-2"></i>
-          Filing Information
-        </div>
-        <div class="filing-summary-grid">
-          <div class="filing-summary-item">
-            <span class="filing-summary-label">Bench</span>
-            <span class="filing-summary-value">{{ filing.bench || '-' }}</span>
-          </div>
-          <div class="filing-summary-item">
-            <span class="filing-summary-label">Case Type</span>
-            <span class="filing-summary-value">{{ filing.case_type?.type_name || filing.case_type?.full_form || '-' }}</span>
-          </div>
-          <div class="filing-summary-item">
-            <span class="filing-summary-label">Petitioner Name</span>
-            <span class="filing-summary-value">{{ filing.petitioner_name || '-' }}</span>
-          </div>
-          <div class="filing-summary-item">
-            <span class="filing-summary-label">Petitioner Contact</span>
-            <span class="filing-summary-value">{{ filing.petitioner_contact || '-' }}</span>
-          </div>
-          <div class="filing-summary-item">
-            <span class="filing-summary-label">E-Filing Number</span>
-            <span class="filing-summary-value filing-number">{{ filing.e_filing_number || '-' }}</span>
-          </div>
-          <div class="filing-summary-item">
-            <span class="filing-summary-label">Accepted At</span>
-            <span class="filing-summary-value">{{ filing.accepted_at | date: 'dd MMM yyyy, hh:mm a' }}</span>
-          </div>
-        </div>
-      </div>
-      <!-- Case Details -->
-      <div class="filing-summary-section" *ngIf="caseDetails">
-        <div class="filing-summary-section-title">
-          <i class="fa-solid fa-scale-balanced me-2"></i>
-          Case Details
-        </div>
-        <div class="filing-summary-grid">
-          <div class="filing-summary-item">
-            <span class="filing-summary-label">Cause of Action</span>
-            <span class="filing-summary-value">{{ caseDetails.cause_of_action || '-' }}</span>
-          </div>
-          <div class="filing-summary-item">
-            <span class="filing-summary-label">Date of Cause</span>
-            <span class="filing-summary-value">{{ caseDetails.date_of_cause_of_action | date: 'dd MMM yyyy' }}</span>
-          </div>
-          <div class="filing-summary-item">
-            <span class="filing-summary-label">Dispute State</span>
-            <span class="filing-summary-value">{{ caseDetails.dispute_state || '-' }}</span>
-          </div>
-          <div class="filing-summary-item">
-            <span class="filing-summary-label">Dispute District</span>
-            <span class="filing-summary-value">{{ caseDetails.dispute_district || '-' }}</span>
-          </div>
-          <div class="filing-summary-item">
-            <span class="filing-summary-label">Dispute Taluka</span>
-            <span class="filing-summary-value">{{ caseDetails.dispute_taluka || '-' }}</span>
-          </div>
-        </div>
-      </div>
-      <!-- Litigants -->
-      <div class="filing-summary-section" *ngIf="litigantList.length > 0">
-        <div class="filing-summary-section-title">
-          <i class="fa-solid fa-users me-2"></i>
-          Litigant Details
-        </div>
-        <div class="litigants-layout">
-          <div class="party-block">
-            <div class="party-heading">
-              <i class="fa-solid fa-user-check me-1"></i>
-              Petitioners
+          <div class="filing-summary-section">
+            <div class="filing-summary-section-title">
+              <i class="fa-solid fa-file-lines me-2"></i>
+              Filing Information
             </div>
-            <div *ngIf="petitioners.length === 0" class="text-muted small">No petitioners available.</div>
-            <div class="litigant-list" *ngIf="petitioners.length > 0">
-              <div class="litigant-card" *ngFor="let litigant of petitioners; trackBy: trackById">
-                <div class="litigant-name">{{ litigant.name || '-' }}</div>
-                <div class="litigant-meta">{{ litigant.contact || 'No contact' }}</div>
-                <div class="litigant-meta" *ngIf="litigant.address">{{ litigant.address }}</div>
+            <div class="filing-summary-grid">
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Bench</span>
+                <span class="filing-summary-value">{{ filing.bench || '-' }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Case Type</span>
+                <span class="filing-summary-value">{{
+                  filing.case_type?.type_name || filing.case_type?.full_form || '-'
+                }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Petitioner Name</span>
+                <span class="filing-summary-value">{{ filing.petitioner_name || '-' }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Petitioner Contact</span>
+                <span class="filing-summary-value">{{ filing.petitioner_contact || '-' }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">E-Filing Number</span>
+                <span class="filing-summary-value filing-number">{{
+                  filing.e_filing_number || '-'
+                }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Accepted At</span>
+                <span class="filing-summary-value">{{
+                  filing.accepted_at | date: 'dd MMM yyyy, hh:mm a'
+                }}</span>
               </div>
             </div>
           </div>
-          <div class="party-divider">vs</div>
-          <div class="party-block">
-            <div class="party-heading party-heading-respondent">
-              <i class="fa-solid fa-user-xmark me-1"></i>
-              Respondents
+          <!-- Case Details -->
+          <div class="filing-summary-section" *ngIf="caseDetails">
+            <div class="filing-summary-section-title">
+              <i class="fa-solid fa-scale-balanced me-2"></i>
+              Case Details
             </div>
-            <div *ngIf="respondents.length === 0" class="text-muted small">No respondents available.</div>
-            <div class="litigant-list" *ngIf="respondents.length > 0">
-              <div class="litigant-card" *ngFor="let litigant of respondents; trackBy: trackById">
-                <div class="litigant-name">{{ litigant.name || '-' }}</div>
-                <div class="litigant-meta">{{ litigant.contact || 'No contact' }}</div>
-                <div class="litigant-meta" *ngIf="litigant.address">{{ litigant.address }}</div>
+            <div class="filing-summary-grid">
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Cause of Action</span>
+                <span class="filing-summary-value">{{ caseDetails.cause_of_action || '-' }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Date of Cause</span>
+                <span class="filing-summary-value">{{
+                  caseDetails.date_of_cause_of_action | date: 'dd MMM yyyy'
+                }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Dispute State</span>
+                <span class="filing-summary-value">{{
+                  caseDetails.dispute_state.state || '-'
+                }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Dispute District</span>
+                <span class="filing-summary-value">{{
+                  caseDetails.dispute_district.district || '-'
+                }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Dispute Taluka</span>
+                <span class="filing-summary-value">{{ caseDetails.dispute_taluka || '-' }}</span>
               </div>
             </div>
           </div>
-        </div>
-      </div>
-      <!-- Acts & Sections -->
-      <div class="filing-summary-section">
-        <div class="filing-summary-section-title">
-          <i class="fa-solid fa-gavel me-2"></i>
-          Acts & Sections
-        </div>
-        <div *ngIf="actList.length === 0" class="text-muted small">No acts or sections added.</div>
-        <div class="acts-list" *ngIf="actList.length > 0">
-          <div class="act-card" *ngFor="let act of actList; let i = index; trackBy: trackById">
-            <div class="act-index">{{ i + 1 }}</div>
-            <div class="act-content">
-              <div class="act-name">{{ getActName(act) }}</div>
-              <div class="act-section">Section: {{ act.section || '-' }}</div>
-              <div class="act-subsection text-muted small" *ngIf="act.sub_section">Sub-section: {{ act.sub_section }}</div>
+          <!-- Litigants -->
+          <div class="filing-summary-section" *ngIf="litigantList.length > 0">
+            <div class="filing-summary-section-title">
+              <i class="fa-solid fa-users me-2"></i>
+              Litigant Details
             </div>
-          </div>
-        </div>
-      </div>
-        </div>
-        <div *ngIf="activeTab === 'documents'" class="document-summary-section">
-      <div class="row g-4">
-        <div class="col-xl-3">
-          <div class="card border-0 shadow-sm h-100">
-            <div class="card-body p-4">
-              <div class="document-list" *ngIf="groupedDocuments.length > 0">
-                <div
-                  class="document-group"
-                  *ngFor="let group of groupedDocuments; trackBy: trackByGroupIndex"
-                >
-                  <div class="document-type-header">
-                    {{ group.document_type || 'Main Document' }}
-                  </div>
-  
-                  <button
-                    type="button"
-                    class="document-item"
-                    *ngFor="let document of group.items; trackBy: trackById"
-                    [class.document-item-active]="selectedDocument?.id === document.id"
-                    (click)="selectDocument(document)"
+            <div class="litigants-layout">
+              <div class="party-block">
+                <div class="party-heading">
+                  <i class="fa-solid fa-user-check me-1"></i>
+                  Petitioners
+                </div>
+                <div *ngIf="petitioners.length === 0" class="text-muted small">
+                  No petitioners available.
+                </div>
+                <div class="litigant-list" *ngIf="petitioners.length > 0">
+                  <div
+                    class="litigant-card"
+                    *ngFor="let litigant of petitioners; trackBy: trackById"
                   >
-                    <div class="d-flex justify-content-between align-items-start gap-2">
-                      <div>
-                        <!-- Treat document_part_name as the actual "file" row -->
-                        <div class="document-title">{{ document.document_part_name || getDocumentFileLabel(document) }}</div>
-                      </div>
-  
-                      <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
-                        <span
-                          class="status-badge status-badge-sm"
-                          [ngClass]="getStatusClass(document.scrutiny_status)"
-                        >
-                          {{ getStatusLabel(document.scrutiny_status) }}
-                        </span>
-                        <input
-                          #rowReplaceInput
-                          type="file"
-                          accept="application/pdf"
-                          hidden
-                          (click)="$event.stopPropagation()"
-                          (change)="addPendingReplacement($event)"
-                        />
-                        <button
-                          type="button"
-                          class="btn btn-danger btn-sm"
-                          *ngIf="canReplace(document)"
-                          [disabled]="isReplacing"
-                          (click)="startReplace(document, rowReplaceInput, $event)"
-                        >
-                          {{ hasPendingReplacement(document.id) ? 'Change file' : 'Select file' }}
-                        </button>
-                        <button
-                          type="button"
-                          class="btn btn-outline-primary btn-sm"
-                          *ngIf="canReplace(document) && hasPendingReplacement(document.id)"
-                          (click)="viewPendingFile(document.id); $event.stopPropagation()"
-                        >
-                          <i class="fa fa-eye"></i> View
-                        </button>
-                        <button
-                          type="button"
-                          class="btn btn-outline-secondary btn-sm"
-                          *ngIf="canReplace(document) && hasPendingReplacement(document.id)"
-                          [disabled]="isReplacing"
-                          (click)="removePendingReplacement(document.id); $event.stopPropagation()"
-                        >
-                          Clear
-                        </button>
-                      </div>
-                    </div>
-                  </button>
+                    <div class="litigant-name">{{ litigant.name || '-' }}</div>
+                    <div class="litigant-meta">{{ litigant.contact || 'No contact' }}</div>
+                    <div class="litigant-meta" *ngIf="litigant.address">{{ litigant.address }}</div>
+                  </div>
+                </div>
+              </div>
+              <div class="party-divider">vs</div>
+              <div class="party-block">
+                <div class="party-heading party-heading-respondent">
+                  <i class="fa-solid fa-user-xmark me-1"></i>
+                  Respondents
+                </div>
+                <div *ngIf="respondents.length === 0" class="text-muted small">
+                  No respondents available.
+                </div>
+                <div class="litigant-list" *ngIf="respondents.length > 0">
+                  <div
+                    class="litigant-card"
+                    *ngFor="let litigant of respondents; trackBy: trackById"
+                  >
+                    <div class="litigant-name">{{ litigant.name || '-' }}</div>
+                    <div class="litigant-meta">{{ litigant.contact || 'No contact' }}</div>
+                    <div class="litigant-meta" *ngIf="litigant.address">{{ litigant.address }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Acts & Sections -->
+          <div class="filing-summary-section">
+            <div class="filing-summary-section-title">
+              <i class="fa-solid fa-gavel me-2"></i>
+              Acts & Sections
+            </div>
+            <div *ngIf="actList.length === 0" class="text-muted small">
+              No acts or sections added.
+            </div>
+            <div class="acts-list" *ngIf="actList.length > 0">
+              <div class="act-card" *ngFor="let act of actList; let i = index; trackBy: trackById">
+                <div class="act-index">{{ i + 1 }}</div>
+                <div class="act-content">
+                  <div class="act-name">{{ act.act.actname }}</div>
+                  <div class="act-section">Section: {{ act.section || '-' }}</div>
+                  <div class="act-subsection text-muted small" *ngIf="act.sub_section">
+                    Sub-section: {{ act.sub_section }}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-  
-        <div class="col-xl-9">
-          <div class="card border-0 shadow-sm">
-            <div class="card-body p-4" *ngIf="selectedDocument">
-              <div class="alert alert-light border small mb-3" *ngIf="canReplace(selectedDocument)">
-                This document was rejected during scrutiny. Upload a fresh PDF to send it back for review.
-              </div>
-  
-              <div class="row g-4">
-                <div class="col-12">
-                  <div class="d-flex justify-content-end mb-2 flex-wrap gap-2">
-                    <button
-                      type="button"
-                      class="btn btn-danger btn-sm"
-                      *ngIf="pendingReplacements.length > 0"
-                      [disabled]="isReplacing"
-                      (click)="submitAllReplacements()"
+        <div *ngIf="activeTab === 'documents'" class="document-summary-section">
+          <div class="row g-4">
+            <div class="col-xl-3">
+              <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-4">
+                  <div class="document-list" *ngIf="groupedDocuments.length > 0">
+                    <div
+                      class="document-group"
+                      *ngFor="let group of groupedDocuments; trackBy: trackByGroupIndex"
                     >
-                      {{ isReplacing ? 'Replacing...' : 'Submit All Replacements (' + pendingReplacements.length + ')' }}
-                    </button>
-                    <button
-                      type="button"
-                      class="btn btn-outline-primary btn-sm"
-                      *ngIf="selectedDocument && hasPendingReplacement(selectedDocument.id)"
-                      (click)="viewPendingFile(selectedDocument.id)"
-                    >
-                      <i class="fa fa-eye me-1"></i> View selected file
-                    </button>
-                    <input
-                      #popupReplaceInput
-                      type="file"
-                      accept="application/pdf"
-                      hidden
-                      (change)="addPendingReplacement($event)"
-                    />
-                    <button
-                      type="button"
-                      class="btn btn-outline-danger btn-sm"
-                      *ngIf="canShowReplaceBtn && selectedDocument && !hasPendingReplacement(selectedDocument.id)"
-                      (click)="startReplace(selectedDocument, popupReplaceInput, $event)"
-                    >
-                      Select replacement file
-                    </button>
-                    <button
-                      type="button"
-                      class="btn btn-outline-secondary btn-sm"
-                      *ngIf="canShowReplaceBtn && selectedDocument && hasPendingReplacement(selectedDocument.id)"
-                      (click)="removePendingReplacement(selectedDocument.id)"
-                    >
-                      Clear selected file
-                    </button>
-                    <button
-                      type="button"
-                      class="btn btn-sm btn-outline-dark"
-                      (click)="openNotesPopup()"
-                    >
-                      View Remarks
-                    </button>
-                  </div>
-                  <div class="preview-frame" *ngIf="selectedDocumentUrl; else noPreview">
-                    <iframe [src]="selectedDocumentUrl" title="Advocate PDF preview"></iframe>
-                  </div>
-
-                  <!-- Notes popup -->
-                  <div
-                    class="notes-popup-backdrop"
-                    *ngIf="notesPopupOpen"
-                    (click)="closeNotesPopup()"
-                  ></div>
-                  <div
-                    class="notes-popup"
-                    *ngIf="notesPopupOpen"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label="Scrutiny Notes"
-                    (click)="$event.stopPropagation()"
-                  >
-                    <div class="notes-popup-header d-flex justify-content-between align-items-center">
-                      <div class="fw-semibold">Scrutiny Notes</div>
-                      <button
-                        type="button"
-                        class="btn btn-sm btn-outline-secondary"
-                        (click)="closeNotesPopup()"
-                      >
-                        Close
-                      </button>
-                    </div>
-
-                    <div class="notes-popup-body">
-                      <div class="history-list">
-                        <div
-                          class="history-item"
-                          *ngFor="let item of visibleDocumentHistory; trackBy: trackById"
-                        >
-                          <div class="history-note mt-2">{{ item.comments || 'No note added.' }}</div>
-                          <div class="text-muted small mt-2">
-                            {{ item.recieved_at | date: 'dd MMM yyyy, hh:mm a' }}
-                          </div>
-                        </div>
-
-                        <div
-                          *ngIf="visibleDocumentHistory.length === 0"
-                          class="text-muted small"
-                        >
-                          Only scrutiny notes are shown here.
-                        </div>
+                      <div class="document-type-header">
+                        {{ group.document_type || 'Main Document' }}
                       </div>
 
-                      <div class="mt-3" *ngIf="canReplace(selectedDocument)">
+                      <button
+                        type="button"
+                        class="document-item"
+                        *ngFor="let document of group.items; trackBy: trackById"
+                        [class.document-item-active]="selectedDocument?.id === document.id"
+                        (click)="selectDocument(document)"
+                      >
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                          <div>
+                            <!-- Treat document_part_name as the actual "file" row -->
+                            <div class="document-title">
+                              {{ document.document_part_name || getDocumentFileLabel(document) }}
+                            </div>
+                          </div>
+
+                          <div
+                            class="d-flex align-items-center gap-2 flex-wrap justify-content-end"
+                          >
+                            <span
+                              class="status-badge status-badge-sm"
+                              [ngClass]="getStatusClass(document.scrutiny_status)"
+                            >
+                              {{ getStatusLabel(document.scrutiny_status) }}
+                            </span>
+                            <input
+                              #rowReplaceInput
+                              type="file"
+                              accept="application/pdf"
+                              hidden
+                              (click)="$event.stopPropagation()"
+                              (change)="addPendingReplacement($event)"
+                            />
+                            <button
+                              type="button"
+                              class="btn btn-danger btn-sm"
+                              *ngIf="canReplace(document)"
+                              [disabled]="isReplacing"
+                              (click)="startReplace(document, rowReplaceInput, $event)"
+                            >
+                              {{
+                                hasPendingReplacement(document.id) ? 'Change file' : 'Select file'
+                              }}
+                            </button>
+                            <button
+                              type="button"
+                              class="btn btn-outline-primary btn-sm"
+                              *ngIf="canReplace(document) && hasPendingReplacement(document.id)"
+                              (click)="viewPendingFile(document.id); $event.stopPropagation()"
+                            >
+                              <i class="fa fa-eye"></i> View
+                            </button>
+                            <button
+                              type="button"
+                              class="btn btn-outline-secondary btn-sm"
+                              *ngIf="canReplace(document) && hasPendingReplacement(document.id)"
+                              [disabled]="isReplacing"
+                              (click)="
+                                removePendingReplacement(document.id); $event.stopPropagation()
+                              "
+                            >
+                              Clear
+                            </button>
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-xl-9">
+              <div class="card border-0 shadow-sm">
+                <div class="card-body p-4" *ngIf="selectedDocument">
+                  <div
+                    class="alert alert-light border small mb-3"
+                    *ngIf="canReplace(selectedDocument)"
+                  >
+                    This document was rejected during scrutiny. Upload a fresh PDF to send it back
+                    for review.
+                  </div>
+
+                  <div class="row g-4">
+                    <div class="col-12">
+                      <div class="d-flex justify-content-end mb-2 flex-wrap gap-2">
+                        <button
+                          type="button"
+                          class="btn btn-danger btn-sm"
+                          *ngIf="pendingReplacements.length > 0"
+                          [disabled]="isReplacing"
+                          (click)="submitAllReplacements()"
+                        >
+                          {{
+                            isReplacing
+                              ? 'Replacing...'
+                              : 'Submit All Replacements (' + pendingReplacements.length + ')'
+                          }}
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-outline-primary btn-sm"
+                          *ngIf="selectedDocument && hasPendingReplacement(selectedDocument.id)"
+                          (click)="viewPendingFile(selectedDocument.id)"
+                        >
+                          <i class="fa fa-eye me-1"></i> View selected file
+                        </button>
                         <input
-                          #notesPopupReplaceInput
+                          #popupReplaceInput
                           type="file"
                           accept="application/pdf"
                           hidden
-                          (click)="$event.stopPropagation()"
                           (change)="addPendingReplacement($event)"
                         />
                         <button
                           type="button"
                           class="btn btn-outline-danger btn-sm"
-                          (click)="startReplace(selectedDocument, notesPopupReplaceInput, $event)"
+                          *ngIf="
+                            canShowReplaceBtn &&
+                            selectedDocument &&
+                            !hasPendingReplacement(selectedDocument.id)
+                          "
+                          (click)="startReplace(selectedDocument, popupReplaceInput, $event)"
                         >
                           Select replacement file
                         </button>
+                        <button
+                          type="button"
+                          class="btn btn-outline-secondary btn-sm"
+                          *ngIf="
+                            canShowReplaceBtn &&
+                            selectedDocument &&
+                            hasPendingReplacement(selectedDocument.id)
+                          "
+                          (click)="removePendingReplacement(selectedDocument.id)"
+                        >
+                          Clear selected file
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-outline-dark"
+                          (click)="openNotesPopup()"
+                        >
+                          View Remarks
+                        </button>
                       </div>
-                      
+                      <div class="preview-frame" *ngIf="selectedDocumentUrl; else noPreview">
+                        <iframe [src]="selectedDocumentUrl" title="Advocate PDF preview"></iframe>
+                      </div>
+
+                      <!-- Notes popup -->
+                      <div
+                        class="notes-popup-backdrop"
+                        *ngIf="notesPopupOpen"
+                        (click)="closeNotesPopup()"
+                      ></div>
+                      <div
+                        class="notes-popup"
+                        *ngIf="notesPopupOpen"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Scrutiny Notes"
+                        (click)="$event.stopPropagation()"
+                      >
+                        <div
+                          class="notes-popup-header d-flex justify-content-between align-items-center"
+                        >
+                          <div class="fw-semibold">Scrutiny Notes</div>
+                          <button
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary"
+                            (click)="closeNotesPopup()"
+                          >
+                            Close
+                          </button>
+                        </div>
+
+                        <div class="notes-popup-body">
+                          <div class="history-list">
+                            <div
+                              class="history-item"
+                              *ngFor="let item of visibleDocumentHistory; trackBy: trackById"
+                            >
+                              <div class="history-note mt-2">
+                                {{ item.comments || 'No note added.' }}
+                              </div>
+                              <div class="text-muted small mt-2">
+                                {{ item.recieved_at | date: 'dd MMM yyyy, hh:mm a' }}
+                              </div>
+                            </div>
+
+                            <div
+                              *ngIf="visibleDocumentHistory.length === 0"
+                              class="text-muted small"
+                            >
+                              Only scrutiny notes are shown here.
+                            </div>
+                          </div>
+
+                          <div class="mt-3" *ngIf="canReplace(selectedDocument)">
+                            <input
+                              #notesPopupReplaceInput
+                              type="file"
+                              accept="application/pdf"
+                              hidden
+                              (click)="$event.stopPropagation()"
+                              (change)="addPendingReplacement($event)"
+                            />
+                            <button
+                              type="button"
+                              class="btn btn-outline-danger btn-sm"
+                              (click)="
+                                startReplace(selectedDocument, notesPopupReplaceInput, $event)
+                              "
+                            >
+                              Select replacement file
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
+
+                <div class="card-body p-4 text-muted small" *ngIf="!selectedDocument">
+                  Select a document to view its scrutiny history.
+                </div>
               </div>
             </div>
-  
-            <div class="card-body p-4 text-muted small" *ngIf="!selectedDocument">
-              Select a document to view its scrutiny history.
-            </div>
           </div>
-        </div>
-      </div>
         </div>
         <div *ngIf="activeTab === 'ia' && iaList.length > 0" class="ia-tab-content">
           <div class="accordion" id="iaAccordion">
@@ -582,9 +637,13 @@
   </ng-container>
 
   <ng-template #noPreview>
-    <div class="preview-empty text-muted small">PDF preview will appear here once a file is available.</div>
+    <div class="preview-empty text-muted small">
+      PDF preview will appear here once a file is available.
+    </div>
   </ng-template>
   <ng-template #noPreviewIa>
-    <div class="preview-empty text-muted small">PDF preview will appear here once a file is available.</div>
+    <div class="preview-empty text-muted small">
+      PDF preview will appear here once a file is available.
+    </div>
   </ng-template>
 </div>

@@ -154,4 +154,20 @@ export class IaFilingEdit implements OnInit {
     if (s.includes('reject') || s.includes('partial')) return 'status-badge-danger';
     return 'status-badge-warning';
   }
+
+  getStatusLabel(status: string | null): string {
+    const s = (status ?? '').trim().toLowerCase();
+    if (!s || s.includes('draft') || s.includes('submitted')) return 'Under Scrutiny';
+    if (s.includes('scrutiny')) return 'Under Scrutiny';
+    if (s.includes('accept')) return 'Accepted';
+    if (s.includes('reject') || s.includes('partial') || s.includes('object')) return 'Rejected';
+    return status ?? 'Under Scrutiny';
+  }
+
+  getStatusClass(status: string | null): string {
+    const label = this.getStatusLabel(status).toLowerCase();
+    if (label.includes('accept')) return 'status-badge-success';
+    if (label.includes('reject')) return 'status-badge-danger';
+    return 'status-badge-warning';
+  }
 }

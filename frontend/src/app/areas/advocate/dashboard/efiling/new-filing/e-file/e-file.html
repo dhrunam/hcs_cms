@@ -134,7 +134,7 @@
                 <td colspan="8">
                   <div class="p-3 small text-muted">
                     <div>
-                      <strong>Organization:</strong> {{ get_organisation_name(item.organization) }}
+                      <strong>Organization:</strong> {{ item.organization_detail?.orgname }}
                     </div>
                     <div><strong>Sequence No:</strong> {{ item.sequence_number }}</div>
                     <div><strong>Email:</strong> {{ item.email || '-' }}</div>
@@ -145,8 +145,10 @@
                       <strong>Differently Abled:</strong>
                       {{ item.is_diffentially_abled ? 'Yes' : 'No' }}
                     </div>
-                    <div><strong>State ID:</strong> {{ item.state_id || '-' }}</div>
-                    <div><strong>District ID:</strong> {{ item.district_id || '-' }}</div>
+                    <div><strong>State ID:</strong> {{ item.state_detail?.state || '-' }}</div>
+                    <div>
+                      <strong>District ID:</strong> {{ item.district_detail?.district || '-' }}
+                    </div>
                     <div><strong>Taluka:</strong> {{ item.taluka || '-' }}</div>
                   </div>
                 </td>
@@ -193,12 +195,12 @@
 
         <div class="col-md-3">
           <label class="text-muted small">State</label>
-          <div class="fw-semibold">{{ getDisputeStateLabel() }}</div>
+          <div class="fw-semibold">{{ caseDetailsView?.dispute_state?.state }}</div>
         </div>
 
         <div class="col-md-3">
           <label class="text-muted small">District</label>
-          <div class="fw-semibold">{{ getDisputeDistrictLabel() }}</div>
+          <div class="fw-semibold">{{ caseDetailsView?.dispute_district?.district }}</div>
         </div>
 
         <div class="col-md-3">

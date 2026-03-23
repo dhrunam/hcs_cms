@@ -49,9 +49,7 @@
             }}
           </button>
         </div>
-        <span class="status-badge" [ngClass]="getStatusClass(filingStatusForDisplay)" *ngIf="filingStatusForDisplay">
-          {{ getStatusLabel(filingStatusForDisplay) }}
-        </span>
+      
       </div>
     </div>
     <div class="card border-0 shadow-sm scrutiny-tabs-card">
@@ -273,50 +271,65 @@
                   <div class="card-body">
                     <div *ngIf="selectedDocument">
                       <div class="row g-4 align-items-start">
-                        <div class="col-lg-12">
-                          <div class="review-panel">
-                            <div class="section-title mb-2">Remarks</div>
-                            <textarea
-                              class="form-control"
-                              [(ngModel)]="reviewNote"
-                              placeholder="Add notes for the advocate. These notes stay in the review history."
-                              rows="3"
-                            ></textarea>
-        
-                            <div class="d-flex gap-2 flex-wrap mt-3">
-                              <button type="button" class="btn btn-success btn-sm" (click)="acceptDocument()" [disabled]="isSavingReview">
-                                Accept
-                              </button>
-                              <button type="button" class="btn btn-danger btn-sm" (click)="rejectDocument()" [disabled]="isSavingReview">
-                                Reject
-                              </button>
-                            </div>
-                          </div>
-        
-                          <!-- <div class="review-panel mt-3">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                              <div class="section-title mb-0">Checklist</div>
-                              <span class="small text-muted">{{ scrutinyChecklist.length }}</span>
-                            </div>
-        
-                            <div *ngIf="scrutinyChecklist.length === 0" class="text-muted small">
-                              No checklist items are configured for this case type yet.
-                            </div>
-        
-                            <div class="checklist-list" *ngIf="scrutinyChecklist.length > 0">
-                              <div class="checklist-item" *ngFor="let item of scrutinyChecklist; trackBy: trackById">
-                                <i class="fa-regular fa-circle-check checklist-icon"></i>
-                                <span>{{ item.checklist_item }}</span>
-                              </div>
-                            </div>
-                          </div> -->
-                        </div>
+                      
                         <div class="col-lg-12">
                           <div class="review-panel mb-3">
                             <!-- <div class="section-title mb-2">Inline PDF Preview</div> -->
                               <div class="preview-frame" *ngIf="selectedDocumentUrl; else noPreview">
                                 <iframe [src]="selectedDocumentUrl" title="Scrutiny PDF preview"></iframe>
                               </div>
+                          </div>
+                          <div class="col-lg-12">
+                            <div class="review-panel">
+                              <div class="section-title mb-2">Remarks</div>
+                              <textarea
+                                class="form-control"
+                                [(ngModel)]="reviewNote"
+                                placeholder="Add notes for the advocate. These notes stay in the review history."
+                                rows="3"
+                                [readonly]="!canReviewDocuments"
+                              ></textarea>
+          
+                              <div class="d-flex gap-2 flex-wrap mt-3">
+                                <button
+                                  type="button"
+                                  class="btn btn-success btn-sm"
+                                  (click)="acceptDocument()"
+                                  [disabled]="!canReviewDocuments || isSavingReview"
+                                >
+                                  Accept
+                                </button>
+                                <button
+                                  type="button"
+                                  class="btn btn-danger btn-sm"
+                                  (click)="rejectDocument()"
+                                  [disabled]="!canReviewDocuments || isSavingReview"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                              <p *ngIf="isCaseRegistered && !canReviewDocuments" class="text-muted small mt-2 mb-0">
+                                This case is registered; document acceptance and rejection are no longer available.
+                              </p>
+                            </div>
+          
+                            <!-- <div class="review-panel mt-3">
+                              <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div class="section-title mb-0">Checklist</div>
+                                <span class="small text-muted">{{ scrutinyChecklist.length }}</span>
+                              </div>
+          
+                              <div *ngIf="scrutinyChecklist.length === 0" class="text-muted small">
+                                No checklist items are configured for this case type yet.
+                              </div>
+          
+                              <div class="checklist-list" *ngIf="scrutinyChecklist.length > 0">
+                                <div class="checklist-item" *ngFor="let item of scrutinyChecklist; trackBy: trackById">
+                                  <i class="fa-regular fa-circle-check checklist-icon"></i>
+                                  <span>{{ item.checklist_item }}</span>
+                                </div>
+                              </div>
+                            </div> -->
                           </div>
                           
                           <!-- <div class="review-panel">
@@ -444,15 +457,29 @@
                                 [(ngModel)]="reviewNoteIa"
                                 placeholder="Add notes for the advocate. These notes stay in the review history."
                                 rows="3"
+                                [readonly]="!canReviewDocuments"
                               ></textarea>
                               <div class="d-flex gap-2 flex-wrap mt-3">
-                                <button type="button" class="btn btn-success btn-sm" (click)="acceptIaDocument()" [disabled]="isSavingReviewIa">
+                                <button
+                                  type="button"
+                                  class="btn btn-success btn-sm"
+                                  (click)="acceptIaDocument()"
+                                  [disabled]="!canReviewDocuments || isSavingReviewIa"
+                                >
                                   Accept
                                 </button>
-                                <button type="button" class="btn btn-danger btn-sm" (click)="rejectIaDocument()" [disabled]="isSavingReviewIa">
+                                <button
+                                  type="button"
+                                  class="btn btn-danger btn-sm"
+                                  (click)="rejectIaDocument()"
+                                  [disabled]="!canReviewDocuments || isSavingReviewIa"
+                                >
                                   Reject
                                 </button>
                               </div>
+                              <p *ngIf="isCaseRegistered && !canReviewDocuments" class="text-muted small mt-2 mb-0">
+                                This case is registered; IA document acceptance and rejection are no longer available.
+                              </p>
                             </div>
                             <div class="review-panel" [class.mt-3]="!isIaDocumentAccepted(selectedIaDocument)">
                               <div class="preview-frame" *ngIf="selectedIaDocumentUrl; else noPreviewIa">

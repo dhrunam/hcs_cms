@@ -50,7 +50,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     # Local
-    "drf_sso_resource",
+   
     "apps.accounts",
     "apps.cis",
     "apps.core",

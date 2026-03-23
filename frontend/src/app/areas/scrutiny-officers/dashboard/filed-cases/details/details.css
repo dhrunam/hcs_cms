@@ -299,10 +299,10 @@
 }
 
 .document-type-header {
-  background: #eef2ff;
-  border: 1px solid #e0e7ff;
+  background:  #312e81 ;
+  border: 1px solid  #312e81 ;
   border-radius: 12px;
-  color: #1e293b;
+  color: white;
   font-weight: 700;
   padding: 0.45rem 0.65rem;
 }

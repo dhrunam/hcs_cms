@@ -6,8 +6,8 @@
       <table class="table table-borderless table-hover align-middle mb-0">
         <thead style="background-color: #f8fafc">
           <tr class="text-muted small fw-light">
+            <!-- <th class="fw-light">#</th> -->
             <th class="fw-light">#</th>
-            <th class="fw-light">Type</th>
             <th class="fw-light">Name</th>
             <th class="fw-light">Gender</th>
             <th class="fw-light">Age</th>
@@ -21,7 +21,7 @@
           <ng-container *ngFor="let item of sortedLitigants; let i = index">
             <!-- MAIN ROW (minimal) -->
             <tr style="border-bottom: 1px solid #f1f5f9">
-              <td class="text-muted small">{{ i + 1 }}</td>
+              <!-- <td class="text-muted small">{{ i + 1 }}</td> -->
 
               <td>
                 <span
@@ -35,6 +35,7 @@
                     style="font-size: 11px"
                   ></i>
                   {{ item.is_petitioner ? 'Petitioner' : 'Respondent' }}
+                  <span class="fw-bold"> {{ ' no: ' + item.sequence_number }}</span>
                 </span>
               </td>
 

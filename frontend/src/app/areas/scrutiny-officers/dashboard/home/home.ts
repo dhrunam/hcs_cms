@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { catchError, forkJoin, of } from 'rxjs';
 import { EfilingService } from '../../../../services/advocate/efiling/efiling.services';
 
 interface EfilingCaseType {
@@ -81,12 +81,17 @@ export class ScrutinyOfficerHome {
     this.isLoading = true;
     forkJoin({
       filings: this.eFilingService.get_filings_under_scrutiny(),
-      incoming: this.eFilingService.get_new_scrutiny_documents(),
+      incoming: this.eFilingService.get_new_scrutiny_documents().pipe(
+        catchError((error) => {
+          console.warn('Failed to load new scrutiny documents', error);
+          return of([]);
+        }),
+      ),
     }).subscribe({
       next: ({ filings, incoming }) => {
-        this.filedCases = filings?.results ?? [];
+        this.filedCases = this.extractItems(filings);
         this.newIncomingFilingIds = new Set<number>(
-          (incoming?.results ?? incoming ?? [])
+          this.extractItems(incoming)
             .map((item: any) => item?.e_filing_id)
             .filter((id: number | null | undefined) => typeof id === 'number'),
         );
@@ -99,6 +104,16 @@ export class ScrutinyOfficerHome {
         this.isLoading = false;
       },
     });
+  }
+
+  private extractItems(payload: any): any[] {
+    if (Array.isArray(payload)) {
+      return payload;
+    }
+    if (Array.isArray(payload?.results)) {
+      return payload.results;
+    }
+    return [];
   }
 
   hasNewForScrutiny(filingId: number | null | undefined): boolean {

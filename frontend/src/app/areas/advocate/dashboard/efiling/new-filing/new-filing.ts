@@ -504,6 +504,7 @@ export class NewFiling {
     };
 
     this.eFilingService.post_case_details(payload).subscribe(() => {
+      this.loadCaseDetails();
       this.step3Saved = true;
       this.caseDetailsLocked = true;
       this.caseDetailsForm.disable({ emitEvent: false });
