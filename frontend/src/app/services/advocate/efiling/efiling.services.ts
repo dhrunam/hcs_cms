@@ -53,7 +53,12 @@ export class EfilingService {
   }
 
   get_filings_under_scrutiny(): Observable<any> {
-    return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/?is_draft=false`);
+    return this.http.get<any>(
+      `${app_url}/api/v1/efiling/efilings/?is_draft=false&status=UNDER_SCRUTINY`,
+    );
+  }
+  get_approved_cases(): Observable<any> {
+    return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/?is_draft=false&status=Accepted`);
   }
 
   get_filings_under_draft(): Observable<any> {
@@ -135,11 +140,16 @@ export class EfilingService {
   replace_document_review_item(documentIndexId: number, file: File): Observable<any> {
     const fd = new FormData();
     fd.append('file_part_path', file);
-    return this.http.patch<any>(`${app_url}/api/v1/efiling/efiling-documents-index/${documentIndexId}/`, fd);
+    return this.http.patch<any>(
+      `${app_url}/api/v1/efiling/efiling-documents-index/${documentIndexId}/`,
+      fd,
+    );
   }
 
   get_new_scrutiny_documents(): Observable<any> {
-    return this.http.get<any>(`${app_url}/api/v1/efiling/efiling-documents-index/?is_new_for_scrutiny=true`);
+    return this.http.get<any>(
+      `${app_url}/api/v1/efiling/efiling-documents-index/?is_new_for_scrutiny=true`,
+    );
   }
 
   get_file_scrutiny_checklist(caseTypeId: number): Observable<any> {
@@ -152,7 +162,11 @@ export class EfilingService {
     return this.http.get<any>(`${app_url}/api/v1/efiling/document-index/`);
   }
 
-  post_ia_filing(payload: { e_filing: number; e_filing_number: string; ia_text: string }): Observable<any> {
+  post_ia_filing(payload: {
+    e_filing: number;
+    e_filing_number: string;
+    ia_text: string;
+  }): Observable<any> {
     return this.http.post<any>(`${app_url}/api/v1/efiling/ias/`, payload);
   }
 
