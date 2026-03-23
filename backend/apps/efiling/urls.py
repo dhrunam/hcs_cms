@@ -55,6 +55,7 @@ from apps.efiling.views.advocate_views import (
     AdvocateListView,
     AdvocateRetrieveView,
 )
+from apps.efiling.views.pdf_merge_views import merge_pdfs
 
 
 app_name = "efiling"
@@ -188,6 +189,6 @@ urlpatterns = [
         EfilerDocumentAccessRetrieveUpdateDestroyView.as_view(),
         name="efiler-document-access-detail",
     ),
-
+    path("merge-pdfs/", merge_pdfs, name="merge-pdfs"),
 ]
 

@@ -380,17 +380,16 @@
             >
               <h2 class="accordion-header">
                 <button
-                  class="accordion-button"
-                  [class.collapsed]="i !== 0"
+                  class="accordion-button collapsed"
                   type="button"
                   [attr.data-bs-toggle]="'collapse'"
                   [attr.data-bs-target]="'#ia-collapse-' + item.ia.id"
-                  [attr.aria-expanded]="i === 0"
+                  [attr.aria-expanded]="false"
                   [attr.aria-controls]="'ia-collapse-' + item.ia.id"
                 >
                   <span class="ia-number filing-number me-2">{{ item.ia.ia_number || '-' }}</span>
-                  <span class="status-badge status-badge-sm me-2" [ngClass]="getIaReliefStatusClass(item)">
-                    {{ getIaReliefStatusLabel(item) }}
+                  <span class="badge rounded-pill px-2 py-1 me-2" [ngClass]="getIaStatusBadgeClass(item.ia.status)">
+                    {{ item.ia.status || 'Pending' }}
                   </span>
                   <span class="text-muted small">({{ item.documents.length }} document{{ item.documents.length !== 1 ? 's' : '' }})</span>
                 </button>
@@ -398,7 +397,6 @@
               <div
                 [id]="'ia-collapse-' + item.ia.id"
                 class="accordion-collapse collapse"
-                [class.show]="i === 0"
                 data-bs-parent="#iaAccordion"
               >
                 <div class="accordion-body">

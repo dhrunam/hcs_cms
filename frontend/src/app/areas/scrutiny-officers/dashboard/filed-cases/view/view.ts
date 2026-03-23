@@ -45,7 +45,7 @@ export class FiledCasesView {
   getFiledCases(): void {
     this.isLoading = true;
     forkJoin({
-      filings: this.eFilingService.get_filings_under_scrutiny(),
+      filings: this.eFilingService.get_scrutiny_cases(),
       incoming: this.eFilingService.get_new_scrutiny_documents().pipe(
         catchError((error) => {
           console.warn('Failed to load new scrutiny documents', error);
@@ -101,25 +101,44 @@ export class FiledCasesView {
     return typeof filingId === 'number' && this.newIncomingFilingIds.has(filingId);
   }
 
+  getStatusTone(status: string | null): 'warning' | 'success' | 'danger' {
+    const normalizedStatus = (status ?? '').trim().toLowerCase();
+    if (!normalizedStatus || normalizedStatus === 'submitted' || normalizedStatus === 'under_scrutiny') {
+      return 'warning';
+    }
+    if (normalizedStatus.includes('accepted')) {
+      return 'success';
+    }
+    if (
+      normalizedStatus.includes('partially') ||
+      normalizedStatus.includes('rejected') ||
+      normalizedStatus.includes('object') ||
+      normalizedStatus.includes('defect')
+    ) {
+      return 'danger';
+    }
+    return 'warning';
+  }
+
   getStatusLabel(status: string | null): string {
     const normalizedStatus = (status ?? '').trim().toLowerCase();
 
-    if (!normalizedStatus || normalizedStatus === 'submitted' || normalizedStatus === 'under_scrutiny') {
+    if (!normalizedStatus || normalizedStatus === 'submitted' || normalizedStatus === 'UNDER_SCRUTINY') {
       return 'Under Scrutiny';
     }
 
-    if (normalizedStatus.includes('accept')) {
+    if (normalizedStatus.includes('ACCEPTED')) {
       return 'Accepted';
     }
 
-    if (normalizedStatus.includes('partially')) {
+    if (normalizedStatus.includes('PARTIALLY')) {
       return 'Partially Rejected';
     }
 
     if (
-      normalizedStatus.includes('reject') ||
-      normalizedStatus.includes('object') ||
-      normalizedStatus.includes('defect')
+      normalizedStatus.includes('REJECTED') ||
+      normalizedStatus.includes('OBJECT') ||
+      normalizedStatus.includes('DEFECT')
     ) {
       return 'Rejected';
     }
