@@ -201,7 +201,7 @@
               <div class="act-card" *ngFor="let act of actList; let i = index; trackBy: trackById">
                 <div class="act-index">{{ i + 1 }}</div>
                 <div class="act-content">
-                  <div class="act-name">{{ getActName(act) }}</div>
+                  <div class="act-name">{{ act.act.actname }}</div>
                   <div class="act-section">Section: {{ act.section || '-' }}</div>
                   <div class="act-subsection text-muted small" *ngIf="act.sub_section">
                     Sub-section: {{ act.sub_section }}
