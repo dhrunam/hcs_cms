@@ -27,9 +27,10 @@ export class Home implements OnInit {
 
   loadFilingCounts(): void {
     this.isLoading = true;
+    const pageSize = 9999; // fetch all for accurate dashboard counts
     forkJoin({
-      draft: this.efilingService.get_filings_under_draft(),
-      scrutiny: this.efilingService.get_filings_under_scrutiny(),
+      draft: this.efilingService.get_filings_under_draft({ page_size: pageSize }),
+      scrutiny: this.efilingService.get_filings_under_scrutiny({ page_size: pageSize }),
     }).subscribe({
       next: ({ draft, scrutiny }) => {
         const draftRows = draft?.results ?? [];

@@ -6,6 +6,7 @@ import { forkJoin } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import Swal from 'sweetalert2';
 import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
+import { getValidationErrorMessage, validatePdfSize } from '../../../../../../utils/pdf-validation';
 
 @Component({
   selector: 'app-scrutiny-details',
@@ -209,6 +210,18 @@ export class ScrutinyDetails {
       return;
     }
 
+    if (file.type !== 'application/pdf') {
+      this.toastr.error('Please select a PDF file.');
+      input.value = '';
+      return;
+    }
+    const sizeCheck = validatePdfSize(file);
+    if (!sizeCheck.valid && sizeCheck.error) {
+      this.toastr.error(sizeCheck.error);
+      input.value = '';
+      return;
+    }
+
     const existing = this.pendingReplacements.find((p) => p.documentId === doc.id);
     if (existing) {
       existing.file = file;
@@ -286,7 +299,7 @@ export class ScrutinyDetails {
           this.pendingReplacements = [...toReplace.slice(index)];
           Swal.fire({
             title: 'Error',
-            text: 'Failed to replace document. Please try again.',
+            text: getValidationErrorMessage(error) || 'Failed to replace document. Please try again.',
             icon: 'error',
           });
         },

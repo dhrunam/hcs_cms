@@ -14,7 +14,7 @@
         <div class="card-body py-3 px-3">
           <i class="fa-regular fa-clock text-warning mb-2"></i>
           <div class="text-muted small">Under Scrutiny</div>
-          <h5 class="mb-0 fw-semibold">{{ underScrutinyCount }}</h5>
+          <h5 class="mb-0 fw-semibold">{{ isLoading ? '-' : underScrutinyCount }}</h5>
         </div>
       </div>
     </div>
@@ -25,7 +25,7 @@
         <div class="card-body py-3 px-3">
           <i class="fa-regular fa-circle-check text-success mb-2"></i>
           <div class="text-muted small">Accepted</div>
-          <h5 class="mb-0 fw-semibold">{{ acceptedCount }}</h5>
+          <h5 class="mb-0 fw-semibold">{{ isLoading ? '-' : acceptedCount }}</h5>
         </div>
       </div>
     </div>
@@ -35,7 +35,7 @@
         <div class="card-body py-3 px-3">
           <i class="fa-regular fa-circle-xmark text-danger mb-2"></i>
           <div class="text-muted small">Rejected</div>
-          <h5 class="mb-0 fw-semibold">{{ rejectedCount }}</h5>
+          <h5 class="mb-0 fw-semibold">{{ isLoading ? '-' : rejectedCount }}</h5>
         </div>
       </div>
     </div>
@@ -45,7 +45,7 @@
         <div class="card-body py-3 px-3">
           <i class="fa-regular fa-address-card text-info mb-2"></i>
           <div class="text-muted small">Registered Cases</div>
-          <h5 class="mb-0 fw-semibold">{{ totalRegisteredCases }}</h5>
+          <h5 class="mb-0 fw-semibold">{{ isLoading ? '-' : totalRegisteredCases }}</h5>
         </div>
       </div>
     </div>
