@@ -155,7 +155,7 @@ REST_FRAMEWORK = {
        
         "rest_framework.parsers.MultiPartParser",
     ],
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "DEFAULT_PAGINATION_CLASS": "config.pagination.StandardResultsSetPagination",
     "PAGE_SIZE": 20,
 }
 
@@ -200,6 +200,11 @@ MEDIA_URL = "/media/"
 # Default primary key
 # ---------------------------------------------------------------------------
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# ---------------------------------------------------------------------------
+# E-filing PDF validation (size <= 25 MB, OCR/text layer required)
+# ---------------------------------------------------------------------------
+EFILING_VALIDATE_PDF_UPLOAD = True
 
 
 

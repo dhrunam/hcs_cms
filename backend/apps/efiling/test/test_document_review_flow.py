@@ -1,11 +1,13 @@
+from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.core.models import Efiling, EfilingDocuments, EfilingDocumentsIndex
 
 
+@override_settings(EFILING_VALIDATE_PDF_UPLOAD=False)
 class DocumentReviewFlowTest(TestCase):
     def setUp(self):
         self.client = APIClient()

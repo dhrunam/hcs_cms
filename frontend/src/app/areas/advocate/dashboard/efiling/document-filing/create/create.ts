@@ -8,7 +8,13 @@ import { forkJoin } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import Swal from 'sweetalert2';
 
+import { app_url } from '../../../../../../environment';
 import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
+import {
+  getValidationErrorMessage,
+  validatePdfFiles,
+  validatePdfOcrForFiles,
+} from '../../../../../../utils/pdf-validation';
 import { UploadDocuments } from '../../new-filing/upload-documents/upload-documents';
 
 @Component({
@@ -40,6 +46,8 @@ export class Create implements OnInit {
   uploadedDocList: any[] = [];
 
   isUploadingDocuments = false;
+  isMergingPdf = false;
+  mergeError: string | null = null;
   uploadFileProgresses: number[] = [];
   uploadCompletedToken = 0;
 
@@ -292,6 +300,24 @@ export class Create implements OnInit {
       return;
     }
 
+    // Validate PDF size (≤ 25 MB) and OCR before confirmation
+    const files = uploadItems.map((i: any) => i.file).filter(Boolean);
+    const { valid, errors } = validatePdfFiles(files);
+    if (errors.length > 0) {
+      this.toastr.error(errors.join(' '));
+      return;
+    }
+    if (valid.length !== files.length) {
+      this.toastr.error('Some files could not be validated. Please ensure all files are PDFs under 25 MB.');
+      return;
+    }
+
+    const ocrError = await validatePdfOcrForFiles(valid);
+    if (ocrError) {
+      this.toastr.error(ocrError);
+      return;
+    }
+
     const targetLabel = this.selectedIa
       ? `the selected IA (${this.selectedIa.ia_number || ''})`
       : 'the selected e-filing';
@@ -345,7 +371,7 @@ export class Create implements OnInit {
       this.toastr.success('Documents uploaded successfully.');
     } catch (error) {
       console.error('Document upload failed', error);
-      this.toastr.error('Failed to upload documents. Please try again.');
+      this.toastr.error(getValidationErrorMessage(error) || 'Failed to upload documents. Please try again.');
     } finally {
       this.isUploadingDocuments = false;
     }
@@ -436,6 +462,100 @@ export class Create implements OnInit {
       }).then((result) => {
         if (result.dismiss === Swal.DismissReason.cancel) finish(false);
       });
+    });
+  }
+
+  /** Merge items from uploaded documents only (not existing docs). */
+  private getMergeItems(): { url: string; name: string }[] {
+    const items: { url: string; name: string }[] = [];
+    const list = [...this.uploadedDocList];
+    for (const doc of list) {
+      const indexes = doc?.document_indexes;
+      if (Array.isArray(indexes) && indexes.length > 0) {
+        for (const part of indexes) {
+          const url = part?.file_url || part?.file_part_path;
+          if (url) {
+            const name = part?.document_part_name?.trim() || doc?.document_type || 'Document';
+            items.push({ url, name });
+          }
+        }
+      } else if (doc?.final_document) {
+        const url = doc.final_document;
+        const name = doc?.document_type?.trim() || 'Document';
+        items.push({ url, name });
+      }
+    }
+    return items;
+  }
+
+  private toAbsoluteUrl(url: string): string {
+    if (!url) return '';
+    const s = String(url).trim();
+    if (s.startsWith('http://') || s.startsWith('https://')) return s;
+    const base = app_url.replace(/\/$/, '');
+    return s.startsWith('/') ? `${base}${s}` : `${base}/${s}`;
+  }
+
+  canDownloadMerged(): boolean {
+    return this.getMergeItems().length > 0;
+  }
+
+  downloadMergedPdf(): void {
+    const items = this.getMergeItems();
+    if (items.length === 0 || this.isMergingPdf) return;
+
+    this.isMergingPdf = true;
+    this.mergeError = null;
+
+    const fetches = items.map((item) =>
+      this.eFilingService.fetch_document_blob(this.toAbsoluteUrl(item.url)),
+    );
+
+    forkJoin(fetches).subscribe({
+      next: (blobs) => {
+        const files = blobs.map((blob, i) => {
+          const name = items[i].name.replace(/\.pdf$/i, '') + '.pdf';
+          return new File([blob], name, { type: 'application/pdf' });
+        });
+        const names = items.map((i) => i.name);
+        const petitioners = this.filingsWithLitigants.find((f) => f.filing.id === this.selectedEfilingId)
+          ?.petitioners ?? [];
+        const respondents = this.filingsWithLitigants.find((f) => f.filing.id === this.selectedEfilingId)
+          ?.respondents ?? [];
+        const frontPage = {
+          petitionerName: (this.selectedFiling?.petitioner_name || '').trim() || petitioners.join(', '),
+          respondentName: respondents.join(', '),
+          caseNo: (this.selectedFiling?.e_filing_number || '').trim(),
+          caseType: this.selectedFiling?.case_type?.full_form || this.selectedFiling?.case_type?.type_name || '',
+        };
+
+        this.eFilingService.mergePdfs(files, names, frontPage).subscribe({
+          next: (mergedBlob) => {
+            const url = URL.createObjectURL(mergedBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            const docType =
+              (this.uploadedDocList[0]?.document_type || 'Documents')
+                .trim()
+                .replace(/[^a-zA-Z0-9_-]/g, '_')
+                .replace(/_+/g, '_')
+                .replace(/^_|_$/g, '') || 'Documents';
+            const efilingNo = (this.selectedEfilingNumber || '').replace(/[^a-zA-Z0-9_-]/g, '') || 'merged';
+            a.download = `${docType}_${efilingNo}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+            this.isMergingPdf = false;
+          },
+          error: (err) => {
+            this.isMergingPdf = false;
+            this.mergeError = err?.error?.error || err?.message || 'Failed to merge PDFs.';
+          },
+        });
+      },
+      error: () => {
+        this.isMergingPdf = false;
+        this.mergeError = 'Failed to fetch documents.';
+      },
     });
   }
 
