@@ -1,0 +1,116 @@
+<div class="details-page">
+  <div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-3 mb-2">
+    <a routerLink="/listing-officers/dashboard/assign-cases" class="btn btn-light border btn-sm">
+      <i class="fa-solid fa-arrow-left"></i>
+      Back
+    </a>
+
+    <div class="d-flex align-items-end gap-2 flex-wrap">
+      <div>
+        <label class="form-label mb-1 fw-semibold">Assign Bench</label>
+        <select
+          class="form-select form-select-sm"
+          [(ngModel)]="selectedBench"
+          [ngModelOptions]="{ standalone: true }"
+        >
+          <option *ngFor="let b of benchKeys" [value]="b">{{ benchLabel(b) }}</option>
+        </select>
+      </div>
+      <button class="btn btn-primary btn-sm" (click)="saveBench()" [disabled]="isSaving || !selectedBench">
+        {{ isSaving ? 'Saving...' : 'Save' }}
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="isLoading" class="card border-0 shadow-sm">
+    <div class="card-body p-4 text-muted small">Loading case summary...</div>
+  </div>
+
+  <div *ngIf="!isLoading && loadError" class="alert alert-warning">{{ loadError }}</div>
+
+  <ng-container *ngIf="!isLoading && filing">
+    <div class="card border-0 shadow-sm overview-card mb-3">
+      <div class="card-body p-4 d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div>
+          <h5 class="mb-1">
+            {{ filing.case_type?.type_name || 'Case' }} • {{ filing.e_filing_number || '-' }}
+          </h5>
+          <div class="text-muted small">
+            Case Number:
+            <strong>{{ filing.case_number || '-' }}</strong>
+          </div>
+        </div>
+        <div class="text-end small text-muted">
+          Current Bench: <strong>{{ benchLabel(filing.bench) }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <div class="filing-summary-section">
+          <div class="filing-summary-section-title">
+            <i class="fa-solid fa-file-lines me-2"></i>
+            Filing Information
+          </div>
+          <div class="filing-summary-grid">
+            <div class="filing-summary-item">
+              <span class="filing-summary-label">Bench</span>
+              <span class="filing-summary-value">{{ benchLabel(filing.bench) }}</span>
+            </div>
+            <div class="filing-summary-item">
+              <span class="filing-summary-label">Case Type</span>
+              <span class="filing-summary-value">{{ filing.case_type?.type_name || filing.case_type?.full_form || '-' }}</span>
+            </div>
+            <div class="filing-summary-item">
+              <span class="filing-summary-label">Petitioner</span>
+              <span class="filing-summary-value">{{ petitionerName }}</span>
+            </div>
+            <div class="filing-summary-item">
+              <span class="filing-summary-label">Respondent</span>
+              <span class="filing-summary-value">{{ respondentName }}</span>
+            </div>
+            <div class="filing-summary-item">
+              <span class="filing-summary-label">Petitioner Contact</span>
+              <span class="filing-summary-value">{{ filing.petitioner_contact || '-' }}</span>
+            </div>
+            <div class="filing-summary-item">
+              <span class="filing-summary-label">Accepted At</span>
+              <span class="filing-summary-value">{{ filing.accepted_at | date: 'dd MMM yyyy, hh:mm a' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="filing-summary-section mt-4" *ngIf="caseDetails">
+          <div class="filing-summary-section-title">
+            <i class="fa-solid fa-scale-balanced me-2"></i>
+            Case Details
+          </div>
+          <div class="filing-summary-grid">
+            <div class="filing-summary-item">
+              <span class="filing-summary-label">Cause of Action</span>
+              <span class="filing-summary-value">{{ caseDetails.cause_of_action || '-' }}</span>
+            </div>
+            <div class="filing-summary-item">
+              <span class="filing-summary-label">Date of Cause</span>
+              <span class="filing-summary-value">{{ caseDetails.date_of_cause_of_action | date: 'dd MMM yyyy' }}</span>
+            </div>
+            <div class="filing-summary-item">
+              <span class="filing-summary-label">Dispute State</span>
+              <span class="filing-summary-value">{{ caseDetails.dispute_state?.state || caseDetails.dispute_state || '-' }}</span>
+            </div>
+            <div class="filing-summary-item">
+              <span class="filing-summary-label">Dispute District</span>
+              <span class="filing-summary-value">{{ caseDetails.dispute_district?.district || caseDetails.dispute_district || '-' }}</span>
+            </div>
+            <div class="filing-summary-item">
+              <span class="filing-summary-label">Dispute Taluka</span>
+              <span class="filing-summary-value">{{ caseDetails.dispute_taluka || '-' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+</div>
+

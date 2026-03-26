@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { EfilingService } from '../../../../../services/advocate/efiling/efiling.services';
+import { CauseListService } from '../../../../../services/listing/cause-list.service';
 
 @Component({
   selector: 'app-approved-cases',
@@ -11,12 +12,28 @@ import { EfilingService } from '../../../../../services/advocate/efiling/efiling
 })
 export class ApprovedCases {
   approvedCases: any[] | null = null;
+  causeListMatches: Record<
+    string,
+    { cause_list_date: string; pdf_url: string | null; bench_key: string; serial_no: number | null }
+  > = {};
+  private readonly benchLabels: Record<string, string> = {
+    CJ: "Hon'ble Chief Justice",
+    Judge1: "Hon'ble Judge - I",
+    Judge2: "Hon'ble Judge - II",
+    'CJ+Judge1': 'Division Bench I',
+    'CJ+Judge2': 'Division Bench II',
+    'Judge1+Judge2': 'Division Bench III',
+    'CJ+Judge1+Judge2': 'Full Bench',
+  };
 
   get hasCases(): boolean {
     return Array.isArray(this.approvedCases) && this.approvedCases.length > 0;
   }
 
-  constructor(private eFilingService: EfilingService) {}
+  constructor(
+    private eFilingService: EfilingService,
+    private causeListService: CauseListService,
+  ) {}
 
   ngOnInit() {
     this.get_approved_cases();
@@ -26,9 +43,54 @@ export class ApprovedCases {
     this.eFilingService.get_approved_cases().subscribe({
       next: (data) => {
         this.approvedCases = data?.results ?? [];
-        console.log(this.approvedCases);
+        this.loadNextCauseListInfo();
       },
     });
+  }
+
+  private loadNextCauseListInfo(): void {
+    const caseNumbers: string[] = (this.approvedCases ?? [])
+      .map((c) => String(c?.case_number || '').trim())
+      .filter((x) => x.length > 0);
+
+    if (caseNumbers.length === 0) {
+      this.causeListMatches = {};
+      return;
+    }
+
+    this.causeListService.lookupNextPublishedForCases(caseNumbers).subscribe({
+      next: (lookup) => {
+        this.causeListMatches = lookup?.matches ?? {};
+      },
+      error: () => {
+        this.causeListMatches = {};
+      },
+    });
+  }
+
+  getCauseListLink(caseNumber: string | null | undefined): string | null {
+    const cn = String(caseNumber || '').trim();
+    if (!cn) return null;
+    const match = this.causeListMatches[cn];
+    return match?.pdf_url ?? null;
+  }
+
+  getCauseListDate(caseNumber: string | null | undefined): string | null {
+    const cn = String(caseNumber || '').trim();
+    if (!cn) return null;
+    const match = this.causeListMatches[cn];
+    return match?.cause_list_date ?? null;
+  }
+
+  getCauseListTooltip(caseNumber: string | null | undefined): string | null {
+    const cn = String(caseNumber || '').trim();
+    if (!cn) return null;
+    const match = this.causeListMatches[cn];
+    if (!match) return null;
+    const benchLabel = this.benchLabels[match.bench_key] ?? match.bench_key;
+    const sr = match.serial_no != null ? String(match.serial_no) : '-';
+    const date = match.cause_list_date ? ` (${match.cause_list_date})` : '';
+    return `${benchLabel} • Sr ${sr}${date}`;
   }
 
   getStatusLabel(status: string | null): string {

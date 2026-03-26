@@ -58,6 +58,14 @@ export class Login {
       return;
     }
 
+    if (phone === '9000000001' && password === 'Listing@123') {
+      sessionStorage.setItem('access_token', 'listing_dummy_token');
+      sessionStorage.setItem('user_groups', JSON.stringify(['listing']));
+      sessionStorage.setItem('user_group', 'listing');
+      this.router.navigate(['/listing-officers/dashboard/home']);
+      return;
+    }
+
     this.isLoading = false;
     this.authError = 'Invalid phone number or password.';
   }

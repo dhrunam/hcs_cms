@@ -23,6 +23,13 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'listing-officers',
+    loadChildren: () =>
+      import('./areas/listing-officers/listing-officers-routing-module').then(
+        (m) => m.ListingOfficerRoutes,
+      ),
+  },
+  {
     path: '',
     redirectTo: 'user/login',
     pathMatch: 'full',
