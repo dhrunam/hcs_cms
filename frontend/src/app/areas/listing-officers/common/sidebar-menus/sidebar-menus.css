@@ -1,0 +1,33 @@
+/* Minimal styling for listing-officer sidebar menu items */
+.nav-link {
+  color: #1e293b;
+}
+
+.nav-link:hover {
+  color: #ffffff;
+}
+
+.nav-item {
+  color: #475569;
+  padding: 4px 8px;
+  margin: 4px 4px;
+  border-radius: 10px;
+  font-weight: 300;
+  transition: all 0.25s ease;
+}
+
+.nav-item i {
+  margin-right: 10px;
+  width: 18px;
+}
+
+.nav-item:hover {
+  background: #4338ca;
+  transform: translateX(4px);
+}
+
+.nav-item.active {
+  background: #1d4ed8;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+

@@ -17,6 +17,7 @@
               <th>Contact No</th>
               <th>Filing Date</th>
               <th>Status</th>
+              <th>Cause List</th>
             </tr>
           </thead>
           <tbody class="text-muted small">
@@ -36,6 +37,20 @@
                 <span class="badge rounded-pill px-2 py-1" [style]="getStatusBadgeClass(c.status)">
                   {{ getStatusLabel(c.status) }}
                 </span>
+              </td>
+              <td (click)="$event.stopPropagation()">
+                <a
+                  *ngIf="getCauseListLink(c.case_number) as link; else noCauseList"
+                  class="btn btn-sm btn-outline-secondary"
+                  [href]="link"
+                  target="_blank"
+                  [attr.title]="getCauseListTooltip(c.case_number)"
+                >
+                  View{{ getCauseListDate(c.case_number) ? ' (' + getCauseListDate(c.case_number) + ')' : '' }}
+                </a>
+                <ng-template #noCauseList>
+                  <span class="text-muted">-</span>
+                </ng-template>
               </td>
             </tr>
           </tbody>

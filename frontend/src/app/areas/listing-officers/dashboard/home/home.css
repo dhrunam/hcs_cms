@@ -1,0 +1,26 @@
+.dashboard-header {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.bench-accordion-item {
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  margin-bottom: 12px;
+}
+
+.bench-accordion-button {
+  background: #f8fafc;
+}
+
+.bench-accordion-button:focus {
+  box-shadow: none;
+}
+
+.bench-table-wrap {
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
