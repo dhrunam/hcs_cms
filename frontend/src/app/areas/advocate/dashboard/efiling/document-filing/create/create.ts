@@ -371,7 +371,12 @@ export class Create implements OnInit {
       this.toastr.success('Documents uploaded successfully.');
     } catch (error) {
       console.error('Document upload failed', error);
-      this.toastr.error(getValidationErrorMessage(error) || 'Failed to upload documents. Please try again.');
+      const msg = getValidationErrorMessage(error);
+      const friendlyMsg =
+        !msg || /bad request|http error|400/i.test(msg)
+          ? 'Failed to upload documents. Please ensure all PDFs are under 25 MB and OCR-converted (searchable).'
+          : msg;
+      this.toastr.error(friendlyMsg);
     } finally {
       this.isUploadingDocuments = false;
     }

@@ -33,8 +33,40 @@ export class ScrutinyOfficerHome {
 
   constructor(private eFilingService: EfilingService) {}
 
+  notifications: any[] = [];
+  isLoadingNotifications = false;
+
   ngOnInit(): void {
     this.getFiledCases();
+    this.loadNotifications();
+  }
+
+  loadNotifications(): void {
+    this.isLoadingNotifications = true;
+    this.eFilingService.get_notifications('scrutiny_officer').subscribe({
+      next: (data: any) => {
+        this.notifications = Array.isArray(data) ? data : (data?.results ?? []);
+        this.isLoadingNotifications = false;
+      },
+      error: () => {
+        this.notifications = [];
+        this.isLoadingNotifications = false;
+      },
+    });
+  }
+
+  formatNotificationDate(dateStr: string | null): string {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d ago`;
   }
 
   get totalFiledCases(): number {

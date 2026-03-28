@@ -155,13 +155,24 @@ export class IaFilingEdit implements OnInit {
     return 'status-badge-warning';
   }
 
+  getIaStatusLabel(status: string | null): string {
+    const s = (status ?? '').trim().toLowerCase();
+    if (!s) return '-';
+    if (s === 'accepted' || s.includes('accept')) return 'Accepted';
+    if (s === 'rejected' || s.includes('reject') || s.includes('partial')) return 'Rejected';
+    if (s === 'draft') return 'Draft';
+    if (s === 'under_scrutiny' || s === 'under scrutiny' || s.includes('submitted')) return 'Under Scrutiny';
+    return (status ?? 'Under Scrutiny').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
   getStatusLabel(status: string | null): string {
     const s = (status ?? '').trim().toLowerCase();
-    if (!s || s.includes('draft') || s.includes('submitted')) return 'Under Scrutiny';
-    if (s.includes('scrutiny')) return 'Under Scrutiny';
-    if (s.includes('accept')) return 'Accepted';
-    if (s.includes('reject') || s.includes('partial') || s.includes('object')) return 'Rejected';
-    return status ?? 'Under Scrutiny';
+    if (!s) return 'Under Scrutiny';
+    if (s === 'accepted' || s.includes('accept')) return 'Accepted';
+    if (s === 'rejected' || s.includes('reject') || s.includes('partial') || s.includes('object')) return 'Rejected';
+    if (s === 'draft') return 'Draft';
+    if (s.includes('scrutiny') || s.includes('submitted')) return 'Under Scrutiny';
+    return (status ?? 'Under Scrutiny').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
   getStatusClass(status: string | null): string {

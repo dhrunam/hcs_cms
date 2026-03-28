@@ -52,6 +52,9 @@
   gap: 12px;
 }
 
+li{
+  cursor: pointer;
+}
 /* MOBILE FIX */
 @media (max-width: 768px) {
   .clock {

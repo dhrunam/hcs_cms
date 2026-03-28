@@ -35,18 +35,22 @@
             {{ getStatusLabel(filingStatusForDisplay) }}
           </span>
           <button
+            *ngIf="!isCaseRegistered && canSubmitApprovedFiling && allDocumentsAccepted"
             type="button"
             class="btn btn-primary btn-sm"
-            (click)="submitApprovedFiling()"
-            [disabled]="!canSubmitApprovedFiling"
+            (click)="onRegisterCaseClick()"
+            [disabled]="isSubmittingApprovedCase"
           >
-            {{
-              isSubmittingApprovedCase
-                ? 'Submitting...'
-                : filing.case_number
-                  ? 'Submitted'
-                  : 'Submit Review'
-            }}
+            {{ isSubmittingApprovedCase ? 'Registering...' : 'Register Case' }}
+          </button>
+          <button
+            *ngIf="!isCaseRegistered && canSubmitApprovedFiling && !allDocumentsAccepted"
+            type="button"
+            class="btn btn-primary btn-sm"
+            (click)="onSubmitReviewClick()"
+            [disabled]="isSubmittingApprovedCase"
+          >
+            {{ isSubmittingApprovedCase ? 'Submitting...' : 'Submit Review' }}
           </button>
         </div>
       
@@ -140,11 +144,11 @@
                 </div>
                 <div class="filing-summary-item">
                   <span class="filing-summary-label">Dispute State</span>
-                  <span class="filing-summary-value">{{ caseDetails.dispute_state || '-' }}</span>
+                  <span class="filing-summary-value">{{ caseDetails.dispute_state?.state || '-' }}</span>
                 </div>
                 <div class="filing-summary-item">
                   <span class="filing-summary-label">Dispute District</span>
-                  <span class="filing-summary-value">{{ caseDetails.dispute_district || '-' }}</span>
+                  <span class="filing-summary-value">{{ caseDetails.dispute_district?.district || '-' }}</span>
                 </div>
                 <div class="filing-summary-item">
                   <span class="filing-summary-label">Dispute Taluka</span>
@@ -391,8 +395,8 @@
                   [attr.aria-controls]="'ia-collapse-' + item.ia.id"
                 >
                   <span class="ia-number filing-number me-2">{{ item.ia.ia_number || '-' }}</span>
-                  <span class="badge rounded-pill px-2 py-1 me-2" [ngClass]="getIaStatusBadgeClass(item.ia.status)">
-                    {{ item.ia.status || 'Pending' }}
+                  <span class="status-badge rounded-pill px-2 py-1 me-2" [ngClass]="getIaStatusBadgeClass(item.ia.status)">
+                    {{ getIaStatusLabel(item.ia.status) }}
                   </span>
                   <span class="text-muted small">({{ item.documents.length }} document{{ item.documents.length !== 1 ? 's' : '' }})</span>
                 </button>
@@ -403,6 +407,18 @@
                 data-bs-parent="#iaAccordion"
               >
                 <div class="accordion-body">
+                  <div class="d-flex justify-content-between align-items-center mb-3" *ngIf="canVerifyIa(item.ia)">
+                    <span class="text-muted small">IA {{ item.ia.ia_number || item.ia.id }}</span>
+                    <button
+                      type="button"
+                      class="btn btn-success btn-sm"
+                      (click)="verifyIa(item.ia)"
+                      [disabled]="isVerifyingIaId === item.ia.id"
+                    >
+                      <span *ngIf="isVerifyingIaId === item.ia.id" class="spinner-border spinner-border-sm me-1" role="status"></span>
+                      {{ isVerifyingIaId === item.ia.id ? 'Registering IA...' : 'Register IA' }}
+                    </button>
+                  </div>
                   <div class="ia-accordion-details mb-4">
                     <div *ngIf="item.ia.ia_text" class="mb-3">
                       <span class="filing-summary-label d-block mb-1">Relief Sought</span>
@@ -450,6 +466,11 @@
                       <div class="col-xl-9">
                         <div class="card border-0 shadow-sm h-100">
                           <div class="card-body" *ngIf="selectedIaDocumentBelongsToIa(item)">
+                            <div class="review-panel" [class.mt-3]="!isIaDocumentAccepted(selectedIaDocument)">
+                              <div class="preview-frame" *ngIf="selectedIaDocumentUrl; else noPreviewIa">
+                                <iframe [src]="selectedIaDocumentUrl" title="IA document preview"></iframe>
+                              </div>
+                            </div>
                             <div class="review-panel" *ngIf="!isIaDocumentAccepted(selectedIaDocument)">
                               <div class="section-title mb-2">Remarks</div>
                               <textarea
@@ -480,11 +501,6 @@
                               <p *ngIf="isCaseRegistered && !canReviewDocuments" class="text-muted small mt-2 mb-0">
                                 This case is registered; IA document acceptance and rejection are no longer available.
                               </p>
-                            </div>
-                            <div class="review-panel" [class.mt-3]="!isIaDocumentAccepted(selectedIaDocument)">
-                              <div class="preview-frame" *ngIf="selectedIaDocumentUrl; else noPreviewIa">
-                                <iframe [src]="selectedIaDocumentUrl" title="IA document preview"></iframe>
-                              </div>
                             </div>
                           </div>
                           <div class="card-body p-4 text-muted small" *ngIf="!selectedIaDocumentBelongsToIa(item)">
