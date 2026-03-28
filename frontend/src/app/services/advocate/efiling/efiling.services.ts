@@ -64,8 +64,12 @@ export class EfilingService {
       `${app_url}/api/v1/efiling/efilings/`,
     );
   }
-  get_approved_cases(): Observable<any> {
-    return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/?is_draft=false&status=ACCEPTED`);
+  get_approved_cases(params?: { page_size?: number }): Observable<any> {
+    let url = `${app_url}/api/v1/efiling/efilings/?is_draft=false&status=ACCEPTED`;
+    if (params?.page_size != null) {
+      url += `&page_size=${params.page_size}`;
+    }
+    return this.http.get<any>(url);
   }
   get_scrutiny_cases(params?: { page_size?: number }): Observable<any> {
     let url = `${app_url}/api/v1/efiling/efilings/?is_draft=false`;
@@ -220,7 +224,15 @@ export class EfilingService {
     return this.http.get<any>(`${app_url}/api/v1/efiling/ias/${id}/`);
   }
 
+  verify_ia(iaId: number): Observable<any> {
+    return this.http.patch<any>(`${app_url}/api/v1/efiling/ias/${iaId}/`, { status: 'ACCEPTED' });
+  }
+
   get_ia_acts_by_ia_id(iaId: number): Observable<any> {
     return this.http.get<any>(`${app_url}/api/v1/efiling/ia-acts/?ia=${iaId}`);
+  }
+
+  get_notifications(role: 'advocate' | 'scrutiny_officer'): Observable<any[]> {
+    return this.http.get<any[]>(`${app_url}/api/v1/efiling/notifications/?role=${role}`);
   }
 }

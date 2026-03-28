@@ -102,16 +102,43 @@
           </div>
         </div>
 
-        <div *ngIf="litigants.length > 0" class="mt-3">
-          <label class="text-muted small">Litigants</label>
-          <div class="d-flex gap-4 flex-wrap mt-1">
-            <div *ngIf="petitioners.length > 0">
-              <span class="badge bg-dark me-1">Petitioners:</span>
-              <span *ngFor="let p of petitioners; let i = index">{{ p.name }}{{ i < petitioners.length - 1 ? ', ' : '' }}</span>
+        <div *ngIf="litigants.length > 0" class="mt-4">
+          <label class="text-muted small fw-semibold d-block mb-2">
+            <i class="fa-solid fa-users me-1"></i>Litigant Details
+          </label>
+          <div class="litigants-layout">
+            <div class="party-block">
+              <div class="party-heading">
+                <i class="fa-solid fa-user-check me-1"></i>Petitioners
+              </div>
+              <div *ngIf="petitioners.length === 0" class="text-muted small">No petitioners available.</div>
+              <div class="litigant-list" *ngIf="petitioners.length > 0">
+                <div
+                  class="litigant-card"
+                  *ngFor="let litigant of petitioners; trackBy: trackLitigantById"
+                >
+                  <div class="litigant-name">{{ litigant.name || '-' }}</div>
+                  <div class="litigant-meta">{{ litigant.contact || 'No contact' }}</div>
+                  <div class="litigant-meta" *ngIf="litigant.address">{{ litigant.address }}</div>
+                </div>
+              </div>
             </div>
-            <div *ngIf="respondents.length > 0">
-              <span class="badge bg-secondary me-1">Respondents:</span>
-              <span *ngFor="let r of respondents; let i = index">{{ r.name }}{{ i < respondents.length - 1 ? ', ' : '' }}</span>
+            <div class="party-divider">vs</div>
+            <div class="party-block">
+              <div class="party-heading party-heading-respondent">
+                <i class="fa-solid fa-user-xmark me-1"></i>Respondents
+              </div>
+              <div *ngIf="respondents.length === 0" class="text-muted small">No respondents available.</div>
+              <div class="litigant-list" *ngIf="respondents.length > 0">
+                <div
+                  class="litigant-card"
+                  *ngFor="let litigant of respondents; trackBy: trackLitigantById"
+                >
+                  <div class="litigant-name">{{ litigant.name || '-' }}</div>
+                  <div class="litigant-meta">{{ litigant.contact || 'No contact' }}</div>
+                  <div class="litigant-meta" *ngIf="litigant.address">{{ litigant.address }}</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

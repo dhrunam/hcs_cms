@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
+import Swal from 'sweetalert2';
+import { ToastrService } from 'ngx-toastr';
 import { EfilingService } from '../../../../../services/advocate/efiling/efiling.services';
 
 @Component({
@@ -45,11 +47,13 @@ export class FiledCaseDetails {
   selectedIaDocument: any = null;
   selectedIaDocumentUrl: SafeResourceUrl | null = null;
   selectedIaDocumentBlobUrl: string | null = null;
+  isVerifyingIaId: number | null = null;
 
   constructor(
     private route: ActivatedRoute,
     private efilingService: EfilingService,
     private sanitizer: DomSanitizer,
+    private toastr: ToastrService,
   ) {}
 
   setActiveTab(tab: 'filing' | 'documents' | 'ia'): void {
@@ -193,6 +197,44 @@ export class FiledCaseDetails {
     this.submitReview('REJECTED');
   }
 
+  onRegisterCaseClick(): void {
+    if (!this.canSubmitApprovedFiling || !this.filingId || !this.allDocumentsAccepted) return;
+
+    Swal.fire({
+      title: 'Register Case?',
+      html: 'Are you sure you want to register this case? A case number will be generated and the filing will be finalized.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, Register',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#0d6efd',
+      cancelButtonColor: '#6c757d',
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.submitApprovedFiling();
+      }
+    });
+  }
+
+  onSubmitReviewClick(): void {
+    if (!this.canSubmitApprovedFiling || !this.filingId || this.allDocumentsAccepted) return;
+
+    Swal.fire({
+      title: 'Submit Review?',
+      html: 'Your review decisions will be submitted. The advocate will be notified. The case will not be registered since some documents were rejected.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, Submit',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#0d6efd',
+      cancelButtonColor: '#6c757d',
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.submitApprovedFiling();
+      }
+    });
+  }
+
   submitApprovedFiling(): void {
     if (!this.canSubmitApprovedFiling || !this.filingId) {
       return;
@@ -203,6 +245,9 @@ export class FiledCaseDetails {
       next: (filing) => {
         this.isSubmittingApprovedCase = false;
         this.filing = filing;
+        this.toastr.success(
+          this.filing?.case_number ? 'Case registered successfully.' : 'Review submitted. Advocate has been notified.',
+        );
         this.loadWorkspace(this.filingId!);
       },
       error: (error) => {
@@ -229,7 +274,8 @@ export class FiledCaseDetails {
           this.isSavingReview = false;
           this.applyReviewedDocument(updatedDocument);
           const nextDocument = this.getNextDocumentForReview(currentDocumentId);
-          this.loadWorkspace(this.filingId!, nextDocument?.id);
+          this.selectDocument(nextDocument ?? this.documents.find((d) => d.id === currentDocumentId) ?? null);
+          this.refreshFilingSummary();
         },
         error: (error) => {
           console.error('Failed to update review', error);
@@ -245,15 +291,20 @@ export class FiledCaseDetails {
   }
 
   get filingStatusForDisplay(): string | null {
-    const activeDocuments = this.activeDocuments;
-    if (!activeDocuments.length) {
+    const allActive = [...this.activeDocuments, ...this.activeIaDocuments];
+    if (!allActive.length) {
       return this.filing?.status ?? null;
     }
 
-    const tones = activeDocuments.map((document) => this.getStatusTone(this.getEffectiveReviewStatus(document)));
+    const tones = allActive.map((doc) => this.getStatusTone(this.getEffectiveReviewStatus(doc)));
 
     if (tones.every((tone) => tone === 'success')) {
-      return 'ACCEPTED';
+      // Only show ACCEPTED when case is registered. Until then, show Under Scrutiny
+      // so the status does not change to Accepted until "Register Case" is clicked.
+      if (this.isCaseRegistered) {
+        return 'ACCEPTED';
+      }
+      return 'UNDER_SCRUTINY';
     }
 
     if (tones.includes('danger')) {
@@ -469,7 +520,11 @@ export class FiledCaseDetails {
         next: (updatedDocument) => {
           this.isSavingReviewIa = false;
           this.applyReviewedIaDocument(updatedDocument);
-          this.loadWorkspace(this.filingId!);
+          const updatedDoc = this.iaDocuments.find((d) => d.id === currentDocumentId);
+          if (updatedDoc) {
+            this.selectIaDocument(updatedDoc);
+          }
+          this.refreshFilingSummary();
         },
         error: (error) => {
           console.error('Failed to update IA document review', error);
@@ -524,6 +579,56 @@ export class FiledCaseDetails {
     if (s.includes('accept')) return 'status-badge-success';
     if (s.includes('reject') || s.includes('partial')) return 'status-badge-danger';
     return 'status-badge-warning';
+  }
+
+  getIaStatusLabel(status: string | null): string {
+    const s = (status ?? '').trim().toLowerCase();
+    if (!s) return 'Pending';
+    if (s.includes('under_scrutiny') || s === 'under scrutiny' || s.includes('submitted')) return 'Under Scrutiny';
+    if (s.includes('accept')) return 'Accepted';
+    if (s.includes('reject') || s.includes('partial')) return 'Rejected';
+    return status ?? 'Under Scrutiny';
+  }
+
+  canVerifyIa(ia: any): boolean {
+    if (!ia?.id) return false;
+    const s = (ia?.status ?? '').trim().toLowerCase();
+    return !s.includes('accept');
+  }
+
+  verifyIa(ia: any): void {
+    if (!ia?.id || !this.canVerifyIa(ia)) return;
+    const iaLabel = ia?.ia_number || ia?.id || 'this IA';
+    Swal.fire({
+      title: 'Verify IA?',
+      html: `Are you sure you want to verify <strong>IA ${iaLabel}</strong>? The status will be set to Accepted.`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, Verify',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#198754',
+      cancelButtonColor: '#6c757d',
+    }).then((result) => {
+      if (!result.isConfirmed) return;
+      this.isVerifyingIaId = ia.id;
+      this.efilingService.verify_ia(ia.id).subscribe({
+        next: () => {
+          this.toastr.success('IA verified successfully.');
+          this.isVerifyingIaId = null;
+          if (this.filingId) {
+            this.efilingService.get_ias_by_efiling_id(this.filingId).subscribe({
+              next: (data) => {
+                this.iaList = Array.isArray(data) ? data : (data?.results ?? []);
+              },
+            });
+          }
+        },
+        error: (err) => {
+          this.toastr.error(err?.error?.detail || err?.message || 'Failed to verify IA.');
+          this.isVerifyingIaId = null;
+        },
+      });
+    });
   }
 
   selectedIaDocumentBelongsToIa(item: { documents: any[] }): boolean {
@@ -582,8 +687,17 @@ export class FiledCaseDetails {
   }
 
   get allDocumentsReviewed(): boolean {
-    const activeDocuments = this.activeDocuments;
-    return activeDocuments.length > 0 && activeDocuments.every((document) => !this.isPendingDraftReview(document));
+    const allActive = [...this.activeDocuments, ...this.activeIaDocuments];
+    return allActive.length > 0 && allActive.every((document) => !this.isPendingDraftReview(document));
+  }
+
+  /** All documents (main + IA) are accepted – no rejections. */
+  get allDocumentsAccepted(): boolean {
+    const allActive = [...this.activeDocuments, ...this.activeIaDocuments];
+    if (allActive.length === 0) return false;
+    return allActive.every(
+      (doc) => this.getStatusTone(this.getEffectiveReviewStatus(doc)) === 'success',
+    );
   }
 
   /** Case is registered with the court. */

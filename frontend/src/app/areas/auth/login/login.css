@@ -129,6 +129,18 @@
 }
 
 .login-button:hover {
-  background-color: rgb(37, 37, 129);
+  background-color: rgb(17, 17, 79) !important;
   color: white !important;
+}
+
+input::placeholder {
+  color: #999;
+  opacity: 0.8;
+  font-size: 14px;
+}
+
+input {
+  border-radius: 12px !important;
+  padding: 6px 10px !important;
+  font-size: 14px;
 }

@@ -9,7 +9,11 @@ import { ToastrService } from 'ngx-toastr';
 import Swal from 'sweetalert2';
 import { app_url } from '../../../../../../environment';
 import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
-import { getValidationErrorMessage } from '../../../../../../utils/pdf-validation';
+import {
+  getValidationErrorMessage,
+  validatePdfFiles,
+  validatePdfOcrForFiles,
+} from '../../../../../../utils/pdf-validation';
 import { UploadDocuments } from '../../new-filing/upload-documents/upload-documents';
 
 @Component({
@@ -195,6 +199,10 @@ export class IaFilingForm implements OnInit {
     return act?.act?.actname ?? act?.actname ?? '-';
   }
 
+  trackLitigantById(_: number, litigant: any): number {
+    return litigant?.id ?? 0;
+  }
+
   async handleDocUpload(payload: any): Promise<void> {
     const documentType = String(payload?.document_type || '').trim();
     const uploadItems = Array.isArray(payload?.items) ? payload.items : [];
@@ -209,6 +217,23 @@ export class IaFilingForm implements OnInit {
     }
     if (!reliefSought) {
       this.toastr.warning('Please enter Relief Sought before uploading documents.');
+      return;
+    }
+
+    // Validate PDF size (≤ 25 MB) and OCR before upload
+    const files = uploadItems.map((i: any) => i.file).filter(Boolean);
+    const { valid, errors } = validatePdfFiles(files);
+    if (errors.length > 0) {
+      this.toastr.error(errors.join(' '));
+      return;
+    }
+    if (valid.length !== files.length) {
+      this.toastr.error('Some files could not be validated. Please ensure all files are PDFs under 25 MB.');
+      return;
+    }
+    const ocrError = await validatePdfOcrForFiles(valid);
+    if (ocrError) {
+      this.toastr.error(ocrError);
       return;
     }
 
@@ -267,7 +292,12 @@ export class IaFilingForm implements OnInit {
       this.toastr.success('Documents uploaded successfully.');
     } catch (err) {
       console.error('Document upload failed', err);
-      this.toastr.error(getValidationErrorMessage(err) || 'Failed to upload documents. Please try again.');
+      const msg = getValidationErrorMessage(err);
+      const friendlyMsg =
+        !msg || /bad request|http error|400/i.test(msg)
+          ? 'Failed to upload documents. Please ensure all PDFs are under 25 MB and OCR-converted (searchable).'
+          : msg;
+      this.toastr.error(friendlyMsg);
     } finally {
       this.isUploadingDocuments = false;
     }

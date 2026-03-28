@@ -8,7 +8,11 @@ import { Litigant } from './litigant/litigant';
 import { CaseDetails } from './case-details/case-details';
 import { EfilingService } from '../../../../../services/advocate/efiling/efiling.services';
 import { CaseTypeService } from '../../../../../services/master/case-type.services';
-import { getValidationErrorMessage } from '../../../../../utils/pdf-validation';
+import {
+  getValidationErrorMessage,
+  validatePdfFiles,
+  validatePdfOcrForFiles,
+} from '../../../../../utils/pdf-validation';
 import { EFile } from './e-file/e-file';
 import { UploadDocuments } from './upload-documents/upload-documents';
 import Swal from 'sweetalert2';
@@ -682,6 +686,23 @@ export class NewFiling {
 
     if (!documentType || uploadItems.length === 0 || !this.filingId) return;
 
+    // Validate PDF size (≤ 25 MB) and OCR before upload
+    const files = uploadItems.map((i: any) => i.file).filter(Boolean);
+    const { valid, errors } = validatePdfFiles(files);
+    if (errors.length > 0) {
+      this.toastr.error(errors.join(' '));
+      return;
+    }
+    if (valid.length !== files.length) {
+      this.toastr.error('Some files could not be validated. Please ensure all files are PDFs under 25 MB.');
+      return;
+    }
+    const ocrError = await validatePdfOcrForFiles(valid);
+    if (ocrError) {
+      this.toastr.error(ocrError);
+      return;
+    }
+
     this.isUploadingDocuments = true;
     this.uploadFileProgresses = uploadItems.map(() => 0);
 
@@ -723,7 +744,12 @@ export class NewFiling {
       this.uploadCompletedToken++;
     } catch (error) {
       console.error('Document upload failed', error);
-      this.toastr.error(getValidationErrorMessage(error) || 'Failed to upload documents. Please try again.');
+      const msg = getValidationErrorMessage(error);
+      const friendlyMsg =
+        !msg || /bad request|http error|400/i.test(msg)
+          ? 'Failed to upload documents. Please ensure all PDFs are under 25 MB and OCR-converted (searchable).'
+          : msg;
+      this.toastr.error(friendlyMsg);
     } finally {
       this.isUploadingDocuments = false;
     }
