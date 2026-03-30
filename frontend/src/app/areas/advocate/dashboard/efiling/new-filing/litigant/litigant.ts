@@ -1,15 +1,15 @@
-import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { OrganisationService } from '../../../../../../services/master/organisation.services';
-import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
-import { StateAndDistrictService } from '../../../../../../services/master/state_and_district.services';
+import { CommonModule } from "@angular/common";
+import { Component, EventEmitter, Input, Output } from "@angular/core";
+import { FormGroup, ReactiveFormsModule } from "@angular/forms";
+import { OrganisationService } from "../../../../../../services/master/organisation.services";
+import { EfilingService } from "../../../../../../services/advocate/efiling/efiling.services";
+import { StateAndDistrictService } from "../../../../../../services/master/state_and_district.services";
 
 @Component({
-  selector: 'app-litigant',
+  selector: "app-litigant",
   imports: [ReactiveFormsModule, CommonModule],
-  templateUrl: './litigant.html',
-  styleUrl: './litigant.css',
+  templateUrl: "./litigant.html",
+  styleUrl: "./litigant.css",
 })
 export class Litigant {
   @Input() form!: FormGroup;
@@ -18,11 +18,7 @@ export class Litigant {
   states: any[] = [];
   districts: any[] = [];
   @Output() deleted = new EventEmitter<number>();
-  expandedRows: { [key: number]: boolean } = {};
 
-  toggleRow(index: number) {
-    this.expandedRows[index] = !this.expandedRows[index];
-  }
   constructor(
     private organisationService: OrganisationService,
     private eFilingService: EfilingService,
@@ -30,22 +26,22 @@ export class Litigant {
   ) {}
 
   ngOnInit() {
-    this.get_organisation_list();
+    // this.get_organisation_list();
     this.get_state_list();
     this.bindOrganisationToggle();
   }
 
   private bindOrganisationToggle() {
-    const orgCtrl = this.form?.get('is_organisation');
+    const orgCtrl = this.form?.get("is_organisation");
     if (!orgCtrl) return;
 
     orgCtrl.valueChanges.subscribe((isOrg) => {
       if (isOrg) {
-        this.form.patchValue({ gender: '', age: '' }, { emitEvent: false });
+        this.form.patchValue({ gender: "", age: "" }, { emitEvent: false });
         return;
       }
 
-      this.form.patchValue({ organization: '' }, { emitEvent: false });
+      this.form.patchValue({ organization: "" }, { emitEvent: false });
     });
   }
 
@@ -57,10 +53,69 @@ export class Litigant {
     });
   }
 
+  editLitigant(item: any) {
+    if (!item) return;
+
+    this.form.patchValue({
+      id: item.id ?? "",
+      name: item.name ?? "",
+      gender: item.gender ?? "",
+      age: item.age ?? "",
+      sequence_number: item.sequence_number ?? "",
+      is_diffentially_abled: !!item.is_diffentially_abled,
+      is_petitioner:
+        item.is_petitioner === true ||
+        item.is_petitioner === 1 ||
+        item.is_petitioner === "1" ||
+        item.is_petitioner === "true",
+      is_organisation:
+        item.is_organisation === true ||
+        item.is_organisation === 1 ||
+        item.is_organisation === "1" ||
+        item.is_organisation === "true",
+      organization:
+        item.organization_detail?.id ??
+        item.organization ??
+        item.organization_id ??
+        "",
+      contact: item.contact ?? "",
+      email: item.email ?? "",
+      religion: item.religion ?? "",
+      caste: item.caste ?? "",
+      occupation: item.occupation ?? "",
+      address: item.address ?? "",
+      state_id: item.state_detail?.id ?? item.state_id ?? "",
+      district_id: item.district_detail?.id ?? item.district_id ?? "",
+      taluka: item.taluka ?? "",
+      village: item.village ?? "",
+    });
+
+    const stateId = Number(item.state_detail?.id ?? item.state_id);
+    if (stateId) {
+      this.get_district_list_by_state_id(stateId);
+    }
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   get sortedLitigants() {
     return this.litigantList.sort(
       (a: any, b: any) => Number(b.is_petitioner) - Number(a.is_petitioner),
     );
+  }
+
+  private isPetitioner(value: any): boolean {
+    return value === true || value === 1 || value === "1" || value === "true";
+  }
+
+  get petitionerLitigants() {
+    const list = Array.isArray(this.litigantList) ? this.litigantList : [];
+    return list.filter((item: any) => this.isPetitioner(item.is_petitioner));
+  }
+
+  get respondentLitigants() {
+    const list = Array.isArray(this.litigantList) ? this.litigantList : [];
+    return list.filter((item: any) => !this.isPetitioner(item.is_petitioner));
   }
 
   get hasRequiredLitigants(): boolean {
@@ -73,7 +128,9 @@ export class Litigant {
   get_organisation_list() {
     this.organisationService.get_organisations().subscribe({
       next: (data) => {
-        this.organisations = Array.isArray(data?.results) ? data.results : data || [];
+        this.organisations = Array.isArray(data?.results)
+          ? data.results
+          : data || [];
       },
     });
   }
@@ -97,17 +154,30 @@ export class Litigant {
   get_district_list_by_state_id(state_id: number) {
     this.stateService.get_district_by_state_id(state_id).subscribe({
       next: (data) => {
-        this.districts = Array.isArray(data?.results) ? data.results : data || [];
+        this.districts = Array.isArray(data?.results)
+          ? data.results
+          : data || [];
       },
     });
   }
 
   get_organisation_name(id: number): string {
-    return this.organisations.find((o) => o.id === id)?.orgname || '';
+    return this.organisations.find((o) => o.id === id)?.orgname || "";
   }
 
   deleteLitigant(id: number) {
-    const confirmDelete = confirm('Are you sure you want to delete this litigant?');
+    const confirmDelete = confirm(
+      "Are you sure you want to delete this litigant?",
+    );
+
+    if (!confirmDelete) {
+      return;
+    }
+
+    if (!id || Number(id) <= 0) {
+      this.deleted.emit(id);
+      return;
+    }
 
     if (confirmDelete) {
       this.delete_ligitant_details(id);
