@@ -17,8 +17,20 @@ export const BENCH_LABELS: Record<BenchKey, string> = {
   'CJ+Judge1+Judge2': 'Full Bench',
 };
 
+const UNASSIGNED_BENCH_VALUES = new Set([
+  '',
+  'high court of sikkim',
+  'high court of skkim',
+]);
+
+export function isUnassignedBench(key: string | null | undefined): boolean {
+  const v = String(key ?? '').trim().toLowerCase();
+  if (!v) return true;
+  return UNASSIGNED_BENCH_VALUES.has(v);
+}
+
 export function benchLabel(key: string | null | undefined): string {
-  if (!key) return '-';
+  if (isUnassignedBench(key)) return '-';
   return (BENCH_LABELS as Record<string, string>)[key] ?? key;
 }
 

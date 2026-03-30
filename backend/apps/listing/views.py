@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Sequence, Set
 
 from django.core.files.base import ContentFile
 from django.db import transaction
@@ -16,6 +16,8 @@ from rest_framework.views import APIView
 
 from apps.core.models import Efiling
 from apps.core.models import EfilerDocumentAccess, EfilingCaseDetails, EfilingLitigant
+from apps.accounts.models import User
+from apps.judge.models import CourtroomForward, CourtroomJudgeDecision
 from apps.listing.models import CauseList, CauseListEntry
 from apps.listing.pdf_service import CauseListRow, generate_cause_list_pdf_bytes
 from apps.listing.serializers import (
@@ -29,6 +31,58 @@ from apps.listing.serializers import (
 )
 
 from django.db.models import Prefetch, Q
+
+
+BENCH_TO_REQUIRED_GROUPS: Dict[str, Sequence[str]] = {
+    "CJ": ("JUDGE_CJ",),
+    "Judge1": ("JUDGE_J1",),
+    "Judge2": ("JUDGE_J2",),
+    "CJ+Judge1": ("JUDGE_CJ", "JUDGE_J1"),
+    "CJ+Judge2": ("JUDGE_CJ", "JUDGE_J2"),
+    "Judge1+Judge2": ("JUDGE_J1", "JUDGE_J2"),
+    "CJ+Judge1+Judge2": ("JUDGE_CJ", "JUDGE_J1", "JUDGE_J2"),
+}
+
+
+def _judge_approved_efiling_ids(cause_list_date: str, bench_key: str) -> Set[int]:
+    """
+    Returns efiling_ids that are approved by ALL required judge groups for this bench_key and date.
+    """
+    cld: date_type
+    try:
+        cld = timezone.datetime.fromisoformat(str(cause_list_date)).date()
+    except Exception as e:
+        raise ValidationError({"cause_list_date": f"Invalid date: {cause_list_date}"}) from e
+
+    required_groups = BENCH_TO_REQUIRED_GROUPS.get(bench_key)
+    if not required_groups:
+        return set()
+
+    forwarded_ids = set(
+        CourtroomForward.objects.filter(
+            bench_key=bench_key,
+            forwarded_for_date=cld,
+        ).values_list("efiling_id", flat=True)
+    )
+    if not forwarded_ids:
+        return set()
+
+    group_to_ids: List[Set[int]] = []
+    for group_name in required_groups:
+        # Strict eligibility: every required judge-group must approve the SAME listing date
+        # (equal to selected cause_list_date) for the SAME forwarded date.
+        ids = set(
+            CourtroomJudgeDecision.objects.filter(
+                judge_user__groups__name=group_name,
+                efiling_id__in=forwarded_ids,
+                forwarded_for_date=cld,
+                listing_date=cld,
+                approved=True,
+            ).values_list("efiling_id", flat=True)
+        )
+        group_to_ids.append(ids)
+
+    return set.intersection(*group_to_ids) if group_to_ids else set()
 
 
 def _main_parties_for_filing(filing: Efiling) -> str:
@@ -93,15 +147,31 @@ class CauseListDraftPreviewView(APIView):
         )
 
         # Auto preselect all accepted filings for this bench_key.
-        accepted = (
-            Efiling.objects.filter(
-                is_draft=False,
-                status="ACCEPTED",
-                bench=bench_key,
+        approved_only_raw = request.query_params.get("approved_only", "true")
+        approved_only = approved_only_raw.strip().lower() in {"true", "1", "yes", "y"}
+
+        if approved_only:
+            approved_ids = _judge_approved_efiling_ids(cause_list_date, bench_key)
+            accepted = (
+                Efiling.objects.filter(
+                    id__in=approved_ids,
+                    is_draft=False,
+                    status="ACCEPTED",
+                    bench=bench_key,
+                )
+                .order_by("id")
+                .all()
             )
-            .order_by("id")
-            .all()
-        )
+        else:
+            accepted = (
+                Efiling.objects.filter(
+                    is_draft=False,
+                    status="ACCEPTED",
+                    bench=bench_key,
+                )
+                .order_by("id")
+                .all()
+            )
 
         existing_entries = {}
         if draft:
@@ -317,6 +387,12 @@ class CauseListPublishView(APIView):
 
             entries = list(entries_qs)
             # Sort by serial_no (nulls last), then by id for stability.
+            included_ids = {e.efiling_id for e in entries}
+            allowed_ids = _judge_approved_efiling_ids(
+                cause_list.cause_list_date.isoformat(), cause_list.bench_key
+            )
+            if not included_ids.issubset(allowed_ids):
+                raise ValidationError({"detail": "Some selected cases are not judge-approved for this date/bench."})
             entries.sort(key=lambda e: (e.serial_no is None, e.serial_no or 10**12, e.id))
 
             rows: List[CauseListRow] = []
@@ -428,6 +504,17 @@ class CauseListPublishDirectView(APIView):
             included_count = CauseListEntry.objects.filter(cause_list=cause_list, included=True).count()
             if included_count == 0:
                 raise ValidationError({"detail": "No cases selected for publishing."})
+
+            included_ids = set(
+                CauseListEntry.objects.filter(cause_list=cause_list, included=True).values_list(
+                    "efiling_id", flat=True
+                )
+            )
+            allowed_ids = _judge_approved_efiling_ids(
+                cause_list_date.isoformat(), bench_key
+            )
+            if not included_ids.issubset(allowed_ids):
+                raise ValidationError({"detail": "Some included cases are not judge-approved for this date/bench."})
 
             # Safety net: for this date, keep each case in only one bench.
             if incoming_id_set:

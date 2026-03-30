@@ -1,0 +1,70 @@
+import { CommonModule } from '@angular/common';
+import { Component } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+
+import { CourtroomService } from '../../../../services/judge/courtroom.service';
+import { benchLabel } from '../../../listing-officers/shared/bench-labels';
+
+@Component({
+  selector: 'app-judge-pending-cases',
+  imports: [CommonModule, FormsModule],
+  templateUrl: './home.html',
+  styleUrl: './home.css',
+})
+export class JudgePendingCasesPage {
+  benchLabel = benchLabel;
+  forwardedForDate: string = new Date().toISOString().slice(0, 10);
+  isLoading = false;
+  loadError = '';
+
+  pendingForListing: {
+    efiling_id: number;
+    case_number: string | null;
+    bench_key: string;
+    judge_decision: boolean | null;
+    judge_listing_date: string | null;
+  }[] = [];
+  pendingForCauseList: {
+    efiling_id: number;
+    case_number: string | null;
+    bench_key: string;
+    judge_decision: boolean | null;
+    judge_listing_date: string | null;
+  }[] = [];
+
+  constructor(private courtroomService: CourtroomService, private router: Router) {}
+
+  ngOnInit(): void {
+    this.load();
+  }
+
+  onDateChange(): void {
+    this.load();
+  }
+
+  private load(): void {
+    this.isLoading = true;
+    this.loadError = '';
+
+    this.courtroomService.getPendingCases(this.forwardedForDate).subscribe({
+      next: (resp) => {
+        this.pendingForListing = resp?.pending_for_listing ?? [];
+        this.pendingForCauseList = resp?.pending_for_causelist ?? [];
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.warn('Failed to load judge pending cases', err);
+        this.loadError = 'Failed to load pending cases.';
+        this.isLoading = false;
+      },
+    });
+  }
+
+  openCourtroom(efilingId: number): void {
+    this.router.navigate(['/judges/dashboard/courtroom', efilingId], {
+      queryParams: { forwarded_for_date: this.forwardedForDate },
+    });
+  }
+}
+

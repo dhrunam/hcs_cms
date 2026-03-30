@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, catchError, of } from 'rxjs';
+import Swal from 'sweetalert2';
 
 import { CauseListService, DraftPreviewItem } from '../../../../services/listing/cause-list.service';
 import { benchLabel, BENCH_LABELS, BenchKey } from '../../shared/bench-labels';
@@ -11,9 +12,11 @@ type BenchState = {
   bench_key: string;
   cause_list_id: number | null;
   items: DraftPreviewItem[];
+  forwardItems: DraftPreviewItem[];
   pdfUrl: string | null;
   isSaving: boolean;
   isPublishing: boolean;
+  isForwarding: boolean;
 };
 
 @Component({
@@ -33,9 +36,11 @@ export class ListingOfficerHome {
     bench_key: b,
     cause_list_id: null,
     items: [],
+    forwardItems: [],
     pdfUrl: null,
     isSaving: false,
     isPublishing: false,
+    isForwarding: false,
   }));
 
   constructor(private causeListService: CauseListService) {}
@@ -54,40 +59,61 @@ export class ListingOfficerHome {
     if (!this.selectedDate) return;
 
     this.isLoading = true;
-    const requests = this.benchStates.map((state) =>
-      this.causeListService.getDraftPreview(this.selectedDate, state.bench_key).pipe(
+
+    const approvedRequests = this.benchStates.map((state) =>
+      this.causeListService.getDraftPreview(this.selectedDate, state.bench_key, true).pipe(
         catchError((err) => {
-          console.warn('Failed to load draft preview', state.bench_key, err);
+          console.warn('Failed to load approved draft preview', state.bench_key, err);
           return of({ cause_list_id: null, items: [], bench_key: state.bench_key, cause_list_date: this.selectedDate });
         }),
       ),
     );
 
-    forkJoin(requests).subscribe((responses) => {
-      responses.forEach((resp, i) => {
-        const s = this.benchStates[i];
-        s.cause_list_id = resp.cause_list_id;
-        s.items = resp.items ?? [];
-        s.pdfUrl = null; // will be filled from published lists call
-        s.isSaving = false;
-        s.isPublishing = false;
-      });
-      // Load published PDFs for the date so View PDF works reliably.
-      this.causeListService.getPublishedCauseLists(this.selectedDate).subscribe({
-        next: (pub) => {
-          const map = new Map<string, string | null>();
-          (pub?.items ?? []).forEach((i: any) => map.set(i.bench_key, i.pdf_url ?? null));
-          this.benchStates = this.benchStates.map((s) => ({
-            ...s,
-            pdfUrl: map.get(s.bench_key) ?? s.pdfUrl,
+    const forwardRequests = this.benchStates.map((state) =>
+      this.causeListService.getDraftPreview(this.selectedDate, state.bench_key, false).pipe(
+        catchError((err) => {
+          console.warn('Failed to load forward items', state.bench_key, err);
+          return of({ cause_list_id: null, items: [], bench_key: state.bench_key, cause_list_date: this.selectedDate });
+        }),
+      ),
+    );
+
+    forkJoin([forkJoin(approvedRequests), forkJoin(forwardRequests)]).subscribe(
+      ([approvedResps, forwardResps]) => {
+        approvedResps.forEach((resp: any, i: number) => {
+          const s = this.benchStates[i];
+          s.cause_list_id = resp.cause_list_id;
+          s.items = resp.items ?? [];
+          s.pdfUrl = null; // will be filled from published lists call
+          s.isSaving = false;
+          s.isPublishing = false;
+        });
+
+        forwardResps.forEach((resp: any, i: number) => {
+          const s = this.benchStates[i];
+          s.forwardItems = (resp.items ?? []).map((item: DraftPreviewItem) => ({
+            ...item,
+            included: false,
           }));
-          this.isLoading = false;
-        },
-        error: () => {
-          this.isLoading = false;
-        },
-      });
-    });
+        });
+
+        // Load published PDFs for the date so View PDF works reliably.
+        this.causeListService.getPublishedCauseLists(this.selectedDate).subscribe({
+          next: (pub) => {
+            const map = new Map<string, string | null>();
+            (pub?.items ?? []).forEach((i: any) => map.set(i.bench_key, i.pdf_url ?? null));
+            this.benchStates = this.benchStates.map((s) => ({
+              ...s,
+              pdfUrl: map.get(s.bench_key) ?? s.pdfUrl,
+            }));
+            this.isLoading = false;
+          },
+          error: () => {
+            this.isLoading = false;
+          },
+        });
+      },
+    );
   }
 
   saveDraft(state: BenchState): void {
@@ -118,6 +144,49 @@ export class ListingOfficerHome {
 
   includedCount(state: BenchState): number {
     return (state.items || []).filter((i) => i.included).length;
+  }
+
+  forwardToJudges(state: BenchState): void {
+    if (!this.selectedDate) return;
+    const ids = (state.forwardItems || [])
+      .filter((i) => i.included === true)
+      .map((i) => i.efiling_id);
+    if (!ids.length) return;
+
+    state.isForwarding = true;
+    const payload = {
+      forwarded_for_date: this.selectedDate,
+      bench_key: state.bench_key,
+      efiling_ids: ids,
+    };
+
+    this.causeListService.forwardToCourtroom(payload).subscribe({
+      next: (resp: any) => {
+        state.isForwarding = false;
+        const updated = Number(resp?.updated ?? 0);
+        const skipped = Number(resp?.skipped ?? 0);
+        Swal.fire({
+          title: 'Forwarded',
+          text: `Forwarded ${updated} case(s) to judges${skipped > 0 ? `, skipped ${skipped}` : ''}.`,
+          icon: skipped > 0 ? 'warning' : 'success',
+          timer: 1400,
+          showConfirmButton: false,
+        });
+      },
+      error: (err) => {
+        console.warn('forward failed', err);
+        state.isForwarding = false;
+        Swal.fire({
+          title: 'Forward Failed',
+          text: err?.error?.detail || 'Failed to forward cases.',
+          icon: 'error',
+        });
+      },
+    });
+  }
+
+  selectedForwardCount(state: BenchState): number {
+    return (state.forwardItems || []).filter((i) => i.included === true).length;
   }
 
   draftPdfUrl(state: BenchState): string | null {

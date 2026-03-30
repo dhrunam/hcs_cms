@@ -91,8 +91,12 @@ export class ListingCaseSummaryPage {
     return res?.name || '-';
   }
 
+  get isBenchLocked(): boolean {
+    return !!this.filing?.bench && String(this.filing?.bench).trim().length > 0;
+  }
+
   saveBench(): void {
-    if (!this.filingId || !this.selectedBench) return;
+    if (!this.filingId || !this.selectedBench || this.isBenchLocked) return;
     this.isSaving = true;
     this.causeListService
       .assignBenches([{ efiling_id: this.filingId, bench_key: this.selectedBench }])

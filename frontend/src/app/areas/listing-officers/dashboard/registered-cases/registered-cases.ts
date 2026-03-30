@@ -38,7 +38,6 @@ export class RegisteredCasesPage {
   benchKeys: BenchKey[] = Object.keys(BENCH_LABELS) as BenchKey[];
   benchLabel = benchLabel;
 
-  assignmentsSaved = false;
   loadError = '';
 
   constructor(private causeListService: CauseListService, private router: Router) {}
@@ -49,7 +48,6 @@ export class RegisteredCasesPage {
 
   private loadRegisteredCases(): void {
     this.loadError = '';
-    this.assignmentsSaved = false;
     this.isLoading = true;
 
     this.causeListService
@@ -65,16 +63,38 @@ export class RegisteredCasesPage {
       .subscribe((resp) => {
         this.cases = (resp?.items ?? []).map((c: any) => ({
           ...c,
-          assigned_bench: c.bench || this.benchKeys[0],
+          assigned_bench: c.bench ? c.bench : this.benchKeys[0],
         }));
         this.isLoading = false;
       });
   }
 
+  private hasBench(c: RegisteredCase): boolean {
+    return !!c.bench && String(c.bench).trim().length > 0;
+  }
+
+  get unassignedCases(): RegisteredCase[] {
+    return (this.cases ?? []).filter((c) => !this.hasBench(c));
+  }
+
+  get listedCases(): RegisteredCase[] {
+    return (this.cases ?? []).filter((c) => this.hasBench(c));
+  }
+
+  get canProceedToGenerator(): boolean {
+    return this.cases.length > 0 && this.unassignedCases.length === 0;
+  }
+
   saveAssignments(): void {
     this.isSaving = true;
 
-    const assignments = this.cases.map((c) => ({
+    const unassigned = this.unassignedCases;
+    if (unassigned.length === 0) {
+      this.isSaving = false;
+      return;
+    }
+
+    const assignments = unassigned.map((c) => ({
       efiling_id: c.efiling_id,
       bench_key: c.assigned_bench || '',
     }));
@@ -82,9 +102,11 @@ export class RegisteredCasesPage {
     this.causeListService.assignBenches(assignments).subscribe({
       next: () => {
         this.isSaving = false;
-        this.assignmentsSaved = true;
-        // Keep local UI synced to avoid confusion.
-        this.cases = this.cases.map((c) => ({ ...c, bench: c.assigned_bench }));
+        // Keep local UI synced to avoid confusion; move assigned cases into "Listed Cases".
+        const assignedIds = new Set(assignments.map((a) => a.efiling_id));
+        this.cases = this.cases.map((c) =>
+          assignedIds.has(c.efiling_id) ? { ...c, bench: c.assigned_bench } : c,
+        );
       },
       error: (err) => {
         console.warn('assignBenches failed', err);

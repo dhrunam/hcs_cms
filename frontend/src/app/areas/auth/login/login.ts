@@ -66,6 +66,30 @@ export class Login {
       return;
     }
 
+    if (phone === '9000000002' && password === 'Judge@123') {
+      sessionStorage.setItem('access_token', 'judge_cj_dummy_token');
+      sessionStorage.setItem('user_groups', JSON.stringify(['JUDGE_CJ']));
+      sessionStorage.setItem('user_group', 'JUDGE_CJ');
+      this.router.navigate(['/judges/dashboard/home']);
+      return;
+    }
+
+    if (phone === '9000000003' && password === 'Judge@123') {
+      sessionStorage.setItem('access_token', 'judge_j1_dummy_token');
+      sessionStorage.setItem('user_groups', JSON.stringify(['JUDGE_J1']));
+      sessionStorage.setItem('user_group', 'JUDGE_J1');
+      this.router.navigate(['/judges/dashboard/home']);
+      return;
+    }
+
+    if (phone === '9000000004' && password === 'Judge@123') {
+      sessionStorage.setItem('access_token', 'judge_j2_dummy_token');
+      sessionStorage.setItem('user_groups', JSON.stringify(['JUDGE_J2']));
+      sessionStorage.setItem('user_group', 'JUDGE_J2');
+      this.router.navigate(['/judges/dashboard/home']);
+      return;
+    }
+
     this.isLoading = false;
     this.authError = 'Invalid phone number or password.';
   }
