@@ -375,6 +375,10 @@ class EfilingDocumentsIndex(BaseModel):
     class ScrutinyStatus(models.TextChoices):
         DRAFT = "DRAFT", "Draft"
         UNDER_SCRUTINY = "UNDER_SCRUTINY", "Under Scrutiny"
+        LEVEL_1_APPROVED = "LEVEL_1_APPROVED", "Level 1 Approved"
+        LEVEL_1_REJECTED = "LEVEL_1_REJECTED", "Level 1 Rejected"
+        LEVEL_2_APPROVED = "LEVEL_2_APPROVED", "Level 2 Approved"
+        LEVEL_2_REJECTED = "LEVEL_2_REJECTED", "Level 2 Rejected"
         ACCEPTED = "ACCEPTED", "Accepted"
         REJECTED = "REJECTED", "Rejected"
 

@@ -26,7 +26,7 @@ export class Login {
     });
   }
 
-  async submit() {
+   submit() {
     this.authError = '';
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -39,10 +39,10 @@ export class Login {
     this.isLoading = true;
 
     // simulate a short network delay for UX
-    await new Promise((r) => setTimeout(r, 700));
+    // await new Promise((r) => setTimeout(r, 700));
 
     // Static credentials
-    if (phone === '7584060563' && password === 'Advocate@123') {
+    if (phone === '9555417726' && password === 'Advocate@123') {
       sessionStorage.setItem('access_token', 'advocate_dummy_token');
       sessionStorage.setItem('user_groups', JSON.stringify(['advocate']));
       sessionStorage.setItem('user_group', 'advocate');
