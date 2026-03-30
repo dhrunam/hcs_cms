@@ -1,9 +1,9 @@
 <form [formGroup]="form" class="form-wrapper">
   <!-- GROUP 1 -->
   <div class="form-group-block mb-2">
-    <div class="section-title">Details</div>
+    <!-- <div class="section-title">Details</div> -->
     <div class="row g-3">
-      <div class="col-md-6">
+      <!-- <div class="col-md-6">
         <label class="form-label">Bench<small class="text-danger">*</small> </label>
         <select
           class="form-control form-select"
@@ -17,9 +17,11 @@
         <small class="text-danger" *ngIf="form.get('bench')?.invalid && form.get('bench')?.touched">
           bench is required
         </small>
-      </div>
+      </div> -->
       <div class="col-md-6">
-        <label class="form-label">Case Type<small class="text-danger">*</small> </label>
+        <label class="form-label"
+          >Case Type<small class="text-danger">*</small>
+        </label>
         <ng-container *ngIf="!isDraft; else draftCaseType">
           <select
             class="form-control form-select"
@@ -27,7 +29,9 @@
             [class.is-invalid]="form.get('case_type')?.invalid && form.get('case_type')?.touched"
           >
             <option value="">Select</option>
-            <option *ngFor="let l of case_types" [value]="l.id">{{ l.type_name }}</option>
+            <option *ngFor="let l of case_types" [value]="l.id">
+              {{ l.type_name }}
+            </option>
           </select>
 
           <small
@@ -47,7 +51,7 @@
           />
         </ng-template>
       </div>
-      <div class="col-md-6">
+      <!-- <div class="col-md-6">
         <label class="form-label"> Main Party Name <small class="text-danger">*</small> </label>
         <input
           class="form-control"
@@ -63,9 +67,9 @@
         >
           petitioner name is required
         </small>
-      </div>
+      </div> -->
 
-      <div class="col-md-6">
+      <!-- <div class="col-md-6">
         <label class="form-label"> Contact No <small class="text-danger">*</small> </label>
         <input
           type="tel"
@@ -84,7 +88,7 @@
         >
           contact number must be 10 digits
         </small>
-      </div>
+      </div> -->
     </div>
   </div>
 </form>
