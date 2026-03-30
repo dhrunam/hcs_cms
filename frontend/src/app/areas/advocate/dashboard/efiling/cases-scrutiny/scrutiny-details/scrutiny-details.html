@@ -471,8 +471,8 @@
                   [attr.aria-controls]="'ia-collapse-' + item.ia.id"
                 >
                   <span class="ia-number filing-number me-2">{{ item.ia.ia_number || '-' }}</span>
-                  <span class="badge rounded-pill px-2 py-1 me-2" [ngClass]="getIaStatusBadgeClass(item.ia.status)">
-                    {{ item.ia.status || 'Pending' }}
+                  <span class="badge rounded-pill px-2 py-1 me-2 status-badge" [ngClass]="getIaStatusBadgeClass(item.ia.status)">
+                    {{ getIaStatusLabel(item.ia.status) }}
                   </span>
                   <span class="text-muted small">({{ item.documents.length }} document{{ item.documents.length !== 1 ? 's' : '' }})</span>
                 </button>

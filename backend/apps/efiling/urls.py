@@ -56,6 +56,7 @@ from apps.efiling.views.advocate_views import (
     AdvocateRetrieveView,
 )
 from apps.efiling.views.pdf_merge_views import merge_pdfs
+from apps.efiling.views.notification_views import EfilingNotificationListView
 
 
 app_name = "efiling"
@@ -190,5 +191,6 @@ urlpatterns = [
         name="efiler-document-access-detail",
     ),
     path("merge-pdfs/", merge_pdfs, name="merge-pdfs"),
+    path("notifications/", EfilingNotificationListView.as_view(), name="notification-list"),
 ]
 

@@ -3,6 +3,7 @@ from django.db import models
 from rest_framework.exceptions import ValidationError
 
 from apps.core.models import Efiling, EfilingDocuments, EfilingDocumentsIndex, EfilingDocumentsScrutinyHistory
+from apps.efiling.notification_utils import create_notification
 
 
 def create_scrutiny_history(document_index, comments=None, user=None, scrutiny_status=None):
@@ -64,6 +65,14 @@ def sync_document_index_for_upload(document, user=None, document_index_id=None):
             user=user,
             scrutiny_status=status,
         )
+        if is_new_for_scrutiny and filing:
+            create_notification(
+                role="scrutiny_officer",
+                notification_type="documents_uploaded",
+                message=f"New documents uploaded for e-filing {filing.e_filing_number or filing.id}.",
+                e_filing=filing,
+                link_url=f"/scrutiny-officers/dashboard/filed-cases/details/{filing.id}",
+            )
         return document_index
 
     for document_index in document_indexes:
@@ -98,7 +107,15 @@ def sync_document_index_for_upload(document, user=None, document_index_id=None):
             user=user,
             scrutiny_status=status,
         )
-    return document_index
+    if is_new_for_scrutiny and filing:
+        create_notification(
+            role="scrutiny_officer",
+            notification_type="documents_uploaded",
+            message=f"New documents uploaded for e-filing {filing.e_filing_number or filing.id}.",
+            e_filing=filing,
+            link_url=f"/scrutiny-officers/dashboard/filed-cases/details/{filing.id}",
+        )
+    return document_index if document_indexes else None
 
 
 def submit_documents_for_scrutiny(filing, user=None):
@@ -138,6 +155,13 @@ def submit_documents_for_scrutiny(filing, user=None):
         )
 
     derive_filing_status(filing)
+    create_notification(
+        role="scrutiny_officer",
+        notification_type="filing_submitted",
+        message=f"New filing submitted for scrutiny: {filing.e_filing_number or filing.id}.",
+        e_filing=filing,
+        link_url=f"/scrutiny-officers/dashboard/filed-cases/details/{filing.id}",
+    )
 
 
 def ensure_document_indexes_for_filing(filing, user=None):
@@ -175,14 +199,21 @@ def derive_filing_status(filing):
                 filing.status = "PARTIALLY_REJECTED"
             filing.accepted_at = None
         elif statuses == {EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED}:
-            filing.status = "ACCEPTED"
-            latest_review_time = (
-                document_indexes.exclude(last_reviewed_at__isnull=True)
-                .order_by("-last_reviewed_at")
-                .values_list("last_reviewed_at", flat=True)
-                .first()
-            )
-            filing.accepted_at = latest_review_time or timezone.now()
+            # Only set ACCEPTED when case is registered. Until scrutiny officer
+            # clicks "Register Case", keep UNDER_SCRUTINY so case status does not
+            # change to Accepted when accepting replacement documents.
+            if filing.case_number:
+                filing.status = "ACCEPTED"
+                latest_review_time = (
+                    document_indexes.exclude(last_reviewed_at__isnull=True)
+                    .order_by("-last_reviewed_at")
+                    .values_list("last_reviewed_at", flat=True)
+                    .first()
+                )
+                filing.accepted_at = latest_review_time or timezone.now()
+            else:
+                filing.status = "UNDER_SCRUTINY"
+                filing.accepted_at = None
         else:
             filing.status = "UNDER_SCRUTINY"
             filing.accepted_at = None
@@ -215,8 +246,16 @@ def finalize_approved_filing(filing, user=None):
         return filing
 
     filing.case_number = filing.build_case_number()
+    filing.status = "ACCEPTED"
+    latest_review_time = (
+        active_document_indexes.exclude(last_reviewed_at__isnull=True)
+        .order_by("-last_reviewed_at")
+        .values_list("last_reviewed_at", flat=True)
+        .first()
+    )
+    filing.accepted_at = latest_review_time or timezone.now()
     filing.updated_by = user
-    filing.save(update_fields=["case_number", "updated_by", "updated_at"])
+    filing.save(update_fields=["case_number", "status", "accepted_at", "updated_by", "updated_at"])
     return filing
 
 
@@ -292,10 +331,24 @@ def finalize_scrutiny_submission(filing, user=None):
             filing.case_number = None
         filing.updated_by = user
         filing.save(update_fields=["status", "accepted_at", "case_number", "updated_by", "updated_at"])
+        create_notification(
+            role="advocate",
+            notification_type="scrutiny_partial" if filing.status == "PARTIALLY_REJECTED" else "scrutiny_rejected",
+            message=f"E-filing {filing.e_filing_number or filing.id} has been {filing.status.replace('_', ' ').lower()}.",
+            e_filing=filing,
+            link_url=f"/advocate/dashboard/efiling/pending-scrutiny/details/{filing.id}",
+        )
         return filing
 
     filing = finalize_approved_filing(filing, user=user)
     filing.refresh_from_db()
+    create_notification(
+        role="advocate",
+        notification_type="scrutiny_accepted",
+        message=f"E-filing {filing.e_filing_number or filing.id} has been accepted and registered.",
+        e_filing=filing,
+        link_url=f"/advocate/dashboard/efiling/pending-scrutiny/details/{filing.id}",
+    )
     return filing
 
 

@@ -6,7 +6,7 @@ import { forkJoin } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import Swal from 'sweetalert2';
 import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
-import { getValidationErrorMessage, validatePdfSize } from '../../../../../../utils/pdf-validation';
+import { getValidationErrorMessage, validatePdfOcr, validatePdfSize } from '../../../../../../utils/pdf-validation';
 
 @Component({
   selector: 'app-scrutiny-details',
@@ -200,7 +200,7 @@ export class ScrutinyDetails {
     input.click();
   }
 
-  addPendingReplacement(event: Event): void {
+  async addPendingReplacement(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     const doc = (input as any)._replaceDoc ?? this.selectedDocument;
@@ -215,9 +215,17 @@ export class ScrutinyDetails {
       input.value = '';
       return;
     }
+
     const sizeCheck = validatePdfSize(file);
     if (!sizeCheck.valid && sizeCheck.error) {
       this.toastr.error(sizeCheck.error);
+      input.value = '';
+      return;
+    }
+
+    const ocrCheck = await validatePdfOcr(file);
+    if (!ocrCheck.valid && ocrCheck.error) {
+      this.toastr.error(ocrCheck.error);
       input.value = '';
       return;
     }
@@ -394,21 +402,23 @@ export class ScrutinyDetails {
   }
 
   getStatusLabel(status: string | null): string {
-    const normalizedStatus = (status ?? '').trim().toLowerCase();
-    if (
-      !normalizedStatus ||
-      normalizedStatus === 'submitted' ||
-      normalizedStatus === 'under_scrutiny'
-    ) {
-      return 'Under Scrutiny';
-    }
-    if (normalizedStatus.includes('accept')) {
-      return 'Accepted';
-    }
-    if (normalizedStatus.includes('reject') || normalizedStatus.includes('object')) {
-      return 'Rejected';
-    }
-    return status ?? 'Under Scrutiny';
+    const s = (status ?? '').trim().toLowerCase();
+    if (!s) return 'Under Scrutiny';
+    if (s === 'accepted' || s.includes('accept')) return 'Accepted';
+    if (s === 'rejected' || s.includes('reject') || s.includes('object') || s.includes('partial')) return 'Rejected';
+    if (s === 'draft') return 'Draft';
+    if (s === 'under_scrutiny' || s === 'under scrutiny' || s.includes('submitted') || s.includes('scrutiny')) return 'Under Scrutiny';
+    return (status ?? 'Under Scrutiny').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  getIaStatusLabel(status: string | null): string {
+    const s = (status ?? '').trim().toLowerCase();
+    if (!s) return 'Pending';
+    if (s === 'accepted' || s.includes('accept')) return 'Accepted';
+    if (s === 'rejected' || s.includes('reject') || s.includes('partial')) return 'Rejected';
+    if (s === 'draft') return 'Draft';
+    if (s === 'under_scrutiny' || s === 'under scrutiny' || s.includes('submitted')) return 'Under Scrutiny';
+    return (status ?? 'Pending').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
   getStatusClass(status: string | null): string {

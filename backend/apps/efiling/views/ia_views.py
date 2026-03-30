@@ -1,6 +1,7 @@
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 
 from apps.core.models import IA
+from apps.efiling.notification_utils import create_notification
 from apps.efiling.serializers.ia_serializers import IASerializer
 
 
@@ -17,6 +18,18 @@ class IAListCreateView(ListCreateAPIView):
         if e_filing is not None:
             qs = qs.filter(e_filing=e_filing)
         return qs
+
+    def perform_create(self, serializer):
+        ia = serializer.save()
+        if ia.e_filing_id:
+            create_notification(
+                role="scrutiny_officer",
+                notification_type="ia_filed",
+                message=f"New IA filed: {ia.ia_number or ia.id} for e-filing {ia.e_filing.e_filing_number or ia.e_filing_id}.",
+                e_filing=ia.e_filing,
+                ia=ia,
+                link_url=f"/scrutiny-officers/dashboard/filed-cases/details/{ia.e_filing_id}",
+            )
 
 
 class IARetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
