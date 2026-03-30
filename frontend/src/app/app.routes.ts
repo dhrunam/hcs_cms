@@ -30,6 +30,11 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'judges',
+    loadChildren: () =>
+      import('./areas/judges/judges-routing-module').then((m) => m.JudgeRoutes),
+  },
+  {
     path: '',
     redirectTo: 'user/login',
     pathMatch: 'full',

@@ -38,10 +38,14 @@ export type RegisteredCase = {
 export class CauseListService {
   constructor(private http: HttpClient) {}
 
-  getDraftPreview(cause_list_date: string, bench_key: string): Observable<DraftPreviewResponse> {
+  getDraftPreview(
+    cause_list_date: string,
+    bench_key: string,
+    approvedOnly: boolean = true,
+  ): Observable<DraftPreviewResponse> {
     const url = `${app_url}/api/v1/listing/cause-lists/draft/preview/?cause_list_date=${encodeURIComponent(
       cause_list_date,
-    )}&bench_key=${encodeURIComponent(bench_key)}`;
+    )}&bench_key=${encodeURIComponent(bench_key)}&approved_only=${approvedOnly ? "true" : "false"}`;
     return this.http.get<DraftPreviewResponse>(url);
   }
 
@@ -76,6 +80,17 @@ export class CauseListService {
   }): Observable<{ id: number; status: string; pdf_url: string | null }> {
     return this.http.post<{ id: number; status: string; pdf_url: string | null }>(
       `${app_url}/api/v1/listing/cause-lists/publish/`,
+      payload,
+    );
+  }
+
+  forwardToCourtroom(payload: {
+    forwarded_for_date: string;
+    bench_key: string;
+    efiling_ids: number[];
+  }): Observable<{ updated: number; skipped?: number; errors?: { efiling_id: number; detail: string }[] }> {
+    return this.http.post<{ updated: number; skipped?: number; errors?: { efiling_id: number; detail: string }[] }>(
+      `${app_url}/api/v1/judge/courtroom/forward/`,
       payload,
     );
   }

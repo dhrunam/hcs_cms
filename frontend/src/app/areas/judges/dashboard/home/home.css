@@ -1,0 +1,15 @@
+.judge-header {
+  padding: 8px 2px;
+}
+
+.card-header {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+table thead th {
+  font-size: 0.82rem;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+

@@ -1,0 +1,36 @@
+.courtroom-header {
+  padding-top: 6px;
+}
+
+.document-list {
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.document-item {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+}
+
+.document-item:last-child {
+  border-bottom: none;
+}
+
+.document-item:hover {
+  background: #f1f5f9;
+}
+
+.document-item-active {
+  background: #e2e8f0;
+}
+
+.review-panel {
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 10px;
+  padding: 12px;
+  background: #fff;
+}
+

@@ -12,11 +12,17 @@
           class="form-select form-select-sm"
           [(ngModel)]="selectedBench"
           [ngModelOptions]="{ standalone: true }"
+          [disabled]="isBenchLocked"
         >
           <option *ngFor="let b of benchKeys" [value]="b">{{ benchLabel(b) }}</option>
         </select>
       </div>
-      <button class="btn btn-primary btn-sm" (click)="saveBench()" [disabled]="isSaving || !selectedBench">
+      <button
+        *ngIf="!isBenchLocked"
+        class="btn btn-primary btn-sm"
+        (click)="saveBench()"
+        [disabled]="isSaving || !selectedBench"
+      >
         {{ isSaving ? 'Saving...' : 'Save' }}
       </button>
     </div>

@@ -276,12 +276,12 @@ def generate_cause_list_pdf_bytes(
     )
     story.append(table)
     story.append(Spacer(1, 10))
-    story.append(Paragraph("VC / Hybrid Hearing Link", header_center))
+    #story.append(Paragraph("VC / Hybrid Hearing Link", header_center))
 
     def _on_page(canv: canvas.Canvas, _doc):
         # Top-right VC hyperlink (placeholder until vc_url is provided)
-        label = "VC Link"
-        url = cfg.vc_url or ""
+        label = "VC / Hybrid Hearing Link"
+        url = cfg.vc_url or "www.youtube.com"
         canv.setFont("Times-Roman", 10)
         w, h = letter
         x = w - doc.rightMargin

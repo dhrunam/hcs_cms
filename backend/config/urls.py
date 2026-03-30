@@ -11,6 +11,7 @@ urlpatterns = [
     path('api/v1/cis/', include('apps.cis.urls', namespace='cis')),
     path('api/v1/efiling/', include('apps.efiling.urls', namespace='efiling')),
     path('api/v1/listing/', include('apps.listing.urls', namespace='listing')),
+    path('api/v1/judge/', include('apps.judge.urls', namespace='judge')),
     path('api/v1/master/', include('apps.master.urls', namespace='master')),
 ]
 

@@ -1,0 +1,108 @@
+<div class="container-fluid">
+  <div class="courtroom-header d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+    <a
+      class="btn btn-light border btn-sm"
+      [routerLink]="['/judges/dashboard/home']"
+      [queryParams]="{ forwarded_for_date: forwardedForDate }"
+    >
+      Back
+    </a>
+
+    <div class="d-flex gap-2 align-items-end flex-wrap">
+      <div>
+        <label class="form-label mb-1 fw-semibold small">Listing Date</label>
+        <input type="date" class="form-control form-control-sm" [(ngModel)]="listingDate" [disabled]="!canWrite" />
+      </div>
+
+      <div class="d-flex gap-2 align-items-center">
+        <button
+          class="btn btn-sm"
+          [ngClass]="approved ? 'btn-success' : 'btn-outline-success'"
+          (click)="approved = true"
+          [disabled]="!canWrite"
+        >
+          Approve
+        </button>
+        <button
+          class="btn btn-sm"
+          [ngClass]="!approved ? 'btn-danger' : 'btn-outline-danger'"
+          (click)="approved = false"
+          [disabled]="!canWrite"
+        >
+          Reject
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="isLoading" class="text-center py-4 text-muted">Loading courtroom...</div>
+  <div *ngIf="loadError" class="alert alert-warning">{{ loadError }}</div>
+
+  <div *ngIf="!isLoading && !loadError">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body">
+        <h5 class="mb-1">Courtroom Workspace</h5>
+        <div class="text-muted small mb-3">Review documents, record annotations, and save your listing decision.</div>
+
+        <div class="row g-4">
+          <div class="col-xl-4">
+            <div class="document-list">
+              <div
+                class="document-item"
+                *ngFor="let doc of documents; trackBy: trackByDocId"
+                [class.document-item-active]="selectedDoc?.id === doc.id"
+                (click)="selectDocument(doc)"
+                role="button"
+              >
+                <div class="fw-semibold small">{{ doc.document_part_name || doc.document_type || 'Document' }}</div>
+                <div class="text-muted small" *ngIf="doc.document_sequence">Seq {{ doc.document_sequence }}</div>
+                <div class="status-badge status-badge-sm text-muted" *ngIf="doc.scrutiny_status">
+                  {{ doc.scrutiny_status }}
+                </div>
+              </div>
+
+              <div *ngIf="documents.length === 0" class="text-muted small p-3">No documents found.</div>
+            </div>
+          </div>
+
+          <div class="col-xl-8">
+            <div class="preview-frame mb-3" *ngIf="selectedDocUrl; else noPreview">
+              <iframe [src]="selectedDocUrl" style="width: 100%; height: 520px; border: none;"></iframe>
+            </div>
+            <ng-template #noPreview>
+              <div class="text-muted small">No preview available for this document.</div>
+            </ng-template>
+
+            <div class="review-panel">
+              <h5 class="mb-2">Annotation</h5>
+              <div class="text-muted small mb-2">Write notes for this document index. Click Save annotation to store it.</div>
+              <textarea
+                class="form-control"
+                rows="4"
+                [(ngModel)]="selectedDoc.annotation_text"
+                placeholder="Write judge annotation..."
+                [disabled]="!canWrite"
+              ></textarea>
+              <div class="d-flex justify-content-end mt-2">
+                <button class="btn btn-primary btn-sm" (click)="saveAnnotation(selectedDoc)" [disabled]="!canWrite || !selectedDoc">
+                  Save annotation
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <h5 class="mb-2">Decision Notes (Optional)</h5>
+          <textarea class="form-control" rows="3" [(ngModel)]="decisionNotes" placeholder="Decision notes..." [disabled]="!canWrite"></textarea>
+          <div class="d-flex justify-content-end mt-2">
+            <button class="btn btn-success btn-sm" (click)="submitDecision()" [disabled]="!canWrite">
+              Save decision
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
