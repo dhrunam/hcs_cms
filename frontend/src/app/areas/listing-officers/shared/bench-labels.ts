@@ -31,6 +31,7 @@ export function isUnassignedBench(key: string | null | undefined): boolean {
 
 export function benchLabel(key: string | null | undefined): string {
   if (isUnassignedBench(key)) return '-';
-  return (BENCH_LABELS as Record<string, string>)[key] ?? key;
+  const normalizedKey = String(key).trim();
+  return (BENCH_LABELS as Record<string, string>)[normalizedKey] ?? normalizedKey;
 }
 
