@@ -9,7 +9,7 @@
   <button
     class="btn btn-sm px-3 py-2 d-flex align-items-center gap-2"
     style="background: #111827; color: #fff; border-radius: 8px"
-    routerLink="/advocate/dashboard/efiling/new-filing"
+    routerLink="/advocate/dashboard/efiling/new-filing-v2"
   >
     <i class="fa-solid fa-plus" style="font-size: 12px"></i>
     <span class="small">New Filing</span>
@@ -34,7 +34,9 @@
         <div class="card-body py-3 px-3">
           <i class="fa-regular fa-clock text-warning mb-2"></i>
           <div class="text-muted small">Pending</div>
-          <h5 class="mb-0 fw-semibold">{{ isLoading ? '-' : pendingFilings }}</h5>
+          <h5 class="mb-0 fw-semibold">
+            {{ isLoading ? '-' : pendingFilings }}
+          </h5>
         </div>
       </div>
     </div>
@@ -44,7 +46,9 @@
         <div class="card-body py-3 px-3">
           <i class="fa-regular fa-circle-check text-success mb-2"></i>
           <div class="text-muted small">Approved</div>
-          <h5 class="mb-0 fw-semibold">{{ isLoading ? '-' : approvedFilings }}</h5>
+          <h5 class="mb-0 fw-semibold">
+            {{ isLoading ? '-' : approvedFilings }}
+          </h5>
         </div>
       </div>
     </div>
@@ -62,15 +66,26 @@
 
   <!-- Notifications -->
   <div class="card border-0 shadow-sm mt-4" style="border-radius: 12px">
-    <div class="card-header bg-dark text-white fw-semibold border-0" style="border-radius: 12px 12px 0 0">
+    <div
+      class="card-header bg-dark text-white fw-semibold border-0"
+      style="border-radius: 12px 12px 0 0"
+    >
       <i class="fa-regular fa-bell me-2"></i>Notifications
     </div>
     <div class="card-body p-0">
-      <div *ngIf="isLoadingNotifications" class="text-muted small py-4 px-3">Loading...</div>
-      <div *ngIf="!isLoadingNotifications && notifications.length === 0" class="text-muted small py-4 px-3">
+      <div *ngIf="isLoadingNotifications" class="text-muted small py-4 px-3">
+        Loading...
+      </div>
+      <div
+        *ngIf="!isLoadingNotifications && notifications.length === 0"
+        class="text-muted small py-4 px-3"
+      >
         No new notifications.
       </div>
-      <div *ngIf="!isLoadingNotifications && notifications.length > 0" class="list-group list-group-flush">
+      <div
+        *ngIf="!isLoadingNotifications && notifications.length > 0"
+        class="list-group list-group-flush"
+      >
         <a
           *ngFor="let n of notifications"
           [routerLink]="n.link_url ? [n.link_url] : null"
@@ -80,7 +95,9 @@
         >
           <div class="ms-2 me-auto">
             <div class="small text-dark">{{ n.message }}</div>
-            <span class="badge bg-secondary rounded-pill mt-1">{{ formatNotificationDate(n.created_at) }}</span>
+            <span class="badge bg-secondary rounded-pill mt-1"
+              >{{ formatNotificationDate(n.created_at) }}</span
+            >
           </div>
         </a>
       </div>
