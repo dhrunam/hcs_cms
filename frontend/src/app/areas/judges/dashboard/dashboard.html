@@ -1,4 +1,28 @@
-<div class="p-4">
-  <router-outlet></router-outlet>
+<nav class="navbar navbar-light bg-white shadow-sm pe-2 ps-md-3">
+  <div class="d-flex align-items-center flex-nowrap">
+    <a class="navbar-brand fw-semibold mb-0 d-flex align-items-center" routerLink="/judges/dashboard/home">
+      <i class="fa-solid fa-scale-balanced me-2 fs-3"></i>
+      <span class="brand-text text-dark fs-3 fw-lightest">Judge Module</span>
+    </a>
+  </div>
+</nav>
+
+<div class="d-flex w-100">
+  <aside class="sidebar d-none d-md-block">
+    <ul class="nav flex-column p-2">
+      <li
+        class="nav-item"
+        routerLink="/judges/dashboard/home"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+      >
+        <a class="nav-link"><i class="fa-solid fa-file-circle-check me-2"></i> Requests</a>
+      </li>
+    </ul>
+  </aside>
+
+  <div class="w-100 p-4 judge-content">
+    <router-outlet></router-outlet>
+  </div>
 </div>
 

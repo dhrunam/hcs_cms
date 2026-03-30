@@ -17,6 +17,16 @@ export const BENCH_LABELS: Record<BenchKey, string> = {
   'CJ+Judge1+Judge2': 'Full Bench',
 };
 
+export const BENCH_TO_JUDGES: Record<BenchKey, string[]> = {
+  CJ: ["Hon'ble Chief Justice"],
+  Judge1: ["Hon'ble Judge - I"],
+  Judge2: ["Hon'ble Judge - II"],
+  'CJ+Judge1': ["Hon'ble Chief Justice", "Hon'ble Judge - I"],
+  'CJ+Judge2': ["Hon'ble Chief Justice", "Hon'ble Judge - II"],
+  'Judge1+Judge2': ["Hon'ble Judge - I", "Hon'ble Judge - II"],
+  'CJ+Judge1+Judge2': ["Hon'ble Chief Justice", "Hon'ble Judge - I", "Hon'ble Judge - II"],
+};
+
 const UNASSIGNED_BENCH_VALUES = new Set([
   '',
   'high court of sikkim',
@@ -31,6 +41,12 @@ export function isUnassignedBench(key: string | null | undefined): boolean {
 
 export function benchLabel(key: string | null | undefined): string {
   if (isUnassignedBench(key)) return '-';
-  return (BENCH_LABELS as Record<string, string>)[key] ?? key;
+  const k = String(key ?? '').trim();
+  return (BENCH_LABELS as Record<string, string>)[k] ?? k;
+}
+
+export function judgesForBench(key: string | null | undefined): string[] {
+  const k = String(key ?? '').trim() as BenchKey;
+  return (BENCH_TO_JUDGES as Record<string, string[]>)[k] ?? [];
 }
 

@@ -12,12 +12,14 @@ from rest_framework.views import APIView
 
 from django.contrib.auth import get_user_model
 from apps.accounts.models import User
-from apps.core.models import Efiling, EfilingDocumentsIndex
+from apps.core.models import Efiling, EfilingCaseDetails, EfilingDocumentsIndex, EfilingLitigant
 from apps.efiling.serializers.efiling_document_index import EfilingDocumentsIndexSerializer
 
 from .models import (
+    CourtroomDecisionRequestedDocument,
     CourtroomDocumentAnnotation,
     CourtroomForward,
+    CourtroomForwardDocument,
     CourtroomJudgeDecision,
     JUDGE_GROUP_CJ,
     JUDGE_GROUP_J1,
@@ -127,6 +129,8 @@ class CourtroomForwardView(APIView):
 
         forwarded_for_date = payload.validated_data["forwarded_for_date"]
         bench_key = payload.validated_data["bench_key"]
+        listing_summary = payload.validated_data.get("listing_summary")
+        document_index_ids = payload.validated_data.get("document_index_ids") or []
         efiling_ids = payload.validated_data["efiling_ids"]
 
         if not efiling_ids:
@@ -138,21 +142,10 @@ class CourtroomForwardView(APIView):
         if missing:
             raise ValidationError({"efiling_ids": f"Not found: {missing}"})
 
-        # Enforce bench consistency to avoid forwarding cases under a mismatched bench.
-        ef_by_id = {e.id: e for e in ef_qs}
+        # Allow forwarding irrespective of current Efiling.bench value.
+        # Listing officer's selected bench_key drives judge routing for approval.
         errors: List[dict] = []
-        valid_ids: List[int] = []
-        for eid in efiling_ids:
-            filing = ef_by_id[eid]
-            if (filing.bench or "") != bench_key:
-                errors.append(
-                    {
-                        "efiling_id": eid,
-                        "detail": f"bench mismatch (current={filing.bench or '-'}, expected={bench_key})",
-                    }
-                )
-                continue
-            valid_ids.append(eid)
+        valid_ids: List[int] = list(efiling_ids)
 
         # Upsert forward rows for bench/date+efiling.
         updated = 0
@@ -161,9 +154,28 @@ class CourtroomForwardView(APIView):
                 efiling_id=eid,
                 forwarded_for_date=forwarded_for_date,
                 bench_key=bench_key,
-                defaults={"forwarded_by": user if getattr(user, "is_authenticated", False) else None},
+                defaults={
+                    "forwarded_by": user if getattr(user, "is_authenticated", False) else None,
+                    "listing_summary": listing_summary,
+                },
             )
             updated += 1
+            if document_index_ids:
+                valid_doc_ids = set(
+                    EfilingDocumentsIndex.objects.filter(
+                        id__in=document_index_ids,
+                        document__e_filing_id=eid,
+                    ).values_list("id", flat=True)
+                )
+                # Replace the selected document set for this forward row.
+                CourtroomForwardDocument.objects.filter(forward=obj).exclude(
+                    efiling_document_index_id__in=valid_doc_ids
+                ).delete()
+                for doc_id in valid_doc_ids:
+                    CourtroomForwardDocument.objects.get_or_create(
+                        forward=obj,
+                        efiling_document_index_id=doc_id,
+                    )
 
         return Response(
             {
@@ -183,22 +195,31 @@ class CourtroomPendingCasesView(APIView):
     def get(self, request, *args, **kwargs):
         user = _assert_judge(request)
         forwarded_for_date = request.query_params.get("forwarded_for_date")
-        if not forwarded_for_date:
-            raise ValidationError({"forwarded_for_date": "Required."})
-
-        forwarded_date = timezone.datetime.fromisoformat(forwarded_for_date).date()
+        if forwarded_for_date:
+            forwarded_date = timezone.datetime.fromisoformat(forwarded_for_date).date()
+            forwards = (
+                CourtroomForward.objects.filter(forwarded_for_date=forwarded_date)
+                .select_related("efiling")
+                .order_by("-id")
+            )
+        else:
+            # Fallback for UI: if no date is provided, show latest forwards first.
+            forwarded_date = None
+            forwards = CourtroomForward.objects.all().select_related("efiling").order_by("-forwarded_for_date", "-id")
         user_groups = _user_judge_groups(user)
-
-        forwards = CourtroomForward.objects.filter(forwarded_for_date=forwarded_date).select_related("efiling")
         pending_for_listing: List[dict] = []
         pending_for_causelist: List[dict] = []
+        seen: Set[int] = set()
         for f in forwards:
+            if f.efiling_id in seen:
+                continue
             if _judge_can_view_forward(user_groups, f.bench_key):
+                seen.add(f.efiling_id)
                 decision = (
                     CourtroomJudgeDecision.objects.filter(
                         judge_user=user,
                         efiling_id=f.efiling_id,
-                        forwarded_for_date=forwarded_date,
+                        forwarded_for_date=f.forwarded_for_date,
                     )
                     .only("approved", "listing_date")
                     .first()
@@ -207,9 +228,34 @@ class CourtroomPendingCasesView(APIView):
                     "efiling_id": f.efiling_id,
                     "case_number": f.efiling.case_number,
                     "bench_key": f.bench_key,
+                    "listing_summary": f.listing_summary,
+                    "selected_document_count": f.selected_documents.count(),
+                    "requested_document_count": 0,
+                    "requested_documents": [],
                     "judge_decision": (decision.approved if decision else None),
+                    "judge_decision_status": (
+                        decision.status if decision else None
+                    ),
                     "judge_listing_date": (str(decision.listing_date) if decision and decision.listing_date else None),
+                    "forwarded_for_date": f.forwarded_for_date.isoformat(),
                 }
+                if decision:
+                    req_docs = list(
+                        decision.requested_documents.select_related("efiling_document_index").values(
+                            "efiling_document_index_id",
+                            "efiling_document_index__document_part_name",
+                            "efiling_document_index__document__document_type",
+                        )
+                    )
+                    item["requested_document_count"] = len(req_docs)
+                    item["requested_documents"] = [
+                        {
+                            "document_index_id": r["efiling_document_index_id"],
+                            "document_part_name": r.get("efiling_document_index__document_part_name"),
+                            "document_type": r.get("efiling_document_index__document__document_type"),
+                        }
+                        for r in req_docs
+                    ]
                 if decision and decision.approved:
                     pending_for_causelist.append(item)
                 else:
@@ -232,21 +278,28 @@ class CourtroomCaseDocumentsView(APIView):
     def get(self, request, efiling_id: int, *args, **kwargs):
         user = _assert_judge(request)
         forwarded_for_date = request.query_params.get("forwarded_for_date")
-        if not forwarded_for_date:
-            raise ValidationError({"forwarded_for_date": "Required."})
-
-        forwarded_date = timezone.datetime.fromisoformat(forwarded_for_date).date()
         user_groups = _user_judge_groups(user)
-
-        forward = (
-            CourtroomForward.objects.filter(
-                efiling_id=efiling_id, forwarded_for_date=forwarded_date
+        forward = None
+        if forwarded_for_date:
+            forwarded_date = timezone.datetime.fromisoformat(forwarded_for_date).date()
+            forward = (
+                CourtroomForward.objects.filter(
+                    efiling_id=efiling_id, forwarded_for_date=forwarded_date
+                )
+                .order_by("-id")
+                .first()
             )
-            .order_by("-id")
-            .first()
-        )
+
+        # Fallback to latest forward for this case so UI does not fail
+        # when client-provided date is stale.
         if not forward:
-            raise ValidationError({"detail": "Case not forwarded for this date."})
+            forward = (
+                CourtroomForward.objects.filter(efiling_id=efiling_id)
+                .order_by("-forwarded_for_date", "-id")
+                .first()
+            )
+        if not forward:
+            raise ValidationError({"detail": "Case not forwarded."})
         if not _judge_can_view_forward(user_groups, forward.bench_key):
             raise ValidationError({"detail": "Not authorized for this case/bench."})
 
@@ -268,6 +321,142 @@ class CourtroomCaseDocumentsView(APIView):
             item["annotation_text"] = anno.annotation_text if anno else (item.get("draft_comments") or item.get("comments") or None)
 
         return Response({"items": doc_items}, status=drf_status.HTTP_200_OK)
+
+
+class CourtroomCaseSummaryView(APIView):
+    """
+    Judge: get case summary details only (no document payload).
+    """
+
+    def get(self, request, efiling_id: int, *args, **kwargs):
+        user = _assert_judge(request)
+        forwarded_for_date = request.query_params.get("forwarded_for_date")
+        user_groups = _user_judge_groups(user)
+        allowed_bench_keys = [
+            bench_key
+            for bench_key, req_groups in BENCH_TO_REQUIRED_GROUPS.items()
+            if set(req_groups) & user_groups
+        ]
+        if not allowed_bench_keys:
+            raise ValidationError({"detail": "Not authorized as judge."})
+
+        forward_qs = CourtroomForward.objects.filter(
+            efiling_id=efiling_id,
+            bench_key__in=allowed_bench_keys,
+        )
+        if forwarded_for_date:
+            forwarded_date = timezone.datetime.fromisoformat(forwarded_for_date).date()
+            forward_qs = forward_qs.filter(forwarded_for_date=forwarded_date)
+
+        forward = forward_qs.order_by("-forwarded_for_date", "-id").first()
+        if not forward:
+            raise ValidationError({"detail": "Case not forwarded for this judge/date."})
+
+        filing = Efiling.objects.filter(id=efiling_id).first()
+        if not filing:
+            raise ValidationError({"detail": "Case not found."})
+
+        case_detail = (
+            EfilingCaseDetails.objects.filter(e_filing_id=efiling_id)
+            .select_related("dispute_state", "dispute_district")
+            .order_by("-id")
+            .first()
+        )
+        litigants = list(
+            EfilingLitigant.objects.filter(e_filing_id=efiling_id)
+            .only("name", "is_petitioner", "sequence_number")
+            .order_by("is_petitioner", "sequence_number", "id")
+            .values("id", "name", "is_petitioner", "sequence_number")
+        )
+        selected_documents = list(
+            forward.selected_documents.select_related("efiling_document_index")
+            .values(
+                "efiling_document_index_id",
+                "efiling_document_index__document_part_name",
+                "efiling_document_index__document__document_type",
+                "efiling_document_index__file_part_path",
+            )
+        )
+        latest_decision = (
+            CourtroomJudgeDecision.objects.filter(
+                judge_user=user,
+                efiling_id=efiling_id,
+                forwarded_for_date=forward.forwarded_for_date,
+            )
+            .order_by("-id")
+            .first()
+        )
+
+        return Response(
+            {
+                "efiling_id": filing.id,
+                "case_number": filing.case_number,
+                "e_filing_number": filing.e_filing_number,
+                "petitioner_name": filing.petitioner_name,
+                "petitioner_contact": filing.petitioner_contact,
+                "bench_key": forward.bench_key,
+                "forwarded_for_date": forward.forwarded_for_date.isoformat(),
+                "listing_summary": forward.listing_summary,
+                "selected_documents": [
+                    {
+                        "document_index_id": d["efiling_document_index_id"],
+                        "document_part_name": d.get("efiling_document_index__document_part_name"),
+                        "document_type": d.get("efiling_document_index__document__document_type"),
+                        "file_url": d.get("efiling_document_index__file_part_path"),
+                    }
+                    for d in selected_documents
+                ],
+                "judge_decision": (
+                    {
+                        "status": latest_decision.status,
+                        "approved": latest_decision.approved,
+                        "listing_date": latest_decision.listing_date.isoformat()
+                        if latest_decision.listing_date
+                        else None,
+                        "decision_notes": latest_decision.decision_notes,
+                        "requested_documents": [
+                            {
+                                "document_index_id": rd["efiling_document_index_id"],
+                                "document_part_name": rd.get("efiling_document_index__document_part_name"),
+                                "document_type": rd.get("efiling_document_index__document__document_type"),
+                            }
+                            for rd in (
+                                latest_decision.requested_documents.select_related("efiling_document_index").values(
+                                    "efiling_document_index_id",
+                                    "efiling_document_index__document_part_name",
+                                    "efiling_document_index__document__document_type",
+                                )
+                                if latest_decision
+                                else []
+                            )
+                        ],
+                    }
+                    if latest_decision
+                    else None
+                ),
+                "litigants": litigants,
+                "case_details": {
+                    "cause_of_action": getattr(case_detail, "cause_of_action", None) if case_detail else None,
+                    "date_of_cause_of_action": (
+                        case_detail.date_of_cause_of_action.isoformat()
+                        if case_detail and getattr(case_detail, "date_of_cause_of_action", None)
+                        else None
+                    ),
+                    "dispute_state": (
+                        getattr(getattr(case_detail, "dispute_state", None), "state", None)
+                        if case_detail
+                        else None
+                    ),
+                    "dispute_district": (
+                        getattr(getattr(case_detail, "dispute_district", None), "district", None)
+                        if case_detail
+                        else None
+                    ),
+                    "dispute_taluka": getattr(case_detail, "dispute_taluka", None) if case_detail else None,
+                },
+            },
+            status=drf_status.HTTP_200_OK,
+        )
 
 
 class CourtroomDocumentAnnotationView(APIView):
@@ -329,7 +518,9 @@ class CourtroomDecisionView(APIView):
         efiling_id = payload.validated_data["efiling_id"]
         forwarded_for_date = payload.validated_data["forwarded_for_date"]
         listing_date = payload.validated_data["listing_date"]
-        approved = payload.validated_data["approved"]
+        status = payload.validated_data["status"]
+        requested_document_index_ids = payload.validated_data.get("requested_document_index_ids") or []
+        approved = status == CourtroomJudgeDecision.DecisionStatus.APPROVED
         decision_notes = payload.validated_data.get("decision_notes")
 
         # Ensure there is a forward row and judge is allowed.
@@ -351,13 +542,36 @@ class CourtroomDecisionView(APIView):
             forwarded_for_date=forwarded_for_date,
             defaults={
                 "listing_date": listing_date,
+                "status": status,
                 "approved": approved,
                 "decision_notes": decision_notes,
             },
         )
+        valid_req_doc_ids = set()
+        if requested_document_index_ids:
+            valid_req_doc_ids = set(
+                EfilingDocumentsIndex.objects.filter(
+                    id__in=requested_document_index_ids,
+                    document__e_filing_id=efiling_id,
+                ).values_list("id", flat=True)
+            )
+        CourtroomDecisionRequestedDocument.objects.filter(judge_decision=obj).exclude(
+            efiling_document_index_id__in=valid_req_doc_ids
+        ).delete()
+        for doc_id in valid_req_doc_ids:
+            CourtroomDecisionRequestedDocument.objects.get_or_create(
+                judge_decision=obj,
+                efiling_document_index_id=doc_id,
+            )
 
         return Response(
-            {"efiling_id": efiling_id, "approved": obj.approved, "listing_date": str(obj.listing_date)},
+            {
+                "efiling_id": efiling_id,
+                "status": obj.status,
+                "approved": obj.approved,
+                "listing_date": str(obj.listing_date),
+                "requested_document_count": len(valid_req_doc_ids),
+            },
             status=drf_status.HTTP_200_OK,
         )
 

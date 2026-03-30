@@ -35,3 +35,28 @@
   font-weight: 500;
 }
 
+.docs-list-panel {
+  max-height: 460px;
+  overflow: auto;
+  background: #fcfcfd;
+}
+
+.doc-select-item {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+}
+
+.preview-panel {
+  min-height: 460px;
+  background: #f8fafc;
+}
+
+.preview-panel iframe {
+  width: 100%;
+  min-height: 440px;
+  border: 0;
+  border-radius: 8px;
+}
+

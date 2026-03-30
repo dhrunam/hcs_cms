@@ -17,7 +17,7 @@ from rest_framework.views import APIView
 from apps.core.models import Efiling
 from apps.core.models import EfilerDocumentAccess, EfilingCaseDetails, EfilingLitigant
 from apps.accounts.models import User
-from apps.judge.models import CourtroomForward, CourtroomJudgeDecision
+from apps.judge.models import CourtroomDecisionRequestedDocument, CourtroomForward, CourtroomJudgeDecision
 from apps.listing.models import CauseList, CauseListEntry
 from apps.listing.pdf_service import CauseListRow, generate_cause_list_pdf_bytes
 from apps.listing.serializers import (
@@ -837,10 +837,121 @@ class RegisteredCasesListView(APIView):
         efilings = list(qs[:page_size])
         efiling_ids = [e.id for e in efilings]
 
+        latest_forward_by_efiling: dict[int, CourtroomForward] = {}
+        forwards = (
+            CourtroomForward.objects.filter(efiling_id__in=efiling_ids)
+            .order_by("efiling_id", "-forwarded_for_date", "-id")
+            .all()
+        )
+        for f in forwards:
+            if f.efiling_id not in latest_forward_by_efiling:
+                latest_forward_by_efiling[f.efiling_id] = f
+
+        forward_keys = {(f.efiling_id, f.forwarded_for_date) for f in latest_forward_by_efiling.values()}
+        decision_map: dict[tuple[int, date_type], dict[str, bool]] = {}
+        decision_status_map: dict[tuple[int, date_type], dict[str, str]] = {}
+        decision_notes_map: dict[tuple[int, date_type], List[str]] = {}
+        requested_docs_map: dict[tuple[int, date_type], List[dict]] = {}
+        if forward_keys:
+            e_ids = sorted({eid for eid, _ in forward_keys})
+            f_dates = sorted({fdate for _, fdate in forward_keys})
+            decisions = (
+                CourtroomJudgeDecision.objects.filter(
+                    efiling_id__in=e_ids,
+                    forwarded_for_date__in=f_dates,
+                )
+                .values(
+                    "id",
+                    "efiling_id",
+                    "forwarded_for_date",
+                    "status",
+                    "approved",
+                    "decision_notes",
+                    "judge_user__groups__name",
+                )
+                .all()
+            )
+            decision_ids = [int(d["id"]) for d in decisions]
+            requested_rows = (
+                CourtroomDecisionRequestedDocument.objects.filter(judge_decision_id__in=decision_ids)
+                .select_related("judge_decision", "efiling_document_index")
+                .values(
+                    "judge_decision_id",
+                    "efiling_document_index_id",
+                    "efiling_document_index__document_part_name",
+                    "efiling_document_index__document__document_type",
+                )
+                .all()
+            )
+            docs_by_decision: dict[int, List[dict]] = {}
+            for rr in requested_rows:
+                did = int(rr["judge_decision_id"])
+                docs_by_decision.setdefault(did, []).append(
+                    {
+                        "document_index_id": rr["efiling_document_index_id"],
+                        "document_part_name": rr.get("efiling_document_index__document_part_name"),
+                        "document_type": rr.get("efiling_document_index__document__document_type"),
+                    }
+                )
+            for d in decisions:
+                key = (int(d["efiling_id"]), d["forwarded_for_date"])
+                grp = str(d.get("judge_user__groups__name") or "")
+                if key not in decision_map:
+                    decision_map[key] = {}
+                    decision_status_map[key] = {}
+                if grp:
+                    decision_map[key][grp] = bool(d.get("approved"))
+                    decision_status_map[key][grp] = str(d.get("status") or "")
+                note = (d.get("decision_notes") or "").strip()
+                if note:
+                    if key not in decision_notes_map:
+                        decision_notes_map[key] = []
+                    label = grp.replace("JUDGE_", "Judge ") if grp else "Judge"
+                    decision_notes_map[key].append(f"{label}: {note}")
+                decision_docs = docs_by_decision.get(int(d["id"]), [])
+                if decision_docs:
+                    existing = requested_docs_map.setdefault(key, [])
+                    seen_ids = {x["document_index_id"] for x in existing}
+                    for doc in decision_docs:
+                        if doc["document_index_id"] not in seen_ids:
+                            existing.append(doc)
+                            seen_ids.add(doc["document_index_id"])
+
         items = []
         for e in efilings:
             respondent = next((l for l in e.litigants.all() if not getattr(l, "is_petitioner", False)), None)
             case_detail = e.case_details.all().first() if hasattr(e, "case_details") else None
+            approval_status = "NOT_FORWARDED"
+            approval_notes: List[str] = []
+            requested_documents: List[dict] = []
+            approval_bench_key = None
+            approval_forwarded_for_date = None
+            latest_forward = latest_forward_by_efiling.get(e.id)
+            if latest_forward:
+                approval_bench_key = latest_forward.bench_key
+                approval_forwarded_for_date = latest_forward.forwarded_for_date.isoformat()
+                req_groups = BENCH_TO_REQUIRED_GROUPS.get(latest_forward.bench_key, ())
+                key = (e.id, latest_forward.forwarded_for_date)
+                group_decisions = decision_map.get(key, {})
+                group_statuses = decision_status_map.get(key, {})
+                approval_notes = decision_notes_map.get(key, [])
+                requested_documents = requested_docs_map.get(key, [])
+
+                rejected = any(group_decisions.get(g) is False for g in req_groups if g in group_decisions)
+                approved_all = bool(req_groups) and all(group_decisions.get(g) is True for g in req_groups)
+                requested_docs = any(
+                    group_statuses.get(g) == CourtroomJudgeDecision.DecisionStatus.REQUESTED_DOCS
+                    for g in req_groups
+                    if g in group_statuses
+                )
+                if requested_docs:
+                    approval_status = "REQUESTED_DOCS"
+                elif rejected:
+                    approval_status = "REJECTED"
+                elif approved_all:
+                    approval_status = "APPROVED"
+                else:
+                    approval_status = "PENDING"
 
             items.append(
                 {
@@ -862,6 +973,12 @@ class RegisteredCasesListView(APIView):
                     else None,
                     "dispute_taluka": getattr(case_detail, "dispute_taluka", None) if case_detail else None,
                     "accepted_at": e.accepted_at.isoformat() if getattr(e, "accepted_at", None) else None,
+                    "approval_status": approval_status,
+                    "approval_notes": approval_notes,
+                    "approval_bench_key": approval_bench_key,
+                    "approval_forwarded_for_date": approval_forwarded_for_date,
+                    "listing_summary": latest_forward.listing_summary if latest_forward else None,
+                    "requested_documents": requested_documents,
                 }
             )
 

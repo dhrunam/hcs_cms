@@ -115,6 +115,65 @@
             </div>
           </div>
         </div>
+
+        <div class="filing-summary-section mt-4">
+          <div class="filing-summary-section-title">
+            <i class="fa-solid fa-file-pdf me-2"></i>
+            Documents For Judge Forwarding
+          </div>
+          <div *ngIf="documents.length > 0; else noDocs" class="row g-3">
+            <div class="col-lg-4">
+              <div class="border rounded p-3 docs-list-panel">
+                <div class="small text-muted mb-2">Select documents to forward</div>
+                <div class="d-flex flex-column gap-2">
+                  <label class="doc-select-item" *ngFor="let d of documents">
+                    <div class="d-flex align-items-start gap-2">
+                      <input
+                        class="form-check-input mt-1"
+                        type="checkbox"
+                        [checked]="isDocSelected(d.id)"
+                        (change)="toggleDocSelection(d.id, $any($event.target).checked)"
+                      />
+                      <button
+                        type="button"
+                        class="btn btn-link p-0 text-start text-decoration-none"
+                        (click)="selectDocument(d)"
+                      >
+                        {{ documentName(d) }}
+                      </button>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-8">
+              <div class="border rounded p-2 preview-panel">
+                <iframe *ngIf="selectedDocumentUrl; else noPreview" [src]="selectedDocumentUrl" title="Document preview"></iframe>
+                <ng-template #noPreview>
+                  <div class="text-muted small p-3">Select a document to preview.</div>
+                </ng-template>
+              </div>
+            </div>
+          </div>
+          <div class="mt-3">
+            <label class="form-label fw-semibold">Listing Officer Case Summary</label>
+            <textarea
+              class="form-control"
+              rows="4"
+              [(ngModel)]="listingSummary"
+              [ngModelOptions]="{ standalone: true }"
+              placeholder="Write concise case summary for judge review..."
+            ></textarea>
+          </div>
+          <div class="d-flex justify-content-end mt-3">
+            <button class="btn btn-primary" [disabled]="isForwarding || !selectedBench" (click)="forwardToJudge()">
+              {{ isForwarding ? 'Forwarding...' : 'Forward / Re-forward To Judge(s)' }}
+            </button>
+          </div>
+          <ng-template #noDocs>
+            <div class="text-muted small">No documents available.</div>
+          </ng-template>
+        </div>
       </div>
     </div>
   </ng-container>

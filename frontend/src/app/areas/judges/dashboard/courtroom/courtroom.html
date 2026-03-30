@@ -17,84 +17,127 @@
       <div class="d-flex gap-2 align-items-center">
         <button
           class="btn btn-sm"
-          [ngClass]="approved ? 'btn-success' : 'btn-outline-success'"
-          (click)="approved = true"
+          [ngClass]="decisionStatus === 'APPROVED' ? 'btn-success' : 'btn-outline-success'"
+          (click)="setDecisionStatus('APPROVED')"
           [disabled]="!canWrite"
         >
           Approve
         </button>
         <button
           class="btn btn-sm"
-          [ngClass]="!approved ? 'btn-danger' : 'btn-outline-danger'"
-          (click)="approved = false"
+          [ngClass]="decisionStatus === 'DECLINED' ? 'btn-danger' : 'btn-outline-danger'"
+          (click)="setDecisionStatus('DECLINED')"
           [disabled]="!canWrite"
         >
-          Reject
+          Decline
+        </button>
+        <button
+          class="btn btn-sm"
+          [ngClass]="decisionStatus === 'REQUESTED_DOCS' ? 'btn-warning' : 'btn-outline-warning'"
+          (click)="setDecisionStatus('REQUESTED_DOCS')"
+          [disabled]="!canWrite"
+        >
+          Request Documents
         </button>
       </div>
     </div>
   </div>
 
-  <div *ngIf="isLoading" class="text-center py-4 text-muted">Loading courtroom...</div>
+  <div *ngIf="isLoading" class="text-center py-4 text-muted">Loading request details...</div>
   <div *ngIf="loadError" class="alert alert-warning">{{ loadError }}</div>
 
   <div *ngIf="!isLoading && !loadError">
     <div class="card border-0 shadow-sm mb-3">
       <div class="card-body">
-        <h5 class="mb-1">Courtroom Workspace</h5>
-        <div class="text-muted small mb-3">Review documents, record annotations, and save your listing decision.</div>
+        <h5 class="mb-1">Request Details</h5>
+        <div class="text-muted small mb-3">Review case details, add remarks, select listing date, and submit decision.</div>
 
-        <div class="row g-4">
-          <div class="col-xl-4">
-            <div class="document-list">
-              <div
-                class="document-item"
-                *ngFor="let doc of documents; trackBy: trackByDocId"
-                [class.document-item-active]="selectedDoc?.id === doc.id"
-                (click)="selectDocument(doc)"
-                role="button"
-              >
-                <div class="fw-semibold small">{{ doc.document_part_name || doc.document_type || 'Document' }}</div>
-                <div class="text-muted small" *ngIf="doc.document_sequence">Seq {{ doc.document_sequence }}</div>
-                <div class="status-badge status-badge-sm text-muted" *ngIf="doc.scrutiny_status">
-                  {{ doc.scrutiny_status }}
-                </div>
-              </div>
-
-              <div *ngIf="documents.length === 0" class="text-muted small p-3">No documents found.</div>
+        <div class="row g-3" *ngIf="caseSummary">
+          <div class="col-md-6">
+            <div class="small text-muted">Case Number</div>
+            <div class="fw-semibold">{{ caseSummary.case_number || '-' }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="small text-muted">E-Filing Number</div>
+            <div class="fw-semibold">{{ caseSummary.e_filing_number || '-' }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="small text-muted">Petitioner</div>
+            <div>{{ caseSummary.petitioner_name || '-' }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="small text-muted">Petitioner Contact</div>
+            <div>{{ caseSummary.petitioner_contact || '-' }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="small text-muted">Cause of Action</div>
+            <div>{{ caseSummary.case_details?.cause_of_action || '-' }}</div>
+          </div>
+          <div class="col-12">
+            <div class="small text-muted">Listing Officer Case Summary</div>
+            <div class="p-2 border rounded bg-light-subtle">
+              {{ caseSummary.listing_summary || '-' }}
             </div>
           </div>
-
-          <div class="col-xl-8">
-            <div class="preview-frame mb-3" *ngIf="selectedDocUrl; else noPreview">
-              <iframe [src]="selectedDocUrl" style="width: 100%; height: 520px; border: none;"></iframe>
-            </div>
-            <ng-template #noPreview>
-              <div class="text-muted small">No preview available for this document.</div>
-            </ng-template>
-
-            <div class="review-panel">
-              <h5 class="mb-2">Annotation</h5>
-              <div class="text-muted small mb-2">Write notes for this document index. Click Save annotation to store it.</div>
-              <textarea
-                class="form-control"
-                rows="4"
-                [(ngModel)]="selectedDoc.annotation_text"
-                placeholder="Write judge annotation..."
-                [disabled]="!canWrite"
-              ></textarea>
-              <div class="d-flex justify-content-end mt-2">
-                <button class="btn btn-primary btn-sm" (click)="saveAnnotation(selectedDoc)" [disabled]="!canWrite || !selectedDoc">
-                  Save annotation
-                </button>
+          <div class="col-12">
+            <div class="small text-muted mb-1">Documents forwarded by Listing Officer</div>
+            <div *ngIf="(caseSummary.selected_documents?.length ?? 0) > 0; else noForwardDocs" class="p-2 border rounded">
+              <div *ngFor="let doc of caseSummary.selected_documents" class="small">
+                {{ doc.document_part_name || 'Document' }} <span class="text-muted">({{ doc.document_type || 'Main Document' }})</span>
               </div>
             </div>
+            <ng-template #noForwardDocs>
+              <div class="text-muted small">No specific documents selected.</div>
+            </ng-template>
+          </div>
+          <div class="col-12" *ngIf="decisionStatus === 'REQUESTED_DOCS'">
+            <div class="small text-muted mb-1">Select documents to request from Listing Officer</div>
+            <div class="p-2 border rounded" *ngIf="(caseSummary.selected_documents?.length ?? 0) > 0; else noForwardDocsForRequest">
+              <div *ngFor="let doc of caseSummary.selected_documents" class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  [checked]="isRequestedDocument(doc.document_index_id)"
+                  (change)="toggleRequestedDocument(doc.document_index_id, $any($event.target).checked)"
+                  [disabled]="!canWrite"
+                />
+                <label class="form-check-label small">
+                  {{ doc.document_part_name || 'Document' }} ({{ doc.document_type || 'Main Document' }})
+                </label>
+              </div>
+            </div>
+            <ng-template #noForwardDocsForRequest>
+              <div class="text-muted small">No forwarded documents available to request.</div>
+            </ng-template>
+          </div>
+          <div class="col-md-6">
+            <div class="small text-muted">Cause Date</div>
+            <div>{{ caseSummary.case_details?.date_of_cause_of_action || '-' }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="small text-muted">Dispute State / District</div>
+            <div>{{ caseSummary.case_details?.dispute_state || '-' }} / {{ caseSummary.case_details?.dispute_district || '-' }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="small text-muted">Dispute Taluka</div>
+            <div>{{ caseSummary.case_details?.dispute_taluka || '-' }}</div>
+          </div>
+          <div class="col-12">
+            <div class="small text-muted mb-1">Litigants</div>
+            <div *ngIf="(caseSummary.litigants?.length ?? 0) > 0; else noLitigants">
+              <div *ngFor="let l of caseSummary.litigants">
+                {{ l.is_petitioner ? 'Petitioner' : 'Respondent' }}: {{ l.name || '-' }}
+              </div>
+            </div>
+            <ng-template #noLitigants>
+              <div class="text-muted small">No litigants available.</div>
+            </ng-template>
           </div>
         </div>
 
         <div class="mt-4">
-          <h5 class="mb-2">Decision Notes (Optional)</h5>
-          <textarea class="form-control" rows="3" [(ngModel)]="decisionNotes" placeholder="Decision notes..." [disabled]="!canWrite"></textarea>
+          <h5 class="mb-2">Judge Remarks</h5>
+          <textarea class="form-control" rows="3" [(ngModel)]="decisionNotes" placeholder="Write remarks..." [disabled]="!canWrite"></textarea>
           <div class="d-flex justify-content-end mt-2">
             <button class="btn btn-success btn-sm" (click)="submitDecision()" [disabled]="!canWrite">
               Save decision

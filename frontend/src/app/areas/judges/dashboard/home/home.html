@@ -1,13 +1,18 @@
 <div class="container-fluid">
   <div class="judge-header d-flex justify-content-between align-items-end flex-wrap gap-3 mb-3">
     <div>
-      <h3 class="mb-1">Judge Dashboard</h3>
-      <div class="text-muted small">Courtroom approval and cause-list readiness</div>
+      <h3 class="mb-1">Case Summary</h3>
+      <div class="text-muted small">Review forwarded case requests and provide decision</div>
     </div>
 
     <div>
       <label class="form-label small fw-semibold mb-1">Forwarded For Date</label>
-      <input type="date" class="form-control form-control-sm" [(ngModel)]="forwardedForDate" (change)="onDateChange()" />
+      <input
+        type="date"
+        class="form-control form-control-sm"
+        [(ngModel)]="forwardedForDate"
+        (change)="onDateChange()"
+      />
     </div>
   </div>
 
@@ -35,7 +40,7 @@
                 <td><span class="badge text-bg-warning">Pending</span></td>
                 <td>
                   <button class="btn btn-sm btn-outline-primary" (click)="openCourtroom(c.efiling_id)">
-                    Open Courtroom
+                    View Case Summary
                   </button>
                 </td>
               </tr>
@@ -50,7 +55,7 @@
 
     <div class="col-12">
       <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white fw-semibold">Pending for Cause List</div>
+        <div class="card-header bg-white fw-semibold">Reviewed Requests</div>
         <div class="card-body p-0 table-responsive">
           <table class="table table-hover align-middle mb-0">
             <thead>
@@ -67,15 +72,15 @@
                 <td class="text-nowrap">{{ c.case_number || '-' }}</td>
                 <td>{{ benchLabel(c.bench_key) }}</td>
                 <td>{{ c.judge_listing_date || '-' }}</td>
-                <td><span class="badge text-bg-info">Awaiting Bench</span></td>
+                <td><span class="badge text-bg-info">Reviewed</span></td>
                 <td>
                   <button class="btn btn-sm btn-outline-primary" (click)="openCourtroom(c.efiling_id)">
-                    Open Courtroom
+                    View Case Summary
                   </button>
                 </td>
               </tr>
               <tr *ngIf="pendingForCauseList.length === 0">
-                <td colspan="5" class="text-muted text-center py-4">No cases pending for cause list.</td>
+                <td colspan="5" class="text-muted text-center py-4">No reviewed requests yet.</td>
               </tr>
             </tbody>
           </table>
