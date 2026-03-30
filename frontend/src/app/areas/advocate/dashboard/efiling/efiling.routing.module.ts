@@ -1,31 +1,45 @@
-import { Routes } from '@angular/router';
+import { Routes } from "@angular/router";
 
 export const EfilingRoutes: Routes = [
   {
-    path: 'new-filing',
-    loadComponent: () => import('./new-filing/new-filing').then((c) => c.NewFiling),
+    path: "new-filing",
+    loadComponent: () =>
+      import("./new-filing/new-filing").then((c) => c.NewFiling),
   },
   {
-    path: 'draft-filings',
+    path: "new-filing-v2",
+    loadComponent: () =>
+      import("./new-filing-v2/new-filing-v2").then((c) => c.NewFilingV2),
+  },
+  {
+    path: "draft-filings",
     loadChildren: () =>
-      import('./draft-filings/draft-filing.routing').then((r) => r.DraftFilingRoutes),
+      import("./draft-filings/draft-filing.routing").then(
+        (r) => r.DraftFilingRoutes,
+      ),
   },
   {
-    path: 'approved-cases',
-    loadComponent: () => import('./approved-cases/approved-cases').then((c) => c.ApprovedCases),
+    path: "approved-cases",
+    loadComponent: () =>
+      import("./approved-cases/approved-cases").then((c) => c.ApprovedCases),
   },
   {
-    path: 'pending-scrutiny',
+    path: "pending-scrutiny",
     loadChildren: () =>
-      import('./cases-scrutiny/cases-scrutiny-routing-module').then((c) => c.routes),
+      import("./cases-scrutiny/cases-scrutiny-routing-module").then(
+        (c) => c.routes,
+      ),
   },
   {
-    path: 'document-filing',
+    path: "document-filing",
     loadChildren: () =>
-      import('./document-filing/document-filing.routing').then((r) => r.DocumentFilingRoutes),
+      import("./document-filing/document-filing.routing").then(
+        (r) => r.DocumentFilingRoutes,
+      ),
   },
   {
-    path: 'ia-filing',
-    loadChildren: () => import('./ia-filing/ia-filing.routing').then((r) => r.IaFilingRoutes),
+    path: "ia-filing",
+    loadChildren: () =>
+      import("./ia-filing/ia-filing.routing").then((r) => r.IaFilingRoutes),
   },
 ];

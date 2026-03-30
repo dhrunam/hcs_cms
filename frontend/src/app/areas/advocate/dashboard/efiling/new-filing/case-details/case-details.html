@@ -1,6 +1,6 @@
 <form [formGroup]="form" class="form-wrapper">
   <!-- GROUP 1 -->
-  <div class="form-group-block">
+  <!-- <div class="form-group-block">
     <div class="section-title">Case Details</div>
 
     <div class="row g-3">
@@ -26,10 +26,9 @@
         />
       </div>
     </div>
-  </div>
+  </div> -->
 
-  <!-- GROUP 2 -->
-  <div class="form-group-block">
+  <!-- <div class="form-group-block">
     <div class="section-title">Dispute Arising Out Of</div>
 
     <div class="row g-3">
@@ -58,7 +57,7 @@
         <input type="text" class="form-control" formControlName="dispute_taluka" />
       </div>
     </div>
-  </div>
+  </div> -->
 
   <!-- VIEW MODE (disabled) -->
   <div class="form-group-block">
@@ -66,7 +65,9 @@
 
     <div class="row g-3" *ngIf="isDisabled">
       <div class="col-md-6">
-        <label class="form-label">Act <small class="text-danger">*</small></label>
+        <label class="form-label"
+          >Act <small class="text-danger">*</small></label
+        >
 
         <select #actInput class="form-control form-select" name="act">
           <option value="">Select Act</option>
@@ -77,7 +78,9 @@
       </div>
 
       <div class="col-md-6">
-        <label class="form-label">Section <small class="text-danger">*</small></label>
+        <label class="form-label"
+          >Section <small class="text-danger">*</small></label
+        >
         <input #sectionInput class="form-control" name="section" />
       </div>
 
@@ -93,7 +96,9 @@
     </div>
     <div class="row g-3" *ngIf="!isDisabled">
       <div class="col-md-6">
-        <label class="form-label">Act <small class="text-danger">*</small></label>
+        <label class="form-label"
+          >Act <small class="text-danger">*</small></label
+        >
 
         <select
           class="form-control form-select"
@@ -108,7 +113,9 @@
       </div>
 
       <div class="col-md-6">
-        <label class="form-label">Section <small class="text-danger">*</small></label>
+        <label class="form-label"
+          >Section <small class="text-danger">*</small></label
+        >
         <input
           class="form-control"
           formControlName="section"
@@ -117,7 +124,9 @@
       </div>
 
       <div class="col-md-12">
-        <button type="button" class="btn btn-success btn-sm" (click)="addAct()">+ Add Act</button>
+        <button type="button" class="btn btn-success btn-sm" (click)="addAct()">
+          + Add Act
+        </button>
       </div>
     </div>
 
@@ -134,7 +143,11 @@
             <div class="fw-normal">{{ i + 1 }}. {{ act.actname }}</div>
             <div class="text-muted small">Section: {{ act.section }}</div>
           </div>
-          <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeAct(i)">
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-danger"
+            (click)="removeAct(i)"
+          >
             Delete
           </button>
         </div>

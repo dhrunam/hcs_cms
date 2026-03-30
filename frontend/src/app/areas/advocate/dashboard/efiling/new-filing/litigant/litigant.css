@@ -2,9 +2,9 @@
   margin-bottom: 40px;
   padding-bottom: 30px;
   border-bottom: 1px solid #e5e7eb;
-  /* border: 1px solid rgb(233, 233, 233); */
+  border: 2px solid rgb(233, 233, 233);
   border-radius: 12px;
-  box-shadow: 0 0 6px rgba(15, 23, 42, 0.08);
+  /* box-shadow: 0 0 6px rgba(15, 23, 42, 0.08); */
   padding: 20px;
 }
 
@@ -77,8 +77,8 @@ select.form-control {
   height: 34px;
 }
 
-input[type='number'],
-input[type='text'],
+input[type="number"],
+input[type="text"],
 select {
   border-radius: 6px;
 }
@@ -98,4 +98,135 @@ select {
 .litigant-respondent-badge {
   background-color: #fffbeb;
   color: #92400e;
+}
+
+.litigant-split-view {
+  align-items: stretch;
+}
+
+.litigant-vs-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.litigant-vs-badge {
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #0f172a;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+}
+
+.litigant-panel {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px;
+  background: #ffffff;
+  height: 100%;
+}
+
+.petitioner-panel {
+  border-left: 4px solid #16a34a;
+}
+
+.respondent-panel {
+  border-left: 4px solid #d97706;
+}
+
+.litigant-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed #e5e7eb;
+}
+
+.litigant-count {
+  min-width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  font-size: 12px;
+}
+
+.litigant-item {
+  border: 1px solid #eceff3;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+  background: #fafafa;
+}
+
+.litigant-item:last-child {
+  margin-bottom: 0;
+}
+
+.litigant-item-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.litigant-name {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.litigant-meta {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.litigant-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.empty-state {
+  padding: 16px;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  color: #6b7280;
+  font-size: 13px;
+  text-align: center;
+  background: #f9fafb;
+}
+
+@media (max-width: 768px) {
+  .litigant-vs-col {
+    order: 2;
+    padding: 2px 0;
+  }
+
+  .litigant-vs-badge {
+    width: 42px;
+    height: 42px;
+    font-size: 12px;
+  }
+
+  .litigant-item-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .litigant-info-grid {
+    grid-template-columns: 1fr;
+  }
 }

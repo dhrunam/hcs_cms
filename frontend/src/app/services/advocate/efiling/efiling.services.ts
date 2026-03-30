@@ -1,9 +1,9 @@
-import { HttpClient, HttpEvent } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { Injectable } from '@angular/core';
-import { app_url } from '../../../environment';
+import { HttpClient, HttpEvent } from "@angular/common/http";
+import { Observable } from "rxjs";
+import { Injectable } from "@angular/core";
+import { app_url } from "../../../environment";
 
-@Injectable({ providedIn: 'root' })
+@Injectable({ providedIn: "root" })
 export class EfilingService {
   constructor(private http: HttpClient) {}
 
@@ -12,36 +12,63 @@ export class EfilingService {
   }
 
   post_litigant_details(fd: FormData): Observable<any> {
-    return this.http.post<any>(`${app_url}/api/v1/efiling/efiling-litigants/`, fd);
+    return this.http.post<any>(
+      `${app_url}/api/v1/efiling/efiling-litigants/`,
+      fd,
+    );
+  }
+  update_litigant_details(fd: FormData): Observable<any> {
+    var id = fd.get("id");
+    return this.http.put<any>(
+      `${app_url}/api/v1/efiling/efiling-litigants/${id}/`,
+      fd,
+    );
   }
 
   delete_litigant_details_by_id(id: number): Observable<any> {
-    return this.http.delete<any>(`${app_url}/api/v1/efiling/efiling-litigants/${id}/`);
+    return this.http.delete<any>(
+      `${app_url}/api/v1/efiling/efiling-litigants/${id}/`,
+    );
   }
 
   post_case_details(fd: FormData): Observable<any> {
-    return this.http.post<any>(`${app_url}/api/v1/efiling/efiling-case-details/`, fd);
+    return this.http.post<any>(
+      `${app_url}/api/v1/efiling/efiling-case-details/`,
+      fd,
+    );
   }
 
   upload_case_documnets(fd: FormData): Observable<any> {
-    return this.http.post<any>(`${app_url}/api/v1/efiling/efiling-documents/`, fd);
+    return this.http.post<any>(
+      `${app_url}/api/v1/efiling/efiling-documents/`,
+      fd,
+    );
   }
 
   upload_case_documnets_index(fd: FormData): Observable<HttpEvent<any>> {
-    return this.http.post<any>(`${app_url}/api/v1/efiling/efiling-documents-index/`, fd, {
-      reportProgress: true,
-      observe: 'events',
-    });
+    return this.http.post<any>(
+      `${app_url}/api/v1/efiling/efiling-documents-index/`,
+      fd,
+      {
+        reportProgress: true,
+        observe: "events",
+      },
+    );
   }
 
   delete_case_documnets_before_final_filing(id: number): Observable<any> {
-    return this.http.delete<any>(`${app_url}/api/v1/efiling/efiling-documents/${id}/`);
+    return this.http.delete<any>(
+      `${app_url}/api/v1/efiling/efiling-documents/${id}/`,
+    );
   }
 
   final_submit_efiling(id: number): Observable<any> {
     var fd = new FormData();
-    fd.append('is_draft', 'false');
-    return this.http.patch<any>(`${app_url}/api/v1/efiling/efilings/${id}/`, fd);
+    fd.append("is_draft", "false");
+    return this.http.patch<any>(
+      `${app_url}/api/v1/efiling/efilings/${id}/`,
+      fd,
+    );
   }
 
   add_case_details_act(fd: FormData) {
@@ -49,7 +76,9 @@ export class EfilingService {
   }
 
   delete_case_details_act(id: number): Observable<any> {
-    return this.http.delete<any>(`${app_url}/api/v1/efiling/efiling-acts/${id}/`);
+    return this.http.delete<any>(
+      `${app_url}/api/v1/efiling/efiling-acts/${id}/`,
+    );
   }
 
   get_filings_under_scrutiny(params?: { page_size?: number }): Observable<any> {
@@ -60,9 +89,7 @@ export class EfilingService {
     return this.http.get<any>(url);
   }
   get_filings(): Observable<any> {
-    return this.http.get<any>(
-      `${app_url}/api/v1/efiling/efilings/`,
-    );
+    return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/`);
   }
   get_approved_cases(params?: { page_size?: number }): Observable<any> {
     let url = `${app_url}/api/v1/efiling/efilings/?is_draft=false&status=ACCEPTED`;
@@ -96,36 +123,54 @@ export class EfilingService {
   }
 
   submit_approved_filing(id: number): Observable<any> {
-    return this.http.post<any>(`${app_url}/api/v1/efiling/efilings/${id}/submit-approved/`, {});
+    return this.http.post<any>(
+      `${app_url}/api/v1/efiling/efilings/${id}/submit-approved/`,
+      {},
+    );
   }
 
   get_litigant_list_by_filing_id(id: number): Observable<any> {
-    console.log(`${app_url}/api/v1/efiling/efiling-litigants/?efiling_id=${id}`);
-    return this.http.get<any>(`${app_url}/api/v1/efiling/efiling-litigants/?efiling_id=${id}`);
+    console.log(
+      `${app_url}/api/v1/efiling/efiling-litigants/?efiling_id=${id}`,
+    );
+    return this.http.get<any>(
+      `${app_url}/api/v1/efiling/efiling-litigants/?efiling_id=${id}`,
+    );
   }
   get_case_details_by_filing_id(id: number): Observable<any> {
-    console.log(`${app_url}/api/v1/efiling/efiling-case-details/?efiling_id=${id}`);
-    return this.http.get<any>(`${app_url}/api/v1/efiling/efiling-case-details/?efiling_id=${id}`);
+    console.log(
+      `${app_url}/api/v1/efiling/efiling-case-details/?efiling_id=${id}`,
+    );
+    return this.http.get<any>(
+      `${app_url}/api/v1/efiling/efiling-case-details/?efiling_id=${id}`,
+    );
   }
 
   get_acts_by_filing_id(id: number): Observable<any> {
-    return this.http.get<any>(`${app_url}/api/v1/efiling/efiling-acts/?efiling_id=${id}`);
+    return this.http.get<any>(
+      `${app_url}/api/v1/efiling/efiling-acts/?efiling_id=${id}`,
+    );
   }
 
   get_documents_by_filing_id(id: number): Observable<any> {
-    return this.http.get<any>(`${app_url}/api/v1/efiling/efiling-documents/?efiling_id=${id}`);
+    return this.http.get<any>(
+      `${app_url}/api/v1/efiling/efiling-documents/?efiling_id=${id}`,
+    );
   }
 
   get_efiling_documents(): Observable<any> {
     return this.http.get<any>(`${app_url}/api/v1/efiling/efiling-documents/`);
   }
 
-  get_document_reviews_by_filing_id(id: number, isIaOnly?: boolean): Observable<any> {
+  get_document_reviews_by_filing_id(
+    id: number,
+    isIaOnly?: boolean,
+  ): Observable<any> {
     let url = `${app_url}/api/v1/efiling/efiling-documents-index/?efiling_id=${id}`;
     if (isIaOnly === true) {
-      url += '&is_ia=true';
+      url += "&is_ia=true";
     } else if (isIaOnly === false) {
-      url += '&is_ia=false';
+      url += "&is_ia=false";
     }
     return this.http.get<any>(url);
   }
@@ -137,7 +182,7 @@ export class EfilingService {
   }
 
   fetch_document_blob(fileUrl: string): Observable<Blob> {
-    return this.http.get(fileUrl, { responseType: 'blob' });
+    return this.http.get(fileUrl, { responseType: "blob" });
   }
 
   review_document(
@@ -150,18 +195,28 @@ export class EfilingService {
     );
   }
 
-  replace_document(documentId: number, file: File, documentType?: string): Observable<any> {
+  replace_document(
+    documentId: number,
+    file: File,
+    documentType?: string,
+  ): Observable<any> {
     const fd = new FormData();
-    fd.append('final_document', file);
+    fd.append("final_document", file);
     if (documentType) {
-      fd.append('document_type', documentType);
+      fd.append("document_type", documentType);
     }
-    return this.http.patch<any>(`${app_url}/api/v1/efiling/efiling-documents/${documentId}/`, fd);
+    return this.http.patch<any>(
+      `${app_url}/api/v1/efiling/efiling-documents/${documentId}/`,
+      fd,
+    );
   }
 
-  replace_document_review_item(documentIndexId: number, file: File): Observable<any> {
+  replace_document_review_item(
+    documentIndexId: number,
+    file: File,
+  ): Observable<any> {
     const fd = new FormData();
-    fd.append('file_part_path', file);
+    fd.append("file_part_path", file);
     return this.http.patch<any>(
       `${app_url}/api/v1/efiling/efiling-documents-index/${documentIndexId}/`,
       fd,
@@ -189,26 +244,36 @@ export class EfilingService {
   mergePdfs(
     files: File[],
     names?: string[],
-    frontPage?: { petitionerName: string; respondentName: string; caseNo: string; caseType?: string }
+    frontPage?: {
+      petitionerName: string;
+      respondentName: string;
+      caseNo: string;
+      caseType?: string;
+    },
   ): Observable<Blob> {
     const formData = new FormData();
-    files.forEach((f) => formData.append('files', f, f.name));
+    files.forEach((f) => formData.append("files", f, f.name));
     if (names && names.length === files.length) {
-      formData.append('names', JSON.stringify(names));
+      formData.append("names", JSON.stringify(names));
     }
     if (frontPage) {
-      formData.append('petitioner_name', frontPage.petitionerName);
-      formData.append('respondent_name', frontPage.respondentName);
-      formData.append('case_no', frontPage.caseNo);
-      if (frontPage.caseType) formData.append('case_type', frontPage.caseType);
+      formData.append("petitioner_name", frontPage.petitionerName);
+      formData.append("respondent_name", frontPage.respondentName);
+      formData.append("case_no", frontPage.caseNo);
+      if (frontPage.caseType) formData.append("case_type", frontPage.caseType);
     }
     return this.http.post(`${app_url}/api/v1/efiling/merge-pdfs/`, formData, {
-      responseType: 'blob',
+      responseType: "blob",
     });
   }
 
-  post_ia_filing(payload: { e_filing: number; e_filing_number: string; ia_text: string; status?: string }): Observable<any> {
-    const body = { status: 'UNDER_SCRUTINY', ...payload };
+  post_ia_filing(payload: {
+    e_filing: number;
+    e_filing_number: string;
+    ia_text: string;
+    status?: string;
+  }): Observable<any> {
+    const body = { status: "UNDER_SCRUTINY", ...payload };
     return this.http.post<any>(`${app_url}/api/v1/efiling/ias/`, body);
   }
 
@@ -217,7 +282,9 @@ export class EfilingService {
   }
 
   get_ias_by_efiling_id(efilingId: number): Observable<any> {
-    return this.http.get<any>(`${app_url}/api/v1/efiling/ias/?e_filing=${efilingId}`);
+    return this.http.get<any>(
+      `${app_url}/api/v1/efiling/ias/?e_filing=${efilingId}`,
+    );
   }
 
   get_ia_by_id(id: number): Observable<any> {
@@ -225,14 +292,18 @@ export class EfilingService {
   }
 
   verify_ia(iaId: number): Observable<any> {
-    return this.http.patch<any>(`${app_url}/api/v1/efiling/ias/${iaId}/`, { status: 'ACCEPTED' });
+    return this.http.patch<any>(`${app_url}/api/v1/efiling/ias/${iaId}/`, {
+      status: "ACCEPTED",
+    });
   }
 
   get_ia_acts_by_ia_id(iaId: number): Observable<any> {
     return this.http.get<any>(`${app_url}/api/v1/efiling/ia-acts/?ia=${iaId}`);
   }
 
-  get_notifications(role: 'advocate' | 'scrutiny_officer'): Observable<any[]> {
-    return this.http.get<any[]>(`${app_url}/api/v1/efiling/notifications/?role=${role}`);
+  get_notifications(role: "advocate" | "scrutiny_officer"): Observable<any[]> {
+    return this.http.get<any[]>(
+      `${app_url}/api/v1/efiling/notifications/?role=${role}`,
+    );
   }
 }
