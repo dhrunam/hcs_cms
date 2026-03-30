@@ -25,9 +25,6 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       if (error.status === 403) {
         router.navigate(['/error'], { queryParams: { code: 403 } });
       }
-      if (error.status === 400) {
-        router.navigate(['/error'], { queryParams: { code: 400 } });
-      }
       if (error.status === 500) {
         router.navigate(['/error'], { queryParams: { code: 500 } });
       }

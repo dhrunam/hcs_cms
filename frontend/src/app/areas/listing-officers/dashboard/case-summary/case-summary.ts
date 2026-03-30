@@ -3,14 +3,17 @@ import { Component } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import Swal from 'sweetalert2';
 
 import { EfilingService } from '../../../../services/advocate/efiling/efiling.services';
 import { CauseListService } from '../../../../services/listing/cause-list.service';
-import { benchLabel, BENCH_LABELS, BenchKey } from '../../shared/bench-labels';
+import { benchLabel, BENCH_LABELS, BenchKey, isUnassignedBench } from '../../shared/bench-labels';
 
 type Filing = any;
 type CaseDetails = any;
 type Litigant = any;
+type FilingDoc = any;
 
 @Component({
   selector: 'app-listing-case-summary',
@@ -28,6 +31,13 @@ export class ListingCaseSummaryPage {
   filing: Filing | null = null;
   caseDetails: CaseDetails | null = null;
   litigants: Litigant[] = [];
+  documents: FilingDoc[] = [];
+  selectedDocument: FilingDoc | null = null;
+  selectedDocumentUrl: SafeResourceUrl | null = null;
+  selectedDocumentBlobUrl: string | null = null;
+  selectedDocumentIndexIds: number[] = [];
+  listingSummary = '';
+  isForwarding = false;
 
   benchKeys: BenchKey[] = Object.keys(BENCH_LABELS) as BenchKey[];
   benchLabel = benchLabel;
@@ -37,6 +47,7 @@ export class ListingCaseSummaryPage {
     private route: ActivatedRoute,
     private efilingService: EfilingService,
     private causeListService: CauseListService,
+    private sanitizer: DomSanitizer,
   ) {}
 
   ngOnInit(): void {
@@ -58,8 +69,11 @@ export class ListingCaseSummaryPage {
       filing: this.efilingService.get_filing_by_id(this.filingId),
       caseDetails: this.efilingService.get_case_details_by_filing_id(this.filingId),
       litigants: this.efilingService.get_litigant_list_by_filing_id(this.filingId),
+      documents: this.efilingService.get_document_reviews_by_filing_id(this.filingId, false),
+      iaDocuments: this.efilingService.get_document_reviews_by_filing_id(this.filingId, true),
+      registeredCases: this.causeListService.getRegisteredCases({ page_size: 500 }),
     }).subscribe({
-      next: ({ filing, caseDetails, litigants }) => {
+      next: ({ filing, caseDetails, litigants, documents, iaDocuments, registeredCases }) => {
         this.filing = filing;
         this.caseDetails = Array.isArray(caseDetails?.results)
           ? caseDetails.results[0] ?? null
@@ -67,9 +81,26 @@ export class ListingCaseSummaryPage {
             ? caseDetails[0] ?? null
             : null;
         this.litigants = Array.isArray(litigants?.results) ? litigants.results : Array.isArray(litigants) ? litigants : [];
+        const mainDocs = Array.isArray(documents?.results) ? documents.results : Array.isArray(documents) ? documents : [];
+        const iaDocs = Array.isArray(iaDocuments?.results) ? iaDocuments.results : Array.isArray(iaDocuments) ? iaDocuments : [];
+        this.documents = [...mainDocs, ...iaDocs];
+        this.selectedDocument = this.documents[0] ?? null;
+        this.updatePreviewUrl(this.selectedDocument?.file_url ?? null);
+        const currentCase = (registeredCases?.items ?? []).find((x: any) => Number(x?.efiling_id) === Number(this.filingId));
+        const requestedIds = Array.isArray(currentCase?.requested_documents)
+          ? currentCase.requested_documents
+              .map((x: any) => Number(x?.document_index_id))
+              .filter((x: number) => Number.isFinite(x))
+          : [];
+        this.selectedDocumentIndexIds = requestedIds.length
+          ? requestedIds
+          : (this.selectedDocument?.id ? [this.selectedDocument.id] : []);
+        this.listingSummary = (currentCase?.listing_summary || '').trim();
 
         const existingBench = (this.filing?.bench as string | null) ?? null;
-        this.selectedBench = (this.benchKeys.includes(existingBench as BenchKey) ? (existingBench as BenchKey) : this.benchKeys[0]) ?? null;
+        this.selectedBench = (!isUnassignedBench(existingBench) && this.benchKeys.includes(existingBench as BenchKey)
+          ? (existingBench as BenchKey)
+          : this.benchKeys[0]) ?? null;
 
         this.isLoading = false;
       },
@@ -77,6 +108,92 @@ export class ListingCaseSummaryPage {
         console.warn('Failed to load case summary', err);
         this.loadError = 'Failed to load case summary.';
         this.isLoading = false;
+      },
+    });
+  }
+
+  documentName(d: any): string {
+    return d?.document_part_name || d?.description || d?.document_name || d?.name || d?.file_name || 'Document';
+  }
+
+  documentUrl(d: any): string | null {
+    return d?.file_url || d?.document || d?.file || null;
+  }
+
+  selectDocument(d: any): void {
+    this.selectedDocument = d;
+    this.updatePreviewUrl(d?.file_url ?? null);
+  }
+
+  isDocSelected(docId: number): boolean {
+    return this.selectedDocumentIndexIds.includes(docId);
+  }
+
+  toggleDocSelection(docId: number, checked: boolean): void {
+    if (checked) {
+      if (!this.selectedDocumentIndexIds.includes(docId)) {
+        this.selectedDocumentIndexIds = [...this.selectedDocumentIndexIds, docId];
+      }
+      return;
+    }
+    this.selectedDocumentIndexIds = this.selectedDocumentIndexIds.filter((id) => id !== docId);
+  }
+
+  private updatePreviewUrl(fileUrl: string | null): void {
+    if (this.selectedDocumentBlobUrl) {
+      URL.revokeObjectURL(this.selectedDocumentBlobUrl);
+      this.selectedDocumentBlobUrl = null;
+    }
+    if (!fileUrl) {
+      this.selectedDocumentUrl = null;
+      return;
+    }
+    this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+    this.efilingService.fetch_document_blob(fileUrl).subscribe({
+      next: (blob) => {
+        this.selectedDocumentBlobUrl = URL.createObjectURL(blob);
+        this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.selectedDocumentBlobUrl);
+      },
+      error: () => {
+        this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+      },
+    });
+  }
+
+  forwardToJudge(): void {
+    if (!this.filingId || !this.selectedBench) return;
+    const summary = (this.listingSummary || '').trim();
+    if (!summary) {
+      Swal.fire({ title: 'Summary Required', text: 'Please write case summary before forwarding.', icon: 'warning' });
+      return;
+    }
+    if (!this.selectedDocumentIndexIds.length) {
+      Swal.fire({ title: 'Select Documents', text: 'Select at least one document to forward.', icon: 'warning' });
+      return;
+    }
+    this.isForwarding = true;
+    const today = new Date().toISOString().slice(0, 10);
+    this.causeListService.forwardToCourtroom({
+      forwarded_for_date: today,
+      bench_key: this.selectedBench,
+      listing_summary: summary,
+      document_index_ids: this.selectedDocumentIndexIds,
+      efiling_ids: [this.filingId],
+    }).subscribe({
+      next: () => {
+        this.isForwarding = false;
+        Swal.fire({
+          title: 'Forwarded',
+          text: 'Request forwarded to judge(s).',
+          icon: 'success',
+          timer: 1200,
+          showConfirmButton: false,
+        });
+      },
+      error: (err) => {
+        console.warn('forwardToJudge failed', err);
+        this.isForwarding = false;
+        Swal.fire({ title: 'Forward Failed', text: err?.error?.detail || 'Unable to forward request.', icon: 'error' });
       },
     });
   }
@@ -92,7 +209,7 @@ export class ListingCaseSummaryPage {
   }
 
   get isBenchLocked(): boolean {
-    return !!this.filing?.bench && String(this.filing?.bench).trim().length > 0;
+    return !isUnassignedBench(this.filing?.bench);
   }
 
   saveBench(): void {

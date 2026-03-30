@@ -30,6 +30,12 @@ export type RegisteredCase = {
   dispute_district: string | null;
   dispute_taluka: string | null;
   scrutiny_remarks: string | null;
+  approval_status?: 'NOT_FORWARDED' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'REQUESTED_DOCS';
+  approval_notes?: string[];
+  approval_bench_key?: string | null;
+  approval_forwarded_for_date?: string | null;
+  listing_summary?: string | null;
+  requested_documents?: { document_index_id: number; document_part_name: string | null; document_type: string | null }[];
 };
 
 @Injectable({
@@ -87,6 +93,8 @@ export class CauseListService {
   forwardToCourtroom(payload: {
     forwarded_for_date: string;
     bench_key: string;
+    listing_summary?: string | null;
+    document_index_ids?: number[];
     efiling_ids: number[];
   }): Observable<{ updated: number; skipped?: number; errors?: { efiling_id: number; detail: string }[] }> {
     return this.http.post<{ updated: number; skipped?: number; errors?: { efiling_id: number; detail: string }[] }>(

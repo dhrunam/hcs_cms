@@ -31,11 +31,12 @@
   <div class="accordion-item bench-accordion-item" *ngFor="let state of benchStates; let i = index">
     <h2 class="accordion-header" [id]="'benchHeading' + i">
       <button
-        class="accordion-button collapsed bench-accordion-button"
+        class="accordion-button bench-accordion-button"
         type="button"
         data-bs-toggle="collapse"
         [attr.data-bs-target]="'#benchCollapse' + i"
         [attr.aria-controls]="'benchCollapse' + i"
+        aria-expanded="true"
       >
         <div class="d-flex justify-content-between align-items-center w-100 gap-2 flex-wrap">
           <div class="fw-semibold">
@@ -51,9 +52,8 @@
     </h2>
     <div
       [id]="'benchCollapse' + i"
-      class="accordion-collapse collapse"
+      class="accordion-collapse collapse show"
       [attr.aria-labelledby]="'benchHeading' + i"
-      data-bs-parent="#benchAccordion"
     >
       <div class="accordion-body">
         <div class="d-flex justify-content-end gap-2 mb-3 flex-wrap">
@@ -79,7 +79,7 @@
             (click)="forwardToJudges(state)"
             [disabled]="state.isForwarding || !selectedDate || selectedForwardCount(state) === 0"
           >
-            {{ state.isForwarding ? 'Forwarding...' : ('Forward to Judges (' + selectedForwardCount(state) + ')') }}
+            {{ state.isForwarding ? 'Forwarding...' : ('Forward For Judge Approval (' + selectedForwardCount(state) + ')') }}
           </button>
           <a *ngIf="state.pdfUrl" class="btn btn-sm btn-outline-secondary" [href]="state.pdfUrl" target="_blank">
             View Published PDF

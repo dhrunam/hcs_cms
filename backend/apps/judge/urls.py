@@ -4,6 +4,7 @@ from django.urls import path
 
 from apps.judge.views import (
     CourtroomApprovedLookupView,
+    CourtroomCaseSummaryView,
     CourtroomCaseDocumentsView,
     CourtroomDecisionView,
     CourtroomDocumentAnnotationView,
@@ -19,6 +20,11 @@ urlpatterns = [
         "courtroom/pending/",
         CourtroomPendingCasesView.as_view(),
         name="courtroom-pending",
+    ),
+    path(
+        "courtroom/cases/<int:efiling_id>/summary/",
+        CourtroomCaseSummaryView.as_view(),
+        name="courtroom-case-summary",
     ),
     path(
         "courtroom/cases/<int:efiling_id>/documents/",

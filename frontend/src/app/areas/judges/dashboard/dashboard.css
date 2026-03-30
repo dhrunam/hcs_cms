@@ -1,2 +1,38 @@
-/* Intentionally minimal; judge pages handle their own layout. */
+.judge-content {
+  background: rgb(249, 249, 249);
+  min-height: calc(100vh - 58px);
+}
+
+.sidebar {
+  height: calc(100vh - 58px);
+  background: #fff;
+  border-right: 1px solid #edf2f7;
+  width: 260px;
+}
+
+.sidebar .nav-item {
+  color: #475569;
+  padding: 4px 8px;
+  margin: 4px;
+  border-radius: 10px;
+  font-weight: 300;
+  transition: all 0.2s ease;
+}
+
+.sidebar .nav-item:hover {
+  background: #4338ca;
+}
+
+.sidebar .nav-item.active {
+  background: #1d4ed8;
+}
+
+.sidebar .nav-link {
+  color: #1e293b;
+}
+
+.sidebar .nav-item:hover .nav-link,
+.sidebar .nav-item.active .nav-link {
+  color: #fff;
+}
 

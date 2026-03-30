@@ -18,6 +18,10 @@ class CourtroomForwardEntrySerializer(serializers.Serializer):
 class CourtroomForwardSerializer(serializers.Serializer):
     forwarded_for_date = serializers.DateField()
     bench_key = serializers.CharField(max_length=50)
+    listing_summary = serializers.CharField(allow_blank=True, required=False, allow_null=True)
+    document_index_ids = serializers.ListField(
+        child=serializers.IntegerField(), required=False, allow_empty=True
+    )
     efiling_ids = serializers.ListField(
         child=serializers.IntegerField(), allow_empty=False
     )
@@ -44,6 +48,19 @@ class CourtroomDecisionSerializer(serializers.Serializer):
     efiling_id = serializers.IntegerField()
     forwarded_for_date = serializers.DateField()
     listing_date = serializers.DateField()
-    approved = serializers.BooleanField()
+    status = serializers.ChoiceField(choices=CourtroomJudgeDecision.DecisionStatus.choices)
+    approved = serializers.BooleanField(required=False)
     decision_notes = serializers.CharField(allow_blank=True, required=False, allow_null=True)
+    requested_document_index_ids = serializers.ListField(
+        child=serializers.IntegerField(), required=False, allow_empty=True
+    )
+
+    def validate(self, attrs):
+        status = attrs.get("status")
+        requested_ids = attrs.get("requested_document_index_ids") or []
+        if status == CourtroomJudgeDecision.DecisionStatus.REQUESTED_DOCS and not requested_ids:
+            raise serializers.ValidationError(
+                {"requested_document_index_ids": "At least one requested document is required."}
+            )
+        return attrs
 
