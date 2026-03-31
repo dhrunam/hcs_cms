@@ -8,7 +8,7 @@ import Swal from 'sweetalert2';
 
 import { EfilingService } from '../../../../services/advocate/efiling/efiling.services';
 import { CauseListService } from '../../../../services/listing/cause-list.service';
-import { benchLabel, BENCH_LABELS, BenchKey, isUnassignedBench } from '../../shared/bench-labels';
+import { benchLabel, BENCH_LABELS, BenchKey, isUnassignedBench, judgesForBench } from '../../shared/bench-labels';
 
 type Filing = any;
 type CaseDetails = any;
@@ -38,6 +38,8 @@ export class ListingCaseSummaryPage {
   selectedDocumentIndexIds: number[] = [];
   listingSummary = '';
   isForwarding = false;
+  approvalStatus: 'NOT_FORWARDED' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'REQUESTED_DOCS' = 'NOT_FORWARDED';
+  approvalNotes: string[] = [];
 
   benchKeys: BenchKey[] = Object.keys(BENCH_LABELS) as BenchKey[];
   benchLabel = benchLabel;
@@ -85,8 +87,10 @@ export class ListingCaseSummaryPage {
         const iaDocs = Array.isArray(iaDocuments?.results) ? iaDocuments.results : Array.isArray(iaDocuments) ? iaDocuments : [];
         this.documents = [...mainDocs, ...iaDocs];
         this.selectedDocument = this.documents[0] ?? null;
-        this.updatePreviewUrl(this.selectedDocument?.file_url ?? null);
+        this.updatePreviewUrl(this.selectedDocument ?? null);
         const currentCase = (registeredCases?.items ?? []).find((x: any) => Number(x?.efiling_id) === Number(this.filingId));
+        this.approvalStatus = (currentCase?.approval_status ?? 'NOT_FORWARDED') as any;
+        this.approvalNotes = Array.isArray(currentCase?.approval_notes) ? currentCase.approval_notes : [];
         const requestedIds = Array.isArray(currentCase?.requested_documents)
           ? currentCase.requested_documents
               .map((x: any) => Number(x?.document_index_id))
@@ -122,7 +126,7 @@ export class ListingCaseSummaryPage {
 
   selectDocument(d: any): void {
     this.selectedDocument = d;
-    this.updatePreviewUrl(d?.file_url ?? null);
+    this.updatePreviewUrl(d ?? null);
   }
 
   isDocSelected(docId: number): boolean {
@@ -139,23 +143,34 @@ export class ListingCaseSummaryPage {
     this.selectedDocumentIndexIds = this.selectedDocumentIndexIds.filter((id) => id !== docId);
   }
 
-  private updatePreviewUrl(fileUrl: string | null): void {
+  private updatePreviewUrl(document: any | null): void {
     if (this.selectedDocumentBlobUrl) {
       URL.revokeObjectURL(this.selectedDocumentBlobUrl);
       this.selectedDocumentBlobUrl = null;
     }
-    if (!fileUrl) {
+    const docId = Number(document?.id || 0);
+    const fileUrl = document?.file_url ?? null;
+    if (!docId && !fileUrl) {
       this.selectedDocumentUrl = null;
       return;
     }
-    this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
-    this.efilingService.fetch_document_blob(fileUrl).subscribe({
+    if (fileUrl) {
+      this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+    }
+    const stream$ = docId
+      ? this.efilingService.fetch_document_blob_by_index(docId)
+      : this.efilingService.fetch_document_blob(fileUrl);
+    stream$.subscribe({
       next: (blob) => {
         this.selectedDocumentBlobUrl = URL.createObjectURL(blob);
         this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.selectedDocumentBlobUrl);
       },
       error: () => {
-        this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+        if (fileUrl) {
+          this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+        } else {
+          this.selectedDocumentUrl = null;
+        }
       },
     });
   }
@@ -167,33 +182,41 @@ export class ListingCaseSummaryPage {
       Swal.fire({ title: 'Summary Required', text: 'Please write case summary before forwarding.', icon: 'warning' });
       return;
     }
-    if (!this.selectedDocumentIndexIds.length) {
-      Swal.fire({ title: 'Select Documents', text: 'Select at least one document to forward.', icon: 'warning' });
-      return;
-    }
     this.isForwarding = true;
     const today = new Date().toISOString().slice(0, 10);
-    this.causeListService.forwardToCourtroom({
-      forwarded_for_date: today,
-      bench_key: this.selectedBench,
-      listing_summary: summary,
-      document_index_ids: this.selectedDocumentIndexIds,
-      efiling_ids: [this.filingId],
-    }).subscribe({
+    // Ensure bench is persisted first so case appears in generator.
+    this.causeListService.assignBenches([{ efiling_id: this.filingId, bench_key: this.selectedBench }]).subscribe({
       next: () => {
-        this.isForwarding = false;
-        Swal.fire({
-          title: 'Forwarded',
-          text: 'Request forwarded to judge(s).',
-          icon: 'success',
-          timer: 1200,
-          showConfirmButton: false,
+        if (this.filing) this.filing.bench = this.selectedBench;
+        this.causeListService.forwardToCourtroom({
+          forwarded_for_date: today,
+          bench_key: this.selectedBench!,
+          listing_summary: summary,
+          document_index_ids: this.selectedDocumentIndexIds.length ? this.selectedDocumentIndexIds : undefined,
+          efiling_ids: [this.filingId!],
+        }).subscribe({
+          next: () => {
+            this.isForwarding = false;
+            this.approvalStatus = 'PENDING';
+            Swal.fire({
+              title: 'Forwarded',
+              text: 'Bench saved and case forwarded to judge(s).',
+              icon: 'success',
+              timer: 1300,
+              showConfirmButton: false,
+            });
+          },
+          error: (err) => {
+            console.warn('forwardToJudge failed', err);
+            this.isForwarding = false;
+            Swal.fire({ title: 'Forward Failed', text: err?.error?.detail || 'Unable to forward request.', icon: 'error' });
+          },
         });
       },
       error: (err) => {
-        console.warn('forwardToJudge failed', err);
+        console.warn('assign before forward failed', err);
         this.isForwarding = false;
-        Swal.fire({ title: 'Forward Failed', text: err?.error?.detail || 'Unable to forward request.', icon: 'error' });
+        Swal.fire({ title: 'Bench Save Failed', text: err?.error?.detail || 'Unable to save bench before forwarding.', icon: 'error' });
       },
     });
   }
@@ -210,6 +233,10 @@ export class ListingCaseSummaryPage {
 
   get isBenchLocked(): boolean {
     return !isUnassignedBench(this.filing?.bench);
+  }
+
+  get judgesForSelectedBench(): string[] {
+    return judgesForBench(this.selectedBench);
   }
 
   saveBench(): void {

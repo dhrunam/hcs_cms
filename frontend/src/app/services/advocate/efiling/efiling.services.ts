@@ -1,5 +1,5 @@
 import { HttpClient, HttpEvent } from "@angular/common/http";
-import { Observable } from "rxjs";
+import { Observable, catchError, throwError } from "rxjs";
 import { Injectable } from "@angular/core";
 import { app_url } from "../../../environment";
 
@@ -182,7 +182,61 @@ export class EfilingService {
   }
 
   fetch_document_blob(fileUrl: string): Observable<Blob> {
-    return this.http.get(fileUrl, { responseType: "blob" });
+    const candidates = this.buildDocumentUrlCandidates(fileUrl);
+    return this.http.get(candidates[0], { responseType: "blob" }).pipe(
+      catchError((firstErr) => {
+        if (candidates.length < 2) {
+          return throwError(() => firstErr);
+        }
+        return this.http.get(candidates[1], { responseType: "blob" });
+      }),
+    );
+  }
+
+  fetch_document_blob_by_index(documentIndexId: number): Observable<Blob> {
+    return this.http.get(
+      `${app_url}/api/v1/efiling/efiling-documents-index/${documentIndexId}/stream/`,
+      { responseType: "blob" },
+    );
+  }
+
+  private buildDocumentUrlCandidates(fileUrl: string): string[] {
+    const primary = this.resolveDocumentUrl(fileUrl);
+    const out = [primary];
+    try {
+      const u = new URL(primary);
+      const parts = u.pathname.split("/");
+      if (parts.length >= 4) {
+        // /media/efile/<filing>/<docType>/<file>
+        const docTypeIdx = parts.length - 2;
+        const docType = parts[docTypeIdx] || "";
+        const upper = docType.toUpperCase();
+        const lower = docType.toLowerCase();
+        if (upper && upper !== docType) {
+          const p2 = [...parts];
+          p2[docTypeIdx] = upper;
+          out.push(`${u.origin}${p2.join("/")}`);
+        }
+        if (lower && lower !== docType) {
+          const p3 = [...parts];
+          p3[docTypeIdx] = lower;
+          out.push(`${u.origin}${p3.join("/")}`);
+        }
+      }
+    } catch {
+      // ignore parse issue; keep primary only
+    }
+    return Array.from(new Set(out));
+  }
+
+  private resolveDocumentUrl(fileUrl: string): string {
+    const raw = String(fileUrl ?? "").trim();
+    if (!raw) return raw;
+    if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+    if (raw.startsWith("/media/")) return `${app_url}${raw}`;
+    if (raw.startsWith("media/")) return `${app_url}/${raw}`;
+    if (raw.startsWith("/")) return `${app_url}${raw}`;
+    return `${app_url}/${raw}`;
   }
 
   review_document(

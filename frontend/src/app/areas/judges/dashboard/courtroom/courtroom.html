@@ -31,14 +31,6 @@
         >
           Decline
         </button>
-        <button
-          class="btn btn-sm"
-          [ngClass]="decisionStatus === 'REQUESTED_DOCS' ? 'btn-warning' : 'btn-outline-warning'"
-          (click)="setDecisionStatus('REQUESTED_DOCS')"
-          [disabled]="!canWrite"
-        >
-          Request Documents
-        </button>
       </div>
     </div>
   </div>
@@ -90,24 +82,52 @@
               <div class="text-muted small">No specific documents selected.</div>
             </ng-template>
           </div>
-          <div class="col-12" *ngIf="decisionStatus === 'REQUESTED_DOCS'">
-            <div class="small text-muted mb-1">Select documents to request from Listing Officer</div>
-            <div class="p-2 border rounded" *ngIf="(caseSummary.selected_documents?.length ?? 0) > 0; else noForwardDocsForRequest">
-              <div *ngFor="let doc of caseSummary.selected_documents" class="form-check">
-                <input
-                  class="form-check-input"
-                  type="checkbox"
-                  [checked]="isRequestedDocument(doc.document_index_id)"
-                  (change)="toggleRequestedDocument(doc.document_index_id, $any($event.target).checked)"
-                  [disabled]="!canWrite"
-                />
-                <label class="form-check-label small">
-                  {{ doc.document_part_name || 'Document' }} ({{ doc.document_type || 'Main Document' }})
-                </label>
+          <div class="col-12">
+            <div class="small text-muted mb-1">Case Documents (View Only)</div>
+            <div class="mb-2">
+              <input
+                type="text"
+                class="form-control form-control-sm"
+                [(ngModel)]="docSearch"
+                [ngModelOptions]="{ standalone: true }"
+                placeholder="Search documents..."
+              />
+            </div>
+            <div class="row g-2">
+              <div class="col-lg-5">
+                <div class="p-2 border rounded" *ngIf="filteredDocuments.length > 0; else noForwardDocsForRequest">
+                  <div *ngFor="let doc of filteredDocuments" class="form-check mb-1">
+                    <label class="form-check-label small me-2">
+                      {{ doc.document_part_name || 'Document' }}
+                    </label>
+                    <button
+                      type="button"
+                      class="btn btn-link btn-sm p-0 text-decoration-none"
+                      (click)="selectPreviewDocument(doc)"
+                    >
+                      View
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="col-lg-7">
+                <div class="border rounded p-2 judge-preview-wrap">
+                  <iframe
+                    *ngIf="previewDocumentUrl; else noDocPreview"
+                    [src]="previewDocumentUrl"
+                    title="Judge document preview"
+                    class="judge-preview-frame"
+                  ></iframe>
+                  <ng-template #noDocPreview>
+                    <div class="text-muted small p-2">
+                      {{ previewLoadError || 'Select a document and click View for inline preview.' }}
+                    </div>
+                  </ng-template>
+                </div>
               </div>
             </div>
             <ng-template #noForwardDocsForRequest>
-              <div class="text-muted small">No forwarded documents available to request.</div>
+              <div class="text-muted small">No case documents available.</div>
             </ng-template>
           </div>
           <div class="col-md-6">

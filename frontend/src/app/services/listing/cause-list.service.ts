@@ -8,6 +8,7 @@ export type DraftPreviewItem = {
   case_number: string | null;
   included: boolean;
   serial_no: number | null;
+  judge_listing_date?: string | null;
 };
 
 export type DraftPreviewResponse = {
@@ -34,6 +35,7 @@ export type RegisteredCase = {
   approval_notes?: string[];
   approval_bench_key?: string | null;
   approval_forwarded_for_date?: string | null;
+  approval_listing_date?: string | null;
   listing_summary?: string | null;
   requested_documents?: { document_index_id: number; document_part_name: string | null; document_type: string | null }[];
 };
@@ -103,7 +105,9 @@ export class CauseListService {
     );
   }
 
-  getPublishedCauseLists(cause_list_date: string): Observable<{ items: { id: number; bench_key: string; pdf_url: string | null }[] }> {
+  getPublishedCauseLists(cause_list_date: string): Observable<{
+    items: { id: number; bench_key: string; included_count?: number; pdf_url: string | null }[];
+  }> {
     const url = `${app_url}/api/v1/listing/cause-lists/published/?cause_list_date=${encodeURIComponent(
       cause_list_date,
     )}`;

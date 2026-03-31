@@ -303,9 +303,37 @@ class CourtroomCaseDocumentsView(APIView):
         if not _judge_can_view_forward(user_groups, forward.bench_key):
             raise ValidationError({"detail": "Not authorized for this case/bench."})
 
+        requested_only = str(request.query_params.get("requested_only", "")).strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "y",
+        }
+
         doc_indexes_qs = EfilingDocumentsIndex.objects.filter(
             document__e_filing_id=efiling_id, is_active=True
         ).select_related("document", "document__e_filing").order_by("id")
+        if requested_only:
+            decision = (
+                CourtroomJudgeDecision.objects.filter(
+                    judge_user=user,
+                    efiling_id=efiling_id,
+                    forwarded_for_date=forward.forwarded_for_date,
+                )
+                .order_by("-id")
+                .first()
+            )
+            requested_ids = (
+                list(
+                    decision.requested_documents.values_list(
+                        "efiling_document_index_id", flat=True
+                    )
+                )
+                if decision
+                else []
+            )
+            if requested_ids:
+                doc_indexes_qs = doc_indexes_qs.filter(id__in=requested_ids)
 
         serializer = EfilingDocumentsIndexSerializer(doc_indexes_qs, many=True, context={"request": request})
         doc_items = serializer.data
@@ -618,4 +646,36 @@ class CourtroomApprovedLookupView(APIView):
         eligible_ids: Set[int] = set.intersection(*group_to_ids) if group_to_ids else set()
 
         return Response({"efiling_ids": sorted(list(eligible_ids))}, status=drf_status.HTTP_200_OK)
+
+
+class CourtroomDecisionCalendarView(APIView):
+    """
+    Judge: list all of my decisions for calendar rendering.
+    """
+
+    def get(self, request, *args, **kwargs):
+        user = _assert_judge(request)
+        rows = (
+            CourtroomJudgeDecision.objects.filter(judge_user=user)
+            .select_related("efiling")
+            .order_by("-listing_date", "-forwarded_for_date", "-id")
+        )
+        items = []
+        for row in rows:
+            items.append(
+                {
+                    "efiling_id": row.efiling_id,
+                    "case_number": row.efiling.case_number,
+                    "status": row.status,
+                    "approved": row.approved,
+                    "listing_date": row.listing_date.isoformat()
+                    if row.listing_date
+                    else None,
+                    "forwarded_for_date": row.forwarded_for_date.isoformat()
+                    if row.forwarded_for_date
+                    else None,
+                    "decision_notes": row.decision_notes,
+                }
+            )
+        return Response({"items": items}, status=drf_status.HTTP_200_OK)
 

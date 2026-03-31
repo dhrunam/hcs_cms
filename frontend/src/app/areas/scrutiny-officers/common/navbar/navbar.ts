@@ -17,7 +17,7 @@ export class Navbar implements OnInit {
 
   ngOnInit() {
     this.authService.initializeAuth().catch((error) => {
-      console.error('SSO initialization failed:', error);
+      console.warn('SSO initialization skipped in local mode.');
     });
 
     this.updateClock();
