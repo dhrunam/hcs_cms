@@ -23,6 +23,12 @@ export const ListingOfficerDashboardRoutes: Routes = [
         title: 'Registered Cases | CMS',
       },
       {
+        path: 'listed-cases',
+        loadComponent: () =>
+          import('./listed-cases/listed-cases').then((c) => c.ListedCasesPage),
+        title: 'Listed Cases | CMS',
+      },
+      {
         path: 'case/:id',
         loadComponent: () =>
           import('./case-summary/case-summary').then((c) => c.ListingCaseSummaryPage),
