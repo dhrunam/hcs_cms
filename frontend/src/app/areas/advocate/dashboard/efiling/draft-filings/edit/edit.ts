@@ -69,6 +69,14 @@ export class Edit {
       }
     | null = null;
   private readonly wpCourtFeeRupees = 250;
+  private readonly wpMainPetitionMandatoryIndexes = [
+    "Synopsis",
+    "List of Dates and Events",
+    "Writ Petition",
+    "Affidavit",
+    "Vakalatnama",
+    "Affidavit of Service",
+  ];
 
   form!: FormGroup;
 
@@ -175,6 +183,7 @@ export class Edit {
   }
 
   ngOnInit() {
+    this.bindLitigantSequenceAutoGeneration();
     this.caseTypeService.get_case_types().subscribe({
       next: (data) => {
         this.caseTypes = Array.isArray(data?.results) ? data.results : data || [];
@@ -208,6 +217,14 @@ export class Edit {
 
   get paymentFeeRupees(): number {
     return this.isWPCCaseType ? this.wpCourtFeeRupees : 0;
+  }
+
+  get effectiveDocumentType(): string | null {
+    return this.isWPCCaseType ? "Main Petition" : null;
+  }
+
+  get mandatoryIndexesForCurrentCase(): string[] {
+    return this.isWPCCaseType ? this.wpMainPetitionMandatoryIndexes : [];
   }
 
   get requiresCourtFeePayment(): boolean {
@@ -404,6 +421,7 @@ export class Edit {
       .subscribe({
         next: (data) => {
           this.litigantList = data.results;
+          this.refreshLitigantSequenceNumber();
         },
       });
   }
@@ -625,6 +643,12 @@ export class Edit {
     }
 
     if (this.step == 4 && this.docList.length > 0) {
+      if (!this.hasMandatoryWpCDocuments()) {
+        this.toastr.error(
+          "For WP(C), upload all mandatory Main Petition indexes before proceeding.",
+        );
+        return;
+      }
       this.step = 5;
       this.setCaseDetailsReviewState(this.step === 6);
       window.scrollTo({
@@ -748,7 +772,7 @@ export class Edit {
 
   saveStep2() {
     const form = this.form.get("litigants") as FormGroup;
-    const formValue = { ...form.value };
+    const formValue = { ...form.getRawValue() };
     const currentLitigantId = Number(formValue.id || 0);
 
     if (
@@ -813,6 +837,7 @@ export class Edit {
 
   onDelete(id: number) {
     this.litigantList = this.litigantList.filter((item) => item.id !== id);
+    this.refreshLitigantSequenceNumber();
   }
 
   undoLitigantEdit() {
@@ -822,7 +847,7 @@ export class Edit {
       name: "",
       gender: "",
       age: "",
-      sequence_number: "",
+      sequence_number: this.getNextSequenceNumber(true),
       is_diffentially_abled: false,
       is_petitioner: true,
       is_organisation: false,
@@ -840,6 +865,7 @@ export class Edit {
     });
     form.markAsPristine();
     form.markAsUntouched();
+    this.refreshLitigantSequenceNumber(true);
   }
 
   private isSequenceNumberUnique(
@@ -869,12 +895,40 @@ export class Edit {
 
   private getNextSequenceNumber(isPetitioner: boolean): number {
     const maxSequence = this.litigantList
-      .filter((item) => item.is_petitioner === isPetitioner)
+      .filter(
+        (item) =>
+          this.normalizeIsPetitioner(item.is_petitioner) ===
+          this.normalizeIsPetitioner(isPetitioner),
+      )
       .reduce(
         (max, item) => Math.max(max, Number(item.sequence_number) || 0),
         0,
       );
     return maxSequence + 1;
+  }
+
+  private refreshLitigantSequenceNumber(force = false): void {
+    const form = this.litigantsForm;
+    if (!form) return;
+    const isEditing = Number(form.get("id")?.value || 0) > 0;
+    if (isEditing && !force) return;
+    const isPetitioner = this.normalizeIsPetitioner(
+      form.get("is_petitioner")?.value,
+    );
+    form.patchValue(
+      { sequence_number: this.getNextSequenceNumber(isPetitioner) },
+      { emitEvent: false },
+    );
+  }
+
+  private bindLitigantSequenceAutoGeneration(): void {
+    const form = this.litigantsForm;
+    if (!form) return;
+    form.get("sequence_number")?.disable({ emitEvent: false });
+    this.refreshLitigantSequenceNumber(true);
+    form.get("is_petitioner")?.valueChanges.subscribe(() => {
+      this.refreshLitigantSequenceNumber();
+    });
   }
 
   private hasPetitionerOnly(): boolean {
@@ -885,7 +939,7 @@ export class Edit {
 
   updateStep2() {
     const form = this.form.get("litigants") as FormGroup;
-    const formValue = { ...form.value };
+    const formValue = { ...form.getRawValue() };
     const litigantId = Number(formValue.id || 0);
 
     if (!litigantId) {
@@ -1040,8 +1094,38 @@ export class Edit {
   private getMaxAllowedStep(): number {
     if (!this.hasRequiredLitigants()) return 1;
     if (this.docList.length === 0) return 4;
+    if (!this.hasMandatoryWpCDocuments()) return 4;
     if (this.requiresCourtFeePayment && !this.isPaymentSuccessful) return 5;
     return 6;
+  }
+
+  private hasMandatoryWpCDocuments(): boolean {
+    if (!this.isWPCCaseType) return true;
+    const mainPetition = this.docList.find(
+      (d: any) =>
+        String(d?.document_type || "")
+          .trim()
+          .toLowerCase() === "main petition",
+    );
+    if (!mainPetition) return false;
+
+    const names = new Set(
+      (mainPetition.document_indexes || [])
+        .map((x: any) => String(x?.document_part_name || "").trim().toLowerCase())
+        .filter(Boolean),
+    );
+    const requiredWithoutAnnexure = this.wpMainPetitionMandatoryIndexes
+      .filter((name) => name !== "Annexure(s)*")
+      .map((name) => name.trim().toLowerCase());
+
+    const hasRequired = requiredWithoutAnnexure.every((name) =>
+      names.has(name),
+    );
+    if (!hasRequired) return false;
+    const hasAnnexure = (mainPetition.document_indexes || []).some((x: any) =>
+      /^annexure a\d+$/i.test(String(x?.document_part_name || "").trim()),
+    );
+    return hasAnnexure;
   }
 
   goToPageFromPreview(step: number) {
@@ -1111,6 +1195,11 @@ export class Edit {
 
         this.filingData = record;
         console.log("Filing data is ", this.filingData);
+        const resolvedCaseTypeId =
+          record.case_type?.id ??
+          record.case_type_id ??
+          record.case_type ??
+          "";
         this.initialInputsForm.patchValue({
           bench: record.bench || "High Court Of Sikkim",
           case_type: record.case_type?.id ?? record.case_type ?? "",
@@ -1380,6 +1469,13 @@ export class Edit {
   }
 
   submit() {
+    if (!this.hasMandatoryWpCDocuments()) {
+      this.toastr.error(
+        "For WP(C), upload all mandatory Main Petition indexes before final submission.",
+      );
+      this.step = 4;
+      return;
+    }
     Swal.fire({
       title: "Submit Filing?",
       text: "Once submitted, it will be forwarded for scrutiny.",

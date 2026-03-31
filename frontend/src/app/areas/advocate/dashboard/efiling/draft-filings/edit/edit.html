@@ -96,7 +96,7 @@
           (click)="goToStep(4)"
         >
           <i class="fa-solid fa-file-pdf me-2"></i>
-          Documents
+          Pleadings
         </button>
       </h2>
 
@@ -104,7 +104,7 @@
         <div class="accordion-body">
           <div class="preview-page rounded-3 p-3">
             <div class="text-center rounded-3">
-              <h5 class="section-title text-start">Upload Case Documents</h5>
+              <h5 class="section-title text-start">Upload</h5>
               <p class="text-muted text-start mb-4" style="font-size: 0.9rem">
                 Please review your case details and attach all required
                 documents before submitting the e-filing.
@@ -142,9 +142,9 @@
                       >
                         <div
                           *ngFor="let filePart of doc.document_indexes; let j = index"
-                          class="d-flex justify-content-between align-items-center py-1"
+                          class="py-1 d-flex justify-content-between align-items-center gap-2"
                         >
-                          <div class="small text-muted text-start">
+                          <div class="small text-muted text-start flex-grow-1">
                             {{ filePart.document_part_name || 'Document Part' }}
                           </div>
 
@@ -182,9 +182,12 @@
                 [uploadCompletedToken]="uploadCompletedToken"
                 [frontPage]="mergeFrontPage"
                 [eFilingNumber]="eFilingNumber"
-                [defaultDocumentType]="'New Filing'"
+                [defaultDocumentType]="effectiveDocumentType || 'New Filing'"
                 [caseTypeId]="selectedCaseTypeId"
                 [existingIndexNames]="uploadedIndexNames"
+                [mandatoryIndexNames]="mandatoryIndexesForCurrentCase"
+                [enableAnnexureSequence]="isWPCCaseType"
+                [structuredIndexUpload]="isWPCCaseType"
                 (submitDoc)="handleDocUpload($event)"
               ></app-upload-documents>
             </div>
