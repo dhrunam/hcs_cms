@@ -864,10 +864,7 @@ export class Edit {
         this.filingData = record;
         console.log("Filing data is ", this.filingData);
         const resolvedCaseTypeId =
-          record.case_type?.id ??
-          record.case_type_id ??
-          record.case_type ??
-          "";
+          record.case_type?.id ?? record.case_type_id ?? record.case_type ?? "";
         this.initialInputsForm.patchValue({
           bench: record.bench || "High Court Of Sikkim",
           case_type: resolvedCaseTypeId || "",
