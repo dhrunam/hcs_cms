@@ -24,3 +24,36 @@
   overflow: hidden;
 }
 
+.bench-assigned-card {
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.assigned-case-list {
+  min-height: 80px;
+}
+
+.cause-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 8px;
+}
+
+.calendar-day {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px;
+  text-align: left;
+}
+
+.calendar-day-has-list {
+  border-color: #198754;
+  background: #eefaf2;
+}
+
+.calendar-day-selected {
+  outline: 2px solid #0d6efd;
+}
+

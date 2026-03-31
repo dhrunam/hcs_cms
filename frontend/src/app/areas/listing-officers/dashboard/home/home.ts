@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, catchError, of } from 'rxjs';
-import Swal from 'sweetalert2';
 
 import { CauseListService, DraftPreviewItem } from '../../../../services/listing/cause-list.service';
 import { benchLabel, BENCH_LABELS, BenchKey } from '../../shared/bench-labels';
@@ -12,11 +11,9 @@ type BenchState = {
   bench_key: string;
   cause_list_id: number | null;
   items: DraftPreviewItem[];
-  forwardItems: DraftPreviewItem[];
   pdfUrl: string | null;
   isSaving: boolean;
   isPublishing: boolean;
-  isForwarding: boolean;
 };
 
 @Component({
@@ -27,7 +24,11 @@ type BenchState = {
 })
 export class ListingOfficerHome {
   selectedDate: string = new Date().toISOString().slice(0, 10);
+  selectedMonth: string = new Date().toISOString().slice(0, 7);
   isLoading = false;
+  isCalendarLoading = false;
+  monthDays: Array<{ date: string; day: number; publishedCount: number; hasAny: boolean }> = [];
+  publishedBenchSummary: Array<{ bench_key: string; included_count: number; pdf_url: string | null }> = [];
 
   readonly benchKeys: BenchKey[] = Object.keys(BENCH_LABELS) as BenchKey[];
   benchLabel = benchLabel;
@@ -36,11 +37,9 @@ export class ListingOfficerHome {
     bench_key: b,
     cause_list_id: null,
     items: [],
-    forwardItems: [],
     pdfUrl: null,
     isSaving: false,
     isPublishing: false,
-    isForwarding: false,
   }));
 
   constructor(private causeListService: CauseListService) {}
@@ -49,10 +48,15 @@ export class ListingOfficerHome {
 
   ngOnInit(): void {
     this.loadAllPreviews();
+    this.loadMonthCalendar();
   }
 
   onDateChange(): void {
     this.loadAllPreviews();
+  }
+
+  onMonthChange(): void {
+    this.loadMonthCalendar();
   }
 
   private loadAllPreviews(): void {
@@ -69,17 +73,8 @@ export class ListingOfficerHome {
       ),
     );
 
-    const forwardRequests = this.benchStates.map((state) =>
-      this.causeListService.getDraftPreview(this.selectedDate, state.bench_key, false).pipe(
-        catchError((err) => {
-          console.warn('Failed to load forward items', state.bench_key, err);
-          return of({ cause_list_id: null, items: [], bench_key: state.bench_key, cause_list_date: this.selectedDate });
-        }),
-      ),
-    );
-
-    forkJoin([forkJoin(approvedRequests), forkJoin(forwardRequests)]).subscribe(
-      ([approvedResps, forwardResps]) => {
+    forkJoin(approvedRequests).subscribe(
+      (approvedResps) => {
         approvedResps.forEach((resp: any, i: number) => {
           const s = this.benchStates[i];
           s.cause_list_id = resp.cause_list_id;
@@ -89,19 +84,16 @@ export class ListingOfficerHome {
           s.isPublishing = false;
         });
 
-        forwardResps.forEach((resp: any, i: number) => {
-          const s = this.benchStates[i];
-          s.forwardItems = (resp.items ?? []).map((item: DraftPreviewItem) => ({
-            ...item,
-            included: false,
-          }));
-        });
-
         // Load published PDFs for the date so View PDF works reliably.
         this.causeListService.getPublishedCauseLists(this.selectedDate).subscribe({
           next: (pub) => {
             const map = new Map<string, string | null>();
             (pub?.items ?? []).forEach((i: any) => map.set(i.bench_key, i.pdf_url ?? null));
+            this.publishedBenchSummary = (pub?.items ?? []).map((i: any) => ({
+              bench_key: String(i?.bench_key || ''),
+              included_count: Number(i?.included_count ?? 0),
+              pdf_url: i?.pdf_url ?? null,
+            }));
             this.benchStates = this.benchStates.map((s) => ({
               ...s,
               pdfUrl: map.get(s.bench_key) ?? s.pdfUrl,
@@ -109,11 +101,57 @@ export class ListingOfficerHome {
             this.isLoading = false;
           },
           error: () => {
+            this.publishedBenchSummary = [];
             this.isLoading = false;
           },
         });
       },
     );
+  }
+
+  private loadMonthCalendar(): void {
+    const month = this.selectedMonth;
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) return;
+    const [y, m] = month.split('-').map((x) => Number(x));
+    const daysInMonth = new Date(y, m, 0).getDate();
+    const dates = Array.from({ length: daysInMonth }, (_, i) => {
+      const day = i + 1;
+      return `${month}-${String(day).padStart(2, '0')}`;
+    });
+    this.isCalendarLoading = true;
+    const requests = dates.map((d) =>
+      this.causeListService.getPublishedCauseLists(d).pipe(
+        catchError(() => of({ items: [] })),
+      ),
+    );
+    forkJoin(requests).subscribe({
+      next: (rows) => {
+        this.monthDays = rows.map((r: any, idx: number) => {
+          const date = dates[idx];
+          const publishedCount = (r?.items ?? []).length;
+          return {
+            date,
+            day: Number(date.slice(-2)),
+            publishedCount,
+            hasAny: publishedCount > 0,
+          };
+        });
+        this.isCalendarLoading = false;
+      },
+      error: () => {
+        this.monthDays = [];
+        this.isCalendarLoading = false;
+      },
+    });
+  }
+
+  openDateFromCalendar(date: string): void {
+    this.selectedDate = date;
+    this.loadAllPreviews();
+  }
+
+  get publishedMonthDays(): Array<{ date: string; day: number; publishedCount: number; hasAny: boolean }> {
+    return this.monthDays.filter((d) => d.hasAny);
   }
 
   saveDraft(state: BenchState): void {
@@ -144,49 +182,6 @@ export class ListingOfficerHome {
 
   includedCount(state: BenchState): number {
     return (state.items || []).filter((i) => i.included).length;
-  }
-
-  forwardToJudges(state: BenchState): void {
-    if (!this.selectedDate) return;
-    const ids = (state.forwardItems || [])
-      .filter((i) => i.included === true)
-      .map((i) => i.efiling_id);
-    if (!ids.length) return;
-
-    state.isForwarding = true;
-    const payload = {
-      forwarded_for_date: this.selectedDate,
-      bench_key: state.bench_key,
-      efiling_ids: ids,
-    };
-
-    this.causeListService.forwardToCourtroom(payload).subscribe({
-      next: (resp: any) => {
-        state.isForwarding = false;
-        const updated = Number(resp?.updated ?? 0);
-        const skipped = Number(resp?.skipped ?? 0);
-        Swal.fire({
-          title: 'Forwarded',
-          text: `Forwarded ${updated} case(s) to judges${skipped > 0 ? `, skipped ${skipped}` : ''}.`,
-          icon: skipped > 0 ? 'warning' : 'success',
-          timer: 1400,
-          showConfirmButton: false,
-        });
-      },
-      error: (err) => {
-        console.warn('forward failed', err);
-        state.isForwarding = false;
-        Swal.fire({
-          title: 'Forward Failed',
-          text: err?.error?.detail || 'Failed to forward cases.',
-          icon: 'error',
-        });
-      },
-    });
-  }
-
-  selectedForwardCount(state: BenchState): number {
-    return (state.forwardItems || []).filter((i) => i.included === true).length;
   }
 
   draftPdfUrl(state: BenchState): string | null {

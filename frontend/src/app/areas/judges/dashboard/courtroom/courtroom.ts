@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import Swal from 'sweetalert2';
 
@@ -22,15 +23,21 @@ export class JudgeCourtroomPage {
   caseSummary: any = null;
 
   listingDate: string = new Date().toISOString().slice(0, 10);
-  decisionStatus: 'APPROVED' | 'DECLINED' | 'REQUESTED_DOCS' = 'DECLINED';
+  decisionStatus: 'APPROVED' | 'DECLINED' = 'DECLINED';
   decisionNotes = '';
-  requestedDocumentIds: number[] = [];
+  allCaseDocuments: any[] = [];
+  docSearch = '';
+  previewDocument: any = null;
+  previewDocumentUrl: SafeResourceUrl | null = null;
+  previewDocumentBlobUrl: string | null = null;
+  previewLoadError = '';
 
   canWrite = false;
 
   constructor(
     private route: ActivatedRoute,
     private courtroomService: CourtroomService,
+    private sanitizer: DomSanitizer,
   ) {}
 
   ngOnInit(): void {
@@ -69,14 +76,11 @@ export class JudgeCourtroomPage {
         this.forwardedForDate = resp?.forwarded_for_date ?? this.forwardedForDate;
         this.listingDate = resp?.forwarded_for_date ?? this.listingDate;
         const existingStatus = resp?.judge_decision?.status;
-        if (existingStatus === 'APPROVED' || existingStatus === 'DECLINED' || existingStatus === 'REQUESTED_DOCS') {
+        if (existingStatus === 'APPROVED' || existingStatus === 'DECLINED') {
           this.decisionStatus = existingStatus;
         }
         this.decisionNotes = resp?.judge_decision?.decision_notes ?? '';
-        const requested = resp?.judge_decision?.requested_documents ?? [];
-        this.requestedDocumentIds = Array.isArray(requested)
-          ? requested.map((x: any) => Number(x?.document_index_id)).filter((x: number) => Number.isFinite(x))
-          : [];
+        this.loadCaseDocuments();
         this.isLoading = false;
       },
       error: (err) => {
@@ -91,10 +95,6 @@ export class JudgeCourtroomPage {
     if (!this.canWrite || !this.efilingId || !this.forwardedForDate || !this.listingDate) return;
     if (this.decisionStatus === 'DECLINED' && !(this.decisionNotes || '').trim()) {
       Swal.fire({ title: 'Remarks Required', text: 'Please provide remarks for decline.', icon: 'warning' });
-      return;
-    }
-    if (this.decisionStatus === 'REQUESTED_DOCS' && !this.requestedDocumentIds.length) {
-      Swal.fire({ title: 'Select Documents', text: 'Please select at least one requested document.', icon: 'warning' });
       return;
     }
     Swal.fire({
@@ -113,8 +113,6 @@ export class JudgeCourtroomPage {
           listing_date: this.listingDate,
           status: this.decisionStatus,
           decision_notes: this.decisionNotes || null,
-          requested_document_index_ids:
-            this.decisionStatus === 'REQUESTED_DOCS' ? this.requestedDocumentIds : [],
         })
         .subscribe({
           next: () => {
@@ -128,22 +126,70 @@ export class JudgeCourtroomPage {
     });
   }
 
-  setDecisionStatus(status: 'APPROVED' | 'DECLINED' | 'REQUESTED_DOCS'): void {
-    this.decisionStatus = status;
+  private loadCaseDocuments(): void {
+    if (!this.efilingId || !this.forwardedForDate) return;
+    this.courtroomService.getCaseDocuments(this.efilingId, this.forwardedForDate, false).subscribe({
+      next: (resp) => {
+        this.allCaseDocuments = resp?.items ?? [];
+        if (this.allCaseDocuments.length && !this.previewDocument) {
+          this.selectPreviewDocument(this.allCaseDocuments[0]);
+        }
+      },
+      error: (err) => {
+        console.warn('Failed to load case documents', err);
+        this.allCaseDocuments = [];
+      },
+    });
   }
 
-  isRequestedDocument(docId: number): boolean {
-    return this.requestedDocumentIds.includes(docId);
+  get filteredDocuments(): any[] {
+    const q = this.docSearch.trim().toLowerCase();
+    if (!q) return this.allCaseDocuments;
+    return this.allCaseDocuments.filter((d) => {
+      const name = String(d?.document_part_name || d?.document_type || '').toLowerCase();
+      return name.includes(q);
+    });
   }
 
-  toggleRequestedDocument(docId: number, checked: boolean): void {
-    if (checked) {
-      if (!this.requestedDocumentIds.includes(docId)) {
-        this.requestedDocumentIds = [...this.requestedDocumentIds, docId];
-      }
+  selectPreviewDocument(doc: any): void {
+    this.previewDocument = doc;
+    this.updatePreviewUrl(doc ?? null);
+  }
+
+  private updatePreviewUrl(document: any | null): void {
+    if (this.previewDocumentBlobUrl) {
+      URL.revokeObjectURL(this.previewDocumentBlobUrl);
+      this.previewDocumentBlobUrl = null;
+    }
+    const docId = Number(document?.id || 0);
+    const fileUrl = document?.file_url || document?.file_part_path || null;
+    if (!docId && !fileUrl) {
+      this.previewDocumentUrl = null;
+      this.previewLoadError = '';
       return;
     }
-    this.requestedDocumentIds = this.requestedDocumentIds.filter((id) => id !== docId);
+    const resolvedUrl = fileUrl ? this.courtroomService.resolveDocumentUrl(fileUrl) : '';
+    if (fileUrl) {
+      this.previewDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(resolvedUrl);
+    }
+    this.previewLoadError = '';
+    const stream$ = docId
+      ? this.courtroomService.fetchDocumentBlobByIndex(docId)
+      : this.courtroomService.fetchDocumentBlob(resolvedUrl);
+    stream$.subscribe({
+      next: (blob) => {
+        this.previewDocumentBlobUrl = URL.createObjectURL(blob);
+        this.previewDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.previewDocumentBlobUrl);
+      },
+      error: () => {
+        this.previewDocumentUrl = null;
+        this.previewLoadError = 'Unable to load this PDF preview (file missing or moved).';
+      },
+    });
+  }
+
+  setDecisionStatus(status: 'APPROVED' | 'DECLINED'): void {
+    this.decisionStatus = status;
   }
 }
 

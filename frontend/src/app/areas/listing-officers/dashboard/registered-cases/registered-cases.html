@@ -29,46 +29,14 @@
               <div class="small text-muted">{{ c.petitioner_name || '-' }} vs {{ c.respondent_name || '-' }}</div>
             </div>
 
-            <div class="bench-picker" (click)="$event.stopPropagation()">
-              <label class="form-label small fw-semibold mb-1">Select Bench for Forwarding</label>
-              <select
-                class="form-select form-select-sm"
-                [(ngModel)]="c.assigned_bench"
-                [ngModelOptions]="{ standalone: true }"
-                (click)="$event.stopPropagation()"
-              >
-                <option [ngValue]="null" disabled>Select Bench</option>
-                <option *ngFor="let b of benchKeys" [value]="b">
-                  {{ benchLabel(b) }}
-                </option>
-              </select>
-              <div class="tiny text-muted mt-1">
-                Current Assigned Bench: {{ benchLabel(c.bench) }}
-              </div>
-              <div class="tiny text-muted mt-1" *ngIf="judgesForCaseForward(c).length > 0">
-                Forwards to:
-                {{ judgesForCaseForward(c).join(', ') }}
-              </div>
+            <div class="bench-picker">
+              <div class="tiny text-muted mt-1">Current Bench: {{ benchLabel(c.bench) }}</div>
               <div class="mt-2 d-flex align-items-center gap-2 flex-wrap">
                 <span class="badge rounded-pill" [ngClass]="approvalBadgeClass(c)">
                   {{ approvalStatusLabel(c) }}
                 </span>
-                <button
-                  class="btn btn-outline-primary btn-sm"
-                  (click)="forwardCaseForApproval(c); $event.stopPropagation()"
-                  [disabled]="c.approval_status === 'PENDING' || !c.assigned_bench"
-                >
-                  {{
-                    c.approval_status === 'PENDING'
-                      ? 'Forwarded'
-                      : (c.approval_status === 'REQUESTED_DOCS' ? 'Re-forward Requested Docs' : 'Forward to Judges')
-                  }}
-                </button>
               </div>
-              <div class="tiny text-muted mt-1" *ngIf="c.approval_forwarded_for_date">
-                Forwarded On: {{ c.approval_forwarded_for_date }}
-                <span *ngIf="c.approval_bench_key"> ({{ benchLabel(c.approval_bench_key) }})</span>
-              </div>
+              <div class="tiny text-muted mt-1">Open case to select bench and forward to judges.</div>
             </div>
           </div>
         </div>
@@ -96,24 +64,13 @@
                 <div *ngFor="let note of c.approval_notes">{{ note }}</div>
               </div>
             </div>
-            <div class="summary-row" *ngIf="c.approval_status === 'REQUESTED_DOCS' && (c.requested_documents?.length ?? 0) > 0">
-              <div class="summary-label">Requested Documents</div>
-              <div class="summary-value">
-                {{ requestedDocsLabel(c) }}
-              </div>
+            <div class="summary-row" *ngIf="c.approval_listing_date">
+              <div class="summary-label">Judge Listing Date</div>
+              <div class="summary-value">{{ c.approval_listing_date }}</div>
             </div>
             <div class="summary-row">
-              <div class="summary-label">Case Summary for Judge</div>
-              <div class="summary-value">
-                <textarea
-                  class="form-control form-control-sm"
-                  rows="3"
-                  [(ngModel)]="c.listing_summary"
-                  [ngModelOptions]="{ standalone: true }"
-                  (click)="$event.stopPropagation()"
-                  placeholder="Write concise case summary for judge..."
-                ></textarea>
-              </div>
+              <div class="summary-label">Action</div>
+              <div class="summary-value">Open case to review docs, write summary, select bench, and forward.</div>
             </div>
           </div>
         </div>
@@ -166,10 +123,4 @@
     No registered cases found.
   </div>
 </ng-container>
-
-<div *ngIf="!isLoading && unassignedCases.length > 0" class="mt-3 d-flex justify-content-end gap-2">
-  <button class="btn btn-primary" (click)="saveAssignments()" [disabled]="isSaving || unassignedCases.some(c => !canAssignBench(c) || !c.assigned_bench)">
-    {{ isSaving ? 'Saving...' : 'Save Assignments' }}
-  </button>
-</div>
 

@@ -87,6 +87,35 @@
         </div>
       </div>
     </div>
+
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white fw-semibold">Calendar</div>
+        <div class="card-body p-0 table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Listing Date</th>
+                <th>Case No</th>
+                <th>Status</th>
+                <th>Remarks</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let c of calendarItems">
+                <td>{{ c.listing_date || '-' }}</td>
+                <td class="text-nowrap">{{ c.case_number || '-' }}</td>
+                <td><span class="badge" [ngClass]="statusBadge(c.status)">{{ c.status }}</span></td>
+                <td>{{ c.decision_notes || '-' }}</td>
+              </tr>
+              <tr *ngIf="calendarItems.length === 0">
+                <td colspan="4" class="text-muted text-center py-4">No calendar events yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
