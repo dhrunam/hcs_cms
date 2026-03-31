@@ -31,6 +31,7 @@ from apps.listing.serializers import (
 )
 
 from django.db.models import Prefetch, Q
+from django.db.models import Count
 
 
 BENCH_TO_REQUIRED_GROUPS: Dict[str, Sequence[str]] = {
@@ -46,14 +47,9 @@ BENCH_TO_REQUIRED_GROUPS: Dict[str, Sequence[str]] = {
 
 def _judge_approved_efiling_ids(cause_list_date: str, bench_key: str) -> Set[int]:
     """
-    Returns efiling_ids that are approved by ALL required judge groups for this bench_key and date.
+    Returns efiling_ids that are approved by ALL required judge groups for this bench_key.
+    Listing Officer can publish on any date; judge listing date is reference only.
     """
-    cld: date_type
-    try:
-        cld = timezone.datetime.fromisoformat(str(cause_list_date)).date()
-    except Exception as e:
-        raise ValidationError({"cause_list_date": f"Invalid date: {cause_list_date}"}) from e
-
     required_groups = BENCH_TO_REQUIRED_GROUPS.get(bench_key)
     if not required_groups:
         return set()
@@ -61,7 +57,6 @@ def _judge_approved_efiling_ids(cause_list_date: str, bench_key: str) -> Set[int
     forwarded_ids = set(
         CourtroomForward.objects.filter(
             bench_key=bench_key,
-            forwarded_for_date=cld,
         ).values_list("efiling_id", flat=True)
     )
     if not forwarded_ids:
@@ -69,14 +64,10 @@ def _judge_approved_efiling_ids(cause_list_date: str, bench_key: str) -> Set[int
 
     group_to_ids: List[Set[int]] = []
     for group_name in required_groups:
-        # Strict eligibility: every required judge-group must approve the SAME listing date
-        # (equal to selected cause_list_date) for the SAME forwarded date.
         ids = set(
             CourtroomJudgeDecision.objects.filter(
                 judge_user__groups__name=group_name,
                 efiling_id__in=forwarded_ids,
-                forwarded_for_date=cld,
-                listing_date=cld,
                 approved=True,
             ).values_list("efiling_id", flat=True)
         )
@@ -150,8 +141,24 @@ class CauseListDraftPreviewView(APIView):
         approved_only_raw = request.query_params.get("approved_only", "true")
         approved_only = approved_only_raw.strip().lower() in {"true", "1", "yes", "y"}
 
+        judge_listing_date_map: Dict[int, str | None] = {}
         if approved_only:
             approved_ids = _judge_approved_efiling_ids(cause_list_date, bench_key)
+            # Reference-only metadata: judge suggested listing date per case.
+            if approved_ids:
+                rows = (
+                    CourtroomJudgeDecision.objects.filter(
+                        efiling_id__in=approved_ids,
+                        approved=True,
+                    )
+                    .values("efiling_id", "listing_date")
+                    .order_by("efiling_id", "-listing_date", "-id")
+                )
+                for row in rows:
+                    eid = int(row["efiling_id"])
+                    if eid not in judge_listing_date_map:
+                        d = row.get("listing_date")
+                        judge_listing_date_map[eid] = d.isoformat() if d else None
             accepted = (
                 Efiling.objects.filter(
                     id__in=approved_ids,
@@ -181,12 +188,23 @@ class CauseListDraftPreviewView(APIView):
         items: List[Dict[str, Any]] = []
         for idx, filing in enumerate(accepted, start=1):
             existing = existing_entries.get(filing.id)
+            if existing is not None:
+                included = bool(existing.included)
+                serial_no = existing.serial_no if existing.serial_no is not None else idx
+            else:
+                # For freshly judge-approved cases, show them in the approved pool
+                # but do NOT auto-include them in the list. Listing Officer must
+                # explicitly select which approved cases to include for the date.
+                included = not approved_only
+                serial_no = idx
+
             items.append(
                 {
                     "efiling_id": filing.id,
                     "case_number": filing.case_number,
-                    "included": bool(existing.included) if existing else True,
-                    "serial_no": existing.serial_no if existing and existing.serial_no is not None else idx,
+                    "included": included,
+                    "serial_no": serial_no,
+                    "judge_listing_date": judge_listing_date_map.get(filing.id),
                 }
             )
 
@@ -595,6 +613,9 @@ class PublishedCauseListByDateView(APIView):
                 cause_list_date=cause_list_date,
                 status=CauseList.CauseListStatus.PUBLISHED,
             )
+            .annotate(
+                included_count=Count("entries", filter=Q(entries__included=True)),
+            )
             .order_by("bench_key")
             .all()
         )
@@ -605,6 +626,7 @@ class PublishedCauseListByDateView(APIView):
                 {
                     "id": cl.id,
                     "bench_key": cl.bench_key,
+                    "included_count": int(getattr(cl, "included_count", 0) or 0),
                     "pdf_url": (
                         request.build_absolute_uri(cl.pdf_file.url)
                         if cl.pdf_file and getattr(cl.pdf_file, "url", None)
@@ -851,6 +873,7 @@ class RegisteredCasesListView(APIView):
         decision_map: dict[tuple[int, date_type], dict[str, bool]] = {}
         decision_status_map: dict[tuple[int, date_type], dict[str, str]] = {}
         decision_notes_map: dict[tuple[int, date_type], List[str]] = {}
+        decision_listing_date_map: dict[tuple[int, date_type], List[str]] = {}
         requested_docs_map: dict[tuple[int, date_type], List[dict]] = {}
         if forward_keys:
             e_ids = sorted({eid for eid, _ in forward_keys})
@@ -866,6 +889,7 @@ class RegisteredCasesListView(APIView):
                     "forwarded_for_date",
                     "status",
                     "approved",
+                    "listing_date",
                     "decision_notes",
                     "judge_user__groups__name",
                 )
@@ -908,6 +932,9 @@ class RegisteredCasesListView(APIView):
                         decision_notes_map[key] = []
                     label = grp.replace("JUDGE_", "Judge ") if grp else "Judge"
                     decision_notes_map[key].append(f"{label}: {note}")
+                listing_date = d.get("listing_date")
+                if listing_date:
+                    decision_listing_date_map.setdefault(key, []).append(str(listing_date))
                 decision_docs = docs_by_decision.get(int(d["id"]), [])
                 if decision_docs:
                     existing = requested_docs_map.setdefault(key, [])
@@ -923,6 +950,7 @@ class RegisteredCasesListView(APIView):
             case_detail = e.case_details.all().first() if hasattr(e, "case_details") else None
             approval_status = "NOT_FORWARDED"
             approval_notes: List[str] = []
+            approval_listing_date = None
             requested_documents: List[dict] = []
             approval_bench_key = None
             approval_forwarded_for_date = None
@@ -935,6 +963,9 @@ class RegisteredCasesListView(APIView):
                 group_decisions = decision_map.get(key, {})
                 group_statuses = decision_status_map.get(key, {})
                 approval_notes = decision_notes_map.get(key, [])
+                listing_dates = decision_listing_date_map.get(key, [])
+                if listing_dates:
+                    approval_listing_date = sorted(listing_dates)[0]
                 requested_documents = requested_docs_map.get(key, [])
 
                 rejected = any(group_decisions.get(g) is False for g in req_groups if g in group_decisions)
@@ -977,6 +1008,7 @@ class RegisteredCasesListView(APIView):
                     "approval_notes": approval_notes,
                     "approval_bench_key": approval_bench_key,
                     "approval_forwarded_for_date": approval_forwarded_for_date,
+                    "approval_listing_date": approval_listing_date,
                     "listing_summary": latest_forward.listing_summary if latest_forward else None,
                     "requested_documents": requested_documents,
                 }

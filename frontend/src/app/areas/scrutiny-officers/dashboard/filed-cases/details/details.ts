@@ -129,7 +129,7 @@ export class FiledCaseDetails {
   selectDocument(document: any): void {
     this.selectedDocument = document;
     this.reviewNote = document?.draft_comments ?? document?.comments ?? '';
-    this.updatePreviewUrl(document?.file_url ?? null);
+    this.updatePreviewUrl(document ?? null);
 
     if (!document?.id) {
       this.documentHistory = [];
@@ -146,19 +146,26 @@ export class FiledCaseDetails {
     });
   }
 
-  updatePreviewUrl(fileUrl: string | null): void {
+  updatePreviewUrl(document: any | null): void {
     if (this.selectedDocumentBlobUrl) {
       URL.revokeObjectURL(this.selectedDocumentBlobUrl);
       this.selectedDocumentBlobUrl = null;
     }
 
-    if (!fileUrl) {
+    const docId = Number(document?.id || 0);
+    const fileUrl = document?.file_url ?? null;
+    if (!docId && !fileUrl) {
       this.selectedDocumentUrl = null;
       return;
     }
 
-    this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
-    this.efilingService.fetch_document_blob(fileUrl).subscribe({
+    if (fileUrl) {
+      this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+    }
+    const stream$ = docId
+      ? this.efilingService.fetch_document_blob_by_index(docId)
+      : this.efilingService.fetch_document_blob(fileUrl);
+    stream$.subscribe({
       next: (blob) => {
         this.selectedDocumentBlobUrl = URL.createObjectURL(blob);
         this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
@@ -166,7 +173,11 @@ export class FiledCaseDetails {
         );
       },
       error: () => {
-        this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+        if (fileUrl) {
+          this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+        } else {
+          this.selectedDocumentUrl = null;
+        }
       },
     });
   }
@@ -461,12 +472,19 @@ export class FiledCaseDetails {
       URL.revokeObjectURL(this.selectedIaDocumentBlobUrl);
       this.selectedIaDocumentBlobUrl = null;
     }
-    if (!document?.file_url) {
+    const docId = Number(document?.id || 0);
+    const fileUrl = document?.file_url ?? null;
+    if (!docId && !fileUrl) {
       this.selectedIaDocumentUrl = null;
       return;
     }
-    this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(document.file_url);
-    this.efilingService.fetch_document_blob(document.file_url).subscribe({
+    if (fileUrl) {
+      this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+    }
+    const stream$ = docId
+      ? this.efilingService.fetch_document_blob_by_index(docId)
+      : this.efilingService.fetch_document_blob(fileUrl);
+    stream$.subscribe({
       next: (blob) => {
         this.selectedIaDocumentBlobUrl = URL.createObjectURL(blob);
         this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
@@ -474,7 +492,11 @@ export class FiledCaseDetails {
         );
       },
       error: () => {
-        this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(document.file_url);
+        if (fileUrl) {
+          this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+        } else {
+          this.selectedIaDocumentUrl = null;
+        }
       },
     });
 

@@ -25,7 +25,12 @@ export class AuthService {
 
   async initAuth(): Promise<void> {
     this.oauthService.configure(authConfig);
-    await this.oauthService.loadDiscoveryDocumentAndTryLogin();
+    try {
+      await this.oauthService.loadDiscoveryDocumentAndTryLogin();
+    } catch (error) {
+      // In local/dev flows SSO server may be offline; keep app usable.
+      console.warn('SSO discovery unavailable, continuing without SSO session.');
+    }
     this.syncSessionFromTokens();
   }
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.urls import path
 
 from apps.judge.views import (
+    CourtroomDecisionCalendarView,
     CourtroomApprovedLookupView,
     CourtroomCaseSummaryView,
     CourtroomCaseDocumentsView,
@@ -45,6 +46,11 @@ urlpatterns = [
         "courtroom/approved/",
         CourtroomApprovedLookupView.as_view(),
         name="courtroom-approved-lookup",
+    ),
+    path(
+        "courtroom/decisions/calendar/",
+        CourtroomDecisionCalendarView.as_view(),
+        name="courtroom-decisions-calendar",
     ),
 ]
 

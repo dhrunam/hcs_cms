@@ -1,40 +1,43 @@
-import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
-import { FormGroup, FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
-import { ToastrService } from 'ngx-toastr';
+import { CommonModule } from "@angular/common";
+import { Component } from "@angular/core";
+import {
+  FormGroup,
+  FormBuilder,
+  Validators,
+  ReactiveFormsModule,
+} from "@angular/forms";
+import { ToastrService } from "ngx-toastr";
 
-import Swal from 'sweetalert2';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { InitialInputs } from '../../new-filing/initial-inputs/initial-inputs';
-import { Litigant } from '../../new-filing/litigant/litigant';
-import { CaseDetails } from '../../new-filing/case-details/case-details';
-import { EFile } from '../../new-filing/e-file/e-file';
-import { UploadDocuments } from '../../new-filing/upload-documents/upload-documents';
-import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
-import { getValidationErrorMessage } from '../../../../../../utils/pdf-validation';
-import { HttpEventType } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
+import Swal from "sweetalert2";
+import { ActivatedRoute, Router, RouterLink } from "@angular/router";
+import { InitialInputs } from "../../new-filing/initial-inputs/initial-inputs";
+import { Litigant } from "../../new-filing/litigant/litigant";
+import { EFile } from "../../new-filing/e-file/e-file";
+import { UploadDocuments } from "../../new-filing/upload-documents/upload-documents";
+import { EfilingService } from "../../../../../../services/advocate/efiling/efiling.services";
+import { getValidationErrorMessage } from "../../../../../../utils/pdf-validation";
+import { HttpEventType } from "@angular/common/http";
+import { firstValueFrom } from "rxjs";
 
 @Component({
-  selector: 'app-edit',
+  selector: "app-edit",
   standalone: true,
   imports: [
     CommonModule,
     ReactiveFormsModule,
     InitialInputs,
     Litigant,
-    CaseDetails,
     EFile,
     UploadDocuments,
     RouterLink,
   ],
-  templateUrl: './edit.html',
-  styleUrls: ['./edit.css'],
+  templateUrl: "./edit.html",
+  styleUrls: ["./edit.css"],
 })
 export class Edit {
-  step = 2;
+  step = 1;
   filingId: number | null = null;
-  eFilingNumber: string = '';
+  eFilingNumber: string = "";
   // filingId: number = 28;
   // eFilingNumber: string = 'ASK20240000028C202600028';
   step1Saved = false;
@@ -64,49 +67,53 @@ export class Edit {
   ) {
     this.form = this.fb.group({
       initialInputs: this.fb.group({
-        bench: ['High Court Of Sikkim', Validators.required],
-        case_type: ['', Validators.required],
-        petitioner_name: ['', Validators.required],
-        petitioner_contact: ['', [Validators.required, Validators.pattern(/^[0-9]{10}$/)]],
+        bench: ["High Court Of Sikkim", Validators.required],
+        case_type: ["", Validators.required],
+        petitioner_name: ["", Validators.required],
+        petitioner_contact: [
+          "",
+          [Validators.required, Validators.pattern(/^[0-9]{10}$/)],
+        ],
         e_filing_number: [this.eFilingNumber],
       }),
 
       litigants: this.fb.group(
         {
-          name: ['', Validators.required],
-          gender: [''],
-          age: [''],
+          id: [""],
+          name: ["", Validators.required],
+          gender: [""],
+          age: [""],
 
-          sequence_number: ['', Validators.required],
+          sequence_number: ["", Validators.required],
 
           is_diffentially_abled: [false],
           is_petitioner: [true],
 
           is_organisation: [false],
-          organization: [''],
+          organization: [""],
 
-          contact: ['', [Validators.pattern(/^[0-9]{10}$/)]],
-          email: ['', [Validators.email]],
+          contact: ["", [Validators.pattern(/^[0-9]{10}$/)]],
+          email: ["", [Validators.email]],
 
-          religion: [''],
-          caste: [''],
-          occupation: [''],
+          religion: [""],
+          caste: [""],
+          occupation: [""],
 
-          address: ['', Validators.required],
+          address: ["", Validators.required],
 
-          state_id: [''],
-          district_id: [''],
+          state_id: [""],
+          district_id: [""],
 
-          taluka: [''],
-          village: [''],
+          taluka: [""],
+          village: [""],
         },
 
         {
           validators: (group) => {
-            const isOrg = group.get('is_organisation')?.value;
-            const org = group.get('organization')?.value;
-            const age = group.get('age')?.value;
-            const gender = group.get('gender')?.value;
+            const isOrg = group.get("is_organisation")?.value;
+            const org = group.get("organization")?.value;
+            const age = group.get("age")?.value;
+            const gender = group.get("gender")?.value;
 
             if (isOrg && !org) {
               return { orgRequired: true };
@@ -125,20 +132,20 @@ export class Edit {
         },
       ),
 
-      caseDetails: this.fb.group({
-        cause_of_action: ['', Validators.required],
-        date_of_cause_of_action: ['', Validators.required],
-        dispute_state: [''],
-        dispute_district: [''],
-        dispute_taluka: [''],
+      // caseDetails: this.fb.group({
+      //   cause_of_action: ["", Validators.required],
+      //   date_of_cause_of_action: ["", Validators.required],
+      //   dispute_state: [""],
+      //   dispute_district: [""],
+      //   dispute_taluka: [""],
 
-        act: ['', Validators.required],
-        section: ['', Validators.required],
-      }),
+      //   act: ["", Validators.required],
+      //   section: ["", Validators.required],
+      // }),
 
       actDetails: this.fb.group({
-        act: ['', Validators.required],
-        section: ['', Validators.required],
+        act: ["", Validators.required],
+        section: ["", Validators.required],
       }),
 
       uploadFilingDoc: this.fb.group({
@@ -153,44 +160,45 @@ export class Edit {
 
   ngOnInit() {
     this.route.queryParams.subscribe((params) => {
-      const idParam = params['id'] ?? params['efiling_id'] ?? params['e_filing_id'];
-      // alert(idParam);
+      const idParam =
+        params["id"] ?? params["efiling_id"] ?? params["e_filing_id"];
       this.filingId = Number(idParam || 0) || null;
-      // alert(this.filingId);
-      this.eFilingNumber = params['e_filing_number'] || this.eFilingNumber;
-      // alert(this.eFilingNumber);
-      this.get_litigant_list_by_filing_id();
+      this.eFilingNumber = params["e_filing_number"] || this.eFilingNumber;
       if (this.filingId) {
+        this.get_litigant_list_by_filing_id();
         this.loadInitialInputs();
-        this.loadCaseDetails();
-        this.loadActList();
         this.loadDocuments();
       }
     });
   }
 
   get_litigant_list_by_filing_id() {
-    this.eFilingService.get_litigant_list_by_filing_id(this.filingId || 0).subscribe({
-      next: (data) => {
-        this.litigantList = data.results;
-      },
-    });
+    this.eFilingService
+      .get_litigant_list_by_filing_id(this.filingId || 0)
+      .subscribe({
+        next: (data) => {
+          this.litigantList = data.results;
+        },
+      });
   }
 
   get_case_details_by_filing_id() {
-    this.eFilingService.get_case_details_by_filing_id(this.filingId || 0).subscribe({
-      next: (data) => {
-        this.caseDetailsForm.patchValue({
-          cause_of_action: data.results?.[0]?.cause_of_action || '',
-          date_of_cause_of_action: data.results?.[0]?.date_of_cause_of_action || '',
-          dispute_state: data.results?.[0]?.dispute_state || '',
-          dispute_district: data.results?.[0]?.dispute_district || '',
-          dispute_taluka: data.results?.[0]?.dispute_taluka || '',
-          act: '',
-          section: '',
-        });
-      },
-    });
+    this.eFilingService
+      .get_case_details_by_filing_id(this.filingId || 0)
+      .subscribe({
+        next: (data) => {
+          this.caseDetailsForm.patchValue({
+            cause_of_action: data.results?.[0]?.cause_of_action || "",
+            date_of_cause_of_action:
+              data.results?.[0]?.date_of_cause_of_action || "",
+            dispute_state: data.results?.[0]?.dispute_state || "",
+            dispute_district: data.results?.[0]?.dispute_district || "",
+            dispute_taluka: data.results?.[0]?.dispute_taluka || "",
+            act: "",
+            section: "",
+          });
+        },
+      });
   }
 
   actList: any[] = [];
@@ -199,16 +207,18 @@ export class Edit {
     this.actList = [...this.actList, ...data];
     const shouldPersistActs =
       !!this.filingId &&
-      (this.step3Saved || this.caseDetailsForm.disabled || this.caseDetailsLocked);
+      (this.step3Saved ||
+        this.caseDetailsForm.disabled ||
+        this.caseDetailsLocked);
 
     if (shouldPersistActs) {
       data.forEach((item: any) => {
         const payload = new FormData();
 
-        payload.append('e_filing', String(this.filingId));
-        payload.append('e_filing_number', this.eFilingNumber);
-        payload.append('act', item.act);
-        payload.append('section', item.section);
+        payload.append("e_filing", String(this.filingId));
+        payload.append("e_filing_number", this.eFilingNumber);
+        payload.append("act", item.act);
+        payload.append("section", item.section);
 
         this.eFilingService.add_case_details_act(payload).subscribe(() => {
           this.loadActList();
@@ -216,19 +226,19 @@ export class Edit {
       });
     }
 
-    console.log('Act list in parent page', this.actList);
+    console.log("Act list in parent page", this.actList);
 
-    const group = this.form.get('caseDetails') as FormGroup;
+    const group = this.form.get("caseDetails") as FormGroup;
 
     group.patchValue({
-      act: '',
-      section: '',
+      act: "",
+      section: "",
     });
 
-    group.get('act')?.markAsPristine();
-    group.get('act')?.markAsUntouched();
-    group.get('section')?.markAsPristine();
-    group.get('section')?.markAsUntouched();
+    group.get("act")?.markAsPristine();
+    group.get("act")?.markAsUntouched();
+    group.get("section")?.markAsPristine();
+    group.get("section")?.markAsUntouched();
   }
 
   removeAct(index: number) {
@@ -248,46 +258,70 @@ export class Edit {
 
     if (!files || files.length === 0) return null;
 
-    const invalid = files.some((file) => file.type !== 'application/pdf');
+    const invalid = files.some((file) => file.type !== "application/pdf");
 
     return invalid ? { invalidFileType: true } : null;
   }
 
   get initialInputsForm(): FormGroup {
-    return this.form.get('initialInputs') as FormGroup;
+    return this.form.get("initialInputs") as FormGroup;
   }
 
   get litigantsForm(): FormGroup {
-    return this.form.get('litigants') as FormGroup;
+    return this.form.get("litigants") as FormGroup;
   }
 
   get caseDetailsForm(): FormGroup {
-    return this.form.get('caseDetails') as FormGroup;
+    return this.form.get("caseDetails") as FormGroup;
   }
 
   getActDetailsForm(): FormGroup {
-    return this.form.get('actDetails') as FormGroup;
+    return this.form.get("actDetails") as FormGroup;
   }
 
   get uploadFilingDocForm(): FormGroup {
-    return this.form.get('uploadFilingDoc') as FormGroup;
+    return this.form.get("uploadFilingDoc") as FormGroup;
+  }
+
+  get mergeFrontPage(): {
+    petitionerName: string;
+    respondentName: string;
+    caseNo: string;
+    caseType: string;
+  } {
+    const init = this.initialInputsForm?.value;
+    const petitionerName = init?.petitioner_name?.trim() || "";
+    const petitioners = this.litigantList
+      .filter((l: any) => l.is_petitioner)
+      .map((l: any) => l.name || "")
+      .filter(Boolean);
+    const respondents = this.litigantList
+      .filter((l: any) => !l.is_petitioner)
+      .map((l: any) => l.name || "")
+      .filter(Boolean);
+
+    const caseType =
+      this.filingData?.case_type_detail?.type_name ||
+      this.filingData?.case_type_detail?.name ||
+      this.filingData?.case_type?.type_name ||
+      this.filingData?.case_type?.name ||
+      String(init?.case_type || "").trim();
+
+    return {
+      petitionerName: petitionerName || petitioners.join(", ") || "",
+      respondentName: respondents.join(", ") || "",
+      caseNo: this.eFilingNumber || "",
+      caseType,
+    };
   }
 
   get setDeclarationForm(): FormGroup {
-    return this.form.get('setDeclaration') as FormGroup;
+    return this.form.get("setDeclaration") as FormGroup;
   }
 
   getCurrentForm(): FormGroup {
     if (this.step === 1) {
-      return this.form.get('initialInputs') as FormGroup;
-    }
-
-    if (this.step === 2) {
-      return this.form.get('litigants') as FormGroup;
-    }
-
-    if (this.step === 3) {
-      return this.form.get('caseDetails') as FormGroup;
+      return this.form.get("litigants") as FormGroup;
     }
 
     return this.form;
@@ -295,41 +329,44 @@ export class Edit {
 
   next() {
     const currentForm = this.getCurrentForm();
-    const isCaseDetailsStep = this.step === 3;
 
-    if (this.step === 2 && !this.hasRequiredLitigants()) {
+    if (this.step === 1 && !this.hasRequiredLitigants()) {
       const message = this.hasPetitionerOnly()
-        ? 'At least one respondent should be added.'
-        : 'Please complete the form before continuing.';
-      this.toastr.error(message, '', {
+        ? "At least one respondent should be added."
+        : "Please complete the form before continuing.";
+      this.toastr.error(message, "", {
         timeOut: 3000,
         closeButton: true,
       });
       return;
     }
 
-    if (this.step == 2 && this.litigantList.length > 0) {
-      this.step++;
-      if (this.step === 3 && !this.caseDetailsData && this.filingId) {
-        this.loadCaseDetails();
-      }
+    if (this.step == 1 && this.litigantList.length > 0) {
+      this.step = 4;
+      this.setCaseDetailsReviewState(this.step === 5);
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+      return;
     }
 
     if (this.step == 4 && this.docList.length > 0) {
-      this.step++;
+      this.step = 5;
+      this.setCaseDetailsReviewState(this.step === 5);
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+      return;
     }
 
-    if (isCaseDetailsStep) {
-      if (!this.step3Saved) {
-        this.saveStep3();
-        return;
-      }
-    } else if (currentForm.invalid) {
+    if (currentForm.invalid) {
       currentForm.markAllAsTouched();
       return;
     }
 
-    if (this.step < 4) {
+    if (this.step < 5) {
       this.step++;
     }
 
@@ -337,12 +374,14 @@ export class Edit {
 
     window.scrollTo({
       top: 0,
-      behavior: 'smooth',
+      behavior: "smooth",
     });
   }
 
   prev() {
-    if (this.step > 1) {
+    if (this.step === 4) {
+      this.step = 1;
+    } else if (this.step > 1) {
       this.step--;
     }
 
@@ -350,45 +389,56 @@ export class Edit {
   }
 
   goToStep(stepNumber: number) {
+    if (stepNumber === 2 || stepNumber === 3) {
+      stepNumber = 1;
+    }
+
     const maxStep = this.getMaxAllowedStep();
     if (stepNumber > maxStep) {
-      this.toastr.error('Please complete the form before continuing.', '', {
-        timeOut: 3000,
-        closeButton: true,
-      });
+      this.toastr.error(
+        "Please complete the current form before moving forward.",
+        "",
+        {
+          timeOut: 3000,
+          closeButton: true,
+        },
+      );
       return;
     }
 
     this.step = stepNumber;
-    if (this.step === 3 && !this.caseDetailsData && this.filingId) {
-      this.loadCaseDetails();
-    }
     this.setCaseDetailsReviewState(this.step === 5);
   }
 
   saveStep1() {
-    const form = this.form.get('initialInputs') as FormGroup;
+    const form = this.form.get("initialInputs") as FormGroup;
 
     if (form.invalid) {
       form.markAllAsTouched();
       return;
     }
 
-    this.eFilingService.post_efiling_initial_details(form.value).subscribe((res: any) => {
-      this.filingId = res.id;
-      this.eFilingNumber = res.e_filing_number;
-      this.form.get('initialInputs')?.patchValue({
-        e_filing_number: this.eFilingNumber,
+    this.eFilingService
+      .post_efiling_initial_details(form.value)
+      .subscribe((res: any) => {
+        this.filingId = res.id;
+        this.eFilingNumber = res.e_filing_number;
+        this.form.get("initialInputs")?.patchValue({
+          e_filing_number: this.eFilingNumber,
+        });
+        this.initialInputsForm.disable();
+        this.step = 2;
+        this.toastr.success(
+          "Saved successfully. E Filing number: " + this.eFilingNumber,
+          "",
+          {
+            timeOut: 11000,
+            closeButton: true,
+            progressBar: true,
+            positionClass: "toast-bottom-right",
+          },
+        );
       });
-      this.initialInputsForm.disable();
-      this.step = 2;
-      this.toastr.success('Saved successfully. E Filing number: ' + this.eFilingNumber, '', {
-        timeOut: 11000,
-        closeButton: true,
-        progressBar: true,
-        positionClass: 'toast-bottom-right',
-      });
-    });
   }
 
   // saveStep2() {
@@ -419,16 +469,27 @@ export class Edit {
   // }
 
   saveStep2() {
-    const form = this.form.get('litigants') as FormGroup;
+    const form = this.form.get("litigants") as FormGroup;
     const formValue = { ...form.value };
+    const currentLitigantId = Number(formValue.id || 0);
 
-    if (!this.isSequenceNumberUnique(formValue.sequence_number, formValue.is_petitioner)) {
+    if (
+      !this.isSequenceNumberUnique(
+        formValue.sequence_number,
+        formValue.is_petitioner,
+        currentLitigantId,
+      )
+    ) {
       const typeLabel = this.getLitigantTypeLabel(formValue.is_petitioner);
-      this.toastr.error(`Sequence number must be unique for ${typeLabel}.`, '', {
-        timeOut: 3000,
-      });
-      form.get('sequence_number')?.markAsTouched();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      this.toastr.error(
+        `Sequence number must be unique for ${typeLabel}.`,
+        "",
+        {
+          timeOut: 3000,
+        },
+      );
+      form.get("sequence_number")?.markAsTouched();
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
@@ -438,7 +499,7 @@ export class Edit {
 
     if (form.invalid) {
       form.markAllAsTouched();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
@@ -451,7 +512,7 @@ export class Edit {
     this.eFilingService.post_litigant_details(payload).subscribe((res: any) => {
       this.litigantList.push(res);
 
-      console.log('Litigant details are', res);
+      console.log("Litigant details are", res);
 
       const nextSequence = this.getNextSequenceNumber(formValue.is_petitioner);
 
@@ -459,14 +520,14 @@ export class Edit {
         is_diffentially_abled: false,
         is_petitioner: formValue.is_petitioner,
         sequence_number: nextSequence,
-        gender: '',
-        organization: '',
+        gender: "",
+        organization: "",
       });
 
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: "smooth" });
 
       const typeLabel = this.getLitigantTypeLabel(formValue.is_petitioner);
-      this.toastr.success(`1 ${typeLabel} added`, '', {
+      this.toastr.success(`1 ${typeLabel} added`, "", {
         timeOut: 3000,
       });
     });
@@ -476,10 +537,42 @@ export class Edit {
     this.litigantList = this.litigantList.filter((item) => item.id !== id);
   }
 
-  private isSequenceNumberUnique(sequenceNumber: number, isPetitioner: boolean): boolean {
+  undoLitigantEdit() {
+    const form = this.form.get("litigants") as FormGroup;
+    form.reset({
+      id: "",
+      name: "",
+      gender: "",
+      age: "",
+      sequence_number: "",
+      is_diffentially_abled: false,
+      is_petitioner: true,
+      is_organisation: false,
+      organization: "",
+      contact: "",
+      email: "",
+      religion: "",
+      caste: "",
+      occupation: "",
+      address: "",
+      state_id: "",
+      district_id: "",
+      taluka: "",
+      village: "",
+    });
+    form.markAsPristine();
+    form.markAsUntouched();
+  }
+
+  private isSequenceNumberUnique(
+    sequenceNumber: number,
+    isPetitioner: boolean,
+    currentLitigantId?: number,
+  ): boolean {
     if (!sequenceNumber && sequenceNumber !== 0) return false;
     return !this.litigantList.some(
       (item) =>
+        Number(item.id) !== Number(currentLitigantId || 0) &&
         this.normalizeIsPetitioner(item.is_petitioner) ===
           this.normalizeIsPetitioner(isPetitioner) &&
         Number(item.sequence_number) === Number(sequenceNumber),
@@ -487,17 +580,22 @@ export class Edit {
   }
 
   private normalizeIsPetitioner(value: any): boolean {
-    return value === true || value === 'true' || value === 1 || value === '1';
+    return value === true || value === "true" || value === 1 || value === "1";
   }
 
   private getLitigantTypeLabel(isPetitioner: boolean): string {
-    return this.normalizeIsPetitioner(isPetitioner) ? 'petitioner' : 'respondent';
+    return this.normalizeIsPetitioner(isPetitioner)
+      ? "petitioner"
+      : "respondent";
   }
 
   private getNextSequenceNumber(isPetitioner: boolean): number {
     const maxSequence = this.litigantList
       .filter((item) => item.is_petitioner === isPetitioner)
-      .reduce((max, item) => Math.max(max, Number(item.sequence_number) || 0), 0);
+      .reduce(
+        (max, item) => Math.max(max, Number(item.sequence_number) || 0),
+        0,
+      );
     return maxSequence + 1;
   }
 
@@ -507,7 +605,96 @@ export class Edit {
     return hasPetitioner && !hasRespondent;
   }
 
-  updateStep2() {}
+  updateStep2() {
+    const form = this.form.get("litigants") as FormGroup;
+    const formValue = { ...form.value };
+    const litigantId = Number(formValue.id || 0);
+
+    if (!litigantId) {
+      this.toastr.error("Please select a litigant to update.");
+      return;
+    }
+
+    if (
+      !this.isSequenceNumberUnique(
+        formValue.sequence_number,
+        formValue.is_petitioner,
+        litigantId,
+      )
+    ) {
+      const typeLabel = this.getLitigantTypeLabel(formValue.is_petitioner);
+      this.toastr.error(
+        `Sequence number must be unique for ${typeLabel}.`,
+        "",
+        {
+          timeOut: 3000,
+        },
+      );
+      form.get("sequence_number")?.markAsTouched();
+      return;
+    }
+
+    if (formValue.is_organisation) {
+      formValue.age = 0;
+    }
+
+    if (form.invalid) {
+      form.markAllAsTouched();
+      return;
+    }
+
+    const payload = new FormData();
+    payload.append("id", String(litigantId));
+    payload.append("e_filing", String(this.filingId || ""));
+    payload.append("e_filing_number", String(this.eFilingNumber || ""));
+    payload.append("name", String(formValue.name || ""));
+    payload.append("gender", String(formValue.gender || ""));
+    payload.append("age", String(formValue.age ?? ""));
+    payload.append("sequence_number", String(formValue.sequence_number ?? ""));
+    payload.append(
+      "is_diffentially_abled",
+      String(!!formValue.is_diffentially_abled),
+    );
+    payload.append("is_petitioner", String(!!formValue.is_petitioner));
+    payload.append("is_organisation", String(!!formValue.is_organisation));
+    payload.append("organization", String(formValue.organization ?? ""));
+    payload.append("contact", String(formValue.contact || ""));
+    payload.append("email", String(formValue.email || ""));
+    payload.append("religion", String(formValue.religion || ""));
+    payload.append("caste", String(formValue.caste || ""));
+    payload.append("occupation", String(formValue.occupation || ""));
+    payload.append("address", String(formValue.address || ""));
+    payload.append("state_id", String(formValue.state_id || ""));
+    payload.append("district_id", String(formValue.district_id || ""));
+    payload.append("taluka", String(formValue.taluka || ""));
+    payload.append("village", String(formValue.village || ""));
+
+    this.eFilingService
+      .update_litigant_details(payload)
+      .subscribe((res: any) => {
+        const index = this.litigantList.findIndex(
+          (item) => Number(item.id) === litigantId,
+        );
+
+        if (index > -1) {
+          this.litigantList[index] = res;
+        }
+
+        form.reset({
+          id: "",
+          is_diffentially_abled: false,
+          is_petitioner: formValue.is_petitioner,
+          sequence_number: "",
+          gender: "",
+          organization: "",
+        });
+
+        this.toastr.success("Litigant updated successfully", "", {
+          timeOut: 3000,
+        });
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+  }
 
   saveStep3() {
     const form = this.caseDetailsForm;
@@ -516,14 +703,19 @@ export class Edit {
 
     const missingRequiredActs = this.actList.length === 0;
     const missingRequiredDetails =
-      form.get('cause_of_action')?.invalid || form.get('date_of_cause_of_action')?.invalid;
+      form.get("cause_of_action")?.invalid ||
+      form.get("date_of_cause_of_action")?.invalid;
 
     if (missingRequiredActs || missingRequiredDetails) {
-      this.toastr.error('Please add at least one act and complete required fields.', '', {
-        timeOut: 3000,
-      });
+      this.toastr.error(
+        "Please add at least one act and complete required fields.",
+        "",
+        {
+          timeOut: 3000,
+        },
+      );
       if (missingRequiredDetails) {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
       return;
     }
@@ -547,8 +739,8 @@ export class Edit {
       this.step3Saved = true;
       this.caseDetailsLocked = true;
       this.caseDetailsForm.disable({ emitEvent: false });
-      this.caseDetailsForm.get('act')?.enable({ emitEvent: false });
-      this.caseDetailsForm.get('section')?.enable({ emitEvent: false });
+      this.caseDetailsForm.get("act")?.enable({ emitEvent: false });
+      this.caseDetailsForm.get("section")?.enable({ emitEvent: false });
       this.step = 4;
     });
   }
@@ -561,83 +753,89 @@ export class Edit {
 
   isCaseDetailsNextDisabled(): boolean {
     const form = this.caseDetailsForm;
-    const hasCause = !form.get('cause_of_action')?.invalid;
-    const hasDate = !form.get('date_of_cause_of_action')?.invalid;
+    const hasCause = !form.get("cause_of_action")?.invalid;
+    const hasDate = !form.get("date_of_cause_of_action")?.invalid;
     const hasActs = this.actList.length > 0;
     return !hasCause || !hasDate || !hasActs;
   }
 
   private getMaxAllowedStep(): number {
-    if (!this.eFilingNumber) return 1;
-    if (!this.hasRequiredLitigants()) return 2;
-    if (!this.step3Saved) return 3;
+    if (!this.hasRequiredLitigants()) return 1;
     return 5;
   }
 
   goToPageFromPreview(step: number) {
+    if (step === 2 || step === 3) {
+      step = 1;
+    }
     this.step = step;
     this.setCaseDetailsReviewState(this.step === 5);
   }
 
   private loadCaseDetails() {
-    this.eFilingService.get_case_details_by_filing_id(this.filingId || 0).subscribe({
-      next: (data) => {
-        console.log('Case details data is', data);
-        const details = Array.isArray(data?.results)
-          ? data.results[0]
-          : Array.isArray(data)
-            ? data[0]
-            : data;
-        if (!details) return;
+    this.eFilingService
+      .get_case_details_by_filing_id(this.filingId || 0)
+      .subscribe({
+        next: (data) => {
+          console.log("Case details data is", data);
+          const details = Array.isArray(data?.results)
+            ? data.results[0]
+            : Array.isArray(data)
+              ? data[0]
+              : data;
+          if (!details) return;
 
-        this.caseDetailsData = details;
+          this.caseDetailsData = details;
 
-        const disputeState =
-          details.dispute_state_id ?? details.dispute_state?.id ?? details.dispute_state ?? '';
-        const disputeDistrict =
-          details.dispute_district_id ??
-          details.dispute_district?.id ??
-          details.dispute_district ??
-          '';
-        const dateOfCause = details.date_of_cause_of_action
-          ? String(details.date_of_cause_of_action).slice(0, 10)
-          : '';
+          const disputeState =
+            details.dispute_state_id ??
+            details.dispute_state?.id ??
+            details.dispute_state ??
+            "";
+          const disputeDistrict =
+            details.dispute_district_id ??
+            details.dispute_district?.id ??
+            details.dispute_district ??
+            "";
+          const dateOfCause = details.date_of_cause_of_action
+            ? String(details.date_of_cause_of_action).slice(0, 10)
+            : "";
 
-        this.caseDetailsForm.enable({ emitEvent: false });
-        this.caseDetailsForm.patchValue({
-          cause_of_action: details.cause_of_action || '',
-          date_of_cause_of_action: dateOfCause,
-          dispute_state: disputeState,
-          dispute_district: disputeDistrict,
-          dispute_taluka: details.dispute_taluka || '',
-          act: '',
-          section: '',
-        });
+          this.caseDetailsForm.enable({ emitEvent: false });
+          this.caseDetailsForm.patchValue({
+            cause_of_action: details.cause_of_action || "",
+            date_of_cause_of_action: dateOfCause,
+            dispute_state: disputeState,
+            dispute_district: disputeDistrict,
+            dispute_taluka: details.dispute_taluka || "",
+            act: "",
+            section: "",
+          });
 
-        this.step3Saved = true;
-        this.caseDetailsLocked = true;
-        this.caseDetailsForm.disable({ emitEvent: false });
-        this.caseDetailsForm.get('act')?.enable({ emitEvent: false });
-        this.caseDetailsForm.get('section')?.enable({ emitEvent: false });
-        this.setCaseDetailsReviewState(false);
-      },
-    });
+          this.step3Saved = true;
+          this.caseDetailsLocked = true;
+          this.caseDetailsForm.disable({ emitEvent: false });
+          this.caseDetailsForm.get("act")?.enable({ emitEvent: false });
+          this.caseDetailsForm.get("section")?.enable({ emitEvent: false });
+          this.setCaseDetailsReviewState(false);
+        },
+      });
   }
 
   private loadInitialInputs() {
     this.eFilingService.get_filing_by_efiling_id(this.filingId || 0).subscribe({
       next: (data) => {
-        console.log('I am here', data);
+        console.log("I am here", data);
         const record = Array.isArray(data?.results) ? data.results[0] : data;
         if (!record) return;
 
         this.filingData = record;
-        console.log('Filing data is ', this.filingData);
+        console.log("Filing data is ", this.filingData);
         this.initialInputsForm.patchValue({
-          bench: record.bench || 'High Court Of Sikkim',
-          case_type: record.case_type || '',
-          petitioner_name: record.petitioner_name || '',
-          petitioner_contact: record.petitioner_contact || '',
+          bench: record.bench || "High Court Of Sikkim",
+          case_type: record.case_type.id || "",
+          petitioner_name: record.petitioner_name || "",
+          petitioner_contact: record.petitioner_contact || "",
           e_filing_number: this.eFilingNumber || record.e_filing_number,
         });
         if (!this.eFilingNumber && record.e_filing_number) {
@@ -675,8 +873,8 @@ export class Edit {
 
     if (isReview || this.caseDetailsLocked) {
       form.disable({ emitEvent: false });
-      form.get('act')?.enable({ emitEvent: false });
-      form.get('section')?.enable({ emitEvent: false });
+      form.get("act")?.enable({ emitEvent: false });
+      form.get("section")?.enable({ emitEvent: false });
       return;
     }
 
@@ -685,28 +883,30 @@ export class Edit {
 
   previewDoc(doc: any) {
     if (doc.final_document) {
-      window.open(doc.final_document, '_blank');
+      window.open(doc.final_document, "_blank");
     }
   }
 
   deleteDoc(id: number, index: number) {
     const confirmDelete = confirm(
-      'Your document will be deleted and you need to re-upload it. Continue?',
+      "Your document will be deleted and you need to re-upload it. Continue?",
     );
 
     if (!confirmDelete) return;
 
-    this.eFilingService.delete_case_documnets_before_final_filing(id).subscribe({
-      next: (res) => {
-        console.log('Deleted response', res);
-        this.docList.splice(index, 1);
-        this.loadDocuments();
-      },
-    });
+    this.eFilingService
+      .delete_case_documnets_before_final_filing(id)
+      .subscribe({
+        next: (res) => {
+          console.log("Deleted response", res);
+          this.docList.splice(index, 1);
+          this.loadDocuments();
+        },
+      });
   }
 
   async handleDocUpload(data: any) {
-    const documentType = String(data?.document_type || '').trim();
+    const documentType = String(data?.document_type || "").trim();
     const uploadItems = Array.isArray(data?.items) ? data.items : [];
 
     if (!documentType || uploadItems.length === 0 || !this.filingId) return;
@@ -716,9 +916,9 @@ export class Edit {
 
     try {
       const documentPayload = new FormData();
-      documentPayload.append('document_type', documentType);
-      documentPayload.append('e_filing', String(this.filingId));
-      documentPayload.append('e_filing_number', this.eFilingNumber);
+      documentPayload.append("document_type", documentType);
+      documentPayload.append("e_filing", String(this.filingId));
+      documentPayload.append("e_filing_number", this.eFilingNumber);
 
       const documentRes = await firstValueFrom(
         this.eFilingService.upload_case_documnets(documentPayload),
@@ -732,29 +932,39 @@ export class Edit {
         const item = uploadItems[i];
 
         const indexPayload = new FormData();
-        indexPayload.append('document', String(documentId));
-        indexPayload.append('document_part_name', String(item.index_name || '').trim());
-        indexPayload.append('file_part_path', item.file);
-        indexPayload.append('document_sequence', String(i + 1));
+        indexPayload.append("document", String(documentId));
+        indexPayload.append(
+          "document_part_name",
+          String(item.index_name || "").trim(),
+        );
+        indexPayload.append("file_part_path", item.file);
+        indexPayload.append("document_sequence", String(i + 1));
         if (item.index_id) {
-          indexPayload.append('index', String(item.index_id));
+          indexPayload.append("index", String(item.index_id));
         }
 
-        const indexRes = await this.uploadIndexFileWithProgress(indexPayload, i);
+        const indexRes = await this.uploadIndexFileWithProgress(
+          indexPayload,
+          i,
+        );
         uploadedDocumentParts.push(indexRes);
       }
 
       this.docList.push({
         ...documentRes,
         document_indexes: uploadedDocumentParts,
-        final_document: uploadedDocumentParts[0]?.file_url || documentRes?.final_document,
+        final_document:
+          uploadedDocumentParts[0]?.file_url || documentRes?.final_document,
       });
 
       this.uploadCompletedToken++;
       this.loadDocuments();
     } catch (error) {
-      console.error('Document upload failed', error);
-      this.toastr.error(getValidationErrorMessage(error) || 'Failed to upload documents. Please try again.');
+      console.error("Document upload failed", error);
+      this.toastr.error(
+        getValidationErrorMessage(error) ||
+          "Failed to upload documents. Please try again.",
+      );
     } finally {
       this.isUploadingDocuments = false;
     }
@@ -763,56 +973,67 @@ export class Edit {
   private loadDocuments() {
     if (!this.filingId) return;
 
-    this.eFilingService.get_document_reviews_by_filing_id(this.filingId).subscribe({
-      next: (data) => {
-        const rows = Array.isArray(data?.results) ? data.results : [];
-        const grouped = new Map<string, any>();
+    this.eFilingService
+      .get_document_reviews_by_filing_id(this.filingId)
+      .subscribe({
+        next: (data) => {
+          const rows = Array.isArray(data?.results) ? data.results : [];
+          const grouped = new Map<string, any>();
 
-        rows.forEach((item: any) => {
-          const type = String(item?.document_type || '').trim() || 'Document';
-          const existing = grouped.get(type);
-          const documentId = item?.document || item?.document_id || item?.documentId || item?.id;
+          rows.forEach((item: any) => {
+            const type = String(item?.document_type || "").trim() || "Document";
+            const existing = grouped.get(type);
+            const documentId =
+              item?.document ||
+              item?.document_id ||
+              item?.documentId ||
+              item?.id;
 
-          if (existing) {
-            existing.document_indexes.push(item);
-            if (!existing.id && documentId) {
-              existing.id = documentId;
+            if (existing) {
+              existing.document_indexes.push(item);
+              if (!existing.id && documentId) {
+                existing.id = documentId;
+              }
+            } else {
+              grouped.set(type, {
+                id: documentId || null,
+                document_type: type,
+                document_indexes: [item],
+              });
             }
-          } else {
-            grouped.set(type, {
-              id: documentId || null,
-              document_type: type,
-              document_indexes: [item],
-            });
-          }
-        });
+          });
 
-        this.docList = Array.from(grouped.values()).map((doc) => {
-          const sortedIndexes = Array.isArray(doc.document_indexes)
-            ? [...doc.document_indexes].sort((a: any, b: any) => {
-                const left = Number(a?.document_sequence) || 0;
-                const right = Number(b?.document_sequence) || 0;
-                return left - right;
-              })
-            : [];
+          this.docList = Array.from(grouped.values()).map((doc) => {
+            const sortedIndexes = Array.isArray(doc.document_indexes)
+              ? [...doc.document_indexes].sort((a: any, b: any) => {
+                  const left = Number(a?.document_sequence) || 0;
+                  const right = Number(b?.document_sequence) || 0;
+                  return left - right;
+                })
+              : [];
 
-          return {
-            ...doc,
-            document_indexes: sortedIndexes,
-          };
-        });
-      },
-    });
+            return {
+              ...doc,
+              document_indexes: sortedIndexes,
+            };
+          });
+        },
+      });
   }
 
-  private uploadIndexFileWithProgress(formData: FormData, index: number): Promise<any> {
+  private uploadIndexFileWithProgress(
+    formData: FormData,
+    index: number,
+  ): Promise<any> {
     return new Promise((resolve, reject) => {
       this.eFilingService.upload_case_documnets_index(formData).subscribe({
         next: (event: any) => {
           if (event.type === HttpEventType.UploadProgress) {
             const total = event.total || 0;
             if (total > 0) {
-              this.uploadFileProgresses[index] = Math.round((event.loaded / total) * 100);
+              this.uploadFileProgresses[index] = Math.round(
+                (event.loaded / total) * 100,
+              );
             }
           }
 
@@ -827,28 +1048,28 @@ export class Edit {
   }
 
   saveStep4() {
-    const files = this.form.get('uploadFilingDoc.documents')?.value;
+    const files = this.form.get("uploadFilingDoc.documents")?.value;
 
     if (!files || files.length === 0) return;
 
     const formData = new FormData();
 
     files.forEach((file: File, index: number) => {
-      formData.append('documents', file); // same key for multiple
+      formData.append("documents", file); // same key for multiple
     });
   }
 
   submit() {
     Swal.fire({
-      title: 'Submit Filing?',
-      text: 'Once submitted, it will be forwarded for scrutiny.',
-      icon: 'warning',
+      title: "Submit Filing?",
+      text: "Once submitted, it will be forwarded for scrutiny.",
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonText: 'Yes, Submit',
-      cancelButtonText: 'Cancel',
+      confirmButtonText: "Yes, Submit",
+      cancelButtonText: "Cancel",
     }).then((result) => {
       if (result.isConfirmed) {
-        this.toastr.success('OTP has been sent successfully.', '', {
+        this.toastr.success("OTP has been sent successfully.", "", {
           timeOut: 3000,
           closeButton: true,
         });
@@ -864,26 +1085,26 @@ export class Edit {
     let submitting = false;
 
     Swal.fire({
-      title: 'Enter OTP',
+      title: "Enter OTP",
       html:
         '<div style="display:flex;gap:8px;justify-content:center">' +
-        ['otp-1', 'otp-2', 'otp-3', 'otp-4']
+        ["otp-1", "otp-2", "otp-3", "otp-4"]
           .map(
             (id) =>
               `<input id="${id}" type="text" inputmode="numeric" maxlength="1" style="width:48px;height:48px;text-align:center;font-size:20px;border:1px solid #d1d5db;border-radius:8px;" />`,
           )
-          .join('') +
-        '</div>' +
+          .join("") +
+        "</div>" +
         '<div id="otp-status" style="margin-top:12px;font-size:14px;text-align:center"></div>',
       showCancelButton: true,
       showConfirmButton: false,
       allowOutsideClick: false,
       didOpen: () => {
-        const ids = ['otp-1', 'otp-2', 'otp-3', 'otp-4'];
+        const ids = ["otp-1", "otp-2", "otp-3", "otp-4"];
         const inputs = ids
           .map((id) => document.getElementById(id) as HTMLInputElement | null)
           .filter((el): el is HTMLInputElement => !!el);
-        const statusEl = document.getElementById('otp-status');
+        const statusEl = document.getElementById("otp-status");
 
         const setStatus = (message: string, color: string) => {
           if (!statusEl) return;
@@ -891,51 +1112,59 @@ export class Edit {
           statusEl.style.color = color;
         };
 
-        const getOtp = () => inputs.map((el) => el.value || '').join('');
+        const getOtp = () => inputs.map((el) => el.value || "").join("");
 
         const validateOtp = () => {
           const otp = getOtp();
           if (otp.length < 4) {
-            setStatus('', '');
+            setStatus("", "");
             return;
           }
 
-          if (otp !== '0000') {
-            setStatus('OTP error. Please try again.', '#dc2626');
+          if (otp !== "0000") {
+            setStatus("OTP error. Please try again.", "#dc2626");
             return;
           }
 
-          setStatus('OTP verified.', '#16a34a');
+          setStatus("OTP verified.", "#16a34a");
           if (submitting) return;
           submitting = true;
 
-          this.eFilingService.final_submit_efiling(this.filingId || 0).subscribe({
-            next: () => {
-              Swal.fire({
-                icon: 'success',
-                title: 'Filed Successfully',
-                text: 'Your filing has been submitted for scrutiny.',
-              }).then(() => {
-                this.router.navigate(['/advocate/dashboard/efiling/pending-scrutiny']);
-              });
-            },
-            error: (err) => {
-              submitting = false;
-              setStatus('Submission failed. Please try again.', '#dc2626');
-              console.error(err);
-            },
-          });
+          this.eFilingService
+            .final_submit_efiling(this.filingId || 0)
+            .subscribe({
+              next: () => {
+                Swal.fire({
+                  icon: "success",
+                  title: "Filed Successfully",
+                  text: "Your filing has been submitted for scrutiny.",
+                }).then(() => {
+                  this.router.navigate([
+                    "/advocate/dashboard/efiling/pending-scrutiny",
+                  ]);
+                });
+              },
+              error: (err) => {
+                submitting = false;
+                setStatus("Submission failed. Please try again.", "#dc2626");
+                console.error(err);
+              },
+            });
         };
 
         inputs.forEach((input, index) => {
-          input.addEventListener('input', () => {
-            input.value = input.value.replace(/\D/g, '').slice(0, 1);
+          input.addEventListener("input", () => {
+            input.value = input.value.replace(/\D/g, "").slice(0, 1);
             if (input.value && inputs[index + 1]) inputs[index + 1].focus();
             validateOtp();
           });
 
-          input.addEventListener('keydown', (event) => {
-            if (event.key === 'Backspace' && !input.value && inputs[index - 1]) {
+          input.addEventListener("keydown", (event) => {
+            if (
+              event.key === "Backspace" &&
+              !input.value &&
+              inputs[index - 1]
+            ) {
               inputs[index - 1].focus();
             }
           });
