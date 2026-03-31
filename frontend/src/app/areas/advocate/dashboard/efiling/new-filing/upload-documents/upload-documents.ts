@@ -576,22 +576,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     this.isSubmitting = true;
 
     const items = this.isStructuredMode()
-      ? [
-          ...this.structuredRows
-            .filter((row) => !!row.file)
-            .map((row) => ({
-              file: row.file as File,
-              index_name: row.index_name.trim(),
-              index_id: row.index_id,
-            })),
-          ...this.annexureRows
-            .filter((row) => !!row.file)
-            .map((row) => ({
-              file: row.file as File,
-              index_name: row.index_name.trim(),
-              index_id: row.index_id,
-            })),
-        ]
+      ? this.getStructuredItemsInRequiredOrder()
       : this.entries.map((entry) => ({
           file: entry.file,
           index_name: entry.index_name.trim(),
@@ -605,6 +590,22 @@ export class UploadDocuments implements OnInit, OnChanges {
     // console.log(payload);
     this.submitDoc.emit(payload);
     this.submitAttempted = false;
+  }
+
+  private getStructuredItemsInRequiredOrder(): UploadDocumentsPayloadItem[] {
+    const orderedRows = [
+      ...this.getRowsBeforeAnnexure(),
+      ...this.annexureRows,
+      ...this.getRowsAfterAnnexure(),
+    ];
+
+    return orderedRows
+      .filter((row) => !!row.file)
+      .map((row) => ({
+        file: row.file as File,
+        index_name: row.index_name.trim(),
+        index_id: row.index_id,
+      }));
   }
 
   isIndexNameInvalid(entry: DocumentUploadEntry): boolean {
