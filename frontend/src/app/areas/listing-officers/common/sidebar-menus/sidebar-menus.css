@@ -1,9 +1,12 @@
-/* Minimal styling for listing-officer sidebar menu items */
 .nav-link {
   color: #1e293b;
 }
 
 .nav-link:hover {
+  color: #ffffff;
+}
+
+.nav-item.active .nav-link {
   color: #ffffff;
 }
 
@@ -26,8 +29,42 @@
   transform: translateX(4px);
 }
 
+.nav-item.nav-item-has-submenu:hover {
+  background: transparent;
+  color: inherit;
+  transform: none;
+}
+
+.nav-item.nav-item-has-submenu > .nav-link:hover {
+  color: inherit;
+}
+
+#listingWorkflowSubmenu.collapse,
+#listingWorkflowSubmenu.collapsing {
+  transition: height 0.25s ease, opacity 0.25s ease;
+  overflow: hidden;
+}
+
+#listingWorkflowSubmenu.collapsing {
+  opacity: 0;
+}
+
+#listingWorkflowSubmenu.collapse.show {
+  opacity: 1;
+}
+
 .nav-item.active {
   background: #1d4ed8;
   box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+.filing-toggle[aria-expanded='true'] .filing-chevron {
+  transform: rotate(180deg);
+  transition: transform 0.2s ease;
+}
+
+.filing-toggle[aria-expanded='false'] .filing-chevron {
+  transform: rotate(0deg);
+  transition: transform 0.2s ease;
 }
 

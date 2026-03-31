@@ -427,6 +427,38 @@ export class Edit {
       });
   }
 
+  get uploadedIndexNames(): string[] {
+    const list = Array.isArray(this.docList) ? this.docList : [];
+    const names: string[] = [];
+    list.forEach((doc: any) => {
+      const indexes = Array.isArray(doc?.document_indexes)
+        ? doc.document_indexes
+        : [];
+      indexes.forEach((part: any) => {
+        const name = String(
+          part?.document_part_name ||
+            part?.document_part ||
+            part?.index_name ||
+            part?.name ||
+            "",
+        ).trim();
+        if (name) names.push(name);
+      });
+    });
+    return names;
+  }
+
+  get selectedCaseTypeId(): number | null {
+    const value = this.initialInputsForm?.get("case_type")?.value;
+    if (!value) return null;
+    if (typeof value === "object") {
+      const id = Number((value as any).id || 0);
+      return Number.isFinite(id) && id > 0 ? id : null;
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }
+
   actList: any[] = [];
 
   receiveActList(data: any[]) {
@@ -1081,7 +1113,7 @@ export class Edit {
         console.log("Filing data is ", this.filingData);
         this.initialInputsForm.patchValue({
           bench: record.bench || "High Court Of Sikkim",
-          case_type: record.case_type.id || "",
+          case_type: record.case_type?.id ?? record.case_type ?? "",
           petitioner_name: record.petitioner_name || "",
           petitioner_contact: record.petitioner_contact || "",
           e_filing_number: this.eFilingNumber || record.e_filing_number,
@@ -1154,6 +1186,7 @@ export class Edit {
   }
 
   async handleDocUpload(data: any) {
+    if (this.isUploadingDocuments) return;
     const documentType = String(data?.document_type || "").trim();
     const uploadItems = Array.isArray(data?.items) ? data.items : [];
 
@@ -1163,18 +1196,27 @@ export class Edit {
     this.uploadFileProgresses = uploadItems.map(() => 0);
 
     try {
-      const documentPayload = new FormData();
-      documentPayload.append("document_type", documentType);
-      documentPayload.append("e_filing", String(this.filingId));
-      documentPayload.append("e_filing_number", this.eFilingNumber);
+      let documentRes = this.findExistingDocumentByType(documentType);
+      let documentId = documentRes?.id;
 
-      const documentRes = await firstValueFrom(
-        this.eFilingService.upload_case_documnets(documentPayload),
-      );
-      const documentId = documentRes?.id;
-      if (!documentId) return;
+      if (!documentId) {
+        const documentPayload = new FormData();
+        documentPayload.append("document_type", documentType);
+        documentPayload.append("e_filing", String(this.filingId));
+        documentPayload.append("e_filing_number", this.eFilingNumber);
+
+        documentRes = await firstValueFrom(
+          this.eFilingService.upload_case_documnets(documentPayload),
+        );
+        documentId = documentRes?.id;
+        if (!documentId) return;
+      }
 
       const uploadedDocumentParts: any[] = [];
+
+      const existingIndexes = Array.isArray(documentRes?.document_indexes)
+        ? documentRes.document_indexes
+        : [];
 
       for (let i = 0; i < uploadItems.length; i++) {
         const item = uploadItems[i];
@@ -1186,7 +1228,10 @@ export class Edit {
           String(item.index_name || "").trim(),
         );
         indexPayload.append("file_part_path", item.file);
-        indexPayload.append("document_sequence", String(i + 1));
+        indexPayload.append(
+          "document_sequence",
+          String(existingIndexes.length + i + 1),
+        );
         if (item.index_id) {
           indexPayload.append("index", String(item.index_id));
         }
@@ -1198,12 +1243,23 @@ export class Edit {
         uploadedDocumentParts.push(indexRes);
       }
 
-      this.docList.push({
+      const mergedIndexes = [...existingIndexes, ...uploadedDocumentParts];
+      const mergedDoc = {
         ...documentRes,
-        document_indexes: uploadedDocumentParts,
+        document_type: documentType,
+        document_indexes: mergedIndexes,
         final_document:
-          uploadedDocumentParts[0]?.file_url || documentRes?.final_document,
-      });
+          mergedIndexes[0]?.file_url || documentRes?.final_document,
+      };
+
+      const existingIndex = this.docList.findIndex(
+        (doc: any) => Number(doc?.id) === Number(documentId),
+      );
+      if (existingIndex > -1) {
+        this.docList[existingIndex] = mergedDoc;
+      } else {
+        this.docList.push(mergedDoc);
+      }
 
       this.uploadCompletedToken++;
       this.loadDocuments();
@@ -1216,6 +1272,22 @@ export class Edit {
     } finally {
       this.isUploadingDocuments = false;
     }
+  }
+
+  private normalizeDocType(value: any): string {
+    return String(value || "")
+      .trim()
+      .toLowerCase();
+  }
+
+  private findExistingDocumentByType(documentType: string): any | null {
+    const target = this.normalizeDocType(documentType);
+    const list = Array.isArray(this.docList) ? this.docList : [];
+    return (
+      list.find(
+        (doc: any) => this.normalizeDocType(doc?.document_type) === target,
+      ) || null
+    );
   }
 
   private loadDocuments() {

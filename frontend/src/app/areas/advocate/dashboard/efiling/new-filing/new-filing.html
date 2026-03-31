@@ -176,6 +176,9 @@
                 [uploadCompletedToken]="uploadCompletedToken"
                 [frontPage]="mergeFrontPage"
                 [eFilingNumber]="eFilingNumber"
+                [defaultDocumentType]="'New Filing'"
+                [caseTypeId]="selectedCaseTypeId"
+                [existingIndexNames]="uploadedIndexNames"
                 (submitDoc)="handleDocUpload($event)"
               ></app-upload-documents>
             </div>
