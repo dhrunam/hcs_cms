@@ -21,9 +21,10 @@ import {
 import { EFile } from "./e-file/e-file";
 import { UploadDocuments } from "./upload-documents/upload-documents";
 import Swal from "sweetalert2";
-import { ActivatedRoute, Router } from "@angular/router";
+import { ActivatedRoute, Params, Router } from "@angular/router";
 import { firstValueFrom } from "rxjs";
 import { HttpEventType } from "@angular/common/http";
+import { PaymentService } from "../../../../../services/payment/payment.service";
 
 @Component({
   selector: "app-new-filing",
@@ -63,11 +64,27 @@ export class NewFiling {
 
   form!: FormGroup;
 
+  /** Set from payment gateway return URL or sessionStorage */
+  paymentOutcome: "success" | "failed" | null = null;
+
+  paymentDetails:
+    | {
+        txnId?: string;
+        paidAt?: string;
+        referenceNo?: string;
+        amount?: string;
+        outcome?: "success" | "failed" | null;
+      }
+    | null = null;
+
+  private readonly wpCourtFeeRupees = 250;
+
   constructor(
     private fb: FormBuilder,
     private toastr: ToastrService,
     private eFilingService: EfilingService,
     private caseTypeService: CaseTypeService,
+    private paymentService: PaymentService,
     private route: ActivatedRoute,
     private router: Router,
   ) {
@@ -169,16 +186,307 @@ export class NewFiling {
     });
     this.route.queryParams.subscribe((params) => {
       const idParam =
-        params["id"] ?? params["efiling_id"] ?? params["e_filing_id"];
+        params["id"] ??
+        params["efiling_id"] ??
+        params["e_filing_id"] ??
+        params["application"];
       this.filingId = Number(idParam || 0) || null;
-      this.eFilingNumber = params["e_filing_number"] || this.eFilingNumber;
+      this.eFilingNumber =
+        params["e_filing_number"] || this.eFilingNumber;
+      this.applyPaymentReturnQueryParams(params);
+      if (this.filingId) {
+        this.restorePaymentOutcomeFromStorage();
+        this.loadPaymentDetailsFromBackend();
+      }
       if (this.filingId) {
         this.loadInitialInputs();
+        this.get_litigant_list_by_filing_id();
+        this.loadDocuments();
         // this.loadCaseDetails();
         // Acts flow is temporarily disabled in New Filing accordion.
         // this.loadActList();
       }
     });
+  }
+
+  get isWPCCaseType(): boolean {
+    const label = this.getSelectedCaseTypeLabel().trim().toUpperCase();
+    return label === "WP(C)" || (label.includes("WP") && label.includes("(C)"));
+  }
+
+  get paymentFeeRupees(): number {
+    return this.isWPCCaseType ? this.wpCourtFeeRupees : 0;
+  }
+
+  get requiresCourtFeePayment(): boolean {
+    return this.paymentFeeRupees > 0;
+  }
+
+  get isPaymentSuccessful(): boolean {
+    if (!this.requiresCourtFeePayment) return true;
+    return this.paymentOutcome === "success";
+  }
+
+  private getSelectedCaseTypeLabel(): string {
+    const init = this.initialInputsForm?.value;
+    const caseTypeVal = init?.case_type;
+    if (caseTypeVal && typeof caseTypeVal === "object") {
+      return (
+        caseTypeVal.type_name ||
+        caseTypeVal.full_form ||
+        caseTypeVal.name ||
+        ""
+      );
+    }
+    if (caseTypeVal) {
+      const ct = this.caseTypes?.find(
+        (c: any) => Number(c.id) === Number(caseTypeVal),
+      );
+      return (
+        ct?.type_name || ct?.full_form || ct?.name || String(caseTypeVal)
+      );
+    }
+    return "";
+  }
+
+  private applyPaymentReturnQueryParams(params: Params) {
+    const statusRaw =
+      params["status"] ?? params["payment_status"] ?? params["txn_status"];
+    if (statusRaw === undefined || statusRaw === null || statusRaw === "") {
+      return;
+    }
+    const appParam = params["application"] ?? params["id"];
+    if (
+      this.filingId &&
+      appParam !== undefined &&
+      String(appParam) !== String(this.filingId)
+    ) {
+      return;
+    }
+    const st = String(statusRaw).trim().toLowerCase();
+    if (/(success|paid|complete|ok)/i.test(st)) {
+      this.paymentOutcome = "success";
+    } else if (/(fail|reject|declin|error|cancel)/i.test(st)) {
+      this.paymentOutcome = "failed";
+    } else {
+      this.paymentOutcome = "failed";
+    }
+
+    const txnId = String(
+      params["txn_id"] ??
+        params["transaction_id"] ??
+        params["sbs_ref_no"] ??
+        "",
+    );
+    const paidAt = String(
+      params["payment_datetime"] ?? params["paid_at"] ?? "",
+    );
+    const referenceNo = String(params["reference_no"] ?? "");
+    const amount = String(params["amount"] ?? "");
+
+    this.paymentDetails = {
+      txnId: txnId || undefined,
+      paidAt: paidAt || undefined,
+      referenceNo: referenceNo || undefined,
+      amount: amount || undefined,
+      outcome: this.paymentOutcome,
+    };
+
+    // Always open Payment accordion after gateway return.
+    this.step = 5;
+
+    this.persistPaymentOutcome();
+    const clean: Record<string, string | number> = {};
+    if (this.filingId) clean["id"] = this.filingId;
+    if (this.eFilingNumber) clean["e_filing_number"] = this.eFilingNumber;
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: clean,
+      replaceUrl: true,
+    });
+  }
+
+  private persistPaymentOutcome() {
+    if (!this.filingId || !this.paymentOutcome) return;
+    try {
+      sessionStorage.setItem(
+        `efiling_payment_${this.filingId}`,
+        JSON.stringify({
+          outcome: this.paymentOutcome,
+          details: this.paymentDetails,
+          at: Date.now(),
+        }),
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private restorePaymentOutcomeFromStorage() {
+    if (!this.filingId || this.paymentOutcome !== null) return;
+    try {
+      const raw = sessionStorage.getItem(`efiling_payment_${this.filingId}`);
+      if (!raw) return;
+      const j = JSON.parse(raw);
+      if (j?.outcome === "success" || j?.outcome === "failed") {
+        this.paymentOutcome = j.outcome;
+        this.paymentDetails = j?.details ?? {
+          outcome: j.outcome,
+        };
+        this.step = 5;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private loadPaymentDetailsFromBackend() {
+    if (!this.filingId) return;
+    this.paymentService.latest(this.filingId).subscribe({
+      next: (tx) => {
+        if (!tx || (!tx.txn_id && !tx.reference_no && !tx.status)) return;
+        const statusRaw = String(tx.status || "").toLowerCase();
+        if (/(success|paid|complete|ok)/i.test(statusRaw)) {
+          this.paymentOutcome = "success";
+        } else if (statusRaw) {
+          this.paymentOutcome = "failed";
+        }
+        this.paymentDetails = {
+          txnId: tx.txn_id || undefined,
+          paidAt: tx.payment_datetime || tx.paid_at || undefined,
+          referenceNo: tx.reference_no || undefined,
+          amount: tx.amount || undefined,
+          outcome: this.paymentOutcome,
+        };
+      },
+    });
+  }
+
+  get paymentDetailsForPreview() {
+    if (!this.requiresCourtFeePayment) {
+      return {
+        required: false,
+      };
+    }
+    return {
+      required: true,
+      txnId: this.paymentDetails?.txnId || "",
+      paidAt: this.paymentDetails?.paidAt || "",
+      referenceNo: this.paymentDetails?.referenceNo || "",
+      amount: this.paymentDetails?.amount || "",
+      outcome: this.paymentOutcome,
+    };
+  }
+
+  get_litigant_list_by_filing_id() {
+    if (!this.filingId) return;
+    this.eFilingService
+      .get_litigant_list_by_filing_id(this.filingId)
+      .subscribe({
+        next: (data) => {
+          this.litigantList = Array.isArray(data?.results) ? data.results : [];
+        },
+      });
+  }
+
+  private loadDocuments() {
+    if (!this.filingId) return;
+    this.eFilingService
+      .get_document_reviews_by_filing_id(this.filingId)
+      .subscribe({
+        next: (data) => {
+          const rows = Array.isArray(data?.results) ? data.results : [];
+          const grouped = new Map<string, any>();
+
+          rows.forEach((item: any) => {
+            const type = String(item?.document_type || "").trim() || "Document";
+            const existing = grouped.get(type);
+            const documentId =
+              item?.document ||
+              item?.document_id ||
+              item?.documentId ||
+              item?.id;
+
+            if (existing) {
+              existing.document_indexes.push(item);
+              if (!existing.id && documentId) {
+                existing.id = documentId;
+              }
+            } else {
+              grouped.set(type, {
+                id: documentId || null,
+                document_type: type,
+                document_indexes: [item],
+              });
+            }
+          });
+
+          this.docList = Array.from(grouped.values()).map((doc) => {
+            const sortedIndexes = Array.isArray(doc.document_indexes)
+              ? [...doc.document_indexes].sort((a: any, b: any) => {
+                  const left = Number(a?.document_sequence) || 0;
+                  const right = Number(b?.document_sequence) || 0;
+                  return left - right;
+                })
+              : [];
+
+            return {
+              ...doc,
+              document_indexes: sortedIndexes,
+            };
+          });
+        },
+      });
+  }
+
+  async confirmProceedToPay() {
+    if (!this.requiresCourtFeePayment) return;
+    if (!this.filingId || !this.eFilingNumber) {
+      this.toastr.error(
+        "Save the filing and ensure an e-filing number exists before paying.",
+      );
+      return;
+    }
+    const res = await Swal.fire({
+      title: "Proceed to pay court fee?",
+      html: `You will be redirected to the payment gateway to pay <strong>₹${this.paymentFeeRupees}</strong> for this filing.`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Yes, proceed to pay",
+      cancelButtonText: "Cancel",
+    });
+    if (!res.isConfirmed) return;
+    try {
+      const init = await firstValueFrom(
+        this.paymentService.initiate({
+          amount: this.paymentFeeRupees,
+          application: this.filingId,
+          e_filing_number: this.eFilingNumber,
+          payment_type: "application",
+        }),
+      );
+      this.postToGateway(init.action, init.fields as Record<string, string>);
+    } catch (e) {
+      console.error(e);
+      this.toastr.error("Could not start payment. Please try again.");
+    }
+  }
+
+  private postToGateway(action: string, fields: Record<string, string>) {
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = action;
+    form.style.display = "none";
+    form.acceptCharset = "UTF-8";
+    for (const [key, value] of Object.entries(fields)) {
+      const inp = document.createElement("input");
+      inp.type = "hidden";
+      inp.name = key;
+      inp.value = value == null ? "" : String(value);
+      form.appendChild(inp);
+    }
+    document.body.appendChild(form);
+    form.submit();
   }
 
   actList: any[] = [];
@@ -319,8 +627,6 @@ export class NewFiling {
   }
 
   next() {
-    const currentForm = this.getCurrentForm();
-
     if (this.step === 1 && !this.hasRequiredLitigants()) {
       const message = this.hasPetitionerOnly()
         ? "At least one respondent should be added."
@@ -334,7 +640,28 @@ export class NewFiling {
 
     if (this.step == 1 && this.litigantList.length > 0) {
       this.step = 4;
-      this.setCaseDetailsReviewState(this.step === 5);
+      this.setCaseDetailsReviewState(this.step === 6);
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+      return;
+    }
+
+    if (this.step === 5) {
+      if (this.requiresCourtFeePayment && !this.isPaymentSuccessful) {
+        this.toastr.error(
+          "Please complete court fee payment before continuing.",
+          "",
+          {
+            timeOut: 3500,
+            closeButton: true,
+          },
+        );
+        return;
+      }
+      this.step = 6;
+      this.setCaseDetailsReviewState(this.step === 6);
       window.scrollTo({
         top: 0,
         behavior: "smooth",
@@ -344,7 +671,7 @@ export class NewFiling {
 
     if (this.step == 4 && this.docList.length > 0) {
       this.step = 5;
-      this.setCaseDetailsReviewState(this.step === 5);
+      this.setCaseDetailsReviewState(this.step === 6);
       window.scrollTo({
         top: 0,
         behavior: "smooth",
@@ -352,16 +679,17 @@ export class NewFiling {
       return;
     }
 
+    const currentForm = this.getCurrentForm();
     if (currentForm.invalid) {
       currentForm.markAllAsTouched();
       return;
     }
 
-    if (this.step < 5) {
+    if (this.step < 6) {
       this.step++;
     }
 
-    this.setCaseDetailsReviewState(this.step === 5);
+    this.setCaseDetailsReviewState(this.step === 6);
 
     window.scrollTo({
       top: 0,
@@ -370,13 +698,17 @@ export class NewFiling {
   }
 
   prev() {
-    if (this.step === 4) {
+    if (this.step === 6) {
+      this.step = 5;
+    } else if (this.step === 5) {
+      this.step = 4;
+    } else if (this.step === 4) {
       this.step = 1;
     } else if (this.step > 1) {
       this.step--;
     }
 
-    this.setCaseDetailsReviewState(this.step === 5);
+    this.setCaseDetailsReviewState(this.step === 6);
   }
 
   goToStep(stepNumber: number) {
@@ -398,7 +730,7 @@ export class NewFiling {
     }
 
     this.step = stepNumber;
-    this.setCaseDetailsReviewState(this.step === 5);
+    this.setCaseDetailsReviewState(this.step === 6);
   }
 
   // saveStep1() {
@@ -797,7 +1129,9 @@ export class NewFiling {
 
   private getMaxAllowedStep(): number {
     if (!this.hasRequiredLitigants()) return 1;
-    return 5;
+    if (this.docList.length === 0) return 4;
+    if (this.requiresCourtFeePayment && !this.isPaymentSuccessful) return 5;
+    return 6;
   }
 
   goToPageFromPreview(step: number) {
@@ -805,7 +1139,7 @@ export class NewFiling {
       step = 1;
     }
     this.step = step;
-    this.setCaseDetailsReviewState(this.step === 5);
+    this.setCaseDetailsReviewState(this.step === 6);
   }
 
   // private loadCaseDetails() {
