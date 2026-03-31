@@ -89,7 +89,7 @@
           (click)="goToStep(4)"
         >
           <i class="fa-solid fa-file-pdf me-2"></i>
-          Documents
+          Pleadings
         </button>
       </h2>
 
@@ -97,7 +97,7 @@
         <div class="accordion-body">
           <div class="preview-page rounded-3 p-3">
             <div class="text-center rounded-3">
-              <h5 class="section-title text-start">Upload Case Documents</h5>
+              <h5 class="section-title text-start">Upload</h5>
               <p class="text-muted text-start mb-4" style="font-size: 0.9rem">
                 Please review your case details and attach all required
                 documents before submitting the e-filing.
@@ -176,6 +176,12 @@
                 [uploadCompletedToken]="uploadCompletedToken"
                 [frontPage]="mergeFrontPage"
                 [eFilingNumber]="eFilingNumber"
+                [defaultDocumentType]="effectiveDocumentType || 'New Filing'"
+                [caseTypeId]="selectedCaseTypeId"
+                [existingIndexNames]="uploadedIndexNames"
+                [mandatoryIndexNames]="mandatoryIndexesForCurrentCase"
+                [enableAnnexureSequence]="isWPCCaseType"
+                [structuredIndexUpload]="isWPCCaseType"
                 (submitDoc)="handleDocUpload($event)"
               ></app-upload-documents>
             </div>
@@ -204,12 +210,148 @@
           [attr.aria-expanded]="step === 5"
           (click)="goToStep(5)"
         >
+          <i class="fa-solid fa-indian-rupee-sign me-2"></i>
+          Payment
+        </button>
+      </h2>
+
+      <div class="accordion-collapse collapse" [class.show]="step === 5">
+        <div class="accordion-body">
+          <div class="preview-page rounded-3 p-3 text-start">
+            <h5 class="section-title">Court fee</h5>
+            <p class="text-muted small mb-3">
+              Fee is based on the case type selected under Case Info. For
+              <strong>WP(C)</strong> the court fee is
+              <strong>₹{{ paymentFeeRupees }}/-</strong> (others:
+              <strong>₹0/-</strong>).
+            </p>
+
+            <div class="card border bg-light mb-3">
+              <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                  <span class="text-muted">Amount payable</span>
+                  <span class="fs-5 fw-semibold"
+                    >₹{{ paymentFeeRupees }}/-</span
+                  >
+                </div>
+                <div class="small text-muted mt-2" *ngIf="eFilingNumber">
+                  E-filing no.: {{ eFilingNumber }}
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="alert alert-success py-2 mb-3"
+              *ngIf="requiresCourtFeePayment && paymentOutcome === 'success'"
+            >
+              <i class="fa-solid fa-circle-check me-2"></i>
+              Payment completed successfully. You can continue to
+              <strong>eFile</strong>.
+            </div>
+
+            <div
+              class="card border bg-light mb-3"
+              *ngIf="requiresCourtFeePayment && paymentOutcome === 'success'"
+            >
+              <div class="card-body py-3">
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <div class="text-muted small">Transaction ID</div>
+                    <div class="fw-semibold">
+                      {{ paymentDetails?.txnId || "-" }}
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="text-muted small">Payment date/time</div>
+                    <div class="fw-semibold">
+                      {{ paymentDetails?.paidAt ? (paymentDetails?.paidAt | date:'medium') : '-' }}
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="text-muted small">Reference no.</div>
+                    <div class="fw-semibold">
+                      {{ paymentDetails?.referenceNo || "-" }}
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="text-muted small">Amount</div>
+                    <div class="fw-semibold">
+                      ₹{{ paymentFeeRupees }}/-
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              class="alert alert-danger py-2 mb-3"
+              *ngIf="requiresCourtFeePayment && paymentOutcome === 'failed'"
+            >
+              <i class="fa-solid fa-circle-xmark me-2"></i>
+              Payment rejected, please try again.
+            </div>
+            <div
+              class="alert alert-info py-2 mb-3"
+              *ngIf="!requiresCourtFeePayment"
+            >
+              No court fee applies for this case type. Continue to
+              <strong>eFile</strong>.
+            </div>
+
+            <div
+              class="d-flex flex-wrap gap-2 align-items-center"
+              *ngIf="requiresCourtFeePayment"
+            >
+              <button
+                type="button"
+                class="btn btn-primary"
+                (click)="confirmProceedToPay()"
+                [disabled]="
+                  !filingId ||
+                  !eFilingNumber ||
+                  paymentOutcome === 'success'
+                "
+              >
+                <i class="fa-solid fa-arrow-up-right-from-square me-2"></i>
+                Proceed to pay fees
+              </button>
+              <span class="small text-muted" *ngIf="paymentOutcome === 'success'">
+                Already paid for this session.
+              </span>
+            </div>
+
+            <div class="d-flex justify-content-between mt-4">
+              <button class="btn btn-light border" (click)="prev()">
+                Back
+              </button>
+              <button
+                class="btn btn-outline-dark"
+                (click)="next()"
+                [disabled]="requiresCourtFeePayment && !isPaymentSuccessful"
+              >
+                Next
+                <i class="fa-solid fa-chevron-right ms-2"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <h2 class="accordion-header">
+        <button
+          class="accordion-button"
+          type="button"
+          [class.collapsed]="step !== 6"
+          [attr.aria-expanded]="step === 6"
+          (click)="goToStep(6)"
+        >
           <i class="fa-solid fa-paper-plane me-2"></i>
           eFile
         </button>
       </h2>
 
-      <div class="accordion-collapse collapse" [class.show]="step === 5">
+      <div class="accordion-collapse collapse" [class.show]="step === 6">
         <div class="accordion-body">
           <div class="preview-page rounded-3 p-3">
             <div class="text-center">
@@ -225,6 +367,7 @@
                 [actList]="actList"
                 [litigantList]="litigantList"
                 [filingData]="filingData"
+                [paymentDetails]="paymentDetailsForPreview"
               ></app-e-file>
             </div>
 

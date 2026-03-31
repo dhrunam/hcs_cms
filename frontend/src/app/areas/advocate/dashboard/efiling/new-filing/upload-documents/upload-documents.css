@@ -88,6 +88,10 @@ input::placeholder {
   margin-top: 10px;
 }
 
+.index-col {
+  text-align: left !important;
+}
+
 .upload-progress-label {
   display: flex;
   justify-content: space-between;
