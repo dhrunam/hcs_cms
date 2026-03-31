@@ -1,8 +1,11 @@
 <nav class="navbar navbar-light bg-white shadow-sm pe-2 ps-md-3">
   <div class="d-flex align-items-center flex-nowrap">
-    <a class="navbar-brand fw-semibold mb-0 d-flex align-items-center" routerLink="/judges/dashboard/home">
+    <a
+      class="navbar-brand fw-semibold mb-0 d-flex align-items-center"
+      routerLink="/judges/dashboard/home"
+    >
       <i class="fa-solid fa-scale-balanced me-2 fs-3"></i>
-      <span class="brand-text text-dark fs-3 fw-lightest">Judge Module</span>
+      <span class="brand-text text-dark fs-3 fw-lightest">Hon'ble Judge</span>
     </a>
   </div>
 </nav>
@@ -16,7 +19,9 @@
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: true }"
       >
-        <a class="nav-link"><i class="fa-solid fa-file-circle-check me-2"></i> Case Summaries</a>
+        <a class="nav-link"
+          ><i class="fa-solid fa-file-circle-check me-2"></i> Case Summaries</a
+        >
       </li>
     </ul>
   </aside>
@@ -25,4 +30,3 @@
     <router-outlet></router-outlet>
   </div>
 </div>
-

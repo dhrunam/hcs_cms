@@ -1,5 +1,7 @@
 <div class="container-fluid">
-  <div class="courtroom-header d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+  <div
+    class="courtroom-header d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3"
+  >
     <a
       class="btn btn-light border btn-sm"
       [routerLink]="['/judges/dashboard/home']"
@@ -9,8 +11,7 @@
     </a>
 
     <div class="d-flex gap-2 align-items-end flex-wrap">
-      <div>
-      </div>
+      <div></div>
 
       <div class="d-flex gap-2 align-items-center">
         <button
@@ -33,67 +34,111 @@
     </div>
   </div>
 
-  <div *ngIf="isLoading" class="text-center py-4 text-muted">Loading request details...</div>
+  <div *ngIf="isLoading" class="text-center py-4 text-muted">
+    Loading request details...
+  </div>
   <div *ngIf="loadError" class="alert alert-warning">{{ loadError }}</div>
 
   <div *ngIf="!isLoading && !loadError">
     <div class="card border-0 shadow-sm mb-3">
       <div class="card-body">
-        <h5 class="mb-1">Request Details</h5>
-        <div class="text-muted small mb-3">Review case details, add remarks, and submit decision.</div>
+        <!-- <h5 class="mb-1">Request Details</h5>
+        <div class="text-muted small mb-3">Review case details, add remarks, and submit decision.</div> -->
 
         <div class="row g-3" *ngIf="caseSummary">
           <div class="col-md-6">
             <div class="small text-muted">Case Number</div>
             <div class="fw-semibold">{{ caseSummary.case_number || '-' }}</div>
           </div>
-          <div class="col-md-6">
-            <div class="small text-muted">E-Filing Number</div>
-            <div class="fw-semibold">{{ caseSummary.e_filing_number || '-' }}</div>
+          <div
+            class="col-md-6"
+            *ngIf="(caseSummary.litigants?.length ?? 0) > 0;"
+          >
+            <div class="fw-semibold">
+              <span
+                class="fs-5 fw-normal ps-2"
+                style="border-left: 3px solid green; border-radius: 5px"
+              >
+                {{ petitionerNamesLabel }}
+              </span>
+              <span class="mx-2 fw-light litigant-vs-badge">V/S</span>
+              <span
+                class="fs-5 fw-normal pe-2"
+                style="
+                  border-right: 3px solid rgb(195, 178, 21);
+                  border-radius: 5px;
+                "
+              >
+                {{ respondentNamesLabel }}
+              </span>
+            </div>
           </div>
-          <div class="col-md-6">
+          <!-- <div class="col-md-6">
+            <div class="small text-muted">E-Filing Number</div>
+            <div class="fw-semibold">
+              {{ caseSummary.e_filing_number || '-' }}
+            </div>
+          </div> -->
+          <!-- <div class="col-md-6">
             <div class="small text-muted">Petitioner</div>
             <div>{{ caseSummary.petitioner_name || '-' }}</div>
-          </div>
-          <div class="col-md-6">
+          </div> -->
+          <!-- <div class="col-md-6">
             <div class="small text-muted">Petitioner Contact</div>
             <div>{{ caseSummary.petitioner_contact || '-' }}</div>
-          </div>
-          <div class="col-12">
-            <div class="small text-muted">Listing Officer Case Summary</div>
-            <div class="p-2 border rounded bg-light-subtle">
+          </div> -->
+
+          <!-- <div class="col-12 text-center py-3">
+
+            <ng-template #noLitigants>
+              <div class="text-muted small">No litigants available.</div>
+            </ng-template>
+          </div> -->
+          <div class="col-12 align-items-center">
+            <div class="small text-muted">Case Summary -</div>
+            <div
+              class="p-2 rounded text-primary-emphasis fs-7"
+              style="color: rgb(8, 5, 99)"
+            >
               {{ caseSummary.listing_summary || '-' }}
             </div>
           </div>
           <div class="col-12">
-            <div class="small text-muted mb-1">Case Documents (View Only)</div>
-            <div class="mb-2">
-              <input
-                type="text"
-                class="form-control form-control-sm"
-                [(ngModel)]="docSearch"
-                [ngModelOptions]="{ standalone: true }"
-                placeholder="Search documents..."
-              />
-            </div>
-            <div class="row g-2">
-              <div class="col-lg-5">
-                <div class="p-2 border rounded" *ngIf="filteredDocuments.length > 0; else noForwardDocsForRequest">
-                  <div *ngFor="let doc of filteredDocuments" class="form-check mb-1">
+            <div class="small mb-1">Case Documents</div>
+
+            <div class="row g-3">
+              <div class="col-lg-3">
+                <div
+                  class="p-2 border rounded"
+                  *ngIf="filteredDocuments.length > 0; else noForwardDocsForRequest"
+                >
+                  <div class="mb-2">
+                    <input
+                      type="text"
+                      class="form-control form-control-sm"
+                      [(ngModel)]="docSearch"
+                      [ngModelOptions]="{ standalone: true }"
+                      placeholder="Search ..."
+                    />
+                  </div>
+                  <div
+                    *ngFor="let doc of filteredDocuments;let i=index"
+                    class="form-check mb-1 px-2 py-2 shadow-sm mb-2"
+                    style="
+                      cursor: pointer;
+                      border: 1px solid rgb(232, 232, 232);
+                      color: rgb(5, 3, 78);
+                      border-radius: 6px;
+                    "
+                    (click)="selectPreviewDocument(doc)"
+                  >
                     <label class="form-check-label small me-2">
-                      {{ doc.document_part_name || 'Document' }}
+                      {{i+1}}. {{ doc.document_part_name || 'Document' }}
                     </label>
-                    <button
-                      type="button"
-                      class="btn btn-link btn-sm p-0 text-decoration-none"
-                      (click)="selectPreviewDocument(doc)"
-                    >
-                      View
-                    </button>
                   </div>
                 </div>
               </div>
-              <div class="col-lg-7">
+              <div class="col-lg-9">
                 <div class="border rounded p-2 judge-preview-wrap">
                   <iframe
                     *ngIf="previewDocumentUrl; else noDocPreview"
@@ -103,7 +148,8 @@
                   ></iframe>
                   <ng-template #noDocPreview>
                     <div class="text-muted small p-2">
-                      {{ previewLoadError || 'Select a document and click View for inline preview.' }}
+                      {{ previewLoadError || 'Select a document and click View
+                      for inline preview.' }}
                     </div>
                   </ng-template>
                 </div>
@@ -113,24 +159,23 @@
               <div class="text-muted small">No case documents available.</div>
             </ng-template>
           </div>
-          <div class="col-12">
-            <div class="small text-muted mb-1">Litigants</div>
-            <div *ngIf="(caseSummary.litigants?.length ?? 0) > 0; else noLitigants">
-              <div *ngFor="let l of caseSummary.litigants">
-                {{ l.is_petitioner ? 'Petitioner' : 'Respondent' }}: {{ l.name || '-' }}
-              </div>
-            </div>
-            <ng-template #noLitigants>
-              <div class="text-muted small">No litigants available.</div>
-            </ng-template>
-          </div>
         </div>
 
         <div class="mt-4">
           <h5 class="mb-2">Judge Remarks</h5>
-          <textarea class="form-control" rows="3" [(ngModel)]="decisionNotes" placeholder="Write remarks..." [disabled]="!canWrite"></textarea>
+          <textarea
+            class="form-control"
+            rows="3"
+            [(ngModel)]="decisionNotes"
+            placeholder="Write remarks..."
+            [disabled]="!canWrite"
+          ></textarea>
           <div class="d-flex justify-content-end mt-2">
-            <button class="btn btn-success btn-sm" (click)="submitDecision()" [disabled]="!canWrite">
+            <button
+              class="btn btn-success btn-sm"
+              (click)="submitDecision()"
+              [disabled]="!canWrite"
+            >
               Save decision
             </button>
           </div>
@@ -139,4 +184,3 @@
     </div>
   </div>
 </div>
-
