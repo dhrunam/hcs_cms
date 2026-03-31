@@ -1,6 +1,6 @@
 <form [formGroup]="form" (ngSubmit)="submit()" class="form-group-block">
   <div class="row g-3 align-items-end mb-3 mt-2">
-    <div class="col-md-4 text-start" *ngIf="!defaultDocumentType">
+    <!-- <div class="col-md-4 text-start" *ngIf="!defaultDocumentType">
       <label class="form-label text-start ps-lg-2"
         >Document Type <small class="text-danger">*</small></label
       >
@@ -14,10 +14,13 @@
         [class.is-invalid]="isDocumentTypeInvalid()"
       />
       <small class="text-danger" *ngIf="isDocumentTypeInvalid()"> document type is required </small>
-    </div>
+    </div> -->
     <div class="col-md-4 text-start">
       <label class="form-label text-start ps-lg-2">Select PDF files</label>
-      <div class="drop-zone top-control" (click)="!isUploading && pdfInput.click()">
+      <div
+        class="drop-zone top-control"
+        (click)="!isUploading && pdfInput.click()"
+      >
         <input
           #pdfInput
           type="file"
@@ -28,9 +31,14 @@
         />
         <span class="drop-text">Choose PDF files to upload</span>
       </div>
-      <small class="text-danger" *ngIf="isFilesInvalid()">at least one PDF is required</small>
+      <small class="text-danger" *ngIf="isFilesInvalid()"
+        >at least one PDF is required</small
+      >
     </div>
-    <div class="col-md-4 d-flex gap-2 flex-wrap align-items-center" *ngIf="entries.length > 0">
+    <div
+      class="col-md-4 d-flex gap-2 flex-wrap align-items-center"
+      *ngIf="entries.length > 0"
+    >
       <button class="btn btn-dark" type="submit" [disabled]="!canUpload()">
         <span
           *ngIf="isUploading"
@@ -43,9 +51,17 @@
     </div>
   </div>
 
-  <div class="alert alert-danger alert-dismissible py-2 small" *ngIf="mergeError">
+  <div
+    class="alert alert-danger alert-dismissible py-2 small"
+    *ngIf="mergeError"
+  >
     {{ mergeError }}
-    <button type="button" class="btn-close btn-sm" (click)="mergeError = null" aria-label="Close"></button>
+    <button
+      type="button"
+      class="btn-close btn-sm"
+      (click)="mergeError = null"
+      aria-label="Close"
+    ></button>
   </div>
 
   <div
@@ -71,7 +87,9 @@
           >
             <i class="fa-solid fa-grip-vertical"></i>
           </span>
-          <span class="file-name" [title]="entry.file.name">{{ entry.file.name }}</span>
+          <span class="file-name text-info-emphasis" [title]="entry.file.name"
+            >{{ entry.file.name }}</span
+          >
         </div>
 
         <button
@@ -85,34 +103,28 @@
       </div>
 
       <div class="index-field">
-        <label class="form-label text-start mb-1">Index Name:</label>
-        <input
-          type="text"
-          class="form-control"
+        <label class="form-label text-secondary text-start mb-1"
+          >Index Name:</label
+        >
+        <select
+          class="form-select"
           [value]="entry.index_name"
-          (input)="updateDocumentType(i, $any($event.target).value)"
-          [attr.list]="
-            entry.index_name && entry.index_name.trim() ? 'index-name-suggestions-' + i : null
-          "
-          placeholder="Eg. Synopsis/List of Dates and Events ...."
+          (change)="updateDocumentType(i, $any($event.target).value)"
           [disabled]="isUploading"
           [class.is-invalid]="isIndexNameInvalid(entry)"
           required
-        />
+        >
+          <option value="" class="text-secondary" disabled>
+            --- Select index name ---
+          </option>
+          <option *ngFor="let name of getAvailableIndexNames(i)" [value]="name">
+            {{ name }}
+          </option>
+        </select>
 
         <div class="text-danger small" *ngIf="isIndexNameInvalid(entry)">
           Index Name is required.
         </div>
-
-        <datalist
-          *ngIf="entry.index_name && entry.index_name.trim()"
-          [id]="'index-name-suggestions-' + i"
-        >
-          <option
-            *ngFor="let name of getIndexSuggestions(entry.index_name)"
-            [value]="name"
-          ></option>
-        </datalist>
       </div>
 
       <div class="upload-progress-wrap" *ngIf="isUploading">
