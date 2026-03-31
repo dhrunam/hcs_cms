@@ -10,8 +10,6 @@
 
     <div class="d-flex gap-2 align-items-end flex-wrap">
       <div>
-        <label class="form-label mb-1 fw-semibold small">Listing Date</label>
-        <input type="date" class="form-control form-control-sm" [(ngModel)]="listingDate" [disabled]="!canWrite" />
       </div>
 
       <div class="d-flex gap-2 align-items-center">
@@ -42,7 +40,7 @@
     <div class="card border-0 shadow-sm mb-3">
       <div class="card-body">
         <h5 class="mb-1">Request Details</h5>
-        <div class="text-muted small mb-3">Review case details, add remarks, select listing date, and submit decision.</div>
+        <div class="text-muted small mb-3">Review case details, add remarks, and submit decision.</div>
 
         <div class="row g-3" *ngIf="caseSummary">
           <div class="col-md-6">

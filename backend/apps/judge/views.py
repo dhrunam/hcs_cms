@@ -18,18 +18,16 @@ from apps.efiling.serializers.efiling_document_index import EfilingDocumentsInde
 from .models import (
     CourtroomDecisionRequestedDocument,
     CourtroomDocumentAnnotation,
-    CourtroomForward,
-    CourtroomForwardDocument,
     CourtroomJudgeDecision,
     JUDGE_GROUP_CJ,
     JUDGE_GROUP_J1,
     JUDGE_GROUP_J2,
 )
+from apps.reader.models import CourtroomForward, CourtroomForwardDocument
 from .serializers import (
     CourtroomCaseDocumentAnnotationUpsertSerializer,
     CourtroomDecisionSerializer,
     CourtroomDocumentAnnotationSerializer,
-    CourtroomForwardSerializer,
     CourtroomPendingCaseSerializer,
 )
 
@@ -112,79 +110,6 @@ def _bench_required_groups(bench_key: str) -> Sequence[str]:
 def _judge_can_view_forward(user_groups: Set[str], bench_key: str) -> bool:
     req = set(_bench_required_groups(bench_key))
     return bool(user_groups & req)
-
-
-class CourtroomForwardView(APIView):
-    """
-    Listing Officer: forward selected efilings to judges.
-    Input: { forwarded_for_date, bench_key, efiling_ids: [...] }
-    """
-
-    def post(self, request, *args, **kwargs):
-        payload = CourtroomForwardSerializer(data=request.data)
-        payload.is_valid(raise_exception=True)
-
-        # Listing-officer auth is not implemented yet; allow for now (front-end will handle flow).
-        user = getattr(request, "user", None)
-
-        forwarded_for_date = payload.validated_data["forwarded_for_date"]
-        bench_key = payload.validated_data["bench_key"]
-        listing_summary = payload.validated_data.get("listing_summary")
-        document_index_ids = payload.validated_data.get("document_index_ids") or []
-        efiling_ids = payload.validated_data["efiling_ids"]
-
-        if not efiling_ids:
-            return Response({"updated": 0}, status=drf_status.HTTP_200_OK)
-
-        ef_qs = Efiling.objects.filter(id__in=efiling_ids).only("id", "bench")
-        found_ids = set(ef_qs.values_list("id", flat=True))
-        missing = [eid for eid in efiling_ids if eid not in found_ids]
-        if missing:
-            raise ValidationError({"efiling_ids": f"Not found: {missing}"})
-
-        # Allow forwarding irrespective of current Efiling.bench value.
-        # Listing officer's selected bench_key drives judge routing for approval.
-        errors: List[dict] = []
-        valid_ids: List[int] = list(efiling_ids)
-
-        # Upsert forward rows for bench/date+efiling.
-        updated = 0
-        for eid in valid_ids:
-            obj, created = CourtroomForward.objects.update_or_create(
-                efiling_id=eid,
-                forwarded_for_date=forwarded_for_date,
-                bench_key=bench_key,
-                defaults={
-                    "forwarded_by": user if getattr(user, "is_authenticated", False) else None,
-                    "listing_summary": listing_summary,
-                },
-            )
-            updated += 1
-            if document_index_ids:
-                valid_doc_ids = set(
-                    EfilingDocumentsIndex.objects.filter(
-                        id__in=document_index_ids,
-                        document__e_filing_id=eid,
-                    ).values_list("id", flat=True)
-                )
-                # Replace the selected document set for this forward row.
-                CourtroomForwardDocument.objects.filter(forward=obj).exclude(
-                    efiling_document_index_id__in=valid_doc_ids
-                ).delete()
-                for doc_id in valid_doc_ids:
-                    CourtroomForwardDocument.objects.get_or_create(
-                        forward=obj,
-                        efiling_document_index_id=doc_id,
-                    )
-
-        return Response(
-            {
-                "updated": updated,
-                "skipped": len(errors),
-                "errors": errors,
-            },
-            status=drf_status.HTTP_200_OK,
-        )
 
 
 class CourtroomPendingCasesView(APIView):
@@ -545,7 +470,7 @@ class CourtroomDecisionView(APIView):
 
         efiling_id = payload.validated_data["efiling_id"]
         forwarded_for_date = payload.validated_data["forwarded_for_date"]
-        listing_date = payload.validated_data["listing_date"]
+        listing_date = payload.validated_data.get("listing_date")
         status = payload.validated_data["status"]
         requested_document_index_ids = payload.validated_data.get("requested_document_index_ids") or []
         approved = status == CourtroomJudgeDecision.DecisionStatus.APPROVED
@@ -569,7 +494,6 @@ class CourtroomDecisionView(APIView):
             efiling_id=efiling_id,
             forwarded_for_date=forwarded_for_date,
             defaults={
-                "listing_date": listing_date,
                 "status": status,
                 "approved": approved,
                 "decision_notes": decision_notes,
@@ -597,7 +521,6 @@ class CourtroomDecisionView(APIView):
                 "efiling_id": efiling_id,
                 "status": obj.status,
                 "approved": obj.approved,
-                "listing_date": str(obj.listing_date),
                 "requested_document_count": len(valid_req_doc_ids),
             },
             status=drf_status.HTTP_200_OK,
@@ -678,4 +601,7 @@ class CourtroomDecisionCalendarView(APIView):
                 }
             )
         return Response({"items": items}, status=drf_status.HTTP_200_OK)
+
+
+
 

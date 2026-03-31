@@ -16,8 +16,11 @@ from rest_framework.views import APIView
 
 from apps.core.models import Efiling
 from apps.core.models import EfilerDocumentAccess, EfilingCaseDetails, EfilingLitigant
-from apps.accounts.models import User
-from apps.judge.models import CourtroomDecisionRequestedDocument, CourtroomForward, CourtroomJudgeDecision
+from apps.judge.models import (
+    CourtroomDecisionRequestedDocument,
+    CourtroomJudgeDecision,
+)
+from apps.reader.models import CourtroomForward
 from apps.listing.models import CauseList, CauseListEntry
 from apps.listing.pdf_service import CauseListRow, generate_cause_list_pdf_bytes
 from apps.listing.serializers import (
@@ -47,13 +50,19 @@ BENCH_TO_REQUIRED_GROUPS: Dict[str, Sequence[str]] = {
 
 def _judge_approved_efiling_ids(cause_list_date: str, bench_key: str) -> Set[int]:
     """
-    Returns efiling_ids that are approved by ALL required judge groups for this bench_key.
-    Listing Officer can publish on any date; judge listing date is reference only.
+    Returns efiling_ids that are approved by ALL required judge groups for this bench_key
+    AND have been assigned the matching listing_date (by the Reader).
     """
     required_groups = BENCH_TO_REQUIRED_GROUPS.get(bench_key)
     if not required_groups:
         return set()
 
+    try:
+        cld = timezone.datetime.fromisoformat(cause_list_date).date()
+    except ValueError:
+        return set()
+
+    # 1. Get all efilings forwarded for this bench
     forwarded_ids = set(
         CourtroomForward.objects.filter(
             bench_key=bench_key,
@@ -62,6 +71,7 @@ def _judge_approved_efiling_ids(cause_list_date: str, bench_key: str) -> Set[int
     if not forwarded_ids:
         return set()
 
+    # 2. For each required judge group, ensure there is an approval with matching listing_date.
     group_to_ids: List[Set[int]] = []
     for group_name in required_groups:
         ids = set(
@@ -69,6 +79,7 @@ def _judge_approved_efiling_ids(cause_list_date: str, bench_key: str) -> Set[int
                 judge_user__groups__name=group_name,
                 efiling_id__in=forwarded_ids,
                 approved=True,
+                listing_date=cld,
             ).values_list("efiling_id", flat=True)
         )
         group_to_ids.append(ids)
@@ -142,6 +153,7 @@ class CauseListDraftPreviewView(APIView):
         approved_only = approved_only_raw.strip().lower() in {"true", "1", "yes", "y"}
 
         judge_listing_date_map: Dict[int, str | None] = {}
+        judge_listing_remark_map: Dict[int, str | None] = {}
         if approved_only:
             approved_ids = _judge_approved_efiling_ids(cause_list_date, bench_key)
             # Reference-only metadata: judge suggested listing date per case.
@@ -151,7 +163,7 @@ class CauseListDraftPreviewView(APIView):
                         efiling_id__in=approved_ids,
                         approved=True,
                     )
-                    .values("efiling_id", "listing_date")
+                    .values("efiling_id", "listing_date", "reader_listing_remark")
                     .order_by("efiling_id", "-listing_date", "-id")
                 )
                 for row in rows:
@@ -159,6 +171,7 @@ class CauseListDraftPreviewView(APIView):
                     if eid not in judge_listing_date_map:
                         d = row.get("listing_date")
                         judge_listing_date_map[eid] = d.isoformat() if d else None
+                        judge_listing_remark_map[eid] = row.get("reader_listing_remark")
             accepted = (
                 Efiling.objects.filter(
                     id__in=approved_ids,
@@ -205,6 +218,7 @@ class CauseListDraftPreviewView(APIView):
                     "included": included,
                     "serial_no": serial_no,
                     "judge_listing_date": judge_listing_date_map.get(filing.id),
+                    "reader_listing_remark": judge_listing_remark_map.get(filing.id),
                 }
             )
 
@@ -833,255 +847,7 @@ class CauseListEntryLookupByCaseNumberView(APIView):
         )
 
 
-class RegisteredCasesListView(APIView):
-    """
-    Listing Officer: show only scrutiny-completed (registered) cases.
-    Filter rule per requirement: Efiling.is_draft=false AND Efiling.status='ACCEPTED'
-    """
 
-    def get(self, request, *args, **kwargs):
-        page_size_raw = request.query_params.get("page_size")
-        page_size = int(page_size_raw) if page_size_raw not in (None, "", "null") else 50
-
-        qs = Efiling.objects.filter(is_draft=False, status="ACCEPTED").order_by("-id")
-        total = qs.count()
-
-        # Prefetch parties and case details to avoid N+1 for UI rendering.
-        case_details_qs = EfilingCaseDetails.objects.select_related("dispute_state", "dispute_district").order_by(
-            "id"
-        )
-
-        qs = qs.prefetch_related(
-            Prefetch("litigants"),
-            Prefetch("case_details", queryset=case_details_qs),
-        )
-
-        efilings = list(qs[:page_size])
-        efiling_ids = [e.id for e in efilings]
-
-        latest_forward_by_efiling: dict[int, CourtroomForward] = {}
-        forwards = (
-            CourtroomForward.objects.filter(efiling_id__in=efiling_ids)
-            .order_by("efiling_id", "-forwarded_for_date", "-id")
-            .all()
-        )
-        for f in forwards:
-            if f.efiling_id not in latest_forward_by_efiling:
-                latest_forward_by_efiling[f.efiling_id] = f
-
-        forward_keys = {(f.efiling_id, f.forwarded_for_date) for f in latest_forward_by_efiling.values()}
-        decision_map: dict[tuple[int, date_type], dict[str, bool]] = {}
-        decision_status_map: dict[tuple[int, date_type], dict[str, str]] = {}
-        decision_notes_map: dict[tuple[int, date_type], List[str]] = {}
-        decision_listing_date_map: dict[tuple[int, date_type], List[str]] = {}
-        requested_docs_map: dict[tuple[int, date_type], List[dict]] = {}
-        if forward_keys:
-            e_ids = sorted({eid for eid, _ in forward_keys})
-            f_dates = sorted({fdate for _, fdate in forward_keys})
-            decisions = (
-                CourtroomJudgeDecision.objects.filter(
-                    efiling_id__in=e_ids,
-                    forwarded_for_date__in=f_dates,
-                )
-                .values(
-                    "id",
-                    "efiling_id",
-                    "forwarded_for_date",
-                    "status",
-                    "approved",
-                    "listing_date",
-                    "decision_notes",
-                    "judge_user__groups__name",
-                )
-                .all()
-            )
-            decision_ids = [int(d["id"]) for d in decisions]
-            requested_rows = (
-                CourtroomDecisionRequestedDocument.objects.filter(judge_decision_id__in=decision_ids)
-                .select_related("judge_decision", "efiling_document_index")
-                .values(
-                    "judge_decision_id",
-                    "efiling_document_index_id",
-                    "efiling_document_index__document_part_name",
-                    "efiling_document_index__document__document_type",
-                )
-                .all()
-            )
-            docs_by_decision: dict[int, List[dict]] = {}
-            for rr in requested_rows:
-                did = int(rr["judge_decision_id"])
-                docs_by_decision.setdefault(did, []).append(
-                    {
-                        "document_index_id": rr["efiling_document_index_id"],
-                        "document_part_name": rr.get("efiling_document_index__document_part_name"),
-                        "document_type": rr.get("efiling_document_index__document__document_type"),
-                    }
-                )
-            for d in decisions:
-                key = (int(d["efiling_id"]), d["forwarded_for_date"])
-                grp = str(d.get("judge_user__groups__name") or "")
-                if key not in decision_map:
-                    decision_map[key] = {}
-                    decision_status_map[key] = {}
-                if grp:
-                    decision_map[key][grp] = bool(d.get("approved"))
-                    decision_status_map[key][grp] = str(d.get("status") or "")
-                note = (d.get("decision_notes") or "").strip()
-                if note:
-                    if key not in decision_notes_map:
-                        decision_notes_map[key] = []
-                    label = grp.replace("JUDGE_", "Judge ") if grp else "Judge"
-                    decision_notes_map[key].append(f"{label}: {note}")
-                listing_date = d.get("listing_date")
-                if listing_date:
-                    decision_listing_date_map.setdefault(key, []).append(str(listing_date))
-                decision_docs = docs_by_decision.get(int(d["id"]), [])
-                if decision_docs:
-                    existing = requested_docs_map.setdefault(key, [])
-                    seen_ids = {x["document_index_id"] for x in existing}
-                    for doc in decision_docs:
-                        if doc["document_index_id"] not in seen_ids:
-                            existing.append(doc)
-                            seen_ids.add(doc["document_index_id"])
-
-        items = []
-        for e in efilings:
-            respondent = next((l for l in e.litigants.all() if not getattr(l, "is_petitioner", False)), None)
-            case_detail = e.case_details.all().first() if hasattr(e, "case_details") else None
-            approval_status = "NOT_FORWARDED"
-            approval_notes: List[str] = []
-            approval_listing_date = None
-            requested_documents: List[dict] = []
-            approval_bench_key = None
-            approval_forwarded_for_date = None
-            latest_forward = latest_forward_by_efiling.get(e.id)
-            if latest_forward:
-                approval_bench_key = latest_forward.bench_key
-                approval_forwarded_for_date = latest_forward.forwarded_for_date.isoformat()
-                req_groups = BENCH_TO_REQUIRED_GROUPS.get(latest_forward.bench_key, ())
-                key = (e.id, latest_forward.forwarded_for_date)
-                group_decisions = decision_map.get(key, {})
-                group_statuses = decision_status_map.get(key, {})
-                approval_notes = decision_notes_map.get(key, [])
-                listing_dates = decision_listing_date_map.get(key, [])
-                if listing_dates:
-                    approval_listing_date = sorted(listing_dates)[0]
-                requested_documents = requested_docs_map.get(key, [])
-
-                rejected = any(group_decisions.get(g) is False for g in req_groups if g in group_decisions)
-                approved_all = bool(req_groups) and all(group_decisions.get(g) is True for g in req_groups)
-                requested_docs = any(
-                    group_statuses.get(g) == CourtroomJudgeDecision.DecisionStatus.REQUESTED_DOCS
-                    for g in req_groups
-                    if g in group_statuses
-                )
-                if requested_docs:
-                    approval_status = "REQUESTED_DOCS"
-                elif rejected:
-                    approval_status = "REJECTED"
-                elif approved_all:
-                    approval_status = "APPROVED"
-                else:
-                    approval_status = "PENDING"
-
-            items.append(
-                {
-                    "efiling_id": e.id,
-                    "case_number": e.case_number,
-                    "e_filing_number": e.e_filing_number,
-                    "bench": e.bench,
-                    "petitioner_name": e.petitioner_name,
-                    "respondent_name": getattr(respondent, "name", None) if respondent else None,
-                    "cause_of_action": getattr(case_detail, "cause_of_action", None) if case_detail else None,
-                    "date_of_cause_of_action": getattr(case_detail, "date_of_cause_of_action", None).isoformat()
-                    if getattr(case_detail, "date_of_cause_of_action", None)
-                    else None,
-                    "dispute_state": getattr(getattr(case_detail, "dispute_state", None), "state", None)
-                    if case_detail
-                    else None,
-                    "dispute_district": getattr(getattr(case_detail, "dispute_district", None), "district", None)
-                    if case_detail
-                    else None,
-                    "dispute_taluka": getattr(case_detail, "dispute_taluka", None) if case_detail else None,
-                    "accepted_at": e.accepted_at.isoformat() if getattr(e, "accepted_at", None) else None,
-                    "approval_status": approval_status,
-                    "approval_notes": approval_notes,
-                    "approval_bench_key": approval_bench_key,
-                    "approval_forwarded_for_date": approval_forwarded_for_date,
-                    "approval_listing_date": approval_listing_date,
-                    "listing_summary": latest_forward.listing_summary if latest_forward else None,
-                    "requested_documents": requested_documents,
-                }
-            )
-
-        return Response({"total": total, "items": items}, status=drf_status.HTTP_200_OK)
-
-
-class AssignBenchesView(APIView):
-    """
-    Listing Officer: bulk-assign benches for registered cases.
-    Updates `Efiling.bench` directly so cause-list generation works unchanged.
-    """
-
-    def post(self, request, *args, **kwargs):
-        payload = AssignBenchesSerializer(data=request.data)
-        payload.is_valid(raise_exception=True)
-
-        assignments = payload.validated_data["assignments"]
-        if not assignments:
-            return Response({"updated": 0}, status=drf_status.HTTP_200_OK)
-
-        # Deduplicate by efiling_id, keep last selection.
-        assign_map: dict[int, str] = {}
-        for a in assignments:
-            assign_map[int(a["efiling_id"])] = a["bench_key"]
-
-        efiling_ids = list(assign_map.keys())
-        ef_qs = Efiling.objects.filter(id__in=efiling_ids, is_draft=False, status="ACCEPTED").all()
-        ef_by_id = {e.id: e for e in ef_qs}
-
-        missing = sorted([eid for eid in efiling_ids if eid not in ef_by_id])
-        if missing:
-            raise ValidationError({"efiling_id": f"Not found or not ACCEPTED: {missing}"})
-
-        updated_instances = []
-        for eid, bench_key in assign_map.items():
-            e = ef_by_id[eid]
-            e.bench = bench_key
-            updated_instances.append(e)
-
-        Efiling.objects.bulk_update(updated_instances, ["bench"])
-
-        # Enforce "one case -> one bench" for the latest published cause list date only.
-        latest = (
-            CauseList.objects.filter(status=CauseList.CauseListStatus.PUBLISHED)
-            .order_by("-cause_list_date", "-published_at", "-id")
-            .first()
-        )
-        if latest:
-            latest_date = latest.cause_list_date
-            moved_case_ids = list(assign_map.keys())
-
-            # Remove entries for these cases from any other bench on the latest date.
-            other_q = Q()
-            for eid in moved_case_ids:
-                other_q |= Q(efiling_id=eid) & ~Q(cause_list__bench_key=assign_map[eid])
-
-            other_entries = CauseListEntry.objects.filter(
-                other_q,
-                cause_list__cause_list_date=latest_date,
-            )
-
-            affected_cause_list_ids = list(other_entries.values_list("cause_list_id", flat=True).distinct())
-            other_entries.delete()
-
-            if affected_cause_list_ids:
-                CauseList.objects.filter(id__in=affected_cause_list_ids).update(
-                    status=CauseList.CauseListStatus.DRAFT,
-                    published_at=None,
-                )
-
-        return Response({"updated": len(updated_instances)}, status=drf_status.HTTP_200_OK)
 
         if not entry:
             return Response({"found": False}, status=drf_status.HTTP_200_OK)

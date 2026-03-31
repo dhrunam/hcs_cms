@@ -6,25 +6,9 @@ from apps.core.models import EfilingDocumentsIndex
 
 from .models import (
     CourtroomDocumentAnnotation,
-    CourtroomForward,
     CourtroomJudgeDecision,
 )
 
-
-class CourtroomForwardEntrySerializer(serializers.Serializer):
-    efiling_id = serializers.IntegerField()
-
-
-class CourtroomForwardSerializer(serializers.Serializer):
-    forwarded_for_date = serializers.DateField()
-    bench_key = serializers.CharField(max_length=50)
-    listing_summary = serializers.CharField(allow_blank=True, required=False, allow_null=True)
-    document_index_ids = serializers.ListField(
-        child=serializers.IntegerField(), required=False, allow_empty=True
-    )
-    efiling_ids = serializers.ListField(
-        child=serializers.IntegerField(), allow_empty=False
-    )
 
 
 class CourtroomPendingCaseSerializer(serializers.Serializer):
@@ -47,7 +31,6 @@ class CourtroomCaseDocumentAnnotationUpsertSerializer(serializers.Serializer):
 class CourtroomDecisionSerializer(serializers.Serializer):
     efiling_id = serializers.IntegerField()
     forwarded_for_date = serializers.DateField()
-    listing_date = serializers.DateField()
     status = serializers.ChoiceField(choices=CourtroomJudgeDecision.DecisionStatus.choices)
     approved = serializers.BooleanField(required=False)
     decision_notes = serializers.CharField(allow_blank=True, required=False, allow_null=True)
