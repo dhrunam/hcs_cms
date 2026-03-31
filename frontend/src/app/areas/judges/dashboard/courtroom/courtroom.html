@@ -61,26 +61,11 @@
             <div class="small text-muted">Petitioner Contact</div>
             <div>{{ caseSummary.petitioner_contact || '-' }}</div>
           </div>
-          <div class="col-md-6">
-            <div class="small text-muted">Cause of Action</div>
-            <div>{{ caseSummary.case_details?.cause_of_action || '-' }}</div>
-          </div>
           <div class="col-12">
             <div class="small text-muted">Listing Officer Case Summary</div>
             <div class="p-2 border rounded bg-light-subtle">
               {{ caseSummary.listing_summary || '-' }}
             </div>
-          </div>
-          <div class="col-12">
-            <div class="small text-muted mb-1">Documents forwarded by Listing Officer</div>
-            <div *ngIf="(caseSummary.selected_documents?.length ?? 0) > 0; else noForwardDocs" class="p-2 border rounded">
-              <div *ngFor="let doc of caseSummary.selected_documents" class="small">
-                {{ doc.document_part_name || 'Document' }} <span class="text-muted">({{ doc.document_type || 'Main Document' }})</span>
-              </div>
-            </div>
-            <ng-template #noForwardDocs>
-              <div class="text-muted small">No specific documents selected.</div>
-            </ng-template>
           </div>
           <div class="col-12">
             <div class="small text-muted mb-1">Case Documents (View Only)</div>
@@ -129,18 +114,6 @@
             <ng-template #noForwardDocsForRequest>
               <div class="text-muted small">No case documents available.</div>
             </ng-template>
-          </div>
-          <div class="col-md-6">
-            <div class="small text-muted">Cause Date</div>
-            <div>{{ caseSummary.case_details?.date_of_cause_of_action || '-' }}</div>
-          </div>
-          <div class="col-md-6">
-            <div class="small text-muted">Dispute State / District</div>
-            <div>{{ caseSummary.case_details?.dispute_state || '-' }} / {{ caseSummary.case_details?.dispute_district || '-' }}</div>
-          </div>
-          <div class="col-md-6">
-            <div class="small text-muted">Dispute Taluka</div>
-            <div>{{ caseSummary.case_details?.dispute_taluka || '-' }}</div>
           </div>
           <div class="col-12">
             <div class="small text-muted mb-1">Litigants</div>

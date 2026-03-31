@@ -27,7 +27,6 @@ type RegisteredCase = {
   approval_listing_date?: string | null;
   listing_summary?: string | null;
   requested_documents?: { document_index_id: number; document_part_name: string | null; document_type: string | null }[];
-
 };
 
 @Component({
