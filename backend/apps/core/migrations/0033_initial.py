@@ -711,4 +711,47 @@ class Migration(migrations.Migration):
                 'db_table': 'efiler_document_access',
             },
         ),
+migrations.CreateModel(
+            name='JudgeT',
+            fields=[
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True, null=True)),
+                ('is_active', models.BooleanField(default=True)),
+                ('id', models.AutoField(primary_key=True, serialize=False)),
+                ('judge_code', models.CharField(max_length=50, unique=True)),
+                ('judge_name', models.CharField(blank=True, max_length=100, null=True)),
+                ('seniority', models.IntegerField(blank=True, null=True)),
+                ('display', models.TextField()),
+                ('date_of_joining', models.DateField()),
+                ('date_of_leaving', models.DateField(blank=True, null=True)),
+                ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='%(class)s_created', to=settings.AUTH_USER_MODEL)),
+                ('updated_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='%(class)s_updated', to=settings.AUTH_USER_MODEL)),
+                ('user', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='judge_profile', to=settings.AUTH_USER_MODEL)),
+            ],
+            options={
+                'db_table': 'judge_t',
+            },
+        ),
+        migrations.CreateModel(
+            name='BenchT',
+            fields=[
+                ('created_at', models.DateTimeField(auto_now_add=True)),
+                ('updated_at', models.DateTimeField(auto_now=True, null=True)),
+                ('is_active', models.BooleanField(default=True)),
+                ('id', models.AutoField(primary_key=True, serialize=False)),
+                ('bench_code', models.CharField(max_length=10)),
+                ('bench_name', models.CharField(blank=True, max_length=500, null=True)),
+                ('bench_type_code', models.CharField(blank=True, max_length=10, null=True)),
+                ('judge_code', models.CharField(blank=True, max_length=50, null=True)),
+                ('from_date', models.DateField()),
+                ('to_date', models.DateField(blank=True, null=True)),
+                ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='%(class)s_created', to=settings.AUTH_USER_MODEL)),
+                ('updated_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='%(class)s_updated', to=settings.AUTH_USER_MODEL)),
+                ('judge', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='benches', to='core.judget')),
+            ],
+            options={
+                'db_table': 'bench_t',
+            },
+        ),
+
     ]
