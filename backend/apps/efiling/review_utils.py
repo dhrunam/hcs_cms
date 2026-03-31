@@ -222,7 +222,7 @@ def derive_filing_status(filing):
     return filing
 
 
-def finalize_approved_filing(filing, user=None):
+def finalize_approved_filing(filing, user=None, bench=None):
     filing = derive_filing_status(filing)
     active_document_indexes = EfilingDocumentsIndex.objects.filter(
         document__e_filing=filing,
@@ -243,10 +243,15 @@ def finalize_approved_filing(filing, user=None):
         raise ValidationError("All active documents must be approved before submitting the case.")
 
     if filing.case_number:
+        if bench:
+            filing.bench = bench
+            filing.updated_by = user
+            filing.save(update_fields=["bench", "updated_by", "updated_at"])
         return filing
 
     filing.case_number = filing.build_case_number()
     filing.status = "ACCEPTED"
+    filing.bench = bench  # SET BENCH HERE
     latest_review_time = (
         active_document_indexes.exclude(last_reviewed_at__isnull=True)
         .order_by("-last_reviewed_at")
@@ -255,11 +260,11 @@ def finalize_approved_filing(filing, user=None):
     )
     filing.accepted_at = latest_review_time or timezone.now()
     filing.updated_by = user
-    filing.save(update_fields=["case_number", "status", "accepted_at", "updated_by", "updated_at"])
+    filing.save(update_fields=["case_number", "status", "bench", "accepted_at", "updated_by", "updated_at"])
     return filing
 
 
-def finalize_scrutiny_submission(filing, user=None):
+def finalize_scrutiny_submission(filing, user=None, bench=None):
     if filing.is_draft:
         raise ValidationError("Draft filings cannot be submitted for scrutiny finalization.")
 
@@ -340,7 +345,7 @@ def finalize_scrutiny_submission(filing, user=None):
         )
         return filing
 
-    filing = finalize_approved_filing(filing, user=user)
+    filing = finalize_approved_filing(filing, user=user, bench=bench)
     filing.refresh_from_db()
     create_notification(
         role="advocate",

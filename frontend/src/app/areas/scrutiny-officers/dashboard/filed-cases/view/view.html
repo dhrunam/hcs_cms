@@ -36,14 +36,9 @@
                   New
                 </span>
                 <span
-                  class="badge rounded-pill px-2 py-1 fw-normal"
-                  [ngClass]="{
-                    'status-badge-warning': getStatusTone(filing.status) === 'warning',
-                    'status-badge-success': getStatusTone(filing.status) === 'success',
-                    'status-badge-danger': getStatusTone(filing.status) === 'danger'
-                  }"
+                  class="badge rounded-pill px-2 py-1 fw-normal text-bg-{{ getStatusTone(filing) }}"
                 >
-                  {{ getStatusLabel(filing.status) }}
+                  {{ getStatusLabel(filing) }}
                 </span>
               </td>
               <td>
@@ -101,14 +96,9 @@
                   New
                 </span>
                 <span
-                  class="badge rounded-pill px-2 py-1 fw-normal"
-                  [ngClass]="{
-                    'status-badge-warning': getStatusTone(filing.status) === 'warning',
-                    'status-badge-success': getStatusTone(filing.status) === 'success',
-                    'status-badge-danger': getStatusTone(filing.status) === 'danger'
-                  }"
+                  class="badge rounded-pill px-2 py-1 fw-normal text-bg-{{ getStatusTone(filing) }}"
                 >
-                  {{ getStatusLabel(filing.status) }}
+                  {{ getStatusLabel(filing) }}
                 </span>
               </td>
               <td>

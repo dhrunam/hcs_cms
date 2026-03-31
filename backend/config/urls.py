@@ -13,6 +13,7 @@ urlpatterns = [
     path('api/v1/listing/', include('apps.listing.urls', namespace='listing')),
     path('api/v1/judge/', include('apps.judge.urls', namespace='judge')),
     path('api/v1/master/', include('apps.master.urls', namespace='master')),
+    path('api/v1/reader/', include('apps.reader.urls', namespace='reader')),
 ]
 
 if settings.DEBUG:

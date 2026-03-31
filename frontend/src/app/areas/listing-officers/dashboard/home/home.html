@@ -169,7 +169,11 @@
                 <td>
                   <div class="text-nowrap">{{ item.case_number || '-' }}</div>
                   <div class="text-muted small" *ngIf="item.judge_listing_date">
-                    Judge date (ref): {{ item.judge_listing_date }}
+                    Reader preferred date: {{ item.judge_listing_date }}
+                  </div>
+                  <div class="alert alert-info py-1 px-2 mt-1 mb-0 small border-0" *ngIf="item.reader_listing_remark">
+                    <i class="fa-solid fa-comment-dots me-1"></i>
+                    <strong>Reader Remark:</strong> {{ item.reader_listing_remark }}
                   </div>
                 </td>
                 <td class="text-center">
