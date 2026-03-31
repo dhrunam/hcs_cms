@@ -916,7 +916,10 @@ export class NewFiling {
             organization: "",
           });
 
-          window.scrollTo({ top: 0, behavior: "smooth" });
+          window.scrollTo({
+            top: document.body.scrollHeight * 3,
+            behavior: "smooth",
+          });
 
           const typeLabel = this.getLitigantTypeLabel(formValue.is_petitioner);
           this.toastr.success(`1 ${typeLabel} added`, "", {
@@ -1081,7 +1084,10 @@ export class NewFiling {
         this.toastr.success("Litigant updated successfully", "", {
           timeOut: 3000,
         });
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        window.scrollTo({
+          top: document.body.scrollHeight * 0.3,
+          behavior: "smooth",
+        });
       });
   }
 
@@ -1297,10 +1303,7 @@ export class NewFiling {
         this.filingData = record;
 
         const resolvedCaseTypeId =
-          record.case_type?.id ??
-          record.case_type_id ??
-          record.case_type ??
-          "";
+          record.case_type?.id ?? record.case_type_id ?? record.case_type ?? "";
         this.initialInputsForm.patchValue({
           bench: record.bench || "High Court Of Sikkim",
           case_type: record.case_type?.id ?? record.case_type ?? "",

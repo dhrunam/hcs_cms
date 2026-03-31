@@ -56,13 +56,13 @@
             {{ getStatusLabel(filingStatusForDisplay) }}
           </span>
           <button
-            *ngIf="!isCaseRegistered && canSubmitApprovedFiling && allDocumentsAccepted"
+            *ngIf="(!isCaseRegistered || isReturned) && canSubmitApprovedFiling && allDocumentsAccepted"
             type="button"
             class="btn btn-primary btn-sm"
             (click)="onRegisterCaseClick()"
             [disabled]="isSubmittingApprovedCase"
           >
-            {{ isSubmittingApprovedCase ? 'Registering...' : 'Register Case' }}
+            {{ isSubmittingApprovedCase ? 'Processing...' : (isReturned ? 'Assign New Bench' : 'Register Case') }}
           </button>
           <button
             *ngIf="!isCaseRegistered && canSubmitApprovedFiling && !allDocumentsAccepted"
@@ -127,9 +127,9 @@
             <div class="filing-summary-grid">
               <div class="filing-summary-item">
                 <span class="filing-summary-label">Bench</span>
-                <span class="filing-summary-value"
-                  >{{ filing.bench || '-' }}</span
-                >
+                <span class="filing-summary-value" [class.text-danger]="isReturned && !filing.bench">
+                  {{ filing.bench || (isReturned ? 'Returned / Needs Re-assignment' : '-') }}
+                </span>
               </div>
               <div class="filing-summary-item">
                 <span class="filing-summary-label">Case Type</span>

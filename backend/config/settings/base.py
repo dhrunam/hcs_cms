@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     "apps.listing",
     "apps.judge",
     "apps.master",
+    "apps.reader",
    
 ]
 

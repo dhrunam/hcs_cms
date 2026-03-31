@@ -23,7 +23,6 @@ export class JudgePendingCasesPage {
     case_number: string | null;
     bench_key: string;
     judge_decision: boolean | null;
-    judge_listing_date: string | null;
     forwarded_for_date?: string;
   }[] = [];
   pendingForCauseList: {
@@ -31,14 +30,12 @@ export class JudgePendingCasesPage {
     case_number: string | null;
     bench_key: string;
     judge_decision: boolean | null;
-    judge_listing_date: string | null;
     forwarded_for_date?: string;
   }[] = [];
   calendarItems: {
     efiling_id: number;
     case_number: string | null;
     status: 'APPROVED' | 'DECLINED' | 'REQUESTED_DOCS';
-    listing_date: string | null;
     decision_notes: string | null;
   }[] = [];
 

@@ -1,0 +1,50 @@
+<div class="filing-page">
+  <section class="filing-hero">
+    <div class="filing-hero-content">
+      <h2 class="filing-title">Filing Center</h2>
+      <p class="filing-subtitle">
+        Choose how you want to file and jump straight into the workflow.
+      </p>
+    </div>
+
+    <div class="filing-switcher">
+      <div class="filing-toggle" role="radiogroup" aria-label="Filing type">
+        <label class="filing-radio">
+          <input
+            type="radio"
+            name="filingType"
+            [checked]="activeTab === 'new'"
+            (change)="setActive('new')"
+          />
+          <span>New Filing</span>
+        </label>
+        <label class="filing-radio">
+          <input
+            type="radio"
+            name="filingType"
+            [checked]="activeTab === 'existing'"
+            (change)="setActive('existing')"
+          />
+          <span>Existing Case Filing</span>
+        </label>
+        <label class="filing-radio">
+          <input
+            type="radio"
+            name="filingType"
+            [checked]="activeTab === 'ia'"
+            (change)="setActive('ia')"
+          />
+          <span>IA Filing</span>
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <section class="filing-panel">
+    <app-new-filing *ngIf="activeTab === 'new'"></app-new-filing>
+    <app-document-filing-create
+      *ngIf="activeTab === 'existing'"
+    ></app-document-filing-create>
+    <app-ia-filing-form *ngIf="activeTab === 'ia'"></app-ia-filing-form>
+  </section>
+</div>

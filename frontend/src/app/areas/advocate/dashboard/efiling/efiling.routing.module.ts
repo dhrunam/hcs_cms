@@ -2,6 +2,10 @@ import { Routes } from "@angular/router";
 
 export const EfilingRoutes: Routes = [
   {
+    path: "filing",
+    loadComponent: () => import("./filing/filing").then((c) => c.Filing),
+  },
+  {
     path: "new-filing",
     loadComponent: () =>
       import("./new-filing/new-filing").then((c) => c.NewFiling),

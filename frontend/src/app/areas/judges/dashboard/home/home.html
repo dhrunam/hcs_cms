@@ -62,7 +62,6 @@
               <tr>
                 <th>Case No</th>
                 <th>Bench</th>
-                <th>My Listing Date</th>
                 <th>Status</th>
                 <th style="width: 140px;">Action</th>
               </tr>
@@ -71,7 +70,6 @@
               <tr *ngFor="let c of pendingForCauseList">
                 <td class="text-nowrap">{{ c.case_number || '-' }}</td>
                 <td>{{ benchLabel(c.bench_key) }}</td>
-                <td>{{ c.judge_listing_date || '-' }}</td>
                 <td><span class="badge text-bg-info">Reviewed</span></td>
                 <td>
                   <button class="btn btn-sm btn-outline-primary" (click)="openCourtroom(c.efiling_id)">
@@ -80,7 +78,7 @@
                 </td>
               </tr>
               <tr *ngIf="pendingForCauseList.length === 0">
-                <td colspan="5" class="text-muted text-center py-4">No reviewed requests yet.</td>
+                <td colspan="4" class="text-muted text-center py-4">No reviewed requests yet.</td>
               </tr>
             </tbody>
           </table>
@@ -95,7 +93,6 @@
           <table class="table table-hover align-middle mb-0">
             <thead>
               <tr>
-                <th>Listing Date</th>
                 <th>Case No</th>
                 <th>Status</th>
                 <th>Remarks</th>
@@ -103,13 +100,12 @@
             </thead>
             <tbody>
               <tr *ngFor="let c of calendarItems">
-                <td>{{ c.listing_date || '-' }}</td>
                 <td class="text-nowrap">{{ c.case_number || '-' }}</td>
                 <td><span class="badge" [ngClass]="statusBadge(c.status)">{{ c.status }}</span></td>
                 <td>{{ c.decision_notes || '-' }}</td>
               </tr>
               <tr *ngIf="calendarItems.length === 0">
-                <td colspan="4" class="text-muted text-center py-4">No calendar events yet.</td>
+                <td colspan="3" class="text-muted text-center py-4">No calendar events yet.</td>
               </tr>
             </tbody>
           </table>

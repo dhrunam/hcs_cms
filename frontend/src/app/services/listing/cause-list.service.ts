@@ -9,6 +9,7 @@ export type DraftPreviewItem = {
   included: boolean;
   serial_no: number | null;
   judge_listing_date?: string | null;
+  reader_listing_remark?: string | null;
 };
 
 export type DraftPreviewResponse = {
