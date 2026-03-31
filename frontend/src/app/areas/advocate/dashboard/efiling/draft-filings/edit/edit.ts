@@ -9,7 +9,7 @@ import {
 import { ToastrService } from "ngx-toastr";
 
 import Swal from "sweetalert2";
-import { ActivatedRoute, Router, RouterLink } from "@angular/router";
+import { ActivatedRoute, Params, Router, RouterLink } from "@angular/router";
 import { InitialInputs } from "../../new-filing/initial-inputs/initial-inputs";
 import { Litigant } from "../../new-filing/litigant/litigant";
 import { EFile } from "../../new-filing/e-file/e-file";
@@ -18,6 +18,8 @@ import { EfilingService } from "../../../../../../services/advocate/efiling/efil
 import { getValidationErrorMessage } from "../../../../../../utils/pdf-validation";
 import { HttpEventType } from "@angular/common/http";
 import { firstValueFrom } from "rxjs";
+import { CaseTypeService } from "../../../../../../services/master/case-type.services";
+import { PaymentService } from "../../../../../../services/payment/payment.service";
 
 @Component({
   selector: "app-edit",
@@ -55,6 +57,18 @@ export class Edit {
   caseDetailsLocked = false;
   caseDetailsData: any = null;
   filingData: any = null;
+  caseTypes: any[] = [];
+  paymentOutcome: "success" | "failed" | null = null;
+  paymentDetails:
+    | {
+        txnId?: string;
+        paidAt?: string;
+        referenceNo?: string;
+        amount?: string;
+        outcome?: "success" | "failed" | null;
+      }
+    | null = null;
+  private readonly wpCourtFeeRupees = 250;
 
   form!: FormGroup;
 
@@ -62,6 +76,8 @@ export class Edit {
     private fb: FormBuilder,
     private toastr: ToastrService,
     private eFilingService: EfilingService,
+    private caseTypeService: CaseTypeService,
+    private paymentService: PaymentService,
     private route: ActivatedRoute,
     private router: Router,
   ) {
@@ -159,17 +175,227 @@ export class Edit {
   }
 
   ngOnInit() {
+    this.caseTypeService.get_case_types().subscribe({
+      next: (data) => {
+        this.caseTypes = Array.isArray(data?.results) ? data.results : data || [];
+      },
+    });
     this.route.queryParams.subscribe((params) => {
       const idParam =
-        params["id"] ?? params["efiling_id"] ?? params["e_filing_id"];
+        params["id"] ??
+        params["efiling_id"] ??
+        params["e_filing_id"] ??
+        params["application"];
       this.filingId = Number(idParam || 0) || null;
       this.eFilingNumber = params["e_filing_number"] || this.eFilingNumber;
+      this.applyPaymentReturnQueryParams(params);
+      if (this.filingId) {
+        this.restorePaymentOutcomeFromStorage();
+        this.loadPaymentDetailsFromBackend();
+      }
       if (this.filingId) {
         this.get_litigant_list_by_filing_id();
         this.loadInitialInputs();
         this.loadDocuments();
       }
     });
+  }
+
+  get isWPCCaseType(): boolean {
+    const label = this.getSelectedCaseTypeLabel().trim().toUpperCase();
+    return label === "WP(C)" || (label.includes("WP") && label.includes("(C)"));
+  }
+
+  get paymentFeeRupees(): number {
+    return this.isWPCCaseType ? this.wpCourtFeeRupees : 0;
+  }
+
+  get requiresCourtFeePayment(): boolean {
+    return this.paymentFeeRupees > 0;
+  }
+
+  get isPaymentSuccessful(): boolean {
+    if (!this.requiresCourtFeePayment) return true;
+    return this.paymentOutcome === "success";
+  }
+
+  private getSelectedCaseTypeLabel(): string {
+    const fromFilingData =
+      this.filingData?.case_type_detail?.type_name ||
+      this.filingData?.case_type_detail?.name ||
+      this.filingData?.case_type?.type_name ||
+      this.filingData?.case_type?.name;
+    if (fromFilingData) return String(fromFilingData);
+    const caseTypeVal = this.initialInputsForm?.value?.case_type;
+    if (caseTypeVal && typeof caseTypeVal === "object") {
+      return caseTypeVal.type_name || caseTypeVal.full_form || caseTypeVal.name || "";
+    }
+    if (caseTypeVal) {
+      const ct = this.caseTypes?.find((c: any) => Number(c.id) === Number(caseTypeVal));
+      return ct?.type_name || ct?.full_form || ct?.name || String(caseTypeVal);
+    }
+    return "";
+  }
+
+  private applyPaymentReturnQueryParams(params: Params) {
+    const statusRaw = params["status"] ?? params["payment_status"] ?? params["txn_status"];
+    if (statusRaw === undefined || statusRaw === null || statusRaw === "") return;
+    const appParam = params["application"] ?? params["id"];
+    if (this.filingId && appParam !== undefined && String(appParam) !== String(this.filingId)) {
+      return;
+    }
+    const st = String(statusRaw).trim().toLowerCase();
+    this.paymentOutcome = /(success|paid|complete|ok)/i.test(st) ? "success" : "failed";
+
+    const txnId = String(
+      params["txn_id"] ??
+        params["transaction_id"] ??
+        params["sbs_ref_no"] ??
+        "",
+    );
+    const paidAt = String(
+      params["payment_datetime"] ?? params["paid_at"] ?? "",
+    );
+    const referenceNo = String(params["reference_no"] ?? "");
+    const amount = String(params["amount"] ?? "");
+
+    this.paymentDetails = {
+      txnId: txnId || undefined,
+      paidAt: paidAt || undefined,
+      referenceNo: referenceNo || undefined,
+      amount: amount || undefined,
+      outcome: this.paymentOutcome,
+    };
+
+    // Always open Payment accordion after gateway return.
+    this.step = 5;
+
+    this.persistPaymentOutcome();
+    const clean: Record<string, string | number> = {};
+    if (this.filingId) clean["id"] = this.filingId;
+    if (this.eFilingNumber) clean["e_filing_number"] = this.eFilingNumber;
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: clean,
+      replaceUrl: true,
+    });
+  }
+
+  private persistPaymentOutcome() {
+    if (!this.filingId || !this.paymentOutcome) return;
+    try {
+      sessionStorage.setItem(
+        `efiling_payment_${this.filingId}`,
+        JSON.stringify({
+          outcome: this.paymentOutcome,
+          details: this.paymentDetails,
+          at: Date.now(),
+        }),
+      );
+    } catch {
+      // ignore
+    }
+  }
+
+  private restorePaymentOutcomeFromStorage() {
+    if (!this.filingId || this.paymentOutcome !== null) return;
+    try {
+      const raw = sessionStorage.getItem(`efiling_payment_${this.filingId}`);
+      if (!raw) return;
+      const j = JSON.parse(raw);
+      if (j?.outcome === "success" || j?.outcome === "failed") {
+        this.paymentOutcome = j.outcome;
+        this.paymentDetails = j?.details ?? { outcome: j.outcome };
+        this.step = 5;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  private loadPaymentDetailsFromBackend() {
+    if (!this.filingId) return;
+    this.paymentService.latest(this.filingId).subscribe({
+      next: (tx) => {
+        if (!tx || (!tx.txn_id && !tx.reference_no && !tx.status)) return;
+        const statusRaw = String(tx.status || "").toLowerCase();
+        if (/(success|paid|complete|ok)/i.test(statusRaw)) {
+          this.paymentOutcome = "success";
+        } else if (statusRaw) {
+          this.paymentOutcome = "failed";
+        }
+        this.paymentDetails = {
+          txnId: tx.txn_id || undefined,
+          paidAt: tx.payment_datetime || tx.paid_at || undefined,
+          referenceNo: tx.reference_no || undefined,
+          amount: tx.amount || undefined,
+          outcome: this.paymentOutcome,
+        };
+      },
+    });
+  }
+
+  get paymentDetailsForPreview() {
+    if (!this.requiresCourtFeePayment) {
+      return { required: false };
+    }
+    return {
+      required: true,
+      txnId: this.paymentDetails?.txnId || "",
+      paidAt: this.paymentDetails?.paidAt || "",
+      referenceNo: this.paymentDetails?.referenceNo || "",
+      amount: this.paymentDetails?.amount || "",
+      outcome: this.paymentOutcome,
+    };
+  }
+
+  async confirmProceedToPay() {
+    if (!this.requiresCourtFeePayment) return;
+    if (!this.filingId || !this.eFilingNumber) {
+      this.toastr.error("Save the draft and ensure e-filing number exists before paying.");
+      return;
+    }
+    const res = await Swal.fire({
+      title: "Proceed to pay court fee?",
+      html: `You will be redirected to the payment gateway to pay <strong>₹${this.paymentFeeRupees}</strong> for this filing.`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Yes, proceed to pay",
+      cancelButtonText: "Cancel",
+    });
+    if (!res.isConfirmed) return;
+    try {
+      const init = await firstValueFrom(
+        this.paymentService.initiate({
+          amount: this.paymentFeeRupees,
+          application: this.filingId,
+          e_filing_number: this.eFilingNumber,
+          payment_type: "application",
+          source: "draft",
+        }),
+      );
+      this.postToGateway(init.action, init.fields as Record<string, string>);
+    } catch (e) {
+      console.error(e);
+      this.toastr.error("Could not start payment. Please try again.");
+    }
+  }
+
+  private postToGateway(action: string, fields: Record<string, string>) {
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = action;
+    form.style.display = "none";
+    form.acceptCharset = "UTF-8";
+    for (const [key, value] of Object.entries(fields)) {
+      const inp = document.createElement("input");
+      inp.type = "hidden";
+      inp.name = key;
+      inp.value = value == null ? "" : String(value);
+      form.appendChild(inp);
+    }
+    document.body.appendChild(form);
+    form.submit();
   }
 
   get_litigant_list_by_filing_id() {
@@ -328,8 +554,6 @@ export class Edit {
   }
 
   next() {
-    const currentForm = this.getCurrentForm();
-
     if (this.step === 1 && !this.hasRequiredLitigants()) {
       const message = this.hasPetitionerOnly()
         ? "At least one respondent should be added."
@@ -343,7 +567,24 @@ export class Edit {
 
     if (this.step == 1 && this.litigantList.length > 0) {
       this.step = 4;
-      this.setCaseDetailsReviewState(this.step === 5);
+      this.setCaseDetailsReviewState(this.step === 6);
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+      return;
+    }
+
+    if (this.step === 5) {
+      if (this.requiresCourtFeePayment && !this.isPaymentSuccessful) {
+        this.toastr.error("Please complete court fee payment before continuing.", "", {
+          timeOut: 3500,
+          closeButton: true,
+        });
+        return;
+      }
+      this.step = 6;
+      this.setCaseDetailsReviewState(this.step === 6);
       window.scrollTo({
         top: 0,
         behavior: "smooth",
@@ -353,7 +594,7 @@ export class Edit {
 
     if (this.step == 4 && this.docList.length > 0) {
       this.step = 5;
-      this.setCaseDetailsReviewState(this.step === 5);
+      this.setCaseDetailsReviewState(this.step === 6);
       window.scrollTo({
         top: 0,
         behavior: "smooth",
@@ -361,16 +602,17 @@ export class Edit {
       return;
     }
 
+    const currentForm = this.getCurrentForm();
     if (currentForm.invalid) {
       currentForm.markAllAsTouched();
       return;
     }
 
-    if (this.step < 5) {
+    if (this.step < 6) {
       this.step++;
     }
 
-    this.setCaseDetailsReviewState(this.step === 5);
+    this.setCaseDetailsReviewState(this.step === 6);
 
     window.scrollTo({
       top: 0,
@@ -379,13 +621,17 @@ export class Edit {
   }
 
   prev() {
-    if (this.step === 4) {
+    if (this.step === 6) {
+      this.step = 5;
+    } else if (this.step === 5) {
+      this.step = 4;
+    } else if (this.step === 4) {
       this.step = 1;
     } else if (this.step > 1) {
       this.step--;
     }
 
-    this.setCaseDetailsReviewState(this.step === 5);
+    this.setCaseDetailsReviewState(this.step === 6);
   }
 
   goToStep(stepNumber: number) {
@@ -407,7 +653,7 @@ export class Edit {
     }
 
     this.step = stepNumber;
-    this.setCaseDetailsReviewState(this.step === 5);
+    this.setCaseDetailsReviewState(this.step === 6);
   }
 
   saveStep1() {
@@ -761,7 +1007,9 @@ export class Edit {
 
   private getMaxAllowedStep(): number {
     if (!this.hasRequiredLitigants()) return 1;
-    return 5;
+    if (this.docList.length === 0) return 4;
+    if (this.requiresCourtFeePayment && !this.isPaymentSuccessful) return 5;
+    return 6;
   }
 
   goToPageFromPreview(step: number) {
@@ -769,7 +1017,7 @@ export class Edit {
       step = 1;
     }
     this.step = step;
-    this.setCaseDetailsReviewState(this.step === 5);
+    this.setCaseDetailsReviewState(this.step === 6);
   }
 
   private loadCaseDetails() {

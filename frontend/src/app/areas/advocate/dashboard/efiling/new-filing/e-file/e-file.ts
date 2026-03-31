@@ -20,6 +20,7 @@ export class EFile {
   @Input() docList!: any;
   @Input() caseDetailsData: any;
   @Input() filingData: any;
+  @Input() paymentDetails: any;
   @Output() goToPage = new EventEmitter<number>();
 
   caseTypes: any[] = [];
