@@ -96,7 +96,7 @@ export class NewFiling {
           is_petitioner: [true],
 
           is_organisation: [false],
-          organization: [""],
+          // organization: [""],
 
           contact: ["", [Validators.pattern(/^[0-9]{10}$/)]],
           email: ["", [Validators.email]],
@@ -117,13 +117,10 @@ export class NewFiling {
         {
           validators: (group) => {
             const isOrg = group.get("is_organisation")?.value;
-            const org = group.get("organization")?.value;
             const age = group.get("age")?.value;
             const gender = group.get("gender")?.value;
 
-            if (isOrg && !org) {
-              return { orgRequired: true };
-            }
+            
 
             if (!isOrg && !age) {
               return { ageRequired: true };
