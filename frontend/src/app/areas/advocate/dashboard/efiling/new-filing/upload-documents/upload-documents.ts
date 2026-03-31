@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+import { CommonModule } from "@angular/common";
 import {
   Component,
   EventEmitter,
@@ -7,12 +7,17 @@ import {
   OnInit,
   Output,
   SimpleChanges,
-} from '@angular/core';
-import { FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { ToastrService } from 'ngx-toastr';
-import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
-import { validatePdfFiles } from '../../../../../../utils/pdf-validation';
-import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
+} from "@angular/core";
+import { FormGroup, ReactiveFormsModule } from "@angular/forms";
+import { ToastrService } from "ngx-toastr";
+import { EfilingService } from "../../../../../../services/advocate/efiling/efiling.services";
+import { validatePdfFiles } from "../../../../../../utils/pdf-validation";
+import {
+  CdkDragDrop,
+  DragDropModule,
+  moveItemInArray,
+} from "@angular/cdk/drag-drop";
+import { docTypes } from "../../../../../../utils/doc-types.const";
 
 interface DocumentUploadEntry {
   file: File;
@@ -23,6 +28,12 @@ interface DocumentUploadEntry {
 interface DocumentIndexMaster {
   id: number;
   name: string;
+}
+
+interface DocTypeOption {
+  case_type_id: number;
+  code: string;
+  documents: string[];
 }
 
 interface UploadDocumentsPayloadItem {
@@ -37,11 +48,11 @@ interface UploadDocumentsPayload {
 }
 
 @Component({
-  selector: 'app-upload-documents',
+  selector: "app-upload-documents",
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, DragDropModule],
-  templateUrl: './upload-documents.html',
-  styleUrl: './upload-documents.css',
+  templateUrl: "./upload-documents.html",
+  styleUrl: "./upload-documents.css",
 })
 export class UploadDocuments implements OnInit, OnChanges {
   @Output() submitDoc = new EventEmitter<UploadDocumentsPayload>();
@@ -52,13 +63,23 @@ export class UploadDocuments implements OnInit, OnChanges {
   /** When set, hides the document type field and uses this value (e.g. 'IA' for IA filing). */
   @Input() defaultDocumentType: string | null = null;
   /** Optional front page data for merged PDF (petitioner vs respondent, case no, case type). */
-  @Input() frontPage: { petitionerName: string; respondentName: string; caseNo: string; caseType?: string } | null = null;
+  @Input() frontPage: {
+    petitionerName: string;
+    respondentName: string;
+    caseNo: string;
+    caseType?: string;
+  } | null = null;
   /** E-Filing number for merged PDF filename (e.g. DocumentType_efilingno.pdf). */
   @Input() eFilingNumber: string | null = null;
+  /** Case type id for filtering index name options. */
+  @Input() caseTypeId: number | null = null;
+  /** Index names already uploaded for this filing (avoid duplicates). */
+  @Input() existingIndexNames: string[] = [];
 
   entries: DocumentUploadEntry[] = [];
   indexMasters: DocumentIndexMaster[] = [];
   submitAttempted = false;
+  isSubmitting = false;
   isMerging = false;
   mergeError: string | null = null;
 
@@ -68,15 +89,26 @@ export class UploadDocuments implements OnInit, OnChanges {
   ) {}
 
   ngOnInit(): void {
+    const initialDocType = this.getEffectiveDocumentType();
+    if (initialDocType) {
+      this.form?.patchValue({ document_type: initialDocType });
+    }
     this.eFilingService.get_document_index_master().subscribe({
       next: (res) => {
-        const rows = Array.isArray(res) ? res : Array.isArray(res?.results) ? res.results : [];
+        const rows = Array.isArray(res)
+          ? res
+          : Array.isArray(res?.results)
+            ? res.results
+            : [];
         this.indexMasters = rows
           .map((item: any) => ({
             id: Number(item?.id),
-            name: String(item?.name ?? '').trim(),
+            name: String(item?.name ?? "").trim(),
           }))
-          .filter((item: DocumentIndexMaster) => Number.isFinite(item.id) && !!item.name);
+          .filter(
+            (item: DocumentIndexMaster) =>
+              Number.isFinite(item.id) && !!item.name,
+          );
       },
       error: () => {
         this.indexMasters = [];
@@ -85,8 +117,22 @@ export class UploadDocuments implements OnInit, OnChanges {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['uploadCompletedToken'] && !changes['uploadCompletedToken'].firstChange) {
+    if (changes["defaultDocumentType"]) {
+      const value = this.getEffectiveDocumentType();
+      if (value) {
+        this.form?.patchValue({ document_type: value });
+      }
+    }
+    if (
+      changes["uploadCompletedToken"] &&
+      !changes["uploadCompletedToken"].firstChange
+    ) {
       this.form.reset();
+      this.isSubmitting = false;
+      const value = this.getEffectiveDocumentType();
+      if (value) {
+        this.form?.patchValue({ document_type: value });
+      }
       this.entries = [];
     }
   }
@@ -96,7 +142,7 @@ export class UploadDocuments implements OnInit, OnChanges {
   }
 
   isDocumentTypeInvalid(): boolean {
-    const control = this.form?.get('document_type');
+    const control = this.form?.get("document_type");
     return !!control && control.invalid && (control.touched || control.dirty);
   }
 
@@ -111,38 +157,97 @@ export class UploadDocuments implements OnInit, OnChanges {
     const files = Array.from(input.files);
     const { valid, errors } = validatePdfFiles(files);
     if (errors.length > 0) {
-      this.toastr.error(errors.join(' '));
+      this.toastr.error(errors.join(" "));
     }
     if (valid.length === 0) return;
 
     const selectedEntries: DocumentUploadEntry[] = valid.map((file) => ({
       file,
-      index_name: '',
+      index_name: "",
       index_id: null,
     }));
 
     this.entries = [...this.entries, ...selectedEntries];
 
+    const currentDocType = this.getEffectiveDocumentType();
+    if (currentDocType) {
+      this.form?.patchValue({ document_type: currentDocType });
+    }
+
     this.form.patchValue({
       final_document: this.entries.length > 0 ? this.entries[0].file : null,
     });
 
-    input.value = '';
+    input.value = "";
   }
 
   updateDocumentType(index: number, value: string) {
     const entry = this.entries[index];
     if (!entry) return;
-    const typedValue = value;
+    const typedValue = String(value || "").trim();
     entry.index_name = typedValue;
 
     const normalized = typedValue.trim().toLowerCase();
-    const matchedMaster = this.indexMasters.find((item) => item.name.toLowerCase() === normalized);
+    const matchedMaster = this.indexMasters.find(
+      (item) => item.name.toLowerCase() === normalized,
+    );
     entry.index_id = matchedMaster ? matchedMaster.id : null;
   }
 
+  private getDocTypeDocuments(): string[] {
+    const docTypeRows = docTypes as DocTypeOption[];
+
+    const caseId = Number(this.caseTypeId || 0);
+    if (!caseId) return [];
+
+    const match = docTypeRows.find(
+      (item) => Number(item.case_type_id) === caseId,
+    );
+    if (!match || !Array.isArray(match.documents)) return [];
+
+    return match.documents.filter(
+      (doc: string) => typeof doc === "string" && doc.trim().length > 0,
+    );
+  }
+
+  getAvailableIndexNames(index: number): string[] {
+    const allDocs = this.getDocTypeDocuments();
+    const currentValue = String(this.entries?.[index]?.index_name || "").trim();
+    const currentNormalized = currentValue.toLowerCase();
+    const selected = new Set(
+      this.entries
+        .map((entry, i) =>
+          i === index
+            ? ""
+            : String(entry.index_name || "")
+                .trim()
+                .toLowerCase(),
+        )
+        .filter((value) => value.length > 0),
+    );
+    const alreadyUploaded = new Set(
+      (this.existingIndexNames || [])
+        .map((name) =>
+          String(name || "")
+            .trim()
+            .toLowerCase(),
+        )
+        .filter((name) => name.length > 0),
+    );
+
+    return allDocs.filter((name) => {
+      const normalized = String(name || "")
+        .trim()
+        .toLowerCase();
+      return (
+        (!selected.has(normalized) || normalized === currentNormalized) &&
+        (!alreadyUploaded.has(normalized) || normalized === currentNormalized)
+      );
+    });
+  }
+
   getIndexSuggestions(query: string): string[] {
-    const q = (query || '').trim().toLowerCase();
+    const q = (query || "").trim().toLowerCase();
     if (!q) return [];
 
     return this.indexMasters
@@ -168,25 +273,33 @@ export class UploadDocuments implements OnInit, OnChanges {
     moveItemInArray(this.entries, event.previousIndex, event.currentIndex);
   }
 
+  private resolveDefaultDocumentType(): string {
+    const provided = String(this.defaultDocumentType || "").trim();
+    if (provided) return provided;
+    return "New Filing";
+  }
+
   getEffectiveDocumentType(): string {
-    if (this.defaultDocumentType) {
-      return String(this.defaultDocumentType).trim();
-    }
-    return String(this.form?.value?.document_type || '').trim();
+    const resolved = this.resolveDefaultDocumentType();
+    if (resolved) return resolved;
+    return String(this.form?.value?.document_type || "").trim();
   }
 
   canUpload(): boolean {
     return (
       !this.isUploading &&
       this.entries.length > 0 &&
-      !!this.getEffectiveDocumentType() &&
-      this.entries.every((entry) => entry.index_name && entry.index_name.trim().length > 0)
+      this.entries.every(
+        (entry) => entry.index_name && entry.index_name.trim().length > 0,
+      )
     );
   }
 
   submit() {
+    if (this.isSubmitting) return;
     this.submitAttempted = true;
     if (!this.canUpload()) return;
+    this.isSubmitting = true;
 
     const payload: UploadDocumentsPayload = {
       document_type: this.getEffectiveDocumentType(),
@@ -208,12 +321,14 @@ export class UploadDocuments implements OnInit, OnChanges {
 
   getFileProgress(index: number): number {
     const progress = this.fileProgresses?.[index];
-    if (typeof progress !== 'number') return 0;
+    if (typeof progress !== "number") return 0;
     return Math.min(100, Math.max(0, Math.round(progress)));
   }
 
   hasAnyProgress(): boolean {
-    return (this.fileProgresses || []).some((p) => typeof p === 'number' && p > 0);
+    return (this.fileProgresses || []).some(
+      (p) => typeof p === "number" && p > 0,
+    );
   }
 
   canDownloadMerged(): boolean {
@@ -231,10 +346,10 @@ export class UploadDocuments implements OnInit, OnChanges {
     const names = this.entries.map((e) => e.index_name.trim());
     const frontPage = this.frontPage
       ? {
-          petitionerName: this.frontPage.petitionerName || '',
-          respondentName: this.frontPage.respondentName || '',
-          caseNo: this.frontPage.caseNo || '',
-          caseType: this.frontPage.caseType || '',
+          petitionerName: this.frontPage.petitionerName || "",
+          respondentName: this.frontPage.respondentName || "",
+          caseNo: this.frontPage.caseNo || "",
+          caseType: this.frontPage.caseType || "",
         }
       : undefined;
     this.isMerging = true;
@@ -242,10 +357,15 @@ export class UploadDocuments implements OnInit, OnChanges {
     this.eFilingService.mergePdfs(files, names, frontPage).subscribe({
       next: (blob) => {
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         a.href = url;
-        const docType = (this.getEffectiveDocumentType() || 'Documents').replace(/[^a-zA-Z0-9_-]/g, '_') || 'Documents';
-        const efilingNo = (this.eFilingNumber || '').replace(/[^a-zA-Z0-9_-]/g, '') || 'merged';
+        const docType =
+          (this.getEffectiveDocumentType() || "Documents").replace(
+            /[^a-zA-Z0-9_-]/g,
+            "_",
+          ) || "Documents";
+        const efilingNo =
+          (this.eFilingNumber || "").replace(/[^a-zA-Z0-9_-]/g, "") || "merged";
         a.download = `${docType}_${efilingNo}.pdf`;
         a.click();
         URL.revokeObjectURL(url);
@@ -254,11 +374,13 @@ export class UploadDocuments implements OnInit, OnChanges {
       error: (err) => {
         this.isMerging = false;
         const msg =
-          (typeof err?.error === 'object' && err?.error !== null && typeof err.error.error === 'string'
+          (typeof err?.error === "object" &&
+          err?.error !== null &&
+          typeof err.error.error === "string"
             ? err.error.error
             : null) ||
           err?.message ||
-          'Failed to merge PDFs.';
+          "Failed to merge PDFs.";
         this.mergeError = msg;
       },
     });
