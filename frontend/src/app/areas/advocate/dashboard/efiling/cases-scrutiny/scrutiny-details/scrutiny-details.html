@@ -1,5 +1,7 @@
 <div class="scrutiny-page">
-  <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-1">
+  <div
+    class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-1"
+  >
     <!-- <div>
     </div> -->
 
@@ -66,7 +68,10 @@
             </button>
           </li>
         </ul>
-        <div *ngIf="activeTab === 'filing'" class="file-summary-section filing-summary-body">
+        <div
+          *ngIf="activeTab === 'filing'"
+          class="file-summary-section filing-summary-body"
+        >
           <div class="filing-summary-section">
             <div class="filing-summary-section-title">
               <i class="fa-solid fa-file-lines me-2"></i>
@@ -75,33 +80,40 @@
             <div class="filing-summary-grid">
               <div class="filing-summary-item">
                 <span class="filing-summary-label">Bench</span>
-                <span class="filing-summary-value">{{ filing.bench || '-' }}</span>
+                <span class="filing-summary-value"
+                  >{{ filing.bench || '-' }}</span
+                >
               </div>
               <div class="filing-summary-item">
                 <span class="filing-summary-label">Case Type</span>
-                <span class="filing-summary-value">{{
-                  filing.case_type?.type_name || filing.case_type?.full_form || '-'
-                }}</span>
+                <span class="filing-summary-value"
+                  >{{ filing.case_type?.type_name || filing.case_type?.full_form
+                  || '-' }}</span
+                >
               </div>
-              <div class="filing-summary-item">
+              <!-- <div class="filing-summary-item">
                 <span class="filing-summary-label">Petitioner Name</span>
-                <span class="filing-summary-value">{{ filing.petitioner_name || '-' }}</span>
-              </div>
-              <div class="filing-summary-item">
+                <span class="filing-summary-value"
+                  >{{ filing.petitioner_name || '-' }}</span
+                >
+              </div> -->
+              <!-- <div class="filing-summary-item">
                 <span class="filing-summary-label">Petitioner Contact</span>
-                <span class="filing-summary-value">{{ filing.petitioner_contact || '-' }}</span>
-              </div>
+                <span class="filing-summary-value"
+                  >{{ filing.petitioner_contact || '-' }}</span
+                >
+              </div> -->
               <div class="filing-summary-item">
                 <span class="filing-summary-label">E-Filing Number</span>
-                <span class="filing-summary-value filing-number">{{
-                  filing.e_filing_number || '-'
-                }}</span>
+                <span class="filing-summary-value filing-number"
+                  >{{ filing.e_filing_number || '-' }}</span
+                >
               </div>
               <div class="filing-summary-item">
                 <span class="filing-summary-label">Accepted At</span>
-                <span class="filing-summary-value">{{
-                  filing.accepted_at | date: 'dd MMM yyyy, hh:mm a'
-                }}</span>
+                <span class="filing-summary-value"
+                  >{{ filing.accepted_at | date: 'dd MMM yyyy, hh:mm a' }}</span
+                >
               </div>
             </div>
           </div>
@@ -114,29 +126,34 @@
             <div class="filing-summary-grid">
               <div class="filing-summary-item">
                 <span class="filing-summary-label">Cause of Action</span>
-                <span class="filing-summary-value">{{ caseDetails.cause_of_action || '-' }}</span>
+                <span class="filing-summary-value"
+                  >{{ caseDetails.cause_of_action || '-' }}</span
+                >
               </div>
               <div class="filing-summary-item">
                 <span class="filing-summary-label">Date of Cause</span>
-                <span class="filing-summary-value">{{
-                  caseDetails.date_of_cause_of_action | date: 'dd MMM yyyy'
-                }}</span>
+                <span class="filing-summary-value"
+                  >{{ caseDetails.date_of_cause_of_action | date: 'dd MMM yyyy'
+                  }}</span
+                >
               </div>
               <div class="filing-summary-item">
                 <span class="filing-summary-label">Dispute State</span>
-                <span class="filing-summary-value">{{
-                  caseDetails.dispute_state.state || '-'
-                }}</span>
+                <span class="filing-summary-value"
+                  >{{ caseDetails.dispute_state.state || '-' }}</span
+                >
               </div>
               <div class="filing-summary-item">
                 <span class="filing-summary-label">Dispute District</span>
-                <span class="filing-summary-value">{{
-                  caseDetails.dispute_district.district || '-'
-                }}</span>
+                <span class="filing-summary-value"
+                  >{{ caseDetails.dispute_district.district || '-' }}</span
+                >
               </div>
               <div class="filing-summary-item">
                 <span class="filing-summary-label">Dispute Taluka</span>
-                <span class="filing-summary-value">{{ caseDetails.dispute_taluka || '-' }}</span>
+                <span class="filing-summary-value"
+                  >{{ caseDetails.dispute_taluka || '-' }}</span
+                >
               </div>
             </div>
           </div>
@@ -161,8 +178,12 @@
                     *ngFor="let litigant of petitioners; trackBy: trackById"
                   >
                     <div class="litigant-name">{{ litigant.name || '-' }}</div>
-                    <div class="litigant-meta">{{ litigant.contact || 'No contact' }}</div>
-                    <div class="litigant-meta" *ngIf="litigant.address">{{ litigant.address }}</div>
+                    <div class="litigant-meta">
+                      {{ litigant.contact || 'No contact' }}
+                    </div>
+                    <div class="litigant-meta" *ngIf="litigant.address">
+                      {{ litigant.address }}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -181,15 +202,19 @@
                     *ngFor="let litigant of respondents; trackBy: trackById"
                   >
                     <div class="litigant-name">{{ litigant.name || '-' }}</div>
-                    <div class="litigant-meta">{{ litigant.contact || 'No contact' }}</div>
-                    <div class="litigant-meta" *ngIf="litigant.address">{{ litigant.address }}</div>
+                    <div class="litigant-meta">
+                      {{ litigant.contact || 'No contact' }}
+                    </div>
+                    <div class="litigant-meta" *ngIf="litigant.address">
+                      {{ litigant.address }}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
           <!-- Acts & Sections -->
-          <div class="filing-summary-section">
+          <!-- <div class="filing-summary-section">
             <div class="filing-summary-section-title">
               <i class="fa-solid fa-gavel me-2"></i>
               Acts & Sections
@@ -209,14 +234,17 @@
                 </div>
               </div>
             </div>
-          </div>
+          </div> -->
         </div>
         <div *ngIf="activeTab === 'documents'" class="document-summary-section">
           <div class="row g-4">
             <div class="col-xl-3">
               <div class="card border-0 shadow-sm h-100">
                 <div class="card-body p-4">
-                  <div class="document-list" *ngIf="groupedDocuments.length > 0">
+                  <div
+                    class="document-list"
+                    *ngIf="groupedDocuments.length > 0"
+                  >
                     <div
                       class="document-group"
                       *ngFor="let group of groupedDocuments; trackBy: trackByGroupIndex"
@@ -232,11 +260,14 @@
                         [class.document-item-active]="selectedDocument?.id === document.id"
                         (click)="selectDocument(document)"
                       >
-                        <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div
+                          class="d-flex justify-content-between align-items-start gap-2"
+                        >
                           <div>
                             <!-- Treat document_part_name as the actual "file" row -->
                             <div class="document-title">
-                              {{ document.document_part_name || getDocumentFileLabel(document) }}
+                              {{ document.document_part_name ||
+                              getDocumentFileLabel(document) }}
                             </div>
                           </div>
 
@@ -264,9 +295,8 @@
                               [disabled]="isReplacing"
                               (click)="startReplace(document, rowReplaceInput, $event)"
                             >
-                              {{
-                                hasPendingReplacement(document.id) ? 'Change file' : 'Select file'
-                              }}
+                              {{ hasPendingReplacement(document.id) ? 'Change
+                              file' : 'Select file' }}
                             </button>
                             <button
                               type="button"
@@ -303,13 +333,15 @@
                     class="alert alert-light border small mb-3"
                     *ngIf="canReplace(selectedDocument)"
                   >
-                    This document was rejected during scrutiny. Upload a fresh PDF to send it back
-                    for review.
+                    This document was rejected during scrutiny. Upload a fresh
+                    PDF to send it back for review.
                   </div>
 
                   <div class="row g-4">
                     <div class="col-12">
-                      <div class="d-flex justify-content-end mb-2 flex-wrap gap-2">
+                      <div
+                        class="d-flex justify-content-end mb-2 flex-wrap gap-2"
+                      >
                         <button
                           type="button"
                           class="btn btn-danger btn-sm"
@@ -317,11 +349,8 @@
                           [disabled]="isReplacing"
                           (click)="submitAllReplacements()"
                         >
-                          {{
-                            isReplacing
-                              ? 'Replacing...'
-                              : 'Submit All Replacements (' + pendingReplacements.length + ')'
-                          }}
+                          {{ isReplacing ? 'Replacing...' : 'Submit All
+                          Replacements (' + pendingReplacements.length + ')' }}
                         </button>
                         <button
                           type="button"
@@ -370,8 +399,14 @@
                           View Remarks
                         </button>
                       </div>
-                      <div class="preview-frame" *ngIf="selectedDocumentUrl; else noPreview">
-                        <iframe [src]="selectedDocumentUrl" title="Advocate PDF preview"></iframe>
+                      <div
+                        class="preview-frame"
+                        *ngIf="selectedDocumentUrl; else noPreview"
+                      >
+                        <iframe
+                          [src]="selectedDocumentUrl"
+                          title="Advocate PDF preview"
+                        ></iframe>
                       </div>
 
                       <!-- Notes popup -->
@@ -411,7 +446,8 @@
                                 {{ item.comments || 'No note added.' }}
                               </div>
                               <div class="text-muted small mt-2">
-                                {{ item.recieved_at | date: 'dd MMM yyyy, hh:mm a' }}
+                                {{ item.recieved_at | date: 'dd MMM yyyy, hh:mm
+                                a' }}
                               </div>
                             </div>
 
@@ -423,7 +459,10 @@
                             </div>
                           </div>
 
-                          <div class="mt-3" *ngIf="canReplace(selectedDocument)">
+                          <div
+                            class="mt-3"
+                            *ngIf="canReplace(selectedDocument)"
+                          >
                             <input
                               #notesPopupReplaceInput
                               type="file"
@@ -448,14 +487,20 @@
                   </div>
                 </div>
 
-                <div class="card-body p-4 text-muted small" *ngIf="!selectedDocument">
+                <div
+                  class="card-body p-4 text-muted small"
+                  *ngIf="!selectedDocument"
+                >
                   Select a document to view its scrutiny history.
                 </div>
               </div>
             </div>
           </div>
         </div>
-        <div *ngIf="activeTab === 'ia' && iaList.length > 0" class="ia-tab-content">
+        <div
+          *ngIf="activeTab === 'ia' && iaList.length > 0"
+          class="ia-tab-content"
+        >
           <div class="accordion" id="iaAccordion">
             <div
               class="accordion-item"
@@ -470,11 +515,19 @@
                   [attr.aria-expanded]="false"
                   [attr.aria-controls]="'ia-collapse-' + item.ia.id"
                 >
-                  <span class="ia-number filing-number me-2">{{ item.ia.ia_number || '-' }}</span>
-                  <span class="badge rounded-pill px-2 py-1 me-2 status-badge" [ngClass]="getIaStatusBadgeClass(item.ia.status)">
+                  <span class="ia-number filing-number me-2"
+                    >{{ item.ia.ia_number || '-' }}</span
+                  >
+                  <span
+                    class="badge rounded-pill px-2 py-1 me-2 status-badge"
+                    [ngClass]="getIaStatusBadgeClass(item.ia.status)"
+                  >
                     {{ getIaStatusLabel(item.ia.status) }}
                   </span>
-                  <span class="text-muted small">({{ item.documents.length }} document{{ item.documents.length !== 1 ? 's' : '' }})</span>
+                  <span class="text-muted small"
+                    >({{ item.documents.length }} document{{
+                    item.documents.length !== 1 ? 's' : '' }})</span
+                  >
                 </button>
               </h2>
               <div
@@ -485,29 +538,46 @@
                 <div class="accordion-body">
                   <div class="ia-accordion-details mb-4">
                     <div *ngIf="item.ia.ia_text" class="mb-3">
-                      <span class="filing-summary-label d-block mb-1">Relief Sought</span>
+                      <span class="filing-summary-label d-block mb-1"
+                        >Relief Sought</span
+                      >
                       <div class="ia-text">{{ item.ia.ia_text }}</div>
                     </div>
                     <div class="ia-card-meta text-muted small">
-                      <span *ngIf="item.ia.created_at">Created: {{ item.ia.created_at | date: 'dd MMM yyyy' }}</span>
-                      <span *ngIf="item.ia.disposal_date" class="ms-3">Disposal: {{ item.ia.disposal_date | date: 'dd MMM yyyy' }}</span>
+                      <span *ngIf="item.ia.created_at"
+                        >Created: {{ item.ia.created_at | date: 'dd MMM yyyy'
+                        }}</span
+                      >
+                      <span *ngIf="item.ia.disposal_date" class="ms-3"
+                        >Disposal: {{ item.ia.disposal_date | date: 'dd MMM
+                        yyyy' }}</span
+                      >
                     </div>
                   </div>
-                  <div class="ia-accordion-docs" *ngIf="item.groupedDocs.length > 0">
+                  <div
+                    class="ia-accordion-docs"
+                    *ngIf="item.groupedDocs.length > 0"
+                  >
                     <div class="row g-4">
                       <div class="col-xl-3">
                         <div class="card border-0 shadow-sm h-100">
                           <div class="card-body p-4">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div
+                              class="d-flex justify-content-between align-items-center mb-3"
+                            >
                               <div class="section-title">IA Documents</div>
-                              <span class="small text-muted">{{ item.documents.length }} total</span>
+                              <span class="small text-muted"
+                                >{{ item.documents.length }} total</span
+                              >
                             </div>
                             <div class="document-list">
                               <div
                                 class="document-group"
                                 *ngFor="let group of item.groupedDocs; trackBy: trackByGroupIndex"
                               >
-                                <div class="document-type-header">{{ group.document_type || 'Main Document' }}</div>
+                                <div class="document-type-header">
+                                  {{ group.document_type || 'Main Document' }}
+                                </div>
                                 <div
                                   *ngFor="let doc of group.items; trackBy: trackById"
                                   class="document-item"
@@ -518,11 +588,23 @@
                                   (keydown.enter)="selectIaDocument(doc)"
                                   (keydown.space)="selectIaDocument(doc); $event.preventDefault()"
                                 >
-                                  <div class="d-flex justify-content-between align-items-start gap-2">
-                                    <div class="document-title">{{ doc.document_part_name || getDocumentFileLabel(doc) }}</div>
-                                    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end" (click)="$event.stopPropagation()">
-                                      <span class="status-badge status-badge-sm" [ngClass]="getStatusClass(doc.scrutiny_status)">
-                                        {{ getStatusLabel(doc.scrutiny_status) }}
+                                  <div
+                                    class="d-flex justify-content-between align-items-start gap-2"
+                                  >
+                                    <div class="document-title">
+                                      {{ doc.document_part_name ||
+                                      getDocumentFileLabel(doc) }}
+                                    </div>
+                                    <div
+                                      class="d-flex align-items-center gap-2 flex-wrap justify-content-end"
+                                      (click)="$event.stopPropagation()"
+                                    >
+                                      <span
+                                        class="status-badge status-badge-sm"
+                                        [ngClass]="getStatusClass(doc.scrutiny_status)"
+                                      >
+                                        {{ getStatusLabel(doc.scrutiny_status)
+                                        }}
                                       </span>
                                       <input
                                         #iaRowReplaceInput
@@ -538,7 +620,8 @@
                                         [disabled]="isReplacing"
                                         (click)="startReplaceIa(doc, iaRowReplaceInput, $event)"
                                       >
-                                        {{ hasPendingReplacement(doc.id) ? 'Change file' : 'Select file' }}
+                                        {{ hasPendingReplacement(doc.id) ?
+                                        'Change file' : 'Select file' }}
                                       </button>
                                       <button
                                         type="button"
@@ -567,11 +650,20 @@
                       </div>
                       <div class="col-xl-9">
                         <div class="card border-0 shadow-sm h-100">
-                          <div class="card-body" *ngIf="selectedIaDocumentBelongsToIa(item)">
-                            <div class="alert alert-light border small mb-3" *ngIf="canReplaceIa(selectedIaDocument)">
-                              This document was rejected during scrutiny. Upload a fresh PDF to send it back for review.
+                          <div
+                            class="card-body"
+                            *ngIf="selectedIaDocumentBelongsToIa(item)"
+                          >
+                            <div
+                              class="alert alert-light border small mb-3"
+                              *ngIf="canReplaceIa(selectedIaDocument)"
+                            >
+                              This document was rejected during scrutiny. Upload
+                              a fresh PDF to send it back for review.
                             </div>
-                            <div class="d-flex justify-content-end mb-2 flex-wrap gap-2">
+                            <div
+                              class="d-flex justify-content-end mb-2 flex-wrap gap-2"
+                            >
                               <button
                                 type="button"
                                 class="btn btn-danger btn-sm"
@@ -579,7 +671,9 @@
                                 [disabled]="isReplacing"
                                 (click)="submitAllReplacements()"
                               >
-                                {{ isReplacing ? 'Replacing...' : 'Submit All Replacements (' + pendingReplacements.length + ')' }}
+                                {{ isReplacing ? 'Replacing...' : 'Submit All
+                                Replacements (' + pendingReplacements.length +
+                                ')' }}
                               </button>
                               <button
                                 type="button"
@@ -587,7 +681,8 @@
                                 *ngIf="selectedIaDocument && hasPendingReplacement(selectedIaDocument.id)"
                                 (click)="viewPendingFile(selectedIaDocument.id)"
                               >
-                                <i class="fa fa-eye me-1"></i> View selected file
+                                <i class="fa fa-eye me-1"></i> View selected
+                                file
                               </button>
                               <input
                                 #iaPopupReplaceInput
@@ -613,18 +708,30 @@
                                 Clear selected file
                               </button>
                             </div>
-                            <div class="preview-frame" *ngIf="selectedIaDocumentUrl; else noPreviewIa">
-                              <iframe [src]="selectedIaDocumentUrl" title="IA document preview"></iframe>
+                            <div
+                              class="preview-frame"
+                              *ngIf="selectedIaDocumentUrl; else noPreviewIa"
+                            >
+                              <iframe
+                                [src]="selectedIaDocumentUrl"
+                                title="IA document preview"
+                              ></iframe>
                             </div>
                           </div>
-                          <div class="card-body p-4 text-muted small" *ngIf="!selectedIaDocumentBelongsToIa(item)">
+                          <div
+                            class="card-body p-4 text-muted small"
+                            *ngIf="!selectedIaDocumentBelongsToIa(item)"
+                          >
                             Select a document to view or replace.
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div *ngIf="item.groupedDocs.length === 0" class="ia-no-docs text-muted small p-4">
+                  <div
+                    *ngIf="item.groupedDocs.length === 0"
+                    class="ia-no-docs text-muted small p-4"
+                  >
                     No documents filed for this IA yet.
                   </div>
                 </div>

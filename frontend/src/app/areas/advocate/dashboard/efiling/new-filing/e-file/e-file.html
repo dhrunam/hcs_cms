@@ -1,7 +1,9 @@
 <div class="container preview-page rounded-3">
   <!-- INITIAL INPUTS -->
   <div class="card shadow-sm mb-4 border-0">
-    <div class="card-header text-start bg-dark text-white fw-semibold">Initial Inputs</div>
+    <div class="card-header text-start bg-dark text-white fw-semibold">
+      Initial Inputs
+    </div>
 
     <div class="card-body text-start">
       <div class="row g-3">
@@ -18,15 +20,19 @@
           </div>
         </div>
 
-        <div class="col-md-6">
+        <!-- <div class="col-md-6">
           <label class="text-muted small">Petitioner Name</label>
-          <div class="fw-semibold">{{ initialInputsView.petitioner_name || '-' }}</div>
+          <div class="fw-semibold">
+            {{ initialInputsView.petitioner_name || '-' }}
+          </div>
         </div>
 
         <div class="col-md-6">
           <label class="text-muted small">Petitioner Contact</label>
-          <div class="fw-semibold">{{ initialInputsView.petitioner_contact || '-' }}</div>
-        </div>
+          <div class="fw-semibold">
+            {{ initialInputsView.petitioner_contact || '-' }}
+          </div>
+        </div> -->
 
         <div class="col-md-6">
           <label class="text-muted small">E-Filing Number</label>
@@ -39,7 +45,10 @@
   </div>
 
   <!-- LITIGANT DETAILS -->
-  <div class="card shadow-sm mb-4 border-0 text-start" *ngIf="litigantList.length > 0">
+  <div
+    class="card shadow-sm mb-4 border-0 text-start"
+    *ngIf="litigantList.length > 0"
+  >
     <div
       class="card-header bg-dark text-white fw-semibold d-flex justify-content-between align-items-center"
     >
@@ -93,25 +102,15 @@
                   </span>
                 </td>
 
-                <td class="fw-semibold text-dark">
-                  {{ item.name }}
-                </td>
+                <td class="fw-semibold text-dark">{{ item.name }}</td>
 
-                <td class="text-muted small">
-                  {{ item.gender || '-' }}
-                </td>
+                <td class="text-muted small">{{ item.gender || '-' }}</td>
 
-                <td class="text-muted small">
-                  {{ item.age || '-' }}
-                </td>
+                <td class="text-muted small">{{ item.age || '-' }}</td>
 
-                <td class="text-muted small">
-                  {{ item.contact || '-' }}
-                </td>
+                <td class="text-muted small">{{ item.contact || '-' }}</td>
 
-                <td class="text-muted small">
-                  {{ item.address || '-' }}
-                </td>
+                <td class="text-muted small">{{ item.address || '-' }}</td>
                 <td class="d-flex gap-3 align-items-center">
                   <!-- More / Less Toggle -->
                   <span
@@ -134,20 +133,31 @@
                 <td colspan="8">
                   <div class="p-3 small text-muted">
                     <div>
-                      <strong>Organization:</strong> {{ item.organization_detail?.orgname }}
+                      <strong>Organization:</strong> {{
+                      item.organization_detail?.orgname }}
                     </div>
-                    <div><strong>Sequence No:</strong> {{ item.sequence_number }}</div>
+                    <div>
+                      <strong>Sequence No:</strong> {{ item.sequence_number }}
+                    </div>
                     <div><strong>Email:</strong> {{ item.email || '-' }}</div>
-                    <div><strong>Religion:</strong> {{ item.religion || '-' }}</div>
+                    <div>
+                      <strong>Religion:</strong> {{ item.religion || '-' }}
+                    </div>
                     <div><strong>Caste:</strong> {{ item.caste || '-' }}</div>
-                    <div><strong>Occupation:</strong> {{ item.occupation || '-' }}</div>
+                    <div>
+                      <strong>Occupation:</strong> {{ item.occupation || '-' }}
+                    </div>
                     <div>
                       <strong>Differently Abled:</strong>
                       {{ item.is_diffentially_abled ? 'Yes' : 'No' }}
                     </div>
-                    <div><strong>State ID:</strong> {{ item.state_detail?.state || '-' }}</div>
                     <div>
-                      <strong>District ID:</strong> {{ item.district_detail?.district || '-' }}
+                      <strong>State ID:</strong> {{ item.state_detail?.state ||
+                      '-' }}
+                    </div>
+                    <div>
+                      <strong>District ID:</strong> {{
+                      item.district_detail?.district || '-' }}
                     </div>
                     <div><strong>Taluka:</strong> {{ item.taluka || '-' }}</div>
                   </div>
@@ -160,13 +170,12 @@
     </div>
   </div>
 
-  <div class="card shadow-sm mb-4 border-0 text-start">
+  <!-- <div class="card shadow-sm mb-4 border-0 text-start">
     <div
       class="card-header bg-dark text-white fw-semibold d-flex justify-content-between align-items-center"
     >
       <span>Case Details</span>
 
-      <!-- Edit Button -->
       <button
         type="button"
         class="btn btn-sm btn-light d-flex align-items-center gap-1"
@@ -230,7 +239,7 @@
         </div>
       </div>
     </div>
-  </div>
+  </div> -->
 
   <div class="card p-0 shadow-sm mb-4 border-0 text-start">
     <div
@@ -265,9 +274,17 @@
       </div>
     </div>
 
-    <div class="alert alert-danger alert-dismissible py-2 small m-3" *ngIf="mergeError">
+    <div
+      class="alert alert-danger alert-dismissible py-2 small m-3"
+      *ngIf="mergeError"
+    >
       {{ mergeError }}
-      <button type="button" class="btn-close btn-sm" (click)="mergeError = null" aria-label="Close"></button>
+      <button
+        type="button"
+        class="btn-close btn-sm"
+        (click)="mergeError = null"
+        aria-label="Close"
+      ></button>
     </div>
 
     <div class="card-body p-0" *ngIf="docList.length > 0">
@@ -280,7 +297,12 @@
           <div class="d-flex align-items-center gap-3 mb-2">
             <div
               class="d-flex align-items-center justify-content-center"
-              style="width: 36px; height: 36px; background-color: #fef2f2; border-radius: 8px"
+              style="
+                width: 36px;
+                height: 36px;
+                background-color: #fef2f2;
+                border-radius: 8px;
+              "
             >
               <i class="fa-solid fa-file-pdf text-danger"></i>
             </div>
@@ -298,7 +320,8 @@
               class="d-flex justify-content-between align-items-center py-1"
             >
               <div class="small text-muted">
-                {{ j + 1 }}. {{ filePart.document_part_name || 'Document Part' }}
+                {{ j + 1 }}. {{ filePart.document_part_name || 'Document Part'
+                }}
               </div>
               <a
                 [href]="filePart.file_url || filePart.file_part_path"
@@ -311,7 +334,10 @@
             </div>
           </div>
 
-          <div class="ps-5" *ngIf="!doc.document_indexes?.length && doc.final_document">
+          <div
+            class="ps-5"
+            *ngIf="!doc.document_indexes?.length && doc.final_document"
+          >
             <a
               [href]="doc.final_document"
               target="_blank"

@@ -57,7 +57,7 @@ export class NewFiling {
   uploadFileProgresses: number[] = [];
   uploadCompletedToken = 0;
   caseDetailsLocked = false;
-  caseDetailsData: any = null;
+  // caseDetailsData: any = null;
   filingData: any = null;
   caseTypes: any[] = [];
 
@@ -120,8 +120,6 @@ export class NewFiling {
             const age = group.get("age")?.value;
             const gender = group.get("gender")?.value;
 
-            
-
             if (!isOrg && !age) {
               return { ageRequired: true };
             }
@@ -135,16 +133,16 @@ export class NewFiling {
         },
       ),
 
-      caseDetails: this.fb.group({
-        cause_of_action: ["-", Validators.required],
-        date_of_cause_of_action: ["2026-01-01", Validators.required],
-        dispute_state: ["1"],
-        dispute_district: ["1"],
-        dispute_taluka: ["1"],
+      // caseDetails: this.fb.group({
+      //   cause_of_action: ["-", Validators.required],
+      //   date_of_cause_of_action: ["2026-01-01", Validators.required],
+      //   dispute_state: ["1"],
+      //   dispute_district: ["1"],
+      //   dispute_taluka: ["1"],
 
-        act: ["", Validators.required],
-        section: ["", Validators.required],
-      }),
+      //   act: ["", Validators.required],
+      //   section: ["", Validators.required],
+      // }),
 
       actDetails: this.fb.group({
         act: ["", Validators.required],
@@ -176,7 +174,7 @@ export class NewFiling {
       this.eFilingNumber = params["e_filing_number"] || this.eFilingNumber;
       if (this.filingId) {
         this.loadInitialInputs();
-        this.loadCaseDetails();
+        // this.loadCaseDetails();
         // Acts flow is temporarily disabled in New Filing accordion.
         // this.loadActList();
       }
@@ -810,34 +808,34 @@ export class NewFiling {
     this.setCaseDetailsReviewState(this.step === 5);
   }
 
-  private loadCaseDetails() {
-    this.eFilingService
-      .get_case_details_by_filing_id(this.filingId || 0)
-      .subscribe({
-        next: (data) => {
-          const details = Array.isArray(data?.results) ? data.results[0] : data;
-          if (!details) return;
+  // private loadCaseDetails() {
+  //   this.eFilingService
+  //     .get_case_details_by_filing_id(this.filingId || 0)
+  //     .subscribe({
+  //       next: (data) => {
+  //         const details = Array.isArray(data?.results) ? data.results[0] : data;
+  //         if (!details) return;
 
-          this.caseDetailsData = details;
+  //         this.caseDetailsData = details;
 
-          this.caseDetailsForm.patchValue({
-            cause_of_action: details.cause_of_action || "",
-            date_of_cause_of_action: details.date_of_cause_of_action || "",
-            dispute_state: details.dispute_state || "",
-            dispute_district: details.dispute_district || "",
-            dispute_taluka: details.dispute_taluka || "",
-            act: "",
-            section: "",
-          });
+  //         this.caseDetailsForm.patchValue({
+  //           cause_of_action: details.cause_of_action || "",
+  //           date_of_cause_of_action: details.date_of_cause_of_action || "",
+  //           dispute_state: details.dispute_state || "",
+  //           dispute_district: details.dispute_district || "",
+  //           dispute_taluka: details.dispute_taluka || "",
+  //           act: "",
+  //           section: "",
+  //         });
 
-          this.step3Saved = true;
-          this.caseDetailsLocked = true;
-          this.caseDetailsForm.disable({ emitEvent: false });
-          this.caseDetailsForm.get("act")?.enable({ emitEvent: false });
-          this.caseDetailsForm.get("section")?.enable({ emitEvent: false });
-        },
-      });
-  }
+  //         this.step3Saved = true;
+  //         this.caseDetailsLocked = true;
+  //         this.caseDetailsForm.disable({ emitEvent: false });
+  //         this.caseDetailsForm.get("act")?.enable({ emitEvent: false });
+  //         this.caseDetailsForm.get("section")?.enable({ emitEvent: false });
+  //       },
+  //     });
+  // }
 
   private loadInitialInputs() {
     this.eFilingService.get_filing_by_efiling_id(this.filingId || 0).subscribe({
