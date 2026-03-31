@@ -34,3 +34,13 @@
   background: #fff;
 }
 
+.judge-preview-wrap {
+  min-height: 560px;
+}
+
+.judge-preview-frame {
+  width: 100%;
+  min-height: 540px;
+  border: 0;
+}
+

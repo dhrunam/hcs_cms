@@ -57,6 +57,7 @@ from apps.efiling.views.advocate_views import (
 )
 from apps.efiling.views.pdf_merge_views import merge_pdfs
 from apps.efiling.views.notification_views import EfilingNotificationListView
+from apps.efiling.views.document_stream_views import EfilingDocumentStreamByIndexView
 
 
 app_name = "efiling"
@@ -192,5 +193,10 @@ urlpatterns = [
     ),
     path("merge-pdfs/", merge_pdfs, name="merge-pdfs"),
     path("notifications/", EfilingNotificationListView.as_view(), name="notification-list"),
+    path(
+        "efiling-documents-index/<int:document_index_id>/stream/",
+        EfilingDocumentStreamByIndexView.as_view(),
+        name="efiling-document-index-stream",
+    ),
 ]
 

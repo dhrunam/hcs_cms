@@ -34,6 +34,13 @@ export class JudgePendingCasesPage {
     judge_listing_date: string | null;
     forwarded_for_date?: string;
   }[] = [];
+  calendarItems: {
+    efiling_id: number;
+    case_number: string | null;
+    status: 'APPROVED' | 'DECLINED' | 'REQUESTED_DOCS';
+    listing_date: string | null;
+    decision_notes: string | null;
+  }[] = [];
 
   constructor(private courtroomService: CourtroomService, private router: Router) {}
 
@@ -53,6 +60,7 @@ export class JudgePendingCasesPage {
       next: (resp) => {
         this.pendingForListing = resp?.pending_for_listing ?? [];
         this.pendingForCauseList = resp?.pending_for_causelist ?? [];
+        this.loadCalendar();
         this.isLoading = false;
       },
       error: (err) => {
@@ -71,6 +79,24 @@ export class JudgePendingCasesPage {
     this.router.navigate(['/judges/dashboard/courtroom', efilingId], {
       queryParams: { forwarded_for_date: fdate },
     });
+  }
+
+  private loadCalendar(): void {
+    this.courtroomService.getDecisionCalendar().subscribe({
+      next: (resp) => {
+        this.calendarItems = resp?.items ?? [];
+      },
+      error: (err) => {
+        console.warn('Failed to load decision calendar', err);
+        this.calendarItems = [];
+      },
+    });
+  }
+
+  statusBadge(status: string): string {
+    if (status === 'APPROVED') return 'text-bg-success';
+    if (status === 'DECLINED') return 'text-bg-danger';
+    return 'text-bg-warning';
   }
 }
 
