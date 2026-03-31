@@ -25,7 +25,10 @@
               <td>{{ c.case_type?.type_name }}</td>
               <td>{{ c.created_at | date: 'dd MMM yyyy' }}</td>
               <td>
-                <span class="badge rounded-pill px-2 py-1" [ngClass]="getStatusBadgeClass(c.status)">
+                <span
+                  class="badge rounded-pill px-2 py-1"
+                  [ngClass]="getStatusBadgeClass(c.status)"
+                >
                   {{ getStatusLabel(c.status) }}
                 </span>
               </td>

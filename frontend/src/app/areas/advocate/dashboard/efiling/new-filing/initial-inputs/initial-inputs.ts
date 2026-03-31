@@ -23,7 +23,11 @@ export class InitialInputs {
   get_case_types() {
     this.caseTypeService.get_case_types().subscribe({
       next: (data) => {
-        this.case_types = data;
+        this.case_types = Array.isArray(data?.results)
+          ? data.results
+          : Array.isArray(data)
+            ? data
+            : [];
         console.log("Case type data is ", this.case_types);
       },
     });
@@ -32,6 +36,9 @@ export class InitialInputs {
   get_case_type_label(value: any): string {
     if (value?.type_name) return value.type_name;
     const id = value?.id ?? value;
-    return this.case_types.find((item) => item.id === id)?.type_name || "";
+    return (
+      this.case_types.find((item) => Number(item.id) === Number(id))?.type_name ||
+      ""
+    );
   }
 }
