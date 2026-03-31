@@ -8,19 +8,13 @@ export const ListingOfficerDashboardRoutes: Routes = [
     children: [
       {
         path: '',
-        redirectTo: 'assign-cases',
+        redirectTo: 'generate-cause-list',
         pathMatch: 'full',
       },
       {
         path: 'home',
-        redirectTo: 'assign-cases',
+        redirectTo: 'generate-cause-list',
         pathMatch: 'full',
-      },
-      {
-        path: 'assign-cases',
-        loadComponent: () =>
-          import('./registered-cases/registered-cases').then((c) => c.RegisteredCasesPage),
-        title: 'Registered Cases | CMS',
       },
       {
         path: 'listed-cases',

@@ -35,6 +35,11 @@ export const routes: Routes = [
       import('./areas/judges/judges-routing-module').then((m) => m.JudgeRoutes),
   },
   {
+    path: 'reader',
+    loadChildren: () =>
+      import('./areas/reader/reader-routing-module').then((m) => m.ReaderRoutes),
+  },
+  {
     path: '',
     redirectTo: 'user/login',
     pathMatch: 'full',

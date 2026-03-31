@@ -90,6 +90,38 @@ export class Login {
       return;
     }
 
+    if (phone === '8111111111' && password === 'Reader1@123') {
+      sessionStorage.setItem('access_token', 'reader_cj_dummy_token');
+      sessionStorage.setItem('user_groups', JSON.stringify(['READER_CJ']));
+      sessionStorage.setItem('user_group', 'READER_CJ');
+      this.router.navigate(['/reader/dashboard/registered-cases']);
+      return;
+    }
+
+    if (phone === '8222222222' && password === 'Reader2@123') {
+      sessionStorage.setItem('access_token', 'reader_j1_dummy_token');
+      sessionStorage.setItem('user_groups', JSON.stringify(['READER_J1']));
+      sessionStorage.setItem('user_group', 'READER_J1');
+      this.router.navigate(['/reader/dashboard/registered-cases']);
+      return;
+    }
+
+    if (phone === '8333333333' && password === 'Reader3@123') {
+      sessionStorage.setItem('access_token', 'reader_j2_dummy_token');
+      sessionStorage.setItem('user_groups', JSON.stringify(['READER_J2']));
+      sessionStorage.setItem('user_group', 'READER_J2');
+      this.router.navigate(['/reader/dashboard/registered-cases']);
+      return;
+    }
+
+    if (phone === '8888888888' && (password === 'Reader@123' || password === '8888888888')) {
+      sessionStorage.setItem('access_token', 'reader_dummy_token');
+      sessionStorage.setItem('user_groups', JSON.stringify(['READER']));
+      sessionStorage.setItem('user_group', 'READER');
+      this.router.navigate(['/reader/dashboard/registered-cases']);
+      return;
+    }
+
     this.isLoading = false;
     this.authError = 'Invalid phone number or password.';
   }

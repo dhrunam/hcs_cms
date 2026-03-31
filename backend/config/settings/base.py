@@ -55,9 +55,11 @@ INSTALLED_APPS = [
     "apps.cis",
     "apps.core",
     "apps.efiling",
+    "apps.payment",
     "apps.listing",
     "apps.judge",
     "apps.master",
+    "apps.reader",
    
 ]
 
@@ -237,3 +239,43 @@ EFILING_VALIDATE_PDF_UPLOAD = True
 # SSO_SUB_CLAIM_KEYS = tuple(env_list('SSO_SUB_CLAIM_KEYS', 'sub,id'))
 # SSO_USERNAME_CLAIM_KEYS = tuple(env_list('SSO_USERNAME_CLAIM_KEYS', 'preferred_username,username,email'))
 # SSO_EMAIL_CLAIM_KEYS = tuple(env_list('SSO_EMAIL_CLAIM_KEYS', 'email'))
+
+# ---------------------------------------------------------------------------
+# Payment Gateway (SBS UAT)
+# ---------------------------------------------------------------------------
+PG_PARAMS = {
+    "merchant_code": os.getenv("PG_MERCHANT_CODE", "sikkimnic_sbs_uat_2021"),
+    "major_head_code": os.getenv("PG_MAJOR_HEAD_CODE", "0215"),
+    "minor_head_code": os.getenv("PG_MINOR_HEAD_CODE", "01.103"),
+    "return_url": os.getenv("PG_RETURN_URL", "http://localhost:8002/api/payment/response"),
+    "redirect_to_front_end_for_application_fee_paymet_status_page": os.getenv(
+        "PG_APPLICATION_REDIRECT_URL",
+        "http://localhost:4200/advocate/dashboard/efiling/new-filing",
+    ),
+    "redirect_to_front_end_for_application_fee_paymet_status_page_draft": os.getenv(
+        "PG_APPLICATION_DRAFT_REDIRECT_URL",
+        "http://localhost:4200/advocate/dashboard/efiling/draft-filings/edit",
+    ),
+    "redirect_to_front_end_for_intimation_fee_paymet_status_page": os.getenv(
+        "PG_INTIMATION_REDIRECT_URL",
+        "http://localhost:4200/dashboard/payment?application=",
+    ),
+    "salt": os.getenv(
+        "PG_SALT",
+        "31c6163218e5c8233ea9af089785bd3125b210cc995add2da23e36d0779d51d7",
+    ),
+    "payment_request_url": os.getenv(
+        "PG_PAYMENT_REQUEST_URL",
+        "https://www.sbsebr.com/sbsuat/UATInitiateTransaction/PaymentRequestGOS",
+    ),
+    "payment_status_url": os.getenv(
+        "PG_PAYMENT_STATUS_URL",
+        "https://www.sbsebr.com/sbsuat/UATInitiateTransaction/GetTransactionStatus",
+    ),
+}
+
+PG_PAYMENT_STATUS = {
+    "initiated": "initiated",
+    "success": "success",
+    "failed": "failed",
+}

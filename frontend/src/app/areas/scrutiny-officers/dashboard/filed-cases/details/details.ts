@@ -212,17 +212,36 @@ export class FiledCaseDetails {
     if (!this.canSubmitApprovedFiling || !this.filingId || !this.allDocumentsAccepted) return;
 
     Swal.fire({
-      title: 'Register Case?',
-      html: 'Are you sure you want to register this case? A case number will be generated and the filing will be finalized.',
+      title: 'Register Case & Assign Bench',
+      text: 'Please select the Bench (Judge) this case will be assigned to.',
+      input: 'select',
+      inputOptions: {
+        'CJ': 'Chief Justice',
+        'Judge1': 'Judge 1',
+        'Judge2': 'Judge 2',
+        'CJ+Judge1': 'Division Bench (CJ + Judge 1)',
+        'CJ+Judge2': 'Division Bench (CJ + Judge 2)',
+        'Judge1+Judge2': 'Division Bench (Judge 1 + Judge 2)',
+        'CJ+Judge1+Judge2': 'Full Bench (CJ + Judge 1 + Judge 2)'
+      },
+      inputPlaceholder: '-- Choose Bench --',
       icon: 'question',
       showCancelButton: true,
-      confirmButtonText: 'Yes, Register',
+      confirmButtonText: 'Register Case',
       cancelButtonText: 'Cancel',
       confirmButtonColor: '#0d6efd',
-      cancelButtonColor: '#6c757d',
+      inputValidator: (value) => {
+        return new Promise((resolve) => {
+          if (value) {
+            resolve(null);
+          } else {
+            resolve('Please select a bench');
+          }
+        });
+      }
     }).then((result) => {
       if (result.isConfirmed) {
-        this.submitApprovedFiling();
+        this.submitApprovedFiling(result.value);
       }
     });
   }
@@ -246,13 +265,13 @@ export class FiledCaseDetails {
     });
   }
 
-  submitApprovedFiling(): void {
+  submitApprovedFiling(bench?: string): void {
     if (!this.canSubmitApprovedFiling || !this.filingId) {
       return;
     }
 
     this.isSubmittingApprovedCase = true;
-    this.efilingService.submit_approved_filing(this.filingId).subscribe({
+    this.efilingService.submit_approved_filing(this.filingId, bench).subscribe({
       next: (filing) => {
         this.isSubmittingApprovedCase = false;
         this.filing = filing;
@@ -774,6 +793,11 @@ export class FiledCaseDetails {
     return Boolean(this.filing?.case_number);
   }
 
+  get isReturned(): boolean {
+    const b = this.filing?.bench;
+    return this.isCaseRegistered && (!b || b === 'null' || b === 'undefined' || b === 'None');
+  }
+
   get canReviewDocuments(): boolean {
     if (!this.isCaseRegistered) {
       return true;
@@ -784,6 +808,10 @@ export class FiledCaseDetails {
   get canSubmitApprovedFiling(): boolean {
     if (!this.filingId || this.isSubmittingApprovedCase) {
       return false;
+    }
+
+    if (this.isReturned) {
+      return true;
     }
 
     if (!this.isCaseRegistered) {

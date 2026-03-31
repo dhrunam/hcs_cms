@@ -122,10 +122,10 @@ export class EfilingService {
     return this.http.get<any>(`${app_url}/api/v1/efiling/efilings/${id}`);
   }
 
-  submit_approved_filing(id: number): Observable<any> {
+  submit_approved_filing(id: number, bench?: string): Observable<any> {
     return this.http.post<any>(
       `${app_url}/api/v1/efiling/efilings/${id}/submit-approved/`,
-      {},
+      { bench },
     );
   }
 

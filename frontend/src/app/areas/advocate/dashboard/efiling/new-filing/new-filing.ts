@@ -21,9 +21,10 @@ import {
 import { EFile } from "./e-file/e-file";
 import { UploadDocuments } from "./upload-documents/upload-documents";
 import Swal from "sweetalert2";
-import { ActivatedRoute, Router } from "@angular/router";
+import { ActivatedRoute, Params, Router } from "@angular/router";
 import { firstValueFrom } from "rxjs";
 import { HttpEventType } from "@angular/common/http";
+import { PaymentService } from "../../../../../services/payment/payment.service";
 
 @Component({
   selector: "app-new-filing",
@@ -63,11 +64,36 @@ export class NewFiling {
 
   form!: FormGroup;
 
+  /** Set from payment gateway return URL or sessionStorage */
+  paymentOutcome: "success" | "failed" | null = null;
+
+  paymentDetails:
+    | {
+        txnId?: string;
+        paidAt?: string;
+        referenceNo?: string;
+        amount?: string;
+        outcome?: "success" | "failed" | null;
+      }
+    | null = null;
+
+  private readonly wpCourtFeeRupees = 250;
+  private readonly wpMainPetitionMandatoryIndexes = [
+    "Synopsis",
+    "List of Dates and Events",
+    "Writ Petition",
+    "Affidavit",
+    "Annexure(s)*",
+    "Vakalatnama",
+    "Affidavit of Service",
+  ];
+
   constructor(
     private fb: FormBuilder,
     private toastr: ToastrService,
     private eFilingService: EfilingService,
     private caseTypeService: CaseTypeService,
+    private paymentService: PaymentService,
     private route: ActivatedRoute,
     private router: Router,
   ) {
@@ -150,7 +176,7 @@ export class NewFiling {
       }),
 
       uploadFilingDoc: this.fb.group({
-        document_type: [null, Validators.required],
+        document_type: ["New Filing", Validators.required],
         final_document: [[], Validators.required],
       }),
       setDeclaration: this.fb.group({
@@ -160,6 +186,7 @@ export class NewFiling {
   }
 
   ngOnInit() {
+    this.bindLitigantSequenceAutoGeneration();
     this.caseTypeService.get_case_types().subscribe({
       next: (data) => {
         this.caseTypes = Array.isArray(data?.results)
@@ -169,16 +196,316 @@ export class NewFiling {
     });
     this.route.queryParams.subscribe((params) => {
       const idParam =
-        params["id"] ?? params["efiling_id"] ?? params["e_filing_id"];
+        params["id"] ??
+        params["efiling_id"] ??
+        params["e_filing_id"] ??
+        params["application"];
       this.filingId = Number(idParam || 0) || null;
-      this.eFilingNumber = params["e_filing_number"] || this.eFilingNumber;
+      this.eFilingNumber =
+        params["e_filing_number"] || this.eFilingNumber;
+      this.applyPaymentReturnQueryParams(params);
+      if (this.filingId) {
+        this.restorePaymentOutcomeFromStorage();
+        this.loadPaymentDetailsFromBackend();
+      }
       if (this.filingId) {
         this.loadInitialInputs();
+        this.get_litigant_list_by_filing_id();
+        this.loadDocuments();
         // this.loadCaseDetails();
         // Acts flow is temporarily disabled in New Filing accordion.
         // this.loadActList();
       }
     });
+  }
+
+  get isWPCCaseType(): boolean {
+    const label = this.getSelectedCaseTypeLabel().trim().toUpperCase();
+    return label === "WP(C)" || (label.includes("WP") && label.includes("(C)"));
+  }
+
+  get paymentFeeRupees(): number {
+    return this.isWPCCaseType ? this.wpCourtFeeRupees : 0;
+  }
+
+  get effectiveDocumentType(): string | null {
+    return this.isWPCCaseType ? "Main Petition" : null;
+  }
+
+  get mandatoryIndexesForCurrentCase(): string[] {
+    return this.isWPCCaseType ? this.wpMainPetitionMandatoryIndexes : [];
+  }
+
+  get requiresCourtFeePayment(): boolean {
+    return this.paymentFeeRupees > 0;
+  }
+
+  get isPaymentSuccessful(): boolean {
+    if (!this.requiresCourtFeePayment) return true;
+    return this.paymentOutcome === "success";
+  }
+
+  private getSelectedCaseTypeLabel(): string {
+    const init = this.initialInputsForm?.value;
+    const caseTypeVal = init?.case_type;
+    if (caseTypeVal && typeof caseTypeVal === "object") {
+      return (
+        caseTypeVal.type_name ||
+        caseTypeVal.full_form ||
+        caseTypeVal.name ||
+        ""
+      );
+    }
+    if (caseTypeVal) {
+      const ct = this.caseTypes?.find(
+        (c: any) => Number(c.id) === Number(caseTypeVal),
+      );
+      return (
+        ct?.type_name || ct?.full_form || ct?.name || String(caseTypeVal)
+      );
+    }
+    return "";
+  }
+
+  private applyPaymentReturnQueryParams(params: Params) {
+    const statusRaw =
+      params["status"] ?? params["payment_status"] ?? params["txn_status"];
+    if (statusRaw === undefined || statusRaw === null || statusRaw === "") {
+      return;
+    }
+    const appParam = params["application"] ?? params["id"];
+    if (
+      this.filingId &&
+      appParam !== undefined &&
+      String(appParam) !== String(this.filingId)
+    ) {
+      return;
+    }
+    const st = String(statusRaw).trim().toLowerCase();
+    if (/(success|paid|complete|ok)/i.test(st)) {
+      this.paymentOutcome = "success";
+    } else if (/(fail|reject|declin|error|cancel)/i.test(st)) {
+      this.paymentOutcome = "failed";
+    } else {
+      this.paymentOutcome = "failed";
+    }
+
+    const txnId = String(
+      params["txn_id"] ??
+        params["transaction_id"] ??
+        params["sbs_ref_no"] ??
+        "",
+    );
+    const paidAt = String(
+      params["payment_datetime"] ?? params["paid_at"] ?? "",
+    );
+    const referenceNo = String(params["reference_no"] ?? "");
+    const amount = String(params["amount"] ?? "");
+
+    this.paymentDetails = {
+      txnId: txnId || undefined,
+      paidAt: paidAt || undefined,
+      referenceNo: referenceNo || undefined,
+      amount: amount || undefined,
+      outcome: this.paymentOutcome,
+    };
+
+    // Always open Payment accordion after gateway return.
+    this.step = 5;
+
+    this.persistPaymentOutcome();
+    const clean: Record<string, string | number> = {};
+    if (this.filingId) clean["id"] = this.filingId;
+    if (this.eFilingNumber) clean["e_filing_number"] = this.eFilingNumber;
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: clean,
+      replaceUrl: true,
+    });
+  }
+
+  private persistPaymentOutcome() {
+    if (!this.filingId || !this.paymentOutcome) return;
+    try {
+      sessionStorage.setItem(
+        `efiling_payment_${this.filingId}`,
+        JSON.stringify({
+          outcome: this.paymentOutcome,
+          details: this.paymentDetails,
+          at: Date.now(),
+        }),
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private restorePaymentOutcomeFromStorage() {
+    if (!this.filingId || this.paymentOutcome !== null) return;
+    try {
+      const raw = sessionStorage.getItem(`efiling_payment_${this.filingId}`);
+      if (!raw) return;
+      const j = JSON.parse(raw);
+      if (j?.outcome === "success" || j?.outcome === "failed") {
+        this.paymentOutcome = j.outcome;
+        this.paymentDetails = j?.details ?? {
+          outcome: j.outcome,
+        };
+        this.step = 5;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private loadPaymentDetailsFromBackend() {
+    if (!this.filingId) return;
+    this.paymentService.latest(this.filingId).subscribe({
+      next: (tx) => {
+        if (!tx || (!tx.txn_id && !tx.reference_no && !tx.status)) return;
+        const statusRaw = String(tx.status || "").toLowerCase();
+        if (/(success|paid|complete|ok)/i.test(statusRaw)) {
+          this.paymentOutcome = "success";
+        } else if (statusRaw) {
+          this.paymentOutcome = "failed";
+        }
+        this.paymentDetails = {
+          txnId: tx.txn_id || undefined,
+          paidAt: tx.payment_datetime || tx.paid_at || undefined,
+          referenceNo: tx.reference_no || undefined,
+          amount: tx.amount || undefined,
+          outcome: this.paymentOutcome,
+        };
+      },
+    });
+  }
+
+  get paymentDetailsForPreview() {
+    if (!this.requiresCourtFeePayment) {
+      return {
+        required: false,
+      };
+    }
+    return {
+      required: true,
+      txnId: this.paymentDetails?.txnId || "",
+      paidAt: this.paymentDetails?.paidAt || "",
+      referenceNo: this.paymentDetails?.referenceNo || "",
+      amount: this.paymentDetails?.amount || "",
+      outcome: this.paymentOutcome,
+    };
+  }
+
+  get_litigant_list_by_filing_id() {
+    if (!this.filingId) return;
+    this.eFilingService
+      .get_litigant_list_by_filing_id(this.filingId)
+      .subscribe({
+        next: (data) => {
+          this.litigantList = Array.isArray(data?.results) ? data.results : [];
+          this.refreshLitigantSequenceNumber();
+        },
+      });
+  }
+
+  private loadDocuments() {
+    if (!this.filingId) return;
+    this.eFilingService
+      .get_document_reviews_by_filing_id(this.filingId)
+      .subscribe({
+        next: (data) => {
+          const rows = Array.isArray(data?.results) ? data.results : [];
+          const grouped = new Map<string, any>();
+
+          rows.forEach((item: any) => {
+            const type = String(item?.document_type || "").trim() || "Document";
+            const existing = grouped.get(type);
+            const documentId =
+              item?.document ||
+              item?.document_id ||
+              item?.documentId ||
+              item?.id;
+
+            if (existing) {
+              existing.document_indexes.push(item);
+              if (!existing.id && documentId) {
+                existing.id = documentId;
+              }
+            } else {
+              grouped.set(type, {
+                id: documentId || null,
+                document_type: type,
+                document_indexes: [item],
+              });
+            }
+          });
+
+          this.docList = Array.from(grouped.values()).map((doc) => {
+            const sortedIndexes = Array.isArray(doc.document_indexes)
+              ? [...doc.document_indexes].sort((a: any, b: any) => {
+                  const left = Number(a?.document_sequence) || 0;
+                  const right = Number(b?.document_sequence) || 0;
+                  return left - right;
+                })
+              : [];
+
+            return {
+              ...doc,
+              document_indexes: sortedIndexes,
+            };
+          });
+        },
+      });
+  }
+
+  async confirmProceedToPay() {
+    if (!this.requiresCourtFeePayment) return;
+    if (!this.filingId || !this.eFilingNumber) {
+      this.toastr.error(
+        "Save the filing and ensure an e-filing number exists before paying.",
+      );
+      return;
+    }
+    const res = await Swal.fire({
+      title: "Proceed to pay court fee?",
+      html: `You will be redirected to the payment gateway to pay <strong>₹${this.paymentFeeRupees}</strong> for this filing.`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Yes, proceed to pay",
+      cancelButtonText: "Cancel",
+    });
+    if (!res.isConfirmed) return;
+    try {
+      const init = await firstValueFrom(
+        this.paymentService.initiate({
+          amount: this.paymentFeeRupees,
+          application: this.filingId,
+          e_filing_number: this.eFilingNumber,
+          payment_type: "application",
+        }),
+      );
+      this.postToGateway(init.action, init.fields as Record<string, string>);
+    } catch (e) {
+      console.error(e);
+      this.toastr.error("Could not start payment. Please try again.");
+    }
+  }
+
+  private postToGateway(action: string, fields: Record<string, string>) {
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = action;
+    form.style.display = "none";
+    form.acceptCharset = "UTF-8";
+    for (const [key, value] of Object.entries(fields)) {
+      const inp = document.createElement("input");
+      inp.type = "hidden";
+      inp.name = key;
+      inp.value = value == null ? "" : String(value);
+      form.appendChild(inp);
+    }
+    document.body.appendChild(form);
+    form.submit();
   }
 
   actList: any[] = [];
@@ -264,6 +591,38 @@ export class NewFiling {
     return this.form.get("uploadFilingDoc") as FormGroup;
   }
 
+  get uploadedIndexNames(): string[] {
+    const list = Array.isArray(this.docList) ? this.docList : [];
+    const names: string[] = [];
+    list.forEach((doc: any) => {
+      const indexes = Array.isArray(doc?.document_indexes)
+        ? doc.document_indexes
+        : [];
+      indexes.forEach((part: any) => {
+        const name = String(
+          part?.document_part_name ||
+            part?.document_part ||
+            part?.index_name ||
+            part?.name ||
+            "",
+        ).trim();
+        if (name) names.push(name);
+      });
+    });
+    return names;
+  }
+
+  get selectedCaseTypeId(): number | null {
+    const value = this.initialInputsForm?.get("case_type")?.value;
+    if (!value) return null;
+    if (typeof value === "object") {
+      const id = Number((value as any).id || 0);
+      return Number.isFinite(id) && id > 0 ? id : null;
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }
+
   get mergeFrontPage(): {
     petitionerName: string;
     respondentName: string;
@@ -319,8 +678,6 @@ export class NewFiling {
   }
 
   next() {
-    const currentForm = this.getCurrentForm();
-
     if (this.step === 1 && !this.hasRequiredLitigants()) {
       const message = this.hasPetitionerOnly()
         ? "At least one respondent should be added."
@@ -334,7 +691,28 @@ export class NewFiling {
 
     if (this.step == 1 && this.litigantList.length > 0) {
       this.step = 4;
-      this.setCaseDetailsReviewState(this.step === 5);
+      this.setCaseDetailsReviewState(this.step === 6);
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+      return;
+    }
+
+    if (this.step === 5) {
+      if (this.requiresCourtFeePayment && !this.isPaymentSuccessful) {
+        this.toastr.error(
+          "Please complete court fee payment before continuing.",
+          "",
+          {
+            timeOut: 3500,
+            closeButton: true,
+          },
+        );
+        return;
+      }
+      this.step = 6;
+      this.setCaseDetailsReviewState(this.step === 6);
       window.scrollTo({
         top: 0,
         behavior: "smooth",
@@ -343,8 +721,14 @@ export class NewFiling {
     }
 
     if (this.step == 4 && this.docList.length > 0) {
+      if (!this.hasMandatoryWpCDocuments()) {
+        this.toastr.error(
+          "For WP(C), upload all mandatory Main Petition indexes before proceeding.",
+        );
+        return;
+      }
       this.step = 5;
-      this.setCaseDetailsReviewState(this.step === 5);
+      this.setCaseDetailsReviewState(this.step === 6);
       window.scrollTo({
         top: 0,
         behavior: "smooth",
@@ -352,16 +736,17 @@ export class NewFiling {
       return;
     }
 
+    const currentForm = this.getCurrentForm();
     if (currentForm.invalid) {
       currentForm.markAllAsTouched();
       return;
     }
 
-    if (this.step < 5) {
+    if (this.step < 6) {
       this.step++;
     }
 
-    this.setCaseDetailsReviewState(this.step === 5);
+    this.setCaseDetailsReviewState(this.step === 6);
 
     window.scrollTo({
       top: 0,
@@ -370,13 +755,17 @@ export class NewFiling {
   }
 
   prev() {
-    if (this.step === 4) {
+    if (this.step === 6) {
+      this.step = 5;
+    } else if (this.step === 5) {
+      this.step = 4;
+    } else if (this.step === 4) {
       this.step = 1;
     } else if (this.step > 1) {
       this.step--;
     }
 
-    this.setCaseDetailsReviewState(this.step === 5);
+    this.setCaseDetailsReviewState(this.step === 6);
   }
 
   goToStep(stepNumber: number) {
@@ -398,7 +787,7 @@ export class NewFiling {
     }
 
     this.step = stepNumber;
-    this.setCaseDetailsReviewState(this.step === 5);
+    this.setCaseDetailsReviewState(this.step === 6);
   }
 
   // saveStep1() {
@@ -463,7 +852,7 @@ export class NewFiling {
   saveStep2() {
     const initialForm = this.form.get("initialInputs") as FormGroup;
     const form = this.form.get("litigants") as FormGroup;
-    const formValue = { ...form.value };
+    const formValue = { ...form.getRawValue() };
     const currentLitigantId = Number(formValue.id || 0);
 
     if (!this.filingId || !this.eFilingNumber) {
@@ -522,12 +911,15 @@ export class NewFiling {
             id: "",
             is_diffentially_abled: false,
             is_petitioner: formValue.is_petitioner,
-            sequence_number: "",
+            sequence_number: this.getNextSequenceNumber(formValue.is_petitioner),
             gender: "",
             organization: "",
           });
 
-          window.scrollTo({ top: 0, behavior: "smooth" });
+          window.scrollTo({
+            top: document.body.scrollHeight * 3,
+            behavior: "smooth",
+          });
 
           const typeLabel = this.getLitigantTypeLabel(formValue.is_petitioner);
           this.toastr.success(`1 ${typeLabel} added`, "", {
@@ -574,6 +966,7 @@ export class NewFiling {
 
   onDelete(id: number) {
     this.litigantList = this.litigantList.filter((item) => item.id !== id);
+    this.refreshLitigantSequenceNumber();
   }
 
   undoLitigantEdit() {
@@ -583,7 +976,7 @@ export class NewFiling {
       name: "",
       gender: "",
       age: "",
-      sequence_number: "",
+      sequence_number: this.getNextSequenceNumber(true),
       is_diffentially_abled: false,
       is_petitioner: true,
       is_organisation: false,
@@ -601,11 +994,12 @@ export class NewFiling {
     });
     form.markAsPristine();
     form.markAsUntouched();
+    this.refreshLitigantSequenceNumber(true);
   }
 
   updateStep2() {
     const form = this.form.get("litigants") as FormGroup;
-    const formValue = { ...form.value };
+    const formValue = { ...form.getRawValue() };
     const litigantId = Number(formValue.id || 0);
 
     if (!litigantId) {
@@ -682,7 +1076,7 @@ export class NewFiling {
           id: "",
           is_diffentially_abled: false,
           is_petitioner: formValue.is_petitioner,
-          sequence_number: "",
+          sequence_number: this.getNextSequenceNumber(formValue.is_petitioner),
           gender: "",
           organization: "",
         });
@@ -690,7 +1084,10 @@ export class NewFiling {
         this.toastr.success("Litigant updated successfully", "", {
           timeOut: 3000,
         });
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        window.scrollTo({
+          top: document.body.scrollHeight * 0.3,
+          behavior: "smooth",
+        });
       });
   }
 
@@ -721,12 +1118,40 @@ export class NewFiling {
 
   private getNextSequenceNumber(isPetitioner: boolean): number {
     const maxSequence = this.litigantList
-      .filter((item) => item.is_petitioner === isPetitioner)
+      .filter(
+        (item) =>
+          this.normalizeIsPetitioner(item.is_petitioner) ===
+          this.normalizeIsPetitioner(isPetitioner),
+      )
       .reduce(
         (max, item) => Math.max(max, Number(item.sequence_number) || 0),
         0,
       );
     return maxSequence + 1;
+  }
+
+  private refreshLitigantSequenceNumber(force = false): void {
+    const form = this.litigantsForm;
+    if (!form) return;
+    const isEditing = Number(form.get("id")?.value || 0) > 0;
+    if (isEditing && !force) return;
+    const isPetitioner = this.normalizeIsPetitioner(
+      form.get("is_petitioner")?.value,
+    );
+    form.patchValue(
+      { sequence_number: this.getNextSequenceNumber(isPetitioner) },
+      { emitEvent: false },
+    );
+  }
+
+  private bindLitigantSequenceAutoGeneration(): void {
+    const form = this.litigantsForm;
+    if (!form) return;
+    form.get("sequence_number")?.disable({ emitEvent: false });
+    this.refreshLitigantSequenceNumber(true);
+    form.get("is_petitioner")?.valueChanges.subscribe(() => {
+      this.refreshLitigantSequenceNumber();
+    });
   }
 
   private hasPetitionerOnly(): boolean {
@@ -797,7 +1222,39 @@ export class NewFiling {
 
   private getMaxAllowedStep(): number {
     if (!this.hasRequiredLitigants()) return 1;
-    return 5;
+    if (this.docList.length === 0) return 4;
+    if (!this.hasMandatoryWpCDocuments()) return 4;
+    if (this.requiresCourtFeePayment && !this.isPaymentSuccessful) return 5;
+    return 6;
+  }
+
+  private hasMandatoryWpCDocuments(): boolean {
+    if (!this.isWPCCaseType) return true;
+    const mainPetition = this.docList.find(
+      (d: any) =>
+        String(d?.document_type || "")
+          .trim()
+          .toLowerCase() === "main petition",
+    );
+    if (!mainPetition) return false;
+
+    const names = new Set(
+      (mainPetition.document_indexes || [])
+        .map((x: any) => String(x?.document_part_name || "").trim().toLowerCase())
+        .filter(Boolean),
+    );
+    const requiredWithoutAnnexure = this.wpMainPetitionMandatoryIndexes
+      .filter((name) => name !== "Annexure(s)*")
+      .map((name) => name.trim().toLowerCase());
+
+    const hasRequired = requiredWithoutAnnexure.every((name) =>
+      names.has(name),
+    );
+    if (!hasRequired) return false;
+    const hasAnnexure = (mainPetition.document_indexes || []).some((x: any) =>
+      /^annexure a\d+$/i.test(String(x?.document_part_name || "").trim()),
+    );
+    return hasAnnexure;
   }
 
   goToPageFromPreview(step: number) {
@@ -805,7 +1262,7 @@ export class NewFiling {
       step = 1;
     }
     this.step = step;
-    this.setCaseDetailsReviewState(this.step === 5);
+    this.setCaseDetailsReviewState(this.step === 6);
   }
 
   // private loadCaseDetails() {
@@ -845,9 +1302,11 @@ export class NewFiling {
 
         this.filingData = record;
 
+        const resolvedCaseTypeId =
+          record.case_type?.id ?? record.case_type_id ?? record.case_type ?? "";
         this.initialInputsForm.patchValue({
           bench: record.bench || "High Court Of Sikkim",
-          case_type: record.case_type || "",
+          case_type: record.case_type?.id ?? record.case_type ?? "",
           petitioner_name: record.petitioner_name || "",
           petitioner_contact: record.petitioner_contact || "",
           e_filing_number: this.eFilingNumber || record.e_filing_number,
@@ -918,7 +1377,24 @@ export class NewFiling {
       });
   }
 
+  private normalizeDocType(value: any): string {
+    return String(value || "")
+      .trim()
+      .toLowerCase();
+  }
+
+  private findExistingDocumentByType(documentType: string): any | null {
+    const target = this.normalizeDocType(documentType);
+    const list = Array.isArray(this.docList) ? this.docList : [];
+    return (
+      list.find(
+        (doc: any) => this.normalizeDocType(doc?.document_type) === target,
+      ) || null
+    );
+  }
+
   async handleDocUpload(data: any) {
+    if (this.isUploadingDocuments) return;
     const documentType = String(data?.document_type || "").trim();
     const uploadItems = Array.isArray(data?.items) ? data.items : [];
 
@@ -947,19 +1423,28 @@ export class NewFiling {
     this.uploadFileProgresses = uploadItems.map(() => 0);
 
     try {
-      const documentPayload = new FormData();
-      documentPayload.append("document_type", documentType);
-      documentPayload.append("e_filing", String(this.filingId));
-      documentPayload.append("e_filing_number", this.eFilingNumber);
+      let documentRes = this.findExistingDocumentByType(documentType);
+      let documentId = documentRes?.id;
 
-      const documentRes = await firstValueFrom(
-        this.eFilingService.upload_case_documnets(documentPayload),
-      );
+      if (!documentId) {
+        const documentPayload = new FormData();
+        documentPayload.append("document_type", documentType);
+        documentPayload.append("e_filing", String(this.filingId));
+        documentPayload.append("e_filing_number", this.eFilingNumber);
 
-      const documentId = documentRes?.id;
-      if (!documentId) return;
+        documentRes = await firstValueFrom(
+          this.eFilingService.upload_case_documnets(documentPayload),
+        );
+
+        documentId = documentRes?.id;
+        if (!documentId) return;
+      }
 
       const uploadedDocumentParts: any[] = [];
+
+      const existingIndexes = Array.isArray(documentRes?.document_indexes)
+        ? documentRes.document_indexes
+        : [];
 
       for (let i = 0; i < uploadItems.length; i++) {
         const item = uploadItems[i];
@@ -970,7 +1455,10 @@ export class NewFiling {
           String(item.index_name || "").trim(),
         );
         indexPayload.append("file_part_path", item.file);
-        indexPayload.append("document_sequence", String(i + 1));
+        indexPayload.append(
+          "document_sequence",
+          String(existingIndexes.length + i + 1),
+        );
         if (item.index_id) {
           indexPayload.append("index", String(item.index_id));
         }
@@ -982,12 +1470,23 @@ export class NewFiling {
         uploadedDocumentParts.push(indexRes);
       }
 
-      this.docList.push({
+      const mergedIndexes = [...existingIndexes, ...uploadedDocumentParts];
+      const mergedDoc = {
         ...documentRes,
-        document_indexes: uploadedDocumentParts,
+        document_type: documentType,
+        document_indexes: mergedIndexes,
         final_document:
-          uploadedDocumentParts[0]?.file_url || documentRes?.final_document,
-      });
+          mergedIndexes[0]?.file_url || documentRes?.final_document,
+      };
+
+      const existingIndex = this.docList.findIndex(
+        (doc: any) => Number(doc?.id) === Number(documentId),
+      );
+      if (existingIndex > -1) {
+        this.docList[existingIndex] = mergedDoc;
+      } else {
+        this.docList.push(mergedDoc);
+      }
       this.uploadCompletedToken++;
     } catch (error) {
       console.error("Document upload failed", error);
@@ -1041,6 +1540,13 @@ export class NewFiling {
   }
 
   submit() {
+    if (!this.hasMandatoryWpCDocuments()) {
+      this.toastr.error(
+        "For WP(C), upload all mandatory Main Petition indexes before final submission.",
+      );
+      this.step = 4;
+      return;
+    }
     Swal.fire({
       title: "Submit Filing?",
       text: "Once submitted, it will be forwarded for scrutiny.",
