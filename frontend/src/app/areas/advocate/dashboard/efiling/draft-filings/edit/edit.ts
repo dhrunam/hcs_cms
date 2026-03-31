@@ -566,15 +566,9 @@ export class Edit {
     caseType: string;
   } {
     const init = this.initialInputsForm?.value;
-    const petitionerName = init?.petitioner_name?.trim() || "";
-    const petitioners = this.litigantList
-      .filter((l: any) => l.is_petitioner)
-      .map((l: any) => l.name || "")
-      .filter(Boolean);
-    const respondents = this.litigantList
-      .filter((l: any) => !l.is_petitioner)
-      .map((l: any) => l.name || "")
-      .filter(Boolean);
+    const petitionerName = String(init?.petitioner_name || "").trim();
+    const petitioners = this.getOrderedPartyNames(true);
+    const respondents = this.getOrderedPartyNames(false);
 
     const caseType =
       this.filingData?.case_type_detail?.type_name ||
@@ -584,11 +578,33 @@ export class Edit {
       String(init?.case_type || "").trim();
 
     return {
-      petitionerName: petitionerName || petitioners.join(", ") || "",
-      respondentName: respondents.join(", ") || "",
+      petitionerName: this.formatPartyForCoverPage(petitioners, petitionerName),
+      respondentName: this.formatPartyForCoverPage(respondents, ""),
       caseNo: this.eFilingNumber || "",
       caseType,
     };
+  }
+
+  private getOrderedPartyNames(isPetitioner: boolean): string[] {
+    return (Array.isArray(this.litigantList) ? this.litigantList : [])
+      .filter(
+        (l: any) =>
+          this.normalizeIsPetitioner(l?.is_petitioner) ===
+          this.normalizeIsPetitioner(isPetitioner),
+      )
+      .sort(
+        (a: any, b: any) =>
+          (Number(a?.sequence_number) || 0) - (Number(b?.sequence_number) || 0),
+      )
+      .map((l: any) => String(l?.name || "").trim())
+      .filter((name) => !!name);
+  }
+
+  private formatPartyForCoverPage(names: string[], fallback = ""): string {
+    if (!names.length) return String(fallback || "").trim();
+    if (names.length === 1) return names[0];
+    if (names.length === 2) return `${names[0]} and Anr.`;
+    return `${names[0]} and Ors.`;
   }
 
   get setDeclarationForm(): FormGroup {

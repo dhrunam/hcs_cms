@@ -294,7 +294,8 @@ def merge_pdfs_with_index(
     for _fname, content in files:
         doc_start_base.append(len(writer.pages))
         reader = PdfReader(io.BytesIO(content))
-        writer.append(reader)
+        # Ignore source PDF outlines/bookmarks; we add a fresh bookmark tree below.
+        writer.append(reader, import_outline=False)
 
     use_front = True
     front_pages = 1
