@@ -73,7 +73,6 @@ export class CourtroomService {
     judge_decision?: {
       status: 'APPROVED' | 'DECLINED' | 'REQUESTED_DOCS';
       approved: boolean;
-      listing_date: string | null;
       decision_notes: string | null;
       requested_documents: { document_index_id: number; document_part_name: string | null; document_type: string | null }[];
     } | null;
@@ -163,7 +162,6 @@ export class CourtroomService {
   saveDecision(payload: {
     efiling_id: number;
     forwarded_for_date: string;
-    listing_date: string;
     status: 'APPROVED' | 'DECLINED';
     decision_notes?: string | null;
     requested_document_index_ids?: number[];

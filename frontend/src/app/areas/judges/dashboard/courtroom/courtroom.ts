@@ -21,8 +21,6 @@ export class JudgeCourtroomPage {
   loadError = '';
 
   caseSummary: any = null;
-
-  listingDate: string = new Date().toISOString().slice(0, 10);
   decisionStatus: 'APPROVED' | 'DECLINED' = 'DECLINED';
   decisionNotes = '';
   allCaseDocuments: any[] = [];
@@ -74,7 +72,6 @@ export class JudgeCourtroomPage {
       next: (resp) => {
         this.caseSummary = resp ?? null;
         this.forwardedForDate = resp?.forwarded_for_date ?? this.forwardedForDate;
-        this.listingDate = resp?.forwarded_for_date ?? this.listingDate;
         const existingStatus = resp?.judge_decision?.status;
         if (existingStatus === 'APPROVED' || existingStatus === 'DECLINED') {
           this.decisionStatus = existingStatus;
@@ -92,7 +89,8 @@ export class JudgeCourtroomPage {
   }
 
   submitDecision(): void {
-    if (!this.canWrite || !this.efilingId || !this.forwardedForDate || !this.listingDate) return;
+    if (!this.canWrite || !this.efilingId || !this.forwardedForDate) return;
+    // Note: listingDate is now optional.
     if (this.decisionStatus === 'DECLINED' && !(this.decisionNotes || '').trim()) {
       Swal.fire({ title: 'Remarks Required', text: 'Please provide remarks for decline.', icon: 'warning' });
       return;
@@ -110,7 +108,6 @@ export class JudgeCourtroomPage {
         .saveDecision({
           efiling_id: this.efilingId!,
           forwarded_for_date: this.forwardedForDate!,
-          listing_date: this.listingDate,
           status: this.decisionStatus,
           decision_notes: this.decisionNotes || null,
         })

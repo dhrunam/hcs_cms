@@ -9,14 +9,13 @@ from apps.judge.views import (
     CourtroomCaseDocumentsView,
     CourtroomDecisionView,
     CourtroomDocumentAnnotationView,
-    CourtroomForwardView,
     CourtroomPendingCasesView,
 )
 
 app_name = "judge"
 
 urlpatterns = [
-    path("courtroom/forward/", CourtroomForwardView.as_view(), name="courtroom-forward"),
+
     path(
         "courtroom/pending/",
         CourtroomPendingCasesView.as_view(),
@@ -52,5 +51,6 @@ urlpatterns = [
         CourtroomDecisionCalendarView.as_view(),
         name="courtroom-decisions-calendar",
     ),
+
 ]
 

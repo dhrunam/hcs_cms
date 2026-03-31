@@ -87,10 +87,12 @@ class EfilingRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
 
 class EfilingSubmitApprovedView(APIView):
     def post(self, request, pk):
+        bench = request.data.get("bench")
         filing = get_object_or_404(Efiling.objects.all(), pk=pk)
         filing = finalize_scrutiny_submission(
             filing,
             user=request.user if request.user.is_authenticated else None,
+            bench=bench,
         )
         return Response(EfilingSerializer(filing).data)
 

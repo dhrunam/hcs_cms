@@ -16,6 +16,7 @@ interface EfilingItem {
   case_number?: string | null;
   created_at: string;
   status: string | null;
+  bench: string | null;
   case_type: EfilingCaseType | null;
 }
 
@@ -101,14 +102,51 @@ export class FiledCasesView {
     return typeof filingId === 'number' && this.newIncomingFilingIds.has(filingId);
   }
 
-  getStatusTone(status: string | null): 'warning' | 'success' | 'danger' {
-    const normalizedStatus = (status ?? '').trim().toLowerCase();
+  getStatusLabel(item: EfilingItem): string {
+    const status = item.status || '';
+    const normalizedStatus = status.trim().toLowerCase();
+
+    if (normalizedStatus.includes('accepted')) {
+      if (!item.bench || item.bench === 'null' || item.bench === 'undefined') {
+        return 'Returned / Bench Needed';
+      }
+      return 'Accepted / Assigned';
+    }
+
+    if (!normalizedStatus || normalizedStatus === 'submitted' || normalizedStatus === 'under_scrutiny') {
+      return 'Under Scrutiny';
+    }
+
+    if (normalizedStatus.includes('partially')) {
+      return 'Partially Rejected';
+    }
+
+    if (
+      normalizedStatus.includes('rejected') ||
+      normalizedStatus.includes('object') ||
+      normalizedStatus.includes('defect')
+    ) {
+      return 'Rejected';
+    }
+
+    return status || 'Under Scrutiny';
+  }
+
+  getStatusTone(item: EfilingItem): 'warning' | 'success' | 'danger' | 'info' {
+    const status = item.status || '';
+    const normalizedStatus = status.trim().toLowerCase();
+
+    if (normalizedStatus.includes('accepted')) {
+      if (!item.bench || item.bench === 'null' || item.bench === 'undefined') {
+        return 'info';
+      }
+      return 'success';
+    }
+
     if (!normalizedStatus || normalizedStatus === 'submitted' || normalizedStatus === 'under_scrutiny') {
       return 'warning';
     }
-    if (normalizedStatus.includes('accepted')) {
-      return 'success';
-    }
+
     if (
       normalizedStatus.includes('partially') ||
       normalizedStatus.includes('rejected') ||
@@ -118,31 +156,5 @@ export class FiledCasesView {
       return 'danger';
     }
     return 'warning';
-  }
-
-  getStatusLabel(status: string | null): string {
-    const normalizedStatus = (status ?? '').trim().toLowerCase();
-
-    if (!normalizedStatus || normalizedStatus === 'submitted' || normalizedStatus === 'UNDER_SCRUTINY') {
-      return 'Under Scrutiny';
-    }
-
-    if (normalizedStatus.includes('ACCEPTED')) {
-      return 'Accepted';
-    }
-
-    if (normalizedStatus.includes('PARTIALLY')) {
-      return 'Partially Rejected';
-    }
-
-    if (
-      normalizedStatus.includes('REJECTED') ||
-      normalizedStatus.includes('OBJECT') ||
-      normalizedStatus.includes('DEFECT')
-    ) {
-      return 'Rejected';
-    }
-
-    return status ?? 'Under Scrutiny';
   }
 }
