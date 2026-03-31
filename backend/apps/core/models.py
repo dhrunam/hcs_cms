@@ -768,3 +768,30 @@ class AdvocateT(BaseModel):
 
     class Meta:
         db_table = 'advocate_t'
+        
+class JudgeT(BaseModel):
+    id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='judge_profile', null=True, blank=True)
+    judge_code = models.CharField(max_length=50, unique=True)
+    judge_name = models.CharField(max_length=100, blank=True, null=True)
+    seniority = models.IntegerField(blank=True, null=True)
+    display = models.TextField()  # This field type is a guess.
+    date_of_joining = models.DateField(blank=False, null=False)
+    date_of_leaving = models.DateField(blank=True, null=True)
+    
+    class Meta:
+        db_table = 'judge_t'
+    
+
+class BenchT(BaseModel):
+    id = models.AutoField(primary_key=True)
+    bench_code = models.CharField(max_length=10)
+    bench_name = models.CharField(max_length=500, blank=True, null=True)
+    bench_type_code = models.CharField(max_length=10, blank=True, null=True)
+    judge_code = models.CharField(max_length=50, blank=True, null=True)
+    judge = models.ForeignKey(JudgeT, on_delete=models.SET_NULL, null=True, blank=True, related_name='benches')
+    from_date = models.DateField(blank=False, null=False)
+    to_date = models.DateField(blank=True, null=True)
+
+    class Meta:
+        db_table = 'bench_t'
