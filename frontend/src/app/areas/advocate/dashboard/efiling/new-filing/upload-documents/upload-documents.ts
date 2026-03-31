@@ -198,29 +198,16 @@ export class UploadDocuments implements OnInit, OnChanges {
     const docTypeRows = docTypes as DocTypeOption[];
 
     const caseId = Number(this.caseTypeId || 0);
-    if (caseId) {
-      const match = docTypeRows.find(
-        (item) => Number(item.case_type_id) === caseId,
-      );
-      if (match && Array.isArray(match.documents)) {
-        return match.documents.filter(
-          (doc: string) => typeof doc === "string" && doc.trim().length > 0,
-        );
-      }
-    }
+    if (!caseId) return [];
 
-    const seen = new Set<string>();
-    const combined: string[] = [];
-    docTypeRows.forEach((item: DocTypeOption) => {
-      (item.documents || []).forEach((doc: string) => {
-        const name = String(doc || "").trim();
-        if (!name || seen.has(name)) return;
-        seen.add(name);
-        combined.push(name);
-      });
-    });
+    const match = docTypeRows.find(
+      (item) => Number(item.case_type_id) === caseId,
+    );
+    if (!match || !Array.isArray(match.documents)) return [];
 
-    return combined;
+    return match.documents.filter(
+      (doc: string) => typeof doc === "string" && doc.trim().length > 0,
+    );
   }
 
   getAvailableIndexNames(index: number): string[] {
