@@ -3,8 +3,11 @@ import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, catchError, of } from 'rxjs';
 
-import { CauseListService, DraftPreviewItem } from '../../../../services/listing/cause-list.service';
-import { benchLabel, BENCH_LABELS, BenchKey } from '../../shared/bench-labels';
+import {
+  BenchConfiguration,
+  CauseListService,
+  DraftPreviewItem,
+} from '../../../../services/listing/cause-list.service';
 import { app_url } from '../../../../environment';
 
 type BenchState = {
@@ -29,26 +32,36 @@ export class ListingOfficerHome {
   isCalendarLoading = false;
   monthDays: Array<{ date: string; day: number; publishedCount: number; hasAny: boolean }> = [];
   publishedBenchSummary: Array<{ bench_key: string; included_count: number; pdf_url: string | null }> = [];
-
-  readonly benchKeys: BenchKey[] = Object.keys(BENCH_LABELS) as BenchKey[];
-  benchLabel = benchLabel;
-
-  benchStates: BenchState[] = this.benchKeys.map((b) => ({
-    bench_key: b,
-    cause_list_id: null,
-    items: [],
-    pdfUrl: null,
-    isSaving: false,
-    isPublishing: false,
-  }));
+  benchConfigurations: BenchConfiguration[] = [];
+  benchStates: BenchState[] = [];
 
   constructor(private causeListService: CauseListService) {}
 
   publishError: string | null = null;
 
   ngOnInit(): void {
-    this.loadAllPreviews();
-    this.loadMonthCalendar();
+    this.causeListService.getBenchConfigurations().subscribe({
+      next: (resp) => {
+        this.benchConfigurations = resp?.items ?? [];
+        this.benchStates = this.benchConfigurations.map((bench) => ({
+          bench_key: bench.bench_key,
+          cause_list_id: null,
+          items: [],
+          pdfUrl: null,
+          isSaving: false,
+          isPublishing: false,
+        }));
+        this.loadAllPreviews();
+        this.loadMonthCalendar();
+      },
+      error: (err) => {
+        console.warn('Failed to load bench configurations', err);
+        this.benchConfigurations = [];
+        this.benchStates = [];
+        this.loadAllPreviews();
+        this.loadMonthCalendar();
+      },
+    });
   }
 
   onDateChange(): void {
@@ -148,6 +161,12 @@ export class ListingOfficerHome {
   openDateFromCalendar(date: string): void {
     this.selectedDate = date;
     this.loadAllPreviews();
+  }
+
+  benchLabel(key: string | null | undefined): string {
+    if (!key) return '-';
+    const normalizedKey = String(key).trim();
+    return this.benchConfigurations.find((item) => item.bench_key === normalizedKey)?.label || normalizedKey;
   }
 
   get publishedMonthDays(): Array<{ date: string; day: number; publishedCount: number; hasAny: boolean }> {

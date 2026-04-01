@@ -3,6 +3,11 @@ import { Observable, catchError, throwError } from "rxjs";
 import { Injectable } from "@angular/core";
 import { app_url } from "../../../environment";
 
+export interface DistinctBenchOption {
+  bench_code: string;
+  bench_name: string | null;
+}
+
 @Injectable({ providedIn: "root" })
 export class EfilingService {
   constructor(private http: HttpClient) {}
@@ -104,6 +109,13 @@ export class EfilingService {
     }
     return this.http.get<any>(url);
   }
+
+  get_distinct_benches(): Observable<DistinctBenchOption[]> {
+    return this.http.get<DistinctBenchOption[]>(
+      `${app_url}/api/v1/efiling/benches/distinct/`,
+    );
+  }
+
   get_scrutiny_cases(params?: { page_size?: number }): Observable<any> {
     let url = `${app_url}/api/v1/efiling/efilings/?is_draft=false`;
     if (params?.page_size != null) {

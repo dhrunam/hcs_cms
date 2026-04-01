@@ -2,10 +2,11 @@ import { CommonModule } from "@angular/common";
 import { Component } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
-import { ActivatedRoute, RouterLink } from "@angular/router";
+import { ActivatedRoute, Router, RouterLink } from "@angular/router";
 import Swal from "sweetalert2";
 
 import { CourtroomService } from "../../../../services/judge/courtroom.service";
+import { benchLabel } from "../../../listing-officers/shared/bench-labels";
 
 @Component({
   selector: "app-judge-courtroom",
@@ -14,6 +15,7 @@ import { CourtroomService } from "../../../../services/judge/courtroom.service";
   styleUrl: "./courtroom.css",
 })
 export class JudgeCourtroomPage {
+  benchLabel = benchLabel;
   efilingId: number | null = null;
   forwardedForDate: string | null = null;
 
@@ -21,7 +23,6 @@ export class JudgeCourtroomPage {
   loadError = "";
 
   caseSummary: any = null;
-  decisionStatus: "APPROVED" | "DECLINED" = "DECLINED";
   decisionNotes = "";
   allCaseDocuments: any[] = [];
   docSearch = "";
@@ -36,6 +37,7 @@ export class JudgeCourtroomPage {
     private route: ActivatedRoute,
     private courtroomService: CourtroomService,
     private sanitizer: DomSanitizer,
+    private router: Router,
   ) {}
 
   ngOnInit(): void {
@@ -81,10 +83,6 @@ export class JudgeCourtroomPage {
           this.caseSummary = resp ?? null;
           this.forwardedForDate =
             resp?.forwarded_for_date ?? this.forwardedForDate;
-          const existingStatus = resp?.judge_decision?.status;
-          if (existingStatus === "APPROVED" || existingStatus === "DECLINED") {
-            this.decisionStatus = existingStatus;
-          }
           this.decisionNotes = resp?.judge_decision?.decision_notes ?? "";
           this.loadCaseDocuments();
           this.isLoading = false;
@@ -99,21 +97,10 @@ export class JudgeCourtroomPage {
 
   submitDecision(): void {
     if (!this.canWrite || !this.efilingId || !this.forwardedForDate) return;
-    // Note: listingDate is now optional.
-    if (
-      this.decisionStatus === "DECLINED" &&
-      !(this.decisionNotes || "").trim()
-    ) {
-      Swal.fire({
-        title: "Remarks Required",
-        text: "Please provide remarks for decline.",
-        icon: "warning",
-      });
-      return;
-    }
+
     Swal.fire({
       title: "Save decision?",
-      text: "Are you sure you want to approve/decline this case request?",
+      text: "This will save the judge remarks and send the case to the reader.",
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "Yes, save",
@@ -124,17 +111,19 @@ export class JudgeCourtroomPage {
         .saveDecision({
           efiling_id: this.efilingId!,
           forwarded_for_date: this.forwardedForDate!,
-          status: this.decisionStatus,
           decision_notes: this.decisionNotes || null,
         })
         .subscribe({
           next: () => {
             Swal.fire({
               title: "Saved",
-              text: "Decision saved.",
+              text: "Decision saved and sent to reader.",
               icon: "success",
               timer: 1000,
               showConfirmButton: false,
+            });
+            this.router.navigate(["/judges/dashboard/home"], {
+              queryParams: { forwarded_for_date: this.forwardedForDate },
             });
           },
           error: (err) => {
@@ -219,10 +208,6 @@ export class JudgeCourtroomPage {
           "Unable to load this PDF preview (file missing or moved).";
       },
     });
-  }
-
-  setDecisionStatus(status: "APPROVED" | "DECLINED"): void {
-    this.decisionStatus = status;
   }
 
   private isPetitioner(value: any): boolean {

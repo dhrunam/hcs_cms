@@ -1,20 +1,17 @@
 import { CommonModule } from "@angular/common";
 import { Component } from "@angular/core";
-import { ActivatedRoute, RouterLink, Router } from "@angular/router";
-import { forkJoin } from "rxjs";
 import { FormsModule } from "@angular/forms";
 import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
+import { ActivatedRoute, Router, RouterLink } from "@angular/router";
+import { forkJoin } from "rxjs";
 import Swal from "sweetalert2";
 
 import { EfilingService } from "../../../../services/advocate/efiling/efiling.services";
-import { ReaderService } from "../../../../services/reader/reader.service";
 import {
-  benchLabel,
-  BENCH_LABELS,
-  BenchKey,
-  isUnassignedBench,
-  judgesForBench,
-} from "../../shared/bench-labels";
+  BenchConfiguration,
+  ReaderService,
+  resolveBenchConfiguration,
+} from "../../../../services/reader/reader.service";
 import { formatPetitionerVsRespondent } from "../../../../utils/petitioner-vs-respondent";
 
 type Filing = any;
@@ -32,9 +29,7 @@ export class ReaderCaseSummaryPage {
   isLoading = false;
   isSaving = false;
   loadError = "";
-
   filingId: number | null = null;
-
   filing: Filing | null = null;
   caseDetails: CaseDetails | null = null;
   litigants: Litigant[] = [];
@@ -53,14 +48,13 @@ export class ReaderCaseSummaryPage {
     | "REQUESTED_DOCS" = "NOT_FORWARDED";
   approvalNotes: string[] = [];
   approvalListingDate: string | null = null;
+  canAssignListingDate = true;
   targetListingDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
     .toISOString()
     .slice(0, 10);
   approvalForwardedForDate: string | null = null;
-
-  benchKeys: BenchKey[] = Object.keys(BENCH_LABELS) as BenchKey[];
-  benchLabel = benchLabel;
-  selectedBench: BenchKey | null = null;
+  benchConfigurations: BenchConfiguration[] = [];
+  listingRemark = "";
 
   constructor(
     private route: ActivatedRoute,
@@ -86,6 +80,9 @@ export class ReaderCaseSummaryPage {
     this.loadError = "";
 
     forkJoin({
+      benchConfigurations: this.readerService.getBenchConfigurations({
+        accessible_only: true,
+      }),
       filing: this.efilingService.get_filing_by_id(this.filingId),
       caseDetails: this.efilingService.get_case_details_by_filing_id(
         this.filingId,
@@ -106,6 +103,7 @@ export class ReaderCaseSummaryPage {
       }),
     }).subscribe({
       next: ({
+        benchConfigurations,
         filing,
         caseDetails,
         litigants,
@@ -113,6 +111,7 @@ export class ReaderCaseSummaryPage {
         iaDocuments,
         registeredCases,
       }) => {
+        this.benchConfigurations = benchConfigurations?.items ?? [];
         this.filing = filing;
         this.caseDetails = Array.isArray(caseDetails?.results)
           ? (caseDetails.results[0] ?? null)
@@ -137,8 +136,9 @@ export class ReaderCaseSummaryPage {
         this.documents = [...mainDocs, ...iaDocs];
         this.selectedDocument = this.documents[0] ?? null;
         this.updatePreviewUrl(this.selectedDocument ?? null);
+
         const currentCase = (registeredCases?.items ?? []).find(
-          (x: any) => Number(x?.efiling_id) === Number(this.filingId),
+          (item: any) => Number(item?.efiling_id) === Number(this.filingId),
         );
         this.approvalStatus = (currentCase?.approval_status ??
           "NOT_FORWARDED") as any;
@@ -146,6 +146,7 @@ export class ReaderCaseSummaryPage {
           ? currentCase.approval_notes
           : [];
         this.approvalListingDate = currentCase?.approval_listing_date || null;
+        this.canAssignListingDate = currentCase?.can_assign_listing_date !== false;
         this.approvalForwardedForDate =
           currentCase?.approval_forwarded_for_date || null;
         if (this.approvalListingDate) {
@@ -154,19 +155,11 @@ export class ReaderCaseSummaryPage {
 
         const requestedIds = Array.isArray(currentCase?.requested_documents)
           ? currentCase.requested_documents
-              .map((x: any) => Number(x?.document_index_id))
-              .filter((x: number) => Number.isFinite(x))
+              .map((item: any) => Number(item?.document_index_id))
+              .filter((item: number) => Number.isFinite(item))
           : [];
         this.requestedDocumentIndexIds = requestedIds;
         this.listingSummary = (currentCase?.listing_summary || "").trim();
-
-        const existingBench = (this.filing?.bench as string | null) ?? null;
-        this.selectedBench =
-          (!isUnassignedBench(existingBench) &&
-          this.benchKeys.includes(existingBench as BenchKey)
-            ? (existingBench as BenchKey)
-            : this.benchKeys[0]) ?? null;
-
         this.isLoading = false;
       },
       error: (err) => {
@@ -177,24 +170,20 @@ export class ReaderCaseSummaryPage {
     });
   }
 
-  documentName(d: any): string {
+  documentName(document: any): string {
     return (
-      d?.document_part_name ||
-      d?.description ||
-      d?.document_name ||
-      d?.name ||
-      d?.file_name ||
+      document?.document_part_name ||
+      document?.description ||
+      document?.document_name ||
+      document?.name ||
+      document?.file_name ||
       "Document"
     );
   }
 
-  documentUrl(d: any): string | null {
-    return d?.file_url || d?.document || d?.file || null;
-  }
-
-  selectDocument(d: any): void {
-    this.selectedDocument = d;
-    this.updatePreviewUrl(d ?? null);
+  selectDocument(document: any): void {
+    this.selectedDocument = document;
+    this.updatePreviewUrl(document ?? null);
   }
 
   isSelectedDocument(docId: number): boolean {
@@ -254,8 +243,12 @@ export class ReaderCaseSummaryPage {
     });
   }
 
+  get forwardBenchConfiguration(): BenchConfiguration | undefined {
+    return this.benchConfigurations.find((item) => item.is_forward_target);
+  }
+
   forwardToJudge(): void {
-    if (!this.filingId || !this.selectedBench) return;
+    if (!this.filingId || !this.forwardBenchConfiguration) return;
     const summary = (this.listingSummary || "").trim();
     if (!summary) {
       Swal.fire({
@@ -267,54 +260,35 @@ export class ReaderCaseSummaryPage {
     }
     this.isForwarding = true;
     const today = new Date().toISOString().slice(0, 10);
-    // Ensure bench is persisted first so case appears in generator.
     this.readerService
-      .assignBenches([
-        { efiling_id: this.filingId, bench_key: this.selectedBench },
-      ])
+      .forwardToCourtroom({
+        forwarded_for_date: today,
+        bench_key: this.forwardBenchConfiguration.bench_key,
+        listing_summary: summary,
+        document_index_ids: this.forwardDocumentIndexIds.length
+          ? this.forwardDocumentIndexIds
+          : undefined,
+        efiling_ids: [this.filingId],
+      })
       .subscribe({
         next: () => {
-          if (this.filing) this.filing.bench = this.selectedBench;
-          this.readerService
-            .forwardToCourtroom({
-              forwarded_for_date: today,
-              bench_key: this.selectedBench!,
-              listing_summary: summary,
-              document_index_ids: this.forwardDocumentIndexIds.length
-                ? this.forwardDocumentIndexIds
-                : undefined,
-              efiling_ids: [this.filingId!],
-            })
-            .subscribe({
-              next: () => {
-                this.isForwarding = false;
-                this.approvalStatus = "PENDING";
-                Swal.fire({
-                  title: "Forwarded",
-                  text: "Bench saved and case forwarded to judge(s).",
-                  icon: "success",
-                  timer: 1300,
-                  showConfirmButton: false,
-                });
-              },
-              error: (err) => {
-                console.warn("forwardToJudge failed", err);
-                this.isForwarding = false;
-                Swal.fire({
-                  title: "Forward Failed",
-                  text: err?.error?.detail || "Unable to forward request.",
-                  icon: "error",
-                });
-              },
-            });
+          this.isForwarding = false;
+          this.approvalStatus = "PENDING";
+          this.approvalForwardedForDate = today;
+          Swal.fire({
+            title: "Forwarded",
+            text: "Case forwarded to your mapped judge for review.",
+            icon: "success",
+            timer: 1300,
+            showConfirmButton: false,
+          });
         },
         error: (err) => {
-          console.warn("assign before forward failed", err);
+          console.warn("forwardToJudge failed", err);
           this.isForwarding = false;
           Swal.fire({
-            title: "Bench Save Failed",
-            text:
-              err?.error?.detail || "Unable to save bench before forwarding.",
+            title: "Forward Failed",
+            text: err?.error?.detail || "Unable to forward request.",
             icon: "error",
           });
         },
@@ -332,51 +306,52 @@ export class ReaderCaseSummaryPage {
   }
 
   get petitionerName(): string {
-    console.log("Filing is ", this.filing.petitioner_name);
-    return this.filing?.petitioner_name;
+    const petitioner = this.litigants.find(
+      (litigant: any) => litigant?.is_petitioner === true,
+    );
+    return petitioner?.name || this.filing?.petitioner_name || "-";
   }
 
   get respondentName(): string {
-    const res = this.litigants.find((l: any) => l?.is_petitioner === false);
-    return res?.name || "-";
+    const respondent = this.litigants.find(
+      (litigant: any) => litigant?.is_petitioner === false,
+    );
+    return respondent?.name || "-";
   }
 
-  get isBenchLocked(): boolean {
-    return !isUnassignedBench(this.filing?.bench);
+  benchLabel(key: string | null | undefined): string {
+    if (this.isUnassignedBench(key)) return "-";
+    const normalizedKey = String(key ?? "").trim();
+    return (
+      resolveBenchConfiguration(this.benchConfigurations, normalizedKey)
+        ?.label || normalizedKey
+    );
   }
 
-  get judgesForSelectedBench(): string[] {
-    return judgesForBench(this.selectedBench);
+  private isUnassignedBench(key: string | null | undefined): boolean {
+    const value = String(key ?? "").trim().toLowerCase();
+    return (
+      !value ||
+      value === "high court of sikkim" ||
+      value === "high court of skkim"
+    );
   }
 
-  saveBench(): void {
-    if (!this.filingId || !this.selectedBench || this.isBenchLocked) return;
-    this.isSaving = true;
-    this.readerService
-      .assignBenches([
-        { efiling_id: this.filingId, bench_key: this.selectedBench },
-      ])
-      .subscribe({
-        next: () => {
-          if (this.filing) this.filing.bench = this.selectedBench;
-          this.isSaving = false;
-        },
-        error: (err) => {
-          console.warn("Failed to assign bench", err);
-          this.isSaving = false;
-        },
-      });
+  get canSendBackToScrutiny(): boolean {
+    return (
+      !this.approvalListingDate && !this.isUnassignedBench(this.filing?.bench)
+    );
   }
-
-  listingRemark = "";
 
   forwardForListing(): void {
     if (
       !this.filingId ||
+      !this.canAssignListingDate ||
       !this.targetListingDate ||
       !this.approvalForwardedForDate
-    )
+    ) {
       return;
+    }
     this.isSaving = true;
     this.readerService
       .assignDate({
@@ -453,10 +428,9 @@ export class ReaderCaseSummaryPage {
     const day = date.getDate();
     const month = date.toLocaleString("default", { month: "long" });
     const year = date.getFullYear();
-
-    const suffix = (d: number) => {
-      if (d > 3 && d < 21) return "th";
-      switch (d % 10) {
+    const suffix = (value: number) => {
+      if (value > 3 && value < 21) return "th";
+      switch (value % 10) {
         case 1:
           return "st";
         case 2:
@@ -467,7 +441,14 @@ export class ReaderCaseSummaryPage {
           return "th";
       }
     };
-
     return `${day}${suffix(day)} ${month} ${year}`;
+  }
+
+  get showListingAuthorityNotice(): boolean {
+    return (
+      (this.approvalStatus === "APPROVED" || !!this.approvalListingDate) &&
+      !this.canAssignListingDate &&
+      !this.approvalListingDate
+    );
   }
 }

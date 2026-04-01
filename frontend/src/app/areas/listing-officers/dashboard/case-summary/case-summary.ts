@@ -7,8 +7,10 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import Swal from 'sweetalert2';
 
 import { EfilingService } from '../../../../services/advocate/efiling/efiling.services';
-import { CauseListService } from '../../../../services/listing/cause-list.service';
-import { benchLabel, BENCH_LABELS, BenchKey, isUnassignedBench, judgesForBench } from '../../shared/bench-labels';
+import {
+  BenchConfiguration,
+  CauseListService,
+} from '../../../../services/listing/cause-list.service';
 import { formatPetitionerVsRespondent } from '../../../../utils/petitioner-vs-respondent';
 
 type Filing = any;
@@ -42,9 +44,8 @@ export class ListingCaseSummaryPage {
   approvalStatus: 'NOT_FORWARDED' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'REQUESTED_DOCS' = 'NOT_FORWARDED';
   approvalNotes: string[] = [];
 
-  benchKeys: BenchKey[] = Object.keys(BENCH_LABELS) as BenchKey[];
-  benchLabel = benchLabel;
-  selectedBench: BenchKey | null = null;
+  benchConfigurations: BenchConfiguration[] = [];
+  selectedBench: string | null = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -69,6 +70,7 @@ export class ListingCaseSummaryPage {
     this.loadError = '';
 
     forkJoin({
+      benchConfigurations: this.causeListService.getBenchConfigurations(),
       filing: this.efilingService.get_filing_by_id(this.filingId),
       caseDetails: this.efilingService.get_case_details_by_filing_id(this.filingId),
       litigants: this.efilingService.get_litigant_list_by_filing_id(this.filingId),
@@ -76,7 +78,8 @@ export class ListingCaseSummaryPage {
       iaDocuments: this.efilingService.get_document_reviews_by_filing_id(this.filingId, true),
       registeredCases: this.causeListService.getRegisteredCases({ page_size: 500 }),
     }).subscribe({
-      next: ({ filing, caseDetails, litigants, documents, iaDocuments, registeredCases }) => {
+      next: ({ benchConfigurations, filing, caseDetails, litigants, documents, iaDocuments, registeredCases }) => {
+        this.benchConfigurations = benchConfigurations?.items ?? [];
         this.filing = filing;
         this.caseDetails = Array.isArray(caseDetails?.results)
           ? caseDetails.results[0] ?? null
@@ -103,9 +106,10 @@ export class ListingCaseSummaryPage {
         this.listingSummary = (currentCase?.listing_summary || '').trim();
 
         const existingBench = (this.filing?.bench as string | null) ?? null;
-        this.selectedBench = (!isUnassignedBench(existingBench) && this.benchKeys.includes(existingBench as BenchKey)
-          ? (existingBench as BenchKey)
-          : this.benchKeys[0]) ?? null;
+        const benchKeys = this.benchConfigurations.map((item) => item.bench_key);
+        this.selectedBench = (!this.isUnassignedBench(existingBench) && benchKeys.includes(existingBench || ''))
+          ? existingBench
+          : (benchKeys[0] ?? null);
 
         this.isLoading = false;
       },
@@ -242,12 +246,23 @@ export class ListingCaseSummaryPage {
     return res?.name || '-';
   }
 
+  benchLabel(key: string | null | undefined): string {
+    if (this.isUnassignedBench(key)) return '-';
+    const normalizedKey = String(key ?? '').trim();
+    return this.benchConfigurations.find((item) => item.bench_key === normalizedKey)?.label || normalizedKey;
+  }
+
+  private isUnassignedBench(key: string | null | undefined): boolean {
+    const value = String(key ?? '').trim().toLowerCase();
+    return !value || value === 'high court of sikkim' || value === 'high court of skkim';
+  }
+
   get isBenchLocked(): boolean {
-    return !isUnassignedBench(this.filing?.bench);
+    return !this.isUnassignedBench(this.filing?.bench);
   }
 
   get judgesForSelectedBench(): string[] {
-    return judgesForBench(this.selectedBench);
+    return this.benchConfigurations.find((item) => item.bench_key === this.selectedBench)?.judge_names || [];
   }
 
   saveBench(): void {

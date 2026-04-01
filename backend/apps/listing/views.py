@@ -41,16 +41,7 @@ from apps.listing.serializers import (
 from django.db.models import Prefetch, Q
 from django.db.models import Count
 
-
-BENCH_TO_REQUIRED_GROUPS: Dict[str, Sequence[str]] = {
-    "CJ": ("JUDGE_CJ",),
-    "Judge1": ("JUDGE_J1",),
-    "Judge2": ("JUDGE_J2",),
-    "CJ+Judge1": ("JUDGE_CJ", "JUDGE_J1"),
-    "CJ+Judge2": ("JUDGE_CJ", "JUDGE_J2"),
-    "Judge1+Judge2": ("JUDGE_J1", "JUDGE_J2"),
-    "CJ+Judge1+Judge2": ("JUDGE_CJ", "JUDGE_J1", "JUDGE_J2"),
-}
+from apps.core.bench_config import get_required_judge_groups
 
 
 def _judge_approved_efiling_ids(cause_list_date: str, bench_key: str) -> Set[int]:
@@ -58,7 +49,7 @@ def _judge_approved_efiling_ids(cause_list_date: str, bench_key: str) -> Set[int
     Returns efiling_ids that are approved by ALL required judge groups for this bench_key
     AND have been assigned the matching listing_date (by the Reader).
     """
-    required_groups = BENCH_TO_REQUIRED_GROUPS.get(bench_key)
+    required_groups = get_required_judge_groups(bench_key)
     if not required_groups:
         return set()
 

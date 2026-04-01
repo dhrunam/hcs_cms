@@ -13,7 +13,7 @@
           [(ngModel)]="selectedBench"
           [ngModelOptions]="{ standalone: true }"
         >
-          <option *ngFor="let b of benchKeys" [value]="b">{{ benchLabel(b) }}</option>
+          <option *ngFor="let bench of benchConfigurations" [value]="bench.bench_key">{{ bench.label }}</option>
         </select>
         <div class="text-muted small mt-1" *ngIf="judgesForSelectedBench.length">
           Forwards to: {{ judgesForSelectedBench.join(', ') }}

@@ -25,6 +25,7 @@ export class JudgePendingCasesPage {
     petitioner_name?: string | null;
     petitioner_vs_respondent?: string | null;
     bench_key: string;
+    bench_label?: string;
     judge_decision: boolean | null;
     forwarded_for_date?: string;
   }[] = [];
@@ -35,6 +36,7 @@ export class JudgePendingCasesPage {
     petitioner_name?: string | null;
     petitioner_vs_respondent?: string | null;
     bench_key: string;
+    bench_label?: string;
     judge_decision: boolean | null;
     forwarded_for_date?: string;
   }[] = [];
