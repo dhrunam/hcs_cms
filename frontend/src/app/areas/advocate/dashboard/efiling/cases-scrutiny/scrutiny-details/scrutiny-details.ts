@@ -54,6 +54,9 @@ export class ScrutinyDetails {
         paidAt?: string;
         referenceNo?: string;
         amount?: string;
+        paymentMode?: 'online' | 'offline';
+        bankReceipt?: string;
+        paymentDate?: string;
       }
     | null = null;
 
@@ -135,12 +138,28 @@ export class ScrutinyDetails {
       return;
     }
     const statusRaw = String(tx.status || '').toLowerCase();
-    this.paymentOutcome = /(success|paid|complete|ok)/i.test(statusRaw) ? 'success' : 'failed';
+    const paymentMode =
+      String(tx.payment_mode || '').toLowerCase() === 'offline' ? 'offline' : 'online';
+    if (
+      /(success|paid|complete|ok)/i.test(statusRaw) ||
+      (paymentMode === 'offline' &&
+        !!tx.bank_receipt &&
+        /(offline_submitted|submitted|pending|success|paid|complete|ok)/i.test(statusRaw))
+    ) {
+      this.paymentOutcome = 'success';
+    } else if (statusRaw) {
+      this.paymentOutcome = 'failed';
+    } else {
+      this.paymentOutcome = null;
+    }
     this.paymentDetails = {
       txnId: tx.txn_id || undefined,
       paidAt: tx.payment_datetime || tx.paid_at || undefined,
       referenceNo: tx.reference_no || undefined,
-      amount: tx.amount || undefined,
+      amount: tx.amount || tx.court_fees || undefined,
+      paymentMode,
+      bankReceipt: tx.bank_receipt || undefined,
+      paymentDate: tx.payment_date || undefined,
     };
   }
 

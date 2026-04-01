@@ -384,12 +384,22 @@
             </div>
           </div>
           <div class="col-md-6">
-            <div class="text-muted small">Payment date/time</div>
+            <div class="text-muted small">
+              {{
+                paymentDetails?.paymentMode === "offline"
+                  ? "Date of payment"
+                  : "Payment date/time"
+              }}
+            </div>
             <div class="fw-semibold">
               {{
-                paymentDetails?.paidAt
-                  ? (paymentDetails?.paidAt | date : "medium")
-                  : "-"
+                paymentDetails?.paymentMode === "offline"
+                  ? paymentDetails?.paymentDate
+                    ? (paymentDetails?.paymentDate | date : "mediumDate")
+                    : "-"
+                  : paymentDetails?.paidAt
+                    ? (paymentDetails?.paidAt | date : "medium")
+                    : "-"
               }}
             </div>
           </div>
@@ -402,6 +412,12 @@
           <div class="col-md-6">
             <div class="text-muted small">Amount</div>
             <div class="fw-semibold">Rs. {{ paymentDetails?.amount || "-" }}/-</div>
+          </div>
+          <div class="col-md-6">
+            <div class="text-muted small">Payment method</div>
+            <div class="fw-semibold text-capitalize">
+              {{ paymentDetails?.paymentMode || "-" }}
+            </div>
           </div>
         </div>
       </ng-container>

@@ -491,6 +491,7 @@ export class NewFiling {
           txn_id: txnId,
           court_fees: courtFees,
           payment_date: paymentDate,
+          e_filing_number: this.eFilingNumber || "",
           bank_receipt: this.offlineBankReceipt,
           payment_type: "Court Fees",
         }),
@@ -501,6 +502,7 @@ export class NewFiling {
         amount: courtFees,
         courtFees,
         paymentMode: "offline",
+        referenceNo: res?.reference_no || "",
         bankReceipt: res?.bank_receipt || "",
         paymentDate: paymentDate,
         paidAt: paymentDate,
@@ -720,6 +722,14 @@ export class NewFiling {
 
   get uploadFilingDocForm(): FormGroup {
     return this.form.get("uploadFilingDoc") as FormGroup;
+  }
+
+  get memoOfAppealUploaded(): boolean {
+    const list = Array.isArray(this.docList) ? this.docList : [];
+    return list.some(
+      (d: any) =>
+        this.normalizeDocType(d?.document_type) === "memo of appeal",
+    );
   }
 
   get uploadedIndexNames(): string[] {

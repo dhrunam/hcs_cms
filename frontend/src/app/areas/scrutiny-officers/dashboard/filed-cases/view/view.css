@@ -18,3 +18,12 @@
   color: #4f46e5;
   font-family: ui-monospace, monospace;
 }
+
+.urgent-case-row {
+  background: #fff8db;
+}
+
+.urgent-flag {
+  background: #dc2626;
+  color: #fff;
+}

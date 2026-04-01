@@ -268,6 +268,16 @@ export class NewFilingV2 {
     return this.form.get("uploadFilingDoc") as FormGroup;
   }
 
+  get memoOfAppealUploaded(): boolean {
+    const list = Array.isArray(this.docList) ? this.docList : [];
+    return list.some(
+      (d: any) =>
+        String(d?.document_type || "")
+          .trim()
+          .toLowerCase() === "memo of appeal",
+    );
+  }
+
   get mergeFrontPage(): {
     petitionerName: string;
     respondentName: string;

@@ -54,6 +54,7 @@ export class PaymentService {
     court_fees: string | number;
     payment_date: string;
     payment_type?: string;
+    e_filing_number?: string;
     bank_receipt: File;
   }): Observable<any> {
     const fd = new FormData();
@@ -62,6 +63,9 @@ export class PaymentService {
     fd.append("court_fees", String(payload.court_fees || "").trim());
     fd.append("payment_date", String(payload.payment_date || "").trim());
     fd.append("payment_type", payload.payment_type || "Court Fees");
+    if (payload.e_filing_number) {
+      fd.append("e_filing_number", String(payload.e_filing_number).trim());
+    }
     fd.append("bank_receipt", payload.bank_receipt);
     return this.http.post<any>(`${app_url}/api/payment/offline/`, fd);
   }

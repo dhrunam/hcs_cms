@@ -22,6 +22,7 @@
             <tr
               *ngFor="let filing of filedCases; let i = index"
               style="cursor: pointer"
+              [class.urgent-case-row]="isUrgentCase(filing)"
               [routerLink]="['/scrutiny-officers/dashboard/filed-cases/details', filing.id]"
             >
               <td>{{ i + 1 }}</td>
@@ -34,6 +35,9 @@
               <td>
                 <span *ngIf="hasNewForScrutiny(filing.id)" class="badge rounded-pill text-bg-danger me-2">
                   New
+                </span>
+                <span *ngIf="isUrgent(filing.id)" class="badge rounded-pill urgent-flag me-2">
+                  Urgent
                 </span>
                 <span
                   class="badge rounded-pill px-2 py-1 fw-normal text-bg-{{ getStatusTone(filing) }}"
@@ -82,6 +86,7 @@
             <tr
               *ngFor="let filing of registeredCases; let i = index"
               style="cursor: pointer"
+              [class.urgent-case-row]="isUrgentCase(filing)"
               [routerLink]="['/scrutiny-officers/dashboard/filed-cases/details', filing.id]"
             >
               <td>{{ i + 1 }}</td>
@@ -96,6 +101,9 @@
               <td>
                 <span *ngIf="hasNewForScrutiny(filing.id)" class="badge rounded-pill text-bg-danger me-2">
                   New
+                </span>
+                <span *ngIf="isUrgent(filing.id)" class="badge rounded-pill urgent-flag me-2">
+                  Urgent
                 </span>
                 <span
                   class="badge rounded-pill px-2 py-1 fw-normal text-bg-{{ getStatusTone(filing) }}"

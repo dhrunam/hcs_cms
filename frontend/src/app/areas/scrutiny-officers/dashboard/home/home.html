@@ -113,6 +113,9 @@
                 <span *ngIf="hasNewForScrutiny(filing.id)" class="badge rounded-pill text-bg-danger me-2">
                   New
                 </span>
+                <span *ngIf="isUrgent(filing.id)" class="badge rounded-pill urgent-flag me-2">
+                  Urgent
+                </span>
                 <span
                   class="badge rounded-pill px-2 py-1 fw-normal"
                   [ngClass]="{
