@@ -100,7 +100,7 @@ export class ReaderApprovedCasesPage implements OnInit {
   ngOnInit(): void {
     this.readerService.getBenchConfigurations({ accessible_only: true }).subscribe({
       next: (resp) => {
-        this.benchConfigurations = (resp?.items ?? []).filter((item) => item.is_forward_target);
+        this.benchConfigurations = resp?.items ?? [];
         this.benchKey = this.benchConfigurations[0]?.bench_key || '';
       },
       error: () => {

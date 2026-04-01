@@ -22,6 +22,7 @@ export class JudgePendingCasesPage {
     efiling_id: number;
     case_number: string | null;
     bench_key: string;
+    bench_label?: string;
     judge_decision: boolean | null;
     forwarded_for_date?: string;
   }[] = [];
@@ -29,6 +30,7 @@ export class JudgePendingCasesPage {
     efiling_id: number;
     case_number: string | null;
     bench_key: string;
+    bench_label?: string;
     judge_decision: boolean | null;
     forwarded_for_date?: string;
   }[] = [];

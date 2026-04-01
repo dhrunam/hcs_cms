@@ -272,7 +272,7 @@ class Efiling(BaseModel):
         filing_number = (self.e_filing_number or "").strip()
         if not filing_number:
             raise ValueError("E-filing number is required before generating a case number.")
-        return f"CASE-{filing_number}"
+        return f"{filing_number}"
 
 class DocumentIndex(BaseModel):
     name=models.CharField(max_length=215, null=False, blank=False)

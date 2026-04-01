@@ -12,6 +12,8 @@ export class CourtroomService {
       efiling_id: number;
       case_number: string | null;
       bench_key: string;
+      bench_label?: string;
+      forward_bench_key?: string;
       listing_summary?: string | null;
       judge_decision: boolean | null;
       judge_decision_status?: 'APPROVED' | 'DECLINED' | 'REQUESTED_DOCS' | null;
@@ -24,6 +26,8 @@ export class CourtroomService {
       efiling_id: number;
       case_number: string | null;
       bench_key: string;
+      bench_label?: string;
+      forward_bench_key?: string;
       listing_summary?: string | null;
       judge_decision: boolean | null;
       judge_decision_status?: 'APPROVED' | 'DECLINED' | 'REQUESTED_DOCS' | null;
@@ -62,6 +66,8 @@ export class CourtroomService {
     petitioner_name: string | null;
     petitioner_contact: string | null;
     bench_key: string;
+    bench_label?: string;
+    forward_bench_key?: string;
     forwarded_for_date: string;
     listing_summary?: string | null;
     selected_documents?: {

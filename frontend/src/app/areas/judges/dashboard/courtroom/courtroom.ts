@@ -6,6 +6,7 @@ import { ActivatedRoute, Router, RouterLink } from "@angular/router";
 import Swal from "sweetalert2";
 
 import { CourtroomService } from "../../../../services/judge/courtroom.service";
+import { benchLabel } from "../../../listing-officers/shared/bench-labels";
 
 @Component({
   selector: "app-judge-courtroom",
@@ -14,6 +15,7 @@ import { CourtroomService } from "../../../../services/judge/courtroom.service";
   styleUrl: "./courtroom.css",
 })
 export class JudgeCourtroomPage {
+  benchLabel = benchLabel;
   efilingId: number | null = null;
   forwardedForDate: string | null = null;
 
