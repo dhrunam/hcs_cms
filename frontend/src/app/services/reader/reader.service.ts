@@ -18,6 +18,7 @@ export type RegisteredCase = {
   approval_forwarded_for_date?: string | null;
   approval_listing_date?: string | null;
   listing_summary?: string | null;
+  can_assign_listing_date?: boolean;
   requested_documents?: { document_index_id: number; document_part_name: string | null; document_type: string | null }[];
 };
 

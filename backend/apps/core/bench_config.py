@@ -55,6 +55,7 @@ class BenchConfiguration:
     judge_user_ids: tuple[int, ...]
     judge_groups: tuple[str, ...]
     reader_user_ids: tuple[int, ...]
+    reader_user_ids_by_group: tuple[tuple[str, int], ...] = tuple()
 
 
 def _ordered_tokens(tokens: Iterable[str]) -> list[str]:
@@ -68,7 +69,10 @@ def _active_bench_rows(as_of_date=None):
         BenchT.objects.filter(is_active=True, from_date__lte=active_date)
         .filter(Q(to_date__isnull=True) | Q(to_date__gte=active_date))
         .select_related('judge__user', 'judge__reader_assignment__reader_user')
-        .prefetch_related('judge__user__groups', 'judge__reader_assignment__reader_user__groups')
+        .prefetch_related(
+            'judge__user__groups',
+            'judge__reader_assignment__reader_user__groups',
+        )
         .filter(Q(judge__isnull=False))
         .order_by('bench_code', 'id')
         .distinct()
@@ -101,7 +105,9 @@ def _judge_display_name(bench_row: BenchT) -> str:
     return judge.judge_code
 
 
-def _build_active_bench_configurations(as_of_date=None) -> list[BenchConfiguration]:
+def _build_active_bench_configurations(
+    as_of_date=None,
+) -> list[BenchConfiguration]:
     by_key: dict[str, dict] = {}
 
     for bench_row in _active_bench_rows(as_of_date=as_of_date):
@@ -111,28 +117,48 @@ def _build_active_bench_configurations(as_of_date=None) -> list[BenchConfigurati
         token = JUDGE_GROUP_TO_BENCH_TOKEN[group_name]
         bench_code = (bench_row.bench_code or '').strip() or None
         bench_name = (bench_row.bench_name or '').strip() or None
-        group_bucket = by_key.setdefault(bench_code or f'row-{bench_row.id}', {
-            'bench_code': bench_code,
-            'bench_name': bench_name,
-            'tokens': [],
-            'judge_names': [],
-            'judge_user_ids': [],
-            'judge_groups': [],
-            'reader_user_ids': [],
-        })
+        group_bucket = by_key.setdefault(
+            bench_code or f'row-{bench_row.id}',
+            {
+                'bench_code': bench_code,
+                'bench_name': bench_name,
+                'tokens': [],
+                'judge_names': [],
+                'judge_user_ids': [],
+                'judge_groups': [],
+                'reader_user_ids': [],
+                'reader_user_ids_by_group': {},
+            },
+        )
         if token not in group_bucket['tokens']:
             group_bucket['tokens'].append(token)
         judge_name = _judge_display_name(bench_row)
         if judge_name and judge_name not in group_bucket['judge_names']:
             group_bucket['judge_names'].append(judge_name)
-        judge_user_id = getattr(getattr(bench_row.judge, 'user', None), 'id', None)
-        if judge_user_id and judge_user_id not in group_bucket['judge_user_ids']:
+        judge_user_id = getattr(
+            getattr(bench_row.judge, 'user', None),
+            'id',
+            None,
+        )
+        if (
+            judge_user_id
+            and judge_user_id not in group_bucket['judge_user_ids']
+        ):
             group_bucket['judge_user_ids'].append(judge_user_id)
         if group_name not in group_bucket['judge_groups']:
             group_bucket['judge_groups'].append(group_name)
         assignment = getattr(bench_row.judge, 'reader_assignment', None)
-        if assignment and assignment.reader_user_id and assignment.reader_user_id not in group_bucket['reader_user_ids']:
+        if (
+            assignment
+            and assignment.reader_user_id
+            and assignment.reader_user_id
+            not in group_bucket['reader_user_ids']
+        ):
             group_bucket['reader_user_ids'].append(assignment.reader_user_id)
+        if assignment and assignment.reader_user_id:
+            group_bucket['reader_user_ids_by_group'][
+                group_name
+            ] = assignment.reader_user_id
 
     merged: dict[str, BenchConfiguration] = {}
     for bucket in by_key.values():
@@ -143,20 +169,53 @@ def _build_active_bench_configurations(as_of_date=None) -> list[BenchConfigurati
         existing = merged.get(bench_key)
         judge_names = tuple(bucket['judge_names'])
         judge_user_ids = tuple(bucket['judge_user_ids'])
-        judge_groups = tuple(BENCH_TOKEN_TO_JUDGE_GROUP[token] for token in ordered_tokens)
+        judge_groups = tuple(
+            BENCH_TOKEN_TO_JUDGE_GROUP[token]
+            for token in ordered_tokens
+        )
         reader_user_ids = tuple(bucket['reader_user_ids'])
-        label = bucket['bench_name'] or LEGACY_BENCH_LABELS.get(bench_key, bench_key)
+        reader_user_ids_by_group = tuple(
+            (group_name, int(reader_user_id))
+            for group_name, reader_user_id in (
+                bucket['reader_user_ids_by_group'].items()
+            )
+        )
+        label = bucket['bench_name'] or LEGACY_BENCH_LABELS.get(
+            bench_key,
+            bench_key,
+        )
 
         if existing:
+            merged_reader_user_ids_by_group = dict(
+                existing.reader_user_ids_by_group
+            )
+            merged_reader_user_ids_by_group.update(
+                dict(reader_user_ids_by_group)
+            )
             merged[bench_key] = BenchConfiguration(
                 bench_key=bench_key,
                 label=existing.label,
                 bench_code=existing.bench_code,
                 bench_name=existing.bench_name,
-                judge_names=tuple(dict.fromkeys([*existing.judge_names, *judge_names])),
-                judge_user_ids=tuple(dict.fromkeys([*existing.judge_user_ids, *judge_user_ids])),
+                judge_names=tuple(
+                    dict.fromkeys([*existing.judge_names, *judge_names])
+                ),
+                judge_user_ids=tuple(
+                    dict.fromkeys([
+                        *existing.judge_user_ids,
+                        *judge_user_ids,
+                    ])
+                ),
                 judge_groups=existing.judge_groups,
-                reader_user_ids=tuple(dict.fromkeys([*existing.reader_user_ids, *reader_user_ids])),
+                reader_user_ids=tuple(
+                    dict.fromkeys([
+                        *existing.reader_user_ids,
+                        *reader_user_ids,
+                    ])
+                ),
+                reader_user_ids_by_group=tuple(
+                    merged_reader_user_ids_by_group.items()
+                ),
             )
             continue
 
@@ -169,11 +228,18 @@ def _build_active_bench_configurations(as_of_date=None) -> list[BenchConfigurati
             judge_user_ids=judge_user_ids,
             judge_groups=judge_groups,
             reader_user_ids=reader_user_ids,
+            reader_user_ids_by_group=reader_user_ids_by_group,
         )
 
     return sorted(
         merged.values(),
-        key=lambda item: (len(item.judge_groups), [BENCH_TOKEN_ORDER.index(token) for token in item.bench_key.split('+')]),
+        key=lambda item: (
+            len(item.judge_groups),
+            [
+                BENCH_TOKEN_ORDER.index(token)
+                for token in item.bench_key.split('+')
+            ],
+        ),
     )
 
 
@@ -199,6 +265,7 @@ def _legacy_bench_configurations() -> list[BenchConfiguration]:
                 judge_user_ids=tuple(),
                 judge_groups=_legacy_required_groups(bench_key),
                 reader_user_ids=tuple(),
+                reader_user_ids_by_group=tuple(),
             ),
         )
     return items
@@ -209,7 +276,10 @@ def get_bench_configurations(as_of_date=None) -> list[BenchConfiguration]:
     return configs or _legacy_bench_configurations()
 
 
-def get_bench_configuration(bench_key: str, as_of_date=None) -> BenchConfiguration | None:
+def get_bench_configuration(
+    bench_key: str,
+    as_of_date=None,
+) -> BenchConfiguration | None:
     for item in get_bench_configurations(as_of_date=as_of_date):
         if item.bench_key == bench_key:
             return item
@@ -221,10 +291,14 @@ def get_bench_configuration(bench_key: str, as_of_date=None) -> BenchConfigurati
         label=LEGACY_BENCH_LABELS.get(bench_key, bench_key),
         bench_code=None,
         bench_name=None,
-        judge_names=tuple(LEGACY_BENCH_LABELS.get(token, token) for token in bench_key.split('+')),
+        judge_names=tuple(
+            LEGACY_BENCH_LABELS.get(token, token)
+            for token in bench_key.split('+')
+        ),
         judge_user_ids=tuple(),
         judge_groups=legacy_groups,
         reader_user_ids=tuple(),
+        reader_user_ids_by_group=tuple(),
     )
 
 
@@ -245,14 +319,20 @@ def get_bench_configuration_for_stored_value(
     return None
 
 
-def get_required_judge_groups(bench_key: str, as_of_date=None) -> tuple[str, ...]:
+def get_required_judge_groups(
+    bench_key: str,
+    as_of_date=None,
+) -> tuple[str, ...]:
     bench = get_bench_configuration(bench_key, as_of_date=as_of_date)
     if not bench:
         return tuple()
     return bench.judge_groups
 
 
-def _legacy_reader_tokens(user: User | None, reader_group: str | None = None) -> set[str]:
+def _legacy_reader_tokens(
+    user: User | None,
+    reader_group: str | None = None,
+) -> set[str]:
     tokens: set[str] = set()
     if user and getattr(user, 'is_authenticated', False):
         for group_name in user.groups.values_list('name', flat=True):
@@ -262,6 +342,69 @@ def _legacy_reader_tokens(user: User | None, reader_group: str | None = None) ->
     return tokens
 
 
+def _reader_tokens_for_user(
+    user: User | None,
+    reader_group: str | None = None,
+    as_of_date=None,
+) -> set[str]:
+    tokens = _legacy_reader_tokens(user, reader_group=reader_group)
+    if not user or not getattr(user, 'is_authenticated', False):
+        return tokens
+
+    for config in get_bench_configurations(as_of_date=as_of_date):
+        for judge_group, reader_user_id in config.reader_user_ids_by_group:
+            if reader_user_id == user.id:
+                token = JUDGE_GROUP_TO_BENCH_TOKEN.get(judge_group)
+                if token:
+                    tokens.add(token)
+
+    return tokens
+
+
+def get_primary_bench_token(bench_key: str, as_of_date=None) -> str | None:
+    bench = get_bench_configuration(bench_key, as_of_date=as_of_date)
+    if bench and bench.judge_groups:
+        tokens = [
+            JUDGE_GROUP_TO_BENCH_TOKEN[group_name]
+            for group_name in bench.judge_groups
+            if group_name in JUDGE_GROUP_TO_BENCH_TOKEN
+        ]
+        if tokens:
+            return tokens[0]
+
+    tokens = _ordered_tokens(str(bench_key or '').split('+'))
+    return tokens[0] if tokens else None
+
+
+def is_reader_date_authority_for_bench(
+    bench_key: str,
+    user: User | None,
+    reader_group: str | None = None,
+    as_of_date=None,
+) -> bool:
+    primary_token = get_primary_bench_token(bench_key, as_of_date=as_of_date)
+    if not primary_token:
+        return False
+
+    primary_group = BENCH_TOKEN_TO_JUDGE_GROUP.get(primary_token)
+    bench = get_bench_configuration(bench_key, as_of_date=as_of_date)
+    if (
+        user
+        and getattr(user, 'is_authenticated', False)
+        and bench
+        and primary_group
+    ):
+        for judge_group, reader_user_id in bench.reader_user_ids_by_group:
+            if judge_group == primary_group:
+                return reader_user_id == user.id
+
+    return primary_token in _reader_tokens_for_user(
+        user,
+        reader_group=reader_group,
+        as_of_date=as_of_date,
+    )
+
+
 def get_accessible_bench_keys_for_reader(
     user: User | None,
     reader_group: str | None = None,
@@ -269,7 +412,11 @@ def get_accessible_bench_keys_for_reader(
 ) -> Optional[set[str]]:
     configs = get_bench_configurations(as_of_date=as_of_date)
     if user and getattr(user, 'is_authenticated', False):
-        user_bench_keys = {config.bench_key for config in configs if user.id in config.reader_user_ids}
+        user_bench_keys = {
+            config.bench_key
+            for config in configs
+            if user.id in config.reader_user_ids
+        }
         if user_bench_keys:
             return user_bench_keys
 
@@ -321,7 +468,10 @@ def get_forward_bench_keys_for_reader(
         direct_keys = {
             config.bench_key
             for config in configs
-            if len(config.judge_groups) == 1 and user.id in config.reader_user_ids
+            if (
+                len(config.judge_groups) == 1
+                and user.id in config.reader_user_ids
+            )
         }
         if direct_keys:
             return direct_keys
@@ -338,8 +488,17 @@ def get_forward_bench_keys_for_reader(
     return config_keys or legacy_tokens
 
 
-def is_reader_allowed_for_bench(bench_key: str, user: User | None, reader_group: str | None = None, as_of_date=None) -> bool:
-    allowed_bench_keys = get_accessible_bench_keys_for_reader(user, reader_group=reader_group, as_of_date=as_of_date)
+def is_reader_allowed_for_bench(
+    bench_key: str,
+    user: User | None,
+    reader_group: str | None = None,
+    as_of_date=None,
+) -> bool:
+    allowed_bench_keys = get_accessible_bench_keys_for_reader(
+        user,
+        reader_group=reader_group,
+        as_of_date=as_of_date,
+    )
     if allowed_bench_keys is None:
         return True
     return bench_key in allowed_bench_keys

@@ -34,6 +34,7 @@ type RegisteredCase = {
   approval_forwarded_for_date?: string | null;
   approval_listing_date?: string | null;
   listing_summary?: string | null;
+  can_assign_listing_date?: boolean;
   requested_documents?: {
     document_index_id: number;
     document_part_name: string | null;
@@ -151,6 +152,14 @@ export class RegisteredCasesPage {
       default:
         return "text-bg-primary";
     }
+  }
+
+  showDivisionBenchAuthorityHint(c: RegisteredCase): boolean {
+    return (
+      c.approval_status === "APPROVED" &&
+      !c.approval_listing_date &&
+      c.can_assign_listing_date === false
+    );
   }
 
   openCase(efilingId: number): void {

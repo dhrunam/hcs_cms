@@ -20,6 +20,7 @@ from apps.core.bench_config import (
     get_bench_configurations,
     get_forward_bench_keys_for_reader,
     get_required_judge_groups,
+    is_reader_date_authority_for_bench,
     is_reader_allowed_for_bench,
 )
 from apps.judge.models import (
@@ -284,6 +285,26 @@ def _get_effective_forwarded_for_date(
     return requested_forwarded_for_date
 
 
+def _can_reader_assign_listing_date(
+    request,
+    bench_config,
+    reader_group: str | None = None,
+) -> bool:
+    if not bench_config:
+        return False
+
+    user = (
+        request.user
+        if getattr(request.user, 'is_authenticated', False)
+        else None
+    )
+    return is_reader_date_authority_for_bench(
+        bench_config.bench_key,
+        user,
+        reader_group=reader_group,
+    )
+
+
 class BenchConfigurationsView(APIView):
     """
     Reader: expose active bench metadata for dynamic frontend rendering.
@@ -340,10 +361,10 @@ class RegisteredCasesListView(APIView):
     def get(self, request, *args, **kwargs):
         page_size_raw = request.query_params.get("page_size")
         page_size = int(page_size_raw) if page_size_raw not in (None, "", "null") else 200
+        reader_group = request.query_params.get("reader_group")
 
         qs = Efiling.objects.filter(is_draft=False, status="ACCEPTED").order_by("-id")
-        
-        reader_group = request.query_params.get("reader_group")
+
         allowed_bench_filter = _get_reader_allowed_efiling_bench_filter(
             request,
             reader_group=reader_group,
@@ -458,6 +479,7 @@ class RegisteredCasesListView(APIView):
             requested_documents = []
             approval_bench_key = None
             approval_forwarded_for_date = None
+            can_assign_listing_date = False
             
             assigned_bench = get_bench_configuration_for_stored_value(e.bench)
             relevant_forwards = []
@@ -465,6 +487,11 @@ class RegisteredCasesListView(APIView):
                 relevant_forwards = _get_relevant_forwards_for_bench(
                     forwards_by_efiling.get(e.id, []),
                     assigned_bench,
+                )
+                can_assign_listing_date = _can_reader_assign_listing_date(
+                    request,
+                    assigned_bench,
+                    reader_group=reader_group,
                 )
 
             approval_state = _resolve_reader_approval_state(
@@ -506,6 +533,7 @@ class RegisteredCasesListView(APIView):
                 "approval_listing_date": approval_listing_date,
                 "listing_summary": approval_state["listing_summary"],
                 "requested_documents": requested_documents,
+                "can_assign_listing_date": can_assign_listing_date,
             })
 
         return Response({"total": total, "items": items}, status=drf_status.HTTP_200_OK)
@@ -688,6 +716,7 @@ class ReaderAssignDateView(APIView):
         ldate = request.data.get("listing_date")
         fwd_date = request.data.get("forwarded_for_date")
         lremark = request.data.get("listing_remark")
+        user = request.user if getattr(request.user, "is_authenticated", False) else None
 
         if not efiling_ids or not ldate or not fwd_date:
             raise ValidationError({"efiling_ids": "Required.", "listing_date": "Required.", "forwarded_for_date": "Required."})
@@ -705,6 +734,25 @@ class ReaderAssignDateView(APIView):
             ).values_list("id", flat=True)
             if len(allowed_ids) != len(efiling_ids):
                 raise ValidationError("You do not have permission to assign dates to some of these cases.")
+
+        efilings = list(Efiling.objects.filter(id__in=efiling_ids))
+        unauthorized_efiling_ids: list[int] = []
+        for efiling in efilings:
+            assigned_bench = get_bench_configuration_for_stored_value(efiling.bench)
+            if not assigned_bench or not is_reader_date_authority_for_bench(
+                assigned_bench.bench_key,
+                user,
+                reader_group=reader_group,
+            ):
+                unauthorized_efiling_ids.append(efiling.id)
+
+        if unauthorized_efiling_ids:
+            raise ValidationError({
+                "efiling_ids": (
+                    "Only the higher-priority bench reader can assign the listing date for "
+                    f"these case(s): {', '.join(str(item) for item in unauthorized_efiling_ids)}."
+                )
+            })
 
         # Update all matching decisions. Note: in some cases (Division Bench) multiple judges 
         # have decisions for the same filing/date. We update all of them with the final date.
