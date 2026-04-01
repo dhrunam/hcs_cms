@@ -4,8 +4,10 @@ import { Router } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import Swal from 'sweetalert2';
 
-import { CauseListService } from '../../../../services/listing/cause-list.service';
-import { benchLabel, isUnassignedBench } from '../../shared/bench-labels';
+import {
+  BenchConfiguration,
+  CauseListService,
+} from '../../../../services/listing/cause-list.service';
 
 type ListedCase = {
   efiling_id: number;
@@ -30,12 +32,25 @@ export class ListedCasesPage {
   isLoading = false;
   cases: ListedCase[] = [];
   loadError = '';
-  benchLabel = benchLabel;
+  benchConfigurations: BenchConfiguration[] = [];
 
   constructor(private causeListService: CauseListService, private router: Router) {}
 
   ngOnInit(): void {
+    this.loadBenchConfigurations();
     this.loadListedCases();
+  }
+
+  private loadBenchConfigurations(): void {
+    this.causeListService.getBenchConfigurations().subscribe({
+      next: (resp) => {
+        this.benchConfigurations = resp?.items ?? [];
+      },
+      error: (err) => {
+        console.warn('Failed to load bench configurations', err);
+        this.benchConfigurations = [];
+      },
+    });
   }
 
   private loadListedCases(): void {
@@ -53,9 +68,20 @@ export class ListedCasesPage {
         }),
       )
       .subscribe((resp) => {
-        this.cases = (resp?.items ?? []).filter((c: ListedCase) => !isUnassignedBench(c.bench));
+        this.cases = (resp?.items ?? []).filter((c: ListedCase) => !this.isUnassignedBench(c.bench));
         this.isLoading = false;
       });
+  }
+
+  benchLabel(key: string | null | undefined): string {
+    if (this.isUnassignedBench(key)) return '-';
+    const normalizedKey = String(key ?? '').trim();
+    return this.benchConfigurations.find((item) => item.bench_key === normalizedKey)?.label || normalizedKey;
+  }
+
+  private isUnassignedBench(key: string | null | undefined): boolean {
+    const value = String(key ?? '').trim().toLowerCase();
+    return !value || value === 'high court of sikkim' || value === 'high court of skkim';
   }
 
   get canProceedToGenerator(): boolean {
