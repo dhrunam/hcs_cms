@@ -41,11 +41,38 @@
   background: #fcfcfd;
 }
 
-.doc-select-item {
+.doc-preview-item {
+  align-items: center;
   border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 8px;
   padding: 8px 10px;
   background: #fff;
+  color: #0f172a;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+}
+
+.doc-preview-item.active {
+  background: #eff6ff;
+  border-color: #60a5fa;
+  box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.2);
+}
+
+.doc-preview-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.doc-preview-item:hover {
+  background: #f8fafc;
+}
+
+.doc-preview-item:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
 }
 
 .preview-panel {

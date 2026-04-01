@@ -124,25 +124,18 @@
           <div *ngIf="documents.length > 0; else noDocs" class="row g-3">
             <div class="col-lg-4">
               <div class="border rounded p-3 docs-list-panel">
-                <div class="small text-muted mb-2">Select documents to forward</div>
+                <div class="small text-muted mb-2">Click a document to preview</div>
                 <div class="d-flex flex-column gap-2">
-                  <label class="doc-select-item" *ngFor="let d of documents">
-                    <div class="d-flex align-items-start gap-2">
-                      <input
-                        class="form-check-input mt-1"
-                        type="checkbox"
-                        [checked]="isDocSelected(d.id)"
-                        (change)="toggleDocSelection(d.id, $any($event.target).checked)"
-                      />
-                      <button
-                        type="button"
-                        class="btn btn-link p-0 text-start text-decoration-none"
-                        (click)="selectDocument(d)"
-                      >
-                        {{ documentName(d) }}
-                      </button>
-                    </div>
-                  </label>
+                  <button
+                    type="button"
+                    class="doc-preview-item text-start"
+                    *ngFor="let d of documents"
+                    [class.active]="isSelectedDocument(d.id)"
+                    (click)="selectDocument(d)"
+                  >
+                    <span class="doc-preview-name">{{ documentName(d) }}</span>
+                    <span *ngIf="isRequestedDocument(d.id)" class="badge rounded-pill text-bg-info">Requested</span>
+                  </button>
                 </div>
               </div>
             </div>
