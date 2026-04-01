@@ -47,6 +47,7 @@ export class ReaderCaseSummaryPage {
     | "REQUESTED_DOCS" = "NOT_FORWARDED";
   approvalNotes: string[] = [];
   approvalListingDate: string | null = null;
+  canAssignListingDate = true;
   targetListingDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
     .toISOString()
     .slice(0, 10);
@@ -144,6 +145,7 @@ export class ReaderCaseSummaryPage {
           ? currentCase.approval_notes
           : [];
         this.approvalListingDate = currentCase?.approval_listing_date || null;
+        this.canAssignListingDate = currentCase?.can_assign_listing_date !== false;
         this.approvalForwardedForDate =
           currentCase?.approval_forwarded_for_date || null;
         if (this.approvalListingDate) {
@@ -333,6 +335,7 @@ export class ReaderCaseSummaryPage {
   forwardForListing(): void {
     if (
       !this.filingId ||
+      !this.canAssignListingDate ||
       !this.targetListingDate ||
       !this.approvalForwardedForDate
     ) {
@@ -428,5 +431,13 @@ export class ReaderCaseSummaryPage {
       }
     };
     return `${day}${suffix(day)} ${month} ${year}`;
+  }
+
+  get showListingAuthorityNotice(): boolean {
+    return (
+      (this.approvalStatus === "APPROVED" || !!this.approvalListingDate) &&
+      !this.canAssignListingDate &&
+      !this.approvalListingDate
+    );
   }
 }

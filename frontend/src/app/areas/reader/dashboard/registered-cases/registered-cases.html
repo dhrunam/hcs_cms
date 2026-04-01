@@ -63,6 +63,16 @@
 
         <div class="case-card-body">
           <div class="case-summary">
+            <div
+              class="summary-row"
+              *ngIf="showDivisionBenchAuthorityHint(c)"
+            >
+              <div class="summary-label">Division Bench</div>
+              <div class="summary-value text-muted">
+                Final listing date will be fixed by the higher-priority bench
+                reader.
+              </div>
+            </div>
             <div class="summary-row" *ngIf="c.approval_notes?.length">
               <div class="summary-label">Judge Remarks</div>
               <div class="summary-value">
