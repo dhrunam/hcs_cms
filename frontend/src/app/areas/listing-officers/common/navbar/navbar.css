@@ -1,2 +1,80 @@
 /* reuse styling from other role navbars */
+.navbar {
+  height: 60px;
+}
 
+/* BRAND TEXT */
+
+.brand-text {
+  color: #ffffff;
+  font-size: 18px;
+  letter-spacing: 0.4px;
+}
+
+/* CLOCK */
+
+.clock {
+  background: #f1f1f1;
+  padding: 6px 14px;
+  border-radius: 10px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.clock-date {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #141414;
+}
+
+.clock-time {
+  font-size: 0.87rem;
+  font-weight: 400;
+  color: #292929;
+}
+
+/* DROPDOWN */
+
+.dropdown-menu {
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.dropdown-item {
+  padding: 8px 14px;
+}
+
+.dropdown-item:hover {
+  background: #f1f5f9;
+}
+
+/* RIGHT SECTION */
+.navbar .d-flex.align-items-center:last-child {
+  gap: 12px;
+}
+
+li {
+  cursor: pointer;
+}
+/* MOBILE FIX */
+@media (max-width: 768px) {
+  .clock {
+    padding: 4px 8px;
+  }
+
+  .clock-date {
+    font-size: 10px;
+  }
+
+  .clock-time {
+    font-size: 10px;
+  }
+
+  .navbar .dropdown {
+    padding-right: 0 !important;
+  }
+
+  .navbar .me-4 {
+    margin-right: 8px !important;
+  }
+}

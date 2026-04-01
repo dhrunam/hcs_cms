@@ -1,19 +1,35 @@
+/* ======================================================
+    SIDEBAR
+  ====================================================== */
+
+/* Prevent list bullets/discs from appearing/flickering on hover */
+ul.nav {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+li {
+  list-style: none;
+}
+
+li::marker {
+  content: none;
+}
+
 .nav-link {
   color: #1e293b;
 }
-
 .nav-link:hover {
-  color: #ffffff;
+  /* color: #ffffff; */
 }
-
 .nav-item.active .nav-link {
   color: #ffffff;
 }
-
 .nav-item {
   color: #475569;
   padding: 4px 8px;
-  margin: 4px 4px;
+  margin: 4px 0;
   border-radius: 10px;
   font-weight: 300;
   transition: all 0.25s ease;
@@ -25,13 +41,14 @@
 }
 
 .nav-item:hover {
-  background: #4338ca;
-  transform: translateX(4px);
+  background: #494949;
+  transform: none;
 }
 
+/* Disable hover effects for menu that has submenus (Filing) and its direct link */
 .nav-item.nav-item-has-submenu:hover {
-  background: transparent;
-  color: inherit;
+  /* background: transparent;
+    color: inherit; */
   transform: none;
 }
 
@@ -39,32 +56,51 @@
   color: inherit;
 }
 
-#listingWorkflowSubmenu.collapse,
-#listingWorkflowSubmenu.collapsing {
-  transition: height 0.25s ease, opacity 0.25s ease;
+/* Prevent submenu items under Filing from changing colors/background on hover */
+#filingSubmenu .nav-item:hover {
+  background: transparent;
+  color: inherit;
+  transform: none;
+}
+
+#filingSubmenu .nav-link:hover {
+  color: inherit;
+  background-color: transparent;
+}
+
+/* Smooth expand / collapse for Filing submenu */
+#filingSubmenu.collapse,
+#filingSubmenu.collapsing {
+  transition:
+    height 0.25s ease,
+    opacity 0.25s ease;
   overflow: hidden;
 }
 
-#listingWorkflowSubmenu.collapsing {
+#filingSubmenu.collapsing {
   opacity: 0;
 }
 
-#listingWorkflowSubmenu.collapse.show {
+#filingSubmenu.collapse.show {
   opacity: 1;
 }
 
 .nav-item.active {
-  background: #1d4ed8;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+  background: #1e293b;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
-.filing-toggle[aria-expanded='true'] .filing-chevron {
+/* ============================
+    Filing dropdown customisations
+    ============================ */
+
+/* Rotate chevron for Filing when expanded/collapsed */
+.filing-toggle[aria-expanded="true"] .filing-chevron {
   transform: rotate(180deg);
-  transition: transform 0.2s ease;
+  /* transition: transform 0.2s ease; */
 }
 
-.filing-toggle[aria-expanded='false'] .filing-chevron {
+.filing-toggle[aria-expanded="false"] .filing-chevron {
   transform: rotate(0deg);
-  transition: transform 0.2s ease;
+  /* transition: transform 0.2s ease; */
 }
-
