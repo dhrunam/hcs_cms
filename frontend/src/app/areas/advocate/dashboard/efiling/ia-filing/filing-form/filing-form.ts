@@ -14,6 +14,11 @@ import {
   validatePdfFiles,
   validatePdfOcrForFiles,
 } from '../../../../../../utils/pdf-validation';
+import {
+  formatPartyLine,
+  formatPetitionerVsRespondent,
+  getOrderedPartyNames,
+} from '../../../../../../utils/petitioner-vs-respondent';
 import { UploadDocuments } from '../../new-filing/upload-documents/upload-documents';
 
 @Component({
@@ -27,7 +32,7 @@ export class IaFilingForm implements OnInit {
   form!: FormGroup;
   uploadFilingDocForm!: FormGroup;
   filings: any[] = [];
-  filingsWithLitigants: Array<{ filing: any; petitioners: string[]; respondents: string[] }> = [];
+  filingsWithLitigants: Array<{ filing: any; litigants: any[] }> = [];
   searchQuery = '';
   isDropdownOpen = false;
   selectedFiling: any = null;
@@ -37,6 +42,7 @@ export class IaFilingForm implements OnInit {
   isLoadingFilings = true;
   isLoadingDetails = false;
   isUploadingDocuments = false;
+  private isUploadRequestInFlight = false;
   isSubmitting = false;
   uploadFileProgresses: number[] = [];
   uploadCompletedToken = 0;
@@ -98,41 +104,45 @@ export class IaFilingForm implements OnInit {
           const list = Array.isArray(litigantResults[i])
             ? litigantResults[i]
             : litigantResults[i]?.results ?? [];
-          const petitioners = list.filter((l: any) => l.is_petitioner).map((l: any) => l.name || '');
-          const respondents = list.filter((l: any) => !l.is_petitioner).map((l: any) => l.name || '');
-          return { filing, petitioners, respondents };
+          return { filing, litigants: list };
         });
         this.isLoadingFilings = false;
       },
       error: () => {
         this.filingsWithLitigants = this.filings.map((f) => ({
           filing: f,
-          petitioners: [],
-          respondents: [],
+          litigants: [],
         }));
         this.isLoadingFilings = false;
       },
     });
   }
 
-  get filteredFilingsWithLitigants(): Array<{ filing: any; petitioners: string[]; respondents: string[] }> {
+  get filteredFilingsWithLitigants(): Array<{ filing: any; litigants: any[] }> {
     const q = (this.searchQuery || '').trim().toLowerCase();
     if (!q) return this.filingsWithLitigants;
     return this.filingsWithLitigants.filter((item) => {
       const ef = (item.filing.e_filing_number || '').toLowerCase();
       const ct = (item.filing.case_type?.type_name || '').toLowerCase();
       const pn = (item.filing.petitioner_name || '').toLowerCase();
-      const petNames = item.petitioners.join(' ').toLowerCase();
-      const resNames = item.respondents.join(' ').toLowerCase();
-      const vs = `${petNames} vs ${resNames}`.toLowerCase();
-      return ef.includes(q) || ct.includes(q) || pn.includes(q) || petNames.includes(q) || resNames.includes(q) || vs.includes(q);
+      const petNames = getOrderedPartyNames(item.litigants, true).join(' ').toLowerCase();
+      const resNames = getOrderedPartyNames(item.litigants, false).join(' ').toLowerCase();
+      const vsLine = this.getLitigantLabel(item).toLowerCase();
+      return (
+        ef.includes(q) ||
+        ct.includes(q) ||
+        pn.includes(q) ||
+        petNames.includes(q) ||
+        resNames.includes(q) ||
+        vsLine.includes(q)
+      );
     });
   }
 
-  getLitigantLabel(item: { filing: any; petitioners: string[]; respondents: string[] }): string {
-    const p = item.petitioners.filter(Boolean).join(', ') || item.filing?.petitioner_name || '-';
-    const r = item.respondents.filter(Boolean).join(', ') || '-';
-    return `${p} vs ${r}`;
+  getLitigantLabel(item: { filing: any; litigants: any[] }): string {
+    return (
+      formatPetitionerVsRespondent(item.litigants, String(item.filing?.petitioner_name || '')) || '—'
+    );
   }
 
   selectFiling(item: { filing: any }): void {
@@ -204,43 +214,45 @@ export class IaFilingForm implements OnInit {
   }
 
   async handleDocUpload(payload: any): Promise<void> {
-    const documentType = String(payload?.document_type || '').trim();
-    const uploadItems = Array.isArray(payload?.items) ? payload.items : [];
-    const eFilingId = Number(this.form.value.e_filing_id);
-    const selectedF = this.filings.find((f) => f.id === eFilingId);
-    const eFilingNumber = selectedF?.e_filing_number ?? '';
-    const reliefSought = String(this.form.value.relief_sought || '').trim();
-
-    if (!documentType || uploadItems.length === 0 || !eFilingId) {
-      this.toastr.warning('Please select an E-Filing and add documents with index names.');
-      return;
-    }
-    if (!reliefSought) {
-      this.toastr.warning('Please enter Relief Sought before uploading documents.');
-      return;
-    }
-
-    // Validate PDF size (≤ 25 MB) and OCR before upload
-    const files = uploadItems.map((i: any) => i.file).filter(Boolean);
-    const { valid, errors } = validatePdfFiles(files);
-    if (errors.length > 0) {
-      this.toastr.error(errors.join(' '));
-      return;
-    }
-    if (valid.length !== files.length) {
-      this.toastr.error('Some files could not be validated. Please ensure all files are PDFs under 25 MB.');
-      return;
-    }
-    const ocrError = await validatePdfOcrForFiles(valid);
-    if (ocrError) {
-      this.toastr.error(ocrError);
-      return;
-    }
-
-    this.isUploadingDocuments = true;
-    this.uploadFileProgresses = uploadItems.map(() => 0);
-
+    if (this.isUploadingDocuments || this.isUploadRequestInFlight) return;
+    this.isUploadRequestInFlight = true;
     try {
+      const documentType = String(payload?.document_type || '').trim();
+      const uploadItems = Array.isArray(payload?.items) ? payload.items : [];
+      const eFilingId = Number(this.form.value.e_filing_id);
+      const selectedF = this.filings.find((f) => f.id === eFilingId);
+      const eFilingNumber = selectedF?.e_filing_number ?? '';
+      const reliefSought = String(this.form.value.relief_sought || '').trim();
+
+      if (!documentType || uploadItems.length === 0 || !eFilingId) {
+        this.toastr.warning('Please select an E-Filing and add documents with index names.');
+        return;
+      }
+      if (!reliefSought) {
+        this.toastr.warning('Please enter Relief Sought before uploading documents.');
+        return;
+      }
+
+      // Validate PDF size (≤ 25 MB) and OCR before upload
+      const files = uploadItems.map((i: any) => i.file).filter(Boolean);
+      const { valid, errors } = validatePdfFiles(files);
+      if (errors.length > 0) {
+        this.toastr.error(errors.join(' '));
+        return;
+      }
+      if (valid.length !== files.length) {
+        this.toastr.error('Some files could not be validated. Please ensure all files are PDFs under 25 MB.');
+        return;
+      }
+      const ocrError = await validatePdfOcrForFiles(valid);
+      if (ocrError) {
+        this.toastr.error(ocrError);
+        return;
+      }
+
+      this.isUploadingDocuments = true;
+      this.uploadFileProgresses = uploadItems.map(() => 0);
+
       if (!this.createdIa) {
         const iaRes = await firstValueFrom(
           this.efilingService.post_ia_filing({
@@ -300,6 +312,7 @@ export class IaFilingForm implements OnInit {
       this.toastr.error(friendlyMsg);
     } finally {
       this.isUploadingDocuments = false;
+      this.isUploadRequestInFlight = false;
     }
   }
 
@@ -525,19 +538,12 @@ export class IaFilingForm implements OnInit {
           return new File([blob], name, { type: 'application/pdf' });
         });
         const names = items.map((i) => i.name);
-        const petitionerNames = (this.petitioners || [])
-          .map((l: any) => l.name || '')
-          .filter(Boolean)
-          .join(', ');
-        const respondentNames = (this.respondents || [])
-          .map((l: any) => l.name || '')
-          .filter(Boolean)
-          .join(', ');
         const init = this.selectedFiling || {};
         const caseType = init?.case_type?.full_form || init?.case_type?.type_name || '';
+        const pnFallback = String(init.petitioner_name || '').trim();
         const frontPage = {
-          petitionerName: (init.petitioner_name || '').trim() || petitionerNames,
-          respondentName: respondentNames,
+          petitionerName: formatPartyLine(getOrderedPartyNames(this.litigants, true), pnFallback),
+          respondentName: formatPartyLine(getOrderedPartyNames(this.litigants, false), ''),
           caseNo: (init.e_filing_number || '').trim(),
           caseType,
         };

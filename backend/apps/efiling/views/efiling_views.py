@@ -33,7 +33,7 @@ class EfilingListCreateView(ListCreateAPIView):
     serializer_class = EfilingSerializer
 
     def get_queryset(self):
-        qs = Efiling.objects.all().order_by('-id')
+        qs = Efiling.objects.all().order_by('-id').prefetch_related('litigants')
         is_active = parse_bool(self.request.query_params.get('is_active'))
         is_draft = parse_bool(self.request.query_params.get('is_draft'))
         status = self.request.query_params.get('status')
@@ -62,7 +62,7 @@ class EfilingRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
     queryset = Efiling.objects.all()
     serializer_class = EfilingSerializer
     def get_queryset(self):
-        qs = Efiling.objects.all().order_by('-id')
+        qs = Efiling.objects.all().order_by('-id').prefetch_related('litigants')
         is_active = parse_bool(self.request.query_params.get('is_active'))
         if is_active is not None:
             qs = qs.filter(is_active=is_active)

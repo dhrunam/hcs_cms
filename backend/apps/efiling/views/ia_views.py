@@ -10,7 +10,12 @@ class IAListCreateView(ListCreateAPIView):
     serializer_class = IASerializer
 
     def get_queryset(self):
-        qs = IA.objects.all().order_by("-id")
+        qs = (
+            IA.objects.all()
+            .order_by("-id")
+            .select_related("e_filing")
+            .prefetch_related("e_filing__litigants")
+        )
         is_active = self.request.query_params.get("is_active")
         if is_active is not None:
             qs = qs.filter(is_active=is_active.lower() in ["true", "1"])
@@ -37,7 +42,12 @@ class IARetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
     serializer_class = IASerializer
 
     def get_queryset(self):
-        qs = IA.objects.all().order_by("-id")
+        qs = (
+            IA.objects.all()
+            .order_by("-id")
+            .select_related("e_filing")
+            .prefetch_related("e_filing__litigants")
+        )
         is_active = self.request.query_params.get("is_active")
         if is_active is not None:
             qs = qs.filter(is_active=is_active.lower() in ["true", "1"])

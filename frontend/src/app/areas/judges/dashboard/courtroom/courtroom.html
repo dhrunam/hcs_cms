@@ -44,16 +44,16 @@
 
         <div class="row g-3" *ngIf="caseSummary">
           <div class="col-md-6">
-            <div class="small text-muted">Case Number</div>
-            <div class="fw-semibold">{{ caseSummary.case_number || '-' }}</div>
-          </div>
-          <div class="col-md-6">
             <div class="small text-muted">E-Filing Number</div>
             <div class="fw-semibold">{{ caseSummary.e_filing_number || '-' }}</div>
           </div>
           <div class="col-md-6">
-            <div class="small text-muted">Petitioner</div>
-            <div>{{ caseSummary.petitioner_name || '-' }}</div>
+            <div class="small text-muted">Case Number</div>
+            <div class="fw-semibold">{{ caseSummary.case_number || '-' }}</div>
+          </div>
+          <div class="col-12">
+            <div class="small text-muted">Petitioner vs. Respondent</div>
+            <div class="fw-semibold">{{ caseSummary.petitioner_vs_respondent || '—' }}</div>
           </div>
           <div class="col-md-6">
             <div class="small text-muted">Petitioner Contact</div>

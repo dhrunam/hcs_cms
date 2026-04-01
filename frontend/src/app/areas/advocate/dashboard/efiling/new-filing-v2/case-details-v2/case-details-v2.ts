@@ -12,6 +12,7 @@ import {
   SimpleChanges,
 } from "@angular/core";
 import { StateAndDistrictService } from "../../../../../../services/master/state_and_district.services";
+import { formatPetitionerVsRespondent } from "../../../../../../utils/petitioner-vs-respondent";
 
 @Component({
   selector: "app-case-details-v2",
@@ -86,6 +87,13 @@ export class CaseDetailsV2 implements OnChanges {
     return [...(this.litigantList || [])].sort(
       (a: any, b: any) => Number(b.is_petitioner) - Number(a.is_petitioner),
     );
+  }
+
+  get petitionerVsRespondentLine(): string {
+    const pn = String(
+      this.initialForm?.get("petitioner_name")?.value || "",
+    ).trim();
+    return formatPetitionerVsRespondent(this.litigantList, pn) || "—";
   }
 
   get hasRequiredLitigants(): boolean {

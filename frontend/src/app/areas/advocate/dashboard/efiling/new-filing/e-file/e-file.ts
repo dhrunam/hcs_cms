@@ -6,6 +6,11 @@ import { CaseTypeService } from '../../../../../../services/master/case-type.ser
 import { OrganisationService } from '../../../../../../services/master/organisation.services';
 import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
 import { app_url } from '../../../../../../environment';
+import {
+  formatPartyLine,
+  formatPetitionerVsRespondent,
+  getOrderedPartyNames,
+} from '../../../../../../utils/petitioner-vs-respondent';
 
 @Component({
   selector: 'app-e-file',
@@ -58,30 +63,14 @@ export class EFile {
     );
   }
 
-  private normalizeIsPetitioner(value: any): boolean {
-    return value === true || value === 'true' || value === 1 || value === '1';
-  }
-
-  private getOrderedPartyNames(isPetitioner: boolean): string[] {
-    return (Array.isArray(this.litigantList) ? this.litigantList : [])
-      .filter(
-        (item: any) =>
-          this.normalizeIsPetitioner(item?.is_petitioner) ===
-          this.normalizeIsPetitioner(isPetitioner),
-      )
-      .sort(
-        (a: any, b: any) =>
-          (Number(a?.sequence_number) || 0) - (Number(b?.sequence_number) || 0),
-      )
-      .map((item: any) => String(item?.name || '').trim())
-      .filter((name) => !!name);
-  }
-
-  private formatPartyForCoverPage(names: string[], fallback = ''): string {
-    if (!names.length) return String(fallback || '').trim();
-    if (names.length === 1) return names[0];
-    if (names.length === 2) return `${names[0]} and Anr.`;
-    return `${names[0]} and Ors.`;
+  get petitionerVsRespondentLine(): string {
+    const init = this.initialInputsView || {};
+    return (
+      formatPetitionerVsRespondent(
+        this.litigantList,
+        String(init.petitioner_name || '').trim(),
+      ) || '—'
+    );
   }
 
   get_case_type_name(id: number): string {
@@ -226,16 +215,15 @@ export class EFile {
           return new File([blob], name, { type: 'application/pdf' });
         });
         const names = items.map((i) => i.name);
-        const petitioners = this.getOrderedPartyNames(true);
-        const respondents = this.getOrderedPartyNames(false);
         const init = this.initialInputsView || {};
+        const petitioners = getOrderedPartyNames(this.litigantList, true);
+        const respondents = getOrderedPartyNames(this.litigantList, false);
         const caseType = this.caseTypeFullForm || this.caseTypeLabel || '';
         const frontPage = {
-          petitionerName: this.formatPartyForCoverPage(
-            petitioners,
-            (init.petitioner_name || '').trim(),
-          ),
-          respondentName: this.formatPartyForCoverPage(respondents, ''),
+          petitionerName:
+            formatPartyLine(petitioners) ||
+            String(init.petitioner_name || '').trim(),
+          respondentName: formatPartyLine(respondents),
           caseNo: (init.e_filing_number || '').trim(),
           caseType,
         };

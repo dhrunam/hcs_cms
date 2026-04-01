@@ -13,6 +13,7 @@ from rest_framework.views import APIView
 
 from apps.accounts.models import User
 from apps.core.models import Efiling, EfilingCaseDetails, EfilingDocumentsIndex
+from apps.efiling.party_display import build_petitioner_vs_respondent
 from apps.judge.models import (
     CourtroomDecisionRequestedDocument,
     CourtroomJudgeDecision,
@@ -231,6 +232,9 @@ class RegisteredCasesListView(APIView):
                 "bench": e.bench,
                 "petitioner_name": e.petitioner_name,
                 "respondent_name": getattr(respondent, "name", None) if respondent else None,
+                "petitioner_vs_respondent": (e.petitioner_name or "").strip() or build_petitioner_vs_respondent(
+                    e, fallback_petitioner_name=e.petitioner_name or ""
+                ),
                 "cause_of_action": getattr(case_detail, "cause_of_action", None) if case_detail else None,
                 "approval_status": approval_status,
                 "approval_notes": approval_notes,

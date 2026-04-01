@@ -10,6 +10,7 @@ interface EfilingCaseType {
 
 interface EfilingItem {
   id: number;
+  petitioner_vs_respondent?: string | null;
   petitioner_name: string;
   petitioner_contact: string;
   e_filing_number: string;
