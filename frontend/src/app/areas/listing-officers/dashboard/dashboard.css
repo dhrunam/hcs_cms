@@ -1,2 +1,17 @@
-/* keep dashboard shell consistent with other role dashboards */
+.listing-dashboard-shell {
+  min-height: calc(100vh - 56px);
+  background: #f8f8ff;
+}
 
+.listing-dashboard-content {
+  min-height: calc(100vh - 56px);
+  /* background: linear-gradient(180deg, #f8f8ff 0%, #f2f5ff 100%); */
+
+  background-color: rgb(249, 249, 249);
+}
+
+@media (max-width: 767px) {
+  .listing-dashboard-content {
+    padding: 1rem !important;
+  }
+}

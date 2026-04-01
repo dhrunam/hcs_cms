@@ -5,4 +5,7 @@ from .efiling_litigant_views import EfilingLitigantListCreateView, EfilingLitiga
 from .efiling_views import EfilingListCreateView, EfilingRetrieveUpdateDestroyView
 from .ia_acts_views import IAActsListCreateView, IAActsRetrieveUpdateDestroyView
 from .ia_views import IAListCreateView, IARetrieveUpdateDestroyView
+from .judge_views import JudgeTListCreateView, JudgeTRetrieveUpdateDestroyView
+from .bench_views import BenchTListCreateView, BenchTRetrieveUpdateDestroyView
+from .bench_distinct_views import BenchDistinctListView
 

@@ -8,7 +8,7 @@ import {
   Output,
   SimpleChanges,
 } from "@angular/core";
-import { FormGroup, ReactiveFormsModule } from "@angular/forms";
+import { FormGroup, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { ToastrService } from "ngx-toastr";
 import { EfilingService } from "../../../../../../services/advocate/efiling/efiling.services";
 import { validatePdfFiles } from "../../../../../../utils/pdf-validation";
@@ -23,6 +23,7 @@ interface DocumentUploadEntry {
   file: File;
   index_name: string;
   index_id: number | null;
+  is_annexure?: boolean;
 }
 
 interface DocumentIndexMaster {
@@ -56,7 +57,7 @@ interface StructuredIndexRow {
 @Component({
   selector: "app-upload-documents",
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DragDropModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, DragDropModule],
   templateUrl: "./upload-documents.html",
   styleUrl: "./upload-documents.css",
 })
@@ -87,6 +88,10 @@ export class UploadDocuments implements OnInit, OnChanges {
   @Input() enableAnnexureSequence = false;
   /** Render fixed index rows with per-row upload controls. */
   @Input() structuredIndexUpload = false;
+  /** Use free-text input for index name instead of dropdown. */
+  @Input() useTextIndexName = false;
+  stagedIndexName = "";
+  stagedFile: File | null = null;
 
   entries: DocumentUploadEntry[] = [];
   indexMasters: DocumentIndexMaster[] = [];
@@ -217,6 +222,7 @@ export class UploadDocuments implements OnInit, OnChanges {
         file,
         index_name: indexName,
         index_id: matchedMaster ? matchedMaster.id : null,
+        is_annexure: false,
       };
     });
 
@@ -232,6 +238,24 @@ export class UploadDocuments implements OnInit, OnChanges {
     });
 
     input.value = "";
+  }
+
+  onStagedFileChange(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] || null;
+    if (!file) return;
+    const { valid, errors } = validatePdfFiles([file]);
+    if (errors.length > 0) {
+      this.toastr.error(errors.join(" "));
+      input.value = "";
+      return;
+    }
+    this.stagedFile = valid[0] || null;
+    input.value = "";
+  }
+
+  clearStagedFile() {
+    this.stagedFile = null;
   }
 
   onStructuredFileChange(rowIndex: number, event: Event) {
@@ -411,6 +435,7 @@ export class UploadDocuments implements OnInit, OnChanges {
           file,
           index_name: idx,
           index_id: matchedMaster ? matchedMaster.id : null,
+          is_annexure: true,
         };
       });
 
@@ -425,6 +450,7 @@ export class UploadDocuments implements OnInit, OnChanges {
   updateDocumentType(index: number, value: string) {
     const entry = this.entries[index];
     if (!entry) return;
+    if (entry.is_annexure) return;
     const typedValue = String(value || "").trim();
     entry.index_name = typedValue;
 
@@ -540,6 +566,14 @@ export class UploadDocuments implements OnInit, OnChanges {
     moveItemInArray(this.entries, event.previousIndex, event.currentIndex);
   }
 
+  isAnnexureEntry(entry: DocumentUploadEntry): boolean {
+    return !!entry?.is_annexure;
+  }
+
+  getAnnexureEntries(): DocumentUploadEntry[] {
+    return this.entries.filter((entry) => !!entry.is_annexure);
+  }
+
   private resolveDefaultDocumentType(): string {
     const provided = String(this.defaultDocumentType || "").trim();
     if (provided) return provided;
@@ -560,6 +594,13 @@ export class UploadDocuments implements OnInit, OnChanges {
         : this.annexureRows.length > 0;
       return !this.isUploading && hasAllMandatory && hasAnnexure;
     }
+    if (this.useTextIndexName) {
+      return (
+        !this.isUploading &&
+        !!this.stagedFile &&
+        !!String(this.stagedIndexName || "").trim()
+      );
+    }
     return (
       !this.isUploading &&
       this.entries.length > 0 &&
@@ -577,11 +618,13 @@ export class UploadDocuments implements OnInit, OnChanges {
 
     const items = this.isStructuredMode()
       ? this.getStructuredItemsInRequiredOrder()
-      : this.entries.map((entry) => ({
-          file: entry.file,
-          index_name: entry.index_name.trim(),
-          index_id: entry.index_id,
-        }));
+      : this.useTextIndexName
+        ? this.getTextModeItems()
+        : this.entries.map((entry) => ({
+            file: entry.file,
+            index_name: entry.index_name.trim(),
+            index_id: entry.index_id,
+          }));
 
     const payload: UploadDocumentsPayload = {
       document_type: this.getEffectiveDocumentType(),
@@ -590,6 +633,28 @@ export class UploadDocuments implements OnInit, OnChanges {
     // console.log(payload);
     this.submitDoc.emit(payload);
     this.submitAttempted = false;
+  }
+
+  private getTextModeItems(): UploadDocumentsPayloadItem[] {
+    const mainIndexName = String(this.stagedIndexName || "").trim();
+    const mainFile = this.stagedFile;
+    const mainMatched = this.indexMasters.find(
+      (item) => item.name.toLowerCase() === mainIndexName.toLowerCase(),
+    );
+    const mainItem: UploadDocumentsPayloadItem | null =
+      mainFile && mainIndexName
+        ? {
+            file: mainFile,
+            index_name: mainIndexName,
+            index_id: mainMatched ? mainMatched.id : null,
+          }
+        : null;
+    const annexures = this.getAnnexureEntries().map((entry) => ({
+      file: entry.file,
+      index_name: entry.index_name.trim(),
+      index_id: entry.index_id,
+    }));
+    return mainItem ? [mainItem, ...annexures] : annexures;
   }
 
   private getStructuredItemsInRequiredOrder(): UploadDocumentsPayloadItem[] {
