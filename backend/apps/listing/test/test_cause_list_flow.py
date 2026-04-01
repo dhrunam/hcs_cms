@@ -99,6 +99,8 @@ class CauseListFlowTest(TestCase):
         self.assertEqual(item["case_number"], self.filing.case_number)
         self.assertEqual(item["petitioner_name"], "Petitioner")
         self.assertEqual(item["respondent_name"], "Respondent")
+        self.assertIn("Petitioner", item.get("petitioner_vs_respondent") or "")
+        self.assertIn("Respondent", item.get("petitioner_vs_respondent") or "")
 
         # 2) Assign the case to full bench
         assign_resp = self.client.post(

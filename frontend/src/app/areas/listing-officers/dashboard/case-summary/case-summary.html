@@ -35,6 +35,10 @@
           <h5 class="mb-1">
             {{ filing.case_type?.type_name || 'Case' }} • {{ filing.e_filing_number || '-' }}
           </h5>
+          <div class="text-muted small mb-1">
+            <span class="text-secondary">Petitioner vs. Respondent:</span>
+            <strong class="text-dark ms-1">{{ petitionerVsRespondentLine }}</strong>
+          </div>
           <div class="text-muted small">
             Case Number:
             <strong>{{ filing.case_number || '-' }}</strong>

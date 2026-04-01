@@ -151,6 +151,8 @@
             <thead>
               <tr>
                 <th style="width: 95px;">Sr No</th>
+                <th>Filing No</th>
+                <th>Petitioner vs. Respondent</th>
                 <th>Case Number</th>
                 <th style="width: 110px;" class="text-center">Include</th>
               </tr>
@@ -166,6 +168,8 @@
                     [ngModelOptions]="{ standalone: true }"
                   />
                 </td>
+                <td class="text-nowrap small fw-medium">{{ item.e_filing_number || '-' }}</td>
+                <td class="small" style="max-width: 220px">{{ item.petitioner_name || item.petitioner_vs_respondent || '—' }}</td>
                 <td>
                   <div class="text-nowrap">{{ item.case_number || '-' }}</div>
                   <div class="text-muted small" *ngIf="item.judge_listing_date">
@@ -187,7 +191,7 @@
               </tr>
 
               <tr *ngIf="state.items.length === 0">
-                <td colspan="3" class="text-muted text-center py-3">No accepted cases assigned to this bench.</td>
+                <td colspan="5" class="text-muted text-center py-3">No accepted cases assigned to this bench.</td>
               </tr>
             </tbody>
           </table>

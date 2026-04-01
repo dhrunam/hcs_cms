@@ -9,8 +9,8 @@
           <thead style="background-color: #f8fafc">
             <tr class="text-secondary small fw-normal">
               <th>#</th>
-              <th>Petitoner Name</th>
               <th>Filing No</th>
+              <th>Petitioner vs. Respondent</th>
               <th>Case Type</th>
               <th>Status</th>
               <th>Action</th>
@@ -24,8 +24,10 @@
               style="cursor: pointer"
             >
               <td>{{ i + 1 }}</td>
-              <td class="fw-medium text-dark">{{ c.petitioner_name }}</td>
               <td class="fw-medium text-dark">{{ c.e_filing_number }}</td>
+              <td class="text-dark small" style="max-width: 280px">
+                {{ c.petitioner_name || c.petitioner_vs_respondent || "—" }}
+              </td>
               <td>{{ c.case_type && c.case_type.type_name }}</td>
               <td>
                 <span class="badge rounded-pill px-2 py-1" [ngClass]="getStatusBadgeClass(c.status)">

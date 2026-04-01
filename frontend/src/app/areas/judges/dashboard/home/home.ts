@@ -20,21 +20,30 @@ export class JudgePendingCasesPage {
 
   pendingForListing: {
     efiling_id: number;
+    e_filing_number?: string | null;
     case_number: string | null;
+    petitioner_name?: string | null;
+    petitioner_vs_respondent?: string | null;
     bench_key: string;
     judge_decision: boolean | null;
     forwarded_for_date?: string;
   }[] = [];
   pendingForCauseList: {
     efiling_id: number;
+    e_filing_number?: string | null;
     case_number: string | null;
+    petitioner_name?: string | null;
+    petitioner_vs_respondent?: string | null;
     bench_key: string;
     judge_decision: boolean | null;
     forwarded_for_date?: string;
   }[] = [];
   calendarItems: {
     efiling_id: number;
+    e_filing_number?: string | null;
     case_number: string | null;
+    petitioner_name?: string | null;
+    petitioner_vs_respondent?: string | null;
     status: 'APPROVED' | 'DECLINED' | 'REQUESTED_DOCS';
     decision_notes: string | null;
   }[] = [];

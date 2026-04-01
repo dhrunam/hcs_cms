@@ -9,6 +9,7 @@ import Swal from 'sweetalert2';
 import { EfilingService } from '../../../../services/advocate/efiling/efiling.services';
 import { ReaderService } from '../../../../services/reader/reader.service';
 import { benchLabel, BENCH_LABELS, BenchKey, isUnassignedBench, judgesForBench } from '../../shared/bench-labels';
+import { formatPetitionerVsRespondent } from '../../../../utils/petitioner-vs-respondent';
 
 type Filing = any;
 type CaseDetails = any;
@@ -229,6 +230,16 @@ export class ReaderCaseSummaryPage {
         Swal.fire({ title: 'Bench Save Failed', text: err?.error?.detail || 'Unable to save bench before forwarding.', icon: 'error' });
       },
     });
+  }
+
+  get petitionerVsRespondentLine(): string {
+    const fromApi = String(this.filing?.petitioner_vs_respondent || '').trim();
+    if (fromApi) return fromApi;
+    const computed = formatPetitionerVsRespondent(
+      this.litigants,
+      String(this.filing?.petitioner_name || ''),
+    );
+    return computed || '—';
   }
 
   get petitionerName(): string {
