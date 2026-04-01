@@ -3,6 +3,7 @@ import { Component } from "@angular/core";
 import {
   FormGroup,
   FormBuilder,
+  FormsModule,
   Validators,
   ReactiveFormsModule,
 } from "@angular/forms";
@@ -35,6 +36,7 @@ import { PaymentService } from "../../../../../services/payment/payment.service"
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     ReactiveFormsModule,
     InitialInputs,
     Litigant,
@@ -78,9 +80,20 @@ export class NewFiling {
         paidAt?: string;
         referenceNo?: string;
         amount?: string;
+        courtFees?: string;
+        paymentMode?: "online" | "offline";
+        bankReceipt?: string;
+        paymentDate?: string;
         outcome?: "success" | "failed" | null;
       }
     | null = null;
+  paymentMode: "online" | "offline" = "online";
+  offlineTransactionId = "";
+  offlineCourtFees = "";
+  offlineBankReceipt: File | null = null;
+  offlineBankReceiptName = "";
+  offlinePaymentDate = "";
+  isSubmittingOfflinePayment = false;
 
   private readonly wpCourtFeeRupees = 250;
   private readonly wpMainPetitionMandatoryIndexes = [
@@ -312,11 +325,16 @@ export class NewFiling {
       paidAt: paidAt || undefined,
       referenceNo: referenceNo || undefined,
       amount: amount || undefined,
+      courtFees: amount || undefined,
+      paymentMode: "online",
+      paymentDate: undefined,
       outcome: this.paymentOutcome,
     };
+    this.paymentMode = "online";
 
     // Always open Payment accordion after gateway return.
     this.step = 5;
+    this.moveToPreviewIfPaymentComplete();
 
     this.persistPaymentOutcome();
     const clean: Record<string, string | number> = {};
@@ -369,18 +387,42 @@ export class NewFiling {
       next: (tx) => {
         if (!tx || (!tx.txn_id && !tx.reference_no && !tx.status)) return;
         const statusRaw = String(tx.status || "").toLowerCase();
-        if (/(success|paid|complete|ok)/i.test(statusRaw)) {
+        const paymentMode =
+          String(tx.payment_mode || "").toLowerCase() === "offline"
+            ? "offline"
+            : "online";
+        if (
+          /(success|paid|complete|ok)/i.test(statusRaw) ||
+          (paymentMode === "offline" &&
+            !!tx.bank_receipt &&
+            /(offline_submitted|submitted|pending|success|paid|complete|ok)/i.test(
+              statusRaw,
+            ))
+        ) {
           this.paymentOutcome = "success";
         } else if (statusRaw) {
           this.paymentOutcome = "failed";
         }
+        this.paymentMode = paymentMode;
+        this.offlineTransactionId = String(tx.txn_id || "");
+        this.offlineCourtFees = String(tx.court_fees || tx.amount || "");
+        this.offlinePaymentDate = String(tx.payment_date || "");
+        this.offlineBankReceipt = null;
+        this.offlineBankReceiptName = tx.bank_receipt
+          ? String(tx.bank_receipt).split("/").pop() || "bank_receipt"
+          : "";
         this.paymentDetails = {
           txnId: tx.txn_id || undefined,
           paidAt: tx.payment_datetime || tx.paid_at || undefined,
           referenceNo: tx.reference_no || undefined,
           amount: tx.amount || undefined,
+          courtFees: tx.court_fees || tx.amount || undefined,
+          paymentMode: paymentMode,
+          bankReceipt: tx.bank_receipt || undefined,
+          paymentDate: tx.payment_date || undefined,
           outcome: this.paymentOutcome,
         };
+        this.moveToPreviewIfPaymentComplete();
       },
     });
   }
@@ -397,8 +439,82 @@ export class NewFiling {
       paidAt: this.paymentDetails?.paidAt || "",
       referenceNo: this.paymentDetails?.referenceNo || "",
       amount: this.paymentDetails?.amount || "",
+      courtFees:
+        this.paymentDetails?.courtFees ||
+        this.paymentDetails?.amount ||
+        String(this.paymentFeeRupees),
+      paymentMode: this.paymentDetails?.paymentMode || this.paymentMode,
+      bankReceipt: this.paymentDetails?.bankReceipt || "",
+      paymentDate: this.paymentDetails?.paymentDate || this.offlinePaymentDate || "",
       outcome: this.paymentOutcome,
     };
+  }
+
+  onPaymentModeChange(mode: "online" | "offline") {
+    this.paymentMode = mode;
+    if (mode === "offline" && !this.offlineCourtFees) {
+      this.offlineCourtFees = String(this.paymentFeeRupees || "");
+    }
+    if (mode === "offline" && !this.offlinePaymentDate) {
+      this.offlinePaymentDate = new Date().toISOString().slice(0, 10);
+    }
+  }
+
+  onOfflineReceiptChange(event: Event) {
+    const input = event.target as HTMLInputElement | null;
+    const file = input?.files?.[0] || null;
+    this.offlineBankReceipt = file;
+    this.offlineBankReceiptName = file?.name || "";
+  }
+
+  async submitOfflinePayment() {
+    if (!this.requiresCourtFeePayment) return;
+    if (!this.filingId) {
+      this.toastr.error("Save filing before offline payment.");
+      return;
+    }
+    const txnId = String(this.offlineTransactionId || "").trim();
+    const courtFees = String(this.offlineCourtFees || "").trim();
+    const paymentDate = String(this.offlinePaymentDate || "").trim();
+    if (!txnId || !courtFees || !paymentDate || !this.offlineBankReceipt) {
+      this.toastr.error(
+        "Please fill Transaction ID, Court Fees, Date of Payment and upload Bank Receipt.",
+      );
+      return;
+    }
+    if (this.isSubmittingOfflinePayment) return;
+    this.isSubmittingOfflinePayment = true;
+    try {
+      const res = await firstValueFrom(
+        this.paymentService.submitOffline({
+          application: this.filingId,
+          txn_id: txnId,
+          court_fees: courtFees,
+          payment_date: paymentDate,
+          bank_receipt: this.offlineBankReceipt,
+          payment_type: "Court Fees",
+        }),
+      );
+      this.paymentOutcome = "success";
+      this.paymentDetails = {
+        txnId,
+        amount: courtFees,
+        courtFees,
+        paymentMode: "offline",
+        bankReceipt: res?.bank_receipt || "",
+        paymentDate: paymentDate,
+        paidAt: paymentDate,
+        outcome: "success",
+      };
+      this.persistPaymentOutcome();
+      this.toastr.success("Offline payment details uploaded successfully.");
+      this.moveToPreviewIfPaymentComplete();
+    } catch (e) {
+      console.error(e);
+      this.toastr.error("Could not upload offline payment details.");
+    } finally {
+      this.isSubmittingOfflinePayment = false;
+    }
   }
 
   get_litigant_list_by_filing_id() {
@@ -480,6 +596,7 @@ export class NewFiling {
       cancelButtonText: "Cancel",
     });
     if (!res.isConfirmed) return;
+    this.paymentMode = "online";
     try {
       const init = await firstValueFrom(
         this.paymentService.initiate({
@@ -511,6 +628,15 @@ export class NewFiling {
     }
     document.body.appendChild(form);
     form.submit();
+  }
+
+  private moveToPreviewIfPaymentComplete() {
+    if (!this.requiresCourtFeePayment || this.paymentOutcome !== "success") return;
+    if (this.step === 5) {
+      this.step = 6;
+      this.setCaseDetailsReviewState(true);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }
 
   actList: any[] = [];
