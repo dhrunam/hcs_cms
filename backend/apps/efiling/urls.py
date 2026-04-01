@@ -58,6 +58,9 @@ from apps.efiling.views.advocate_views import (
 from apps.efiling.views.pdf_merge_views import merge_pdfs
 from apps.efiling.views.notification_views import EfilingNotificationListView
 from apps.efiling.views.document_stream_views import EfilingDocumentStreamByIndexView
+from apps.efiling.views.judge_views import JudgeTListCreateView, JudgeTRetrieveUpdateDestroyView
+from apps.efiling.views.bench_views import BenchTListCreateView, BenchTRetrieveUpdateDestroyView
+from apps.efiling.views.bench_distinct_views import BenchDistinctListView
 
 
 app_name = "efiling"
@@ -198,5 +201,10 @@ urlpatterns = [
         EfilingDocumentStreamByIndexView.as_view(),
         name="efiling-document-index-stream",
     ),
+    path("judges/", JudgeTListCreateView.as_view(), name="judge-list-create"),
+    path("judges/<int:pk>/", JudgeTRetrieveUpdateDestroyView.as_view(), name="judge-detail"),
+    path("benches/", BenchTListCreateView.as_view(), name="bench-list-create"),
+    path("benches/<int:pk>/", BenchTRetrieveUpdateDestroyView.as_view(), name="bench-detail"),
+    path("benches/distinct/", BenchDistinctListView.as_view(), name="bench-distinct-list"),
 ]
 

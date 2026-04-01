@@ -31,7 +31,6 @@ import { UploadDocuments } from '../../new-filing/upload-documents/upload-docume
 })
 export class Create implements OnInit {
   uploadFilingDocForm!: FormGroup;
-
   filings: any[] = [];
   filingsWithLitigants: Array<{ filing: any; litigants: any[] }> = [];
   searchQuery = '';
@@ -59,6 +58,19 @@ export class Create implements OnInit {
 
   selectedEfilingId: number | null = null;
   selectedEfilingNumber = '';
+  readonly documentTypeOptions: string[] = [
+    'Counter Affidavit',
+    'Rejoinders',
+    'Additional Affidavits',
+    'Compliance Report/affidavit',
+    'Reply to Additional Affidavit',
+    'Reply to Interlocutory Application',
+    'Compliance Affidavit',
+    'Better affidavit',
+  ];
+  isDocumentTypeDropdownOpen = false;
+  documentTypeSearchQuery = '';
+  selectedDocumentType = '';
 
   constructor(
     private fb: FormBuilder,
@@ -153,6 +165,9 @@ export class Create implements OnInit {
     this.searchQuery = '';
     this.selectedIa = null;
     this.uploadedDocList = [];
+    this.selectedDocumentType = '';
+    this.documentTypeSearchQuery = '';
+    this.uploadFilingDocForm.reset();
     this.loadIasForFiling();
     this.loadSelectedCaseDetailsAndDocs();
   }
@@ -281,8 +296,32 @@ export class Create implements OnInit {
     return doc?.document_type || '-';
   }
 
+  isWpcCaseTypeSelected(): boolean {
+    const raw = String(this.selectedFiling?.case_type?.type_name || this.selectedFiling?.case_type?.full_form || '')
+      .trim()
+      .toUpperCase();
+    const normalized = raw.replace(/\s+/g, '');
+    return normalized === 'WP(C)';
+  }
+
   trackFilingItem(_: number, item: { filing: any }): number {
     return item?.filing?.id ?? 0;
+  }
+
+  get filteredDocumentTypeOptions(): string[] {
+    const q = String(this.documentTypeSearchQuery || '').trim().toLowerCase();
+    if (!q) return this.documentTypeOptions;
+    return this.documentTypeOptions.filter((x) => x.toLowerCase().includes(q));
+  }
+
+  selectDocumentType(option: string): void {
+    this.selectedDocumentType = option;
+    this.documentTypeSearchQuery = '';
+    this.isDocumentTypeDropdownOpen = false;
+  }
+
+  getSelectedDocumentTypeLabel(): string {
+    return this.selectedDocumentType || '';
   }
 
   private isDocumentVerified(doc: any): boolean {

@@ -1,5 +1,5 @@
 <form [formGroup]="form" (ngSubmit)="submit()" class="form-group-block">
-  <div class="row g-3 align-items-end mb-3 mt-2" *ngIf="!structuredIndexUpload">
+  <div class="row g-3 align-items-end mb-3 mt-2" *ngIf="!structuredIndexUpload && !useTextIndexName">
     <!-- <div class="col-md-4 text-start" *ngIf="!defaultDocumentType">
       <label class="form-label text-start ps-lg-2"
         >Document Type <small class="text-danger">*</small></label
@@ -48,6 +48,125 @@
       >
         Add Annexures
       </button>
+      <button class="btn btn-dark" type="submit" [disabled]="!canUpload()">
+        <span
+          *ngIf="isUploading"
+          class="spinner-border spinner-border-sm me-2"
+          role="status"
+          aria-hidden="true"
+        ></span>
+        {{ isUploading ? 'Uploading...' : 'Upload Documents' }}
+      </button>
+    </div>
+  </div>
+
+  <div class="mb-3 mt-2" *ngIf="!structuredIndexUpload && useTextIndexName">
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th style="width: 34%">Name</th>
+            <th style="width: 30%">Select PDF</th>
+            <th style="width: 36%">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <input
+                type="text"
+                class="form-control"
+                [(ngModel)]="stagedIndexName"
+                [ngModelOptions]="{ standalone: true }"
+                [disabled]="isUploading"
+                placeholder="Enter index name"
+              />
+            </td>
+            <td>
+              <input
+                #singlePdfInput
+                type="file"
+                class="form-control d-none"
+                accept="application/pdf"
+                (change)="onStagedFileChange($event)"
+              />
+              <button
+                *ngIf="!stagedFile"
+                type="button"
+                class="btn btn-outline-primary btn-sm"
+                [disabled]="isUploading"
+                (click)="singlePdfInput.click()"
+              >
+                Upload PDF
+              </button>
+              <span class="small text-muted" *ngIf="stagedFile">{{ stagedFile.name }}</span>
+            </td>
+            <td>
+              <div class="d-flex gap-2 flex-wrap">
+                <button
+                  *ngIf="stagedFile"
+                  type="button"
+                  class="btn btn-outline-primary btn-sm"
+                  [disabled]="isUploading"
+                  (click)="previewLocalFile(stagedFile)"
+                >
+                  View
+                </button>
+                <button
+                  *ngIf="stagedFile"
+                  type="button"
+                  class="btn btn-outline-danger btn-sm"
+                  [disabled]="isUploading"
+                  (click)="clearStagedFile()"
+                >
+                  Delete
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngFor="let annexure of getAnnexureEntries()">
+            <td>
+              <span class="fw-semibold">{{ annexure.index_name }}</span>
+            </td>
+            <td>
+              <span class="small text-muted">{{ annexure.file.name }}</span>
+            </td>
+            <td>
+              <div class="d-flex gap-2 flex-wrap">
+                <button
+                  type="button"
+                  class="btn btn-outline-primary btn-sm"
+                  [disabled]="isUploading"
+                  (click)="previewLocalFile(annexure.file)"
+                >
+                  View
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-danger btn-sm"
+                  [disabled]="isUploading"
+                  (click)="removeEntry(entries.indexOf(annexure))"
+                >
+                  Delete
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="mt-2" *ngIf="enableAnnexureSequence">
+      <button
+        type="button"
+        class="btn btn-outline-secondary btn-sm"
+        [disabled]="isUploading"
+        (click)="addAnnexure()"
+      >
+        Add Annexures
+      </button>
+      <div class="small text-muted mt-1">Optional, auto-named as Annexure A1, A2...</div>
+    </div>
+    <div class="mt-3">
       <button class="btn btn-dark" type="submit" [disabled]="!canUpload()">
         <span
           *ngIf="isUploading"
@@ -272,77 +391,5 @@
     [cdkDropListDisabled]="isUploading"
     (cdkDropListDropped)="reorderEntries($event)"
   >
-    <div
-      class="file-row"
-      *ngFor="let entry of entries; let i = index; trackBy: trackByEntry"
-      cdkDrag
-    >
-      <div class="file-header">
-        <div class="file-header-left">
-          <span
-            class="drag-handle"
-            cdkDragHandle
-            title="Drag to reorder"
-            [class.disabled]="isUploading"
-          >
-            <i class="fa-solid fa-grip-vertical"></i>
-          </span>
-          <span class="file-name text-info-emphasis" [title]="entry.file.name"
-            >{{ entry.file.name }}</span
-          >
-        </div>
-
-        <button
-          type="button"
-          class="btn btn-sm btn-outline-danger"
-          (click)="removeEntry(i)"
-          [disabled]="isUploading"
-        >
-          Remove
-        </button>
-      </div>
-
-      <div class="index-field">
-        <label class="form-label text-secondary text-start mb-1"
-          >Index Name:</label
-        >
-        <select
-          class="form-select"
-          [value]="entry.index_name"
-          (change)="updateDocumentType(i, $any($event.target).value)"
-          [disabled]="isUploading"
-          [class.is-invalid]="isIndexNameInvalid(entry)"
-          required
-        >
-          <option value="" class="text-secondary" disabled>
-            --- Select index name ---
-          </option>
-          <option *ngFor="let name of getAvailableIndexNames(i)" [value]="name">
-            {{ name }}
-          </option>
-        </select>
-
-        <div class="text-danger small" *ngIf="isIndexNameInvalid(entry)">
-          Index Name is required.
-        </div>
-      </div>
-
-      <div class="upload-progress-wrap" *ngIf="isUploading">
-        <div class="upload-progress-label">
-          <span>Upload progress</span>
-          <span>{{ getFileProgress(i) }}%</span>
-        </div>
-        <div class="progress">
-          <div
-            class="progress-bar"
-            role="progressbar"
-            [style.width.%]="getFileProgress(i)"
-            [attr.aria-valuenow]="getFileProgress(i)"
-            aria-valuemin="0"
-            aria-valuemax="100"
-          ></div>
-        </div>
-      </div>
-    </div>
   </div>
 </form>

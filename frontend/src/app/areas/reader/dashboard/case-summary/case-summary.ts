@@ -36,7 +36,7 @@ export class ReaderCaseSummaryPage {
   selectedDocument: FilingDoc | null = null;
   selectedDocumentUrl: SafeResourceUrl | null = null;
   selectedDocumentBlobUrl: string | null = null;
-  selectedDocumentIndexIds: number[] = [];
+  requestedDocumentIndexIds: number[] = [];
   listingSummary = '';
   isForwarding = false;
   approvalStatus: 'NOT_FORWARDED' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'REQUESTED_DOCS' = 'NOT_FORWARDED';
@@ -107,9 +107,7 @@ export class ReaderCaseSummaryPage {
               .map((x: any) => Number(x?.document_index_id))
               .filter((x: number) => Number.isFinite(x))
           : [];
-        this.selectedDocumentIndexIds = requestedIds.length
-          ? requestedIds
-          : (this.selectedDocument?.id ? [this.selectedDocument.id] : []);
+        this.requestedDocumentIndexIds = requestedIds;
         this.listingSummary = (currentCase?.listing_summary || '').trim();
 
         const existingBench = (this.filing?.bench as string | null) ?? null;
@@ -140,18 +138,22 @@ export class ReaderCaseSummaryPage {
     this.updatePreviewUrl(d ?? null);
   }
 
-  isDocSelected(docId: number): boolean {
-    return this.selectedDocumentIndexIds.includes(docId);
+  isSelectedDocument(docId: number): boolean {
+    return Number(this.selectedDocument?.id) === Number(docId);
   }
 
-  toggleDocSelection(docId: number, checked: boolean): void {
-    if (checked) {
-      if (!this.selectedDocumentIndexIds.includes(docId)) {
-        this.selectedDocumentIndexIds = [...this.selectedDocumentIndexIds, docId];
-      }
-      return;
-    }
-    this.selectedDocumentIndexIds = this.selectedDocumentIndexIds.filter((id) => id !== docId);
+  isRequestedDocument(docId: number): boolean {
+    return this.requestedDocumentIndexIds.includes(docId);
+  }
+
+  get forwardDocumentIndexIds(): number[] {
+    return Array.from(
+      new Set(
+        this.documents
+          .map((document) => Number(document?.id))
+          .filter((documentId) => Number.isFinite(documentId) && documentId > 0),
+      ),
+    );
   }
 
   private updatePreviewUrl(document: any | null): void {
@@ -203,7 +205,7 @@ export class ReaderCaseSummaryPage {
           forwarded_for_date: today,
           bench_key: this.selectedBench!,
           listing_summary: summary,
-          document_index_ids: this.selectedDocumentIndexIds.length ? this.selectedDocumentIndexIds : undefined,
+          document_index_ids: this.forwardDocumentIndexIds.length ? this.forwardDocumentIndexIds : undefined,
           efiling_ids: [this.filingId!],
         }).subscribe({
           next: () => {

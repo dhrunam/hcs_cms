@@ -148,106 +148,19 @@
             <div class="text-muted small">Petitioner</div>
             <div class="fw-semibold">{{ selectedFiling.petitioner_name || '-' }}</div>
           </div>
-          <div class="col-md-6">
-            <div class="text-muted small">Cause of Action</div>
-            <div class="fw-semibold">{{ caseDetails?.cause_of_action || '-' }}</div>
-          </div>
-          <div class="col-md-6">
-            <div class="text-muted small">Date of Cause of Action</div>
-            <div class="fw-semibold">
-              {{ caseDetails?.date_of_cause_of_action ? (caseDetails.date_of_cause_of_action | date: 'dd MMM yyyy') : '-' }}
-            </div>
-          </div>
         </div>
       </div>
     </div>
-
-    <!-- Existing Case Documents -->
-    <div class="card border-0 shadow-sm mb-4">
-      <div class="card-header bg-dark text-white fw-semibold">
-        <i class="fa-solid fa-file-lines me-2"></i>
-        Existing Case Documents
-      </div>
-      <div class="card-body">
-        <div *ngIf="existingDocList.length === 0" class="text-muted small">No documents filed yet for this case.</div>
-
-        <!-- Non-verified documents (pending scrutiny / rejected) -->
-        <div *ngIf="nonVerifiedDocList.length > 0" class="mb-4">
-          <div class="fw-semibold text-warning mb-2">
-            <i class="fa-solid fa-clock me-1"></i> Non-verified Documents ({{ nonVerifiedDocList.length }})
-          </div>
-          <p class="text-muted small mb-2">Documents awaiting scrutiny or requiring re-upload.</p>
-          <div class="card shadow-sm border-0 border-warning border-start">
-            <div class="list-group list-group-flush">
-              <div
-                style="border-left: 2px solid #ffc107"
-                class="list-group-item"
-                *ngFor="let doc of nonVerifiedDocList; let i = index; trackBy: trackByDocId"
-              >
-                <div class="d-flex justify-content-between align-items-start gap-2">
-                  <div class="text-start">
-                    <div class="fw-semibold">{{ i + 1 }}. {{ getDocDisplayLabel(doc) }}</div>
-                  </div>
-                </div>
-                <div class="mt-2 ps-2" *ngIf="doc.document_indexes?.length > 0">
-                  <div
-                    *ngFor="let filePart of doc.document_indexes; let j = index"
-                    class="small text-muted py-1"
-                  >
-                    {{ j + 1 }}. {{ filePart.document_part_name || 'Document Part' }}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Verified documents (accepted) -->
-        <div *ngIf="verifiedDocList.length > 0">
-          <div class="fw-semibold text-success mb-2">
-            <i class="fa-solid fa-circle-check me-1"></i> Verified Documents ({{ verifiedDocList.length }})
-          </div>
-          <p class="text-muted small mb-2">Documents accepted during scrutiny.</p>
-          <div class="card shadow-sm border-0">
-            <div class="list-group list-group-flush">
-              <div
-                style="border-left: 2px solid #198754"
-                class="list-group-item"
-                *ngFor="let doc of verifiedDocList; let i = index; trackBy: trackByDocId"
-              >
-                <div class="d-flex justify-content-between align-items-start gap-2">
-                  <div class="text-start">
-                    <div class="fw-semibold">{{ i + 1 }}. {{ getDocDisplayLabel(doc) }}</div>
-                  </div>
-                </div>
-                <div class="mt-2 ps-2" *ngIf="doc.document_indexes?.length > 0">
-                  <div
-                    *ngFor="let filePart of doc.document_indexes; let j = index"
-                    class="small text-muted py-1"
-                  >
-                    {{ j + 1 }}. {{ filePart.document_part_name || 'Document Part' }}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Upload New Documents (like new filing) -->
     <div class="card border-0 shadow-sm mb-4">
       <div class="card-header bg-dark text-white fw-semibold">
-        <i class="fa-solid fa-file-pdf me-2"></i>Upload New Documents
+        <i class="fa-solid fa-file-pdf me-2"></i>Upload
       </div>
       <div class="alert alert-danger alert-dismissible py-2 small m-3 mb-0" *ngIf="mergeError">
         {{ mergeError }}
         <button type="button" class="btn-close btn-sm" (click)="mergeError = null" aria-label="Close"></button>
       </div>
       <div class="card-body">
-        <p class="text-muted small mb-3">
-          Add document type and index name for each file. Upload supporting documents for this case.
-        </p>
 
         <!-- Uploaded in this session (with delete) -->
         <div *ngIf="uploadedDocList.length > 0" class="mb-4">
@@ -316,13 +229,82 @@
           </div>
         </div>
 
-        <app-upload-documents
-          [form]="uploadFilingDocForm"
-          [isUploading]="isUploadingDocuments"
-          [fileProgresses]="uploadFileProgresses"
-          [uploadCompletedToken]="uploadCompletedToken"
-          (submitDoc)="handleDocUpload($event)"
-        ></app-upload-documents>
+        <div *ngIf="isWpcCaseTypeSelected(); else nonWpCDocMessage">
+          <div class="border rounded p-3 bg-light-subtle">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div class="fw-semibold">Upload</div>
+              <span class="small text-muted">Select document type, then add main PDF and annexures</span>
+            </div>
+            <div class="row g-3">
+              <div class="col-md-5">
+                <label class="form-label mb-1">Document</label>
+                <div class="searchable-select position-relative" [class.open]="isDocumentTypeDropdownOpen">
+                  <div
+                    *ngIf="isDocumentTypeDropdownOpen"
+                    class="searchable-select-backdrop"
+                    (click)="isDocumentTypeDropdownOpen = false"
+                  ></div>
+                  <button
+                    type="button"
+                    class="form-select-selector d-flex align-items-center justify-content-between w-100"
+                    (click)="isDocumentTypeDropdownOpen = !isDocumentTypeDropdownOpen"
+                  >
+                    <span *ngIf="selectedDocumentType" class="text-dark">{{ getSelectedDocumentTypeLabel() }}</span>
+                    <span *ngIf="!selectedDocumentType" class="text-muted">-- Select document --</span>
+                    <i class="fa-solid fa-chevron-down ms-2" [class.rotate-180]="isDocumentTypeDropdownOpen"></i>
+                  </button>
+                  <div *ngIf="isDocumentTypeDropdownOpen" class="searchable-select-dropdown">
+                    <div class="searchable-select-search">
+                      <i class="fa-solid fa-search text-muted"></i>
+                      <input
+                        type="text"
+                        class="form-control border-0"
+                        placeholder="Type to search..."
+                        [(ngModel)]="documentTypeSearchQuery"
+                        [ngModelOptions]="{ standalone: true }"
+                        (click)="$event.stopPropagation()"
+                      />
+                    </div>
+                    <div class="searchable-select-list">
+                      <button
+                        *ngFor="let option of filteredDocumentTypeOptions"
+                        type="button"
+                        class="searchable-select-option"
+                        [class.selected]="selectedDocumentType === option"
+                        (click)="selectDocumentType(option)"
+                      >
+                        <span class="text-dark small">{{ option }}</span>
+                      </button>
+                      <div *ngIf="filteredDocumentTypeOptions.length === 0" class="text-muted small p-3 text-center">
+                        No matching document type.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-12" *ngIf="selectedDocumentType">
+                <div class="small text-muted mb-2">
+                  Use the table below to set <strong>Name</strong>, choose main PDF, and optionally add annexures.
+                </div>
+                <app-upload-documents
+                  [form]="uploadFilingDocForm"
+                  [isUploading]="isUploadingDocuments"
+                  [fileProgresses]="uploadFileProgresses"
+                  [uploadCompletedToken]="uploadCompletedToken"
+                  [defaultDocumentType]="selectedDocumentType"
+                  [useTextIndexName]="true"
+                  [enableAnnexureSequence]="true"
+                  (submitDoc)="handleDocUpload($event)"
+                ></app-upload-documents>
+              </div>
+            </div>
+          </div>
+        </div>
+        <ng-template #nonWpCDocMessage>
+          <div class="alert alert-info mb-0 small">
+            These predefined upload sections are available only for <strong>WP(C)</strong> case type.
+          </div>
+        </ng-template>
       </div>
     </div>
   </ng-container>

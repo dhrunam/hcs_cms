@@ -1,11 +1,15 @@
-<div class="dashboard-header mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+<div
+  class="dashboard-header mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2"
+>
   <div>
-    <h2 class="fw-semibold mb-0">Cause List Generator</h2>
-    <p class="text-muted mb-0">Select a date, review bench-wise drafts, then publish</p>
+    <h4 class="fw-semibold mb-0 text-primary-emphasis">Cause List Generator</h4>
+    <p class="text-muted mb-0 small">
+      Select a date, review bench-wise drafts, then publish
+    </p>
   </div>
 
   <div class="d-flex align-items-end gap-2">
-    <div>
+    <div class="bg-white py-1 px-3 rounded-2">
       <label class="form-label mb-1 fw-semibold">Cause List Date</label>
       <input
         type="date"
@@ -18,8 +22,10 @@
   </div>
 </div>
 
-<div class="card border-0 shadow-sm mb-3">
-  <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-end flex-wrap gap-2">
+<!-- <div class="card border-0 shadow-sm mb-3">
+  <div
+    class="card-header bg-white fw-semibold d-flex justify-content-between align-items-end flex-wrap gap-2"
+  >
     <span>Cause List Calendar</span>
     <div>
       <label class="form-label small mb-1">Month</label>
@@ -33,8 +39,13 @@
     </div>
   </div>
   <div class="card-body">
-    <div class="text-muted small mb-2">Showing only published dates in this month. Click one to view published bench and case counts.</div>
-    <div *ngIf="isCalendarLoading" class="text-muted small">Loading calendar...</div>
+    <div class="text-muted small mb-2">
+      Showing only published dates in this month. Click one to view published
+      bench and case counts.
+    </div>
+    <div *ngIf="isCalendarLoading" class="text-muted small">
+      Loading calendar...
+    </div>
     <div *ngIf="!isCalendarLoading" class="cause-calendar-grid">
       <button
         type="button"
@@ -46,16 +57,22 @@
       >
         <div class="fw-semibold">{{ d.day }}</div>
         <div class="small" *ngIf="d.hasAny">
-          {{ d.publishedCount }} published bench {{ d.publishedCount === 1 ? 'list' : 'lists' }}
+          {{ d.publishedCount }} published bench {{ d.publishedCount === 1 ?
+          'list' : 'lists' }}
         </div>
       </button>
-      <div *ngIf="publishedMonthDays.length === 0" class="text-muted small">No published cause lists in this month.</div>
+      <div *ngIf="publishedMonthDays.length === 0" class="text-muted small">
+        No published cause lists in this month.
+      </div>
     </div>
   </div>
-</div>
+</div> -->
 
 <div class="card border-0 shadow-sm mb-3">
-  <div class="card-header bg-white fw-semibold">Published On {{ selectedDate }}</div>
+  <div class="card-header bg-white fw-semibold">
+    <span class="text-muted"> Published On : </span>{{ selectedDate | date:'dd
+    MMM, yyyy' }}
+  </div>
   <div class="card-body">
     <div *ngIf="publishedBenchSummary.length === 0" class="text-muted small">
       No published bench list on this date yet.
@@ -65,21 +82,32 @@
         <div class="border rounded p-2 h-100">
           <div class="fw-semibold small">{{ benchLabel(p.bench_key) }}</div>
           <div class="text-muted small">{{ p.included_count }} case(s)</div>
-          <a *ngIf="p.pdf_url" [href]="p.pdf_url" target="_blank" class="small">View PDF</a>
+          <a
+            *ngIf="p.pdf_url"
+            [href]="p.pdf_url"
+            target="_blank"
+            class="small text-decoration-none text-warning-emphasis"
+            ><i class="fa fa-file-pdf"></i> View PDF</a
+          >
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<div *ngIf="isLoading" class="text-center py-4 text-muted">Loading cause list drafts...</div>
+<div *ngIf="isLoading" class="text-center py-4 text-muted">
+  Loading cause list drafts...
+</div>
 
 <div *ngIf="publishError" class="alert alert-warning py-2">
   {{ publishError }}
 </div>
 
 <div class="accordion" id="benchAccordion" *ngIf="!isLoading">
-  <div class="accordion-item bench-accordion-item" *ngFor="let state of benchStates; let i = index">
+  <div
+    class="accordion-item bench-accordion-item"
+    *ngFor="let state of benchStates; let i = index"
+  >
     <h2 class="accordion-header" [id]="'benchHeading' + i">
       <button
         class="accordion-button bench-accordion-button"
@@ -89,16 +117,27 @@
         [attr.aria-controls]="'benchCollapse' + i"
         aria-expanded="true"
       >
-        <div class="d-flex justify-content-between align-items-center w-100 gap-2 flex-wrap">
-          <div class="fw-semibold">
-            {{ benchLabel(state.bench_key) }}
-            <span class="text-muted small ms-2">
-              {{ state.items.length }} judge-approved case(s)
+        <div
+          class="d-flex justify-content-between align-items-center w-100 gap-2 flex-wrap"
+        >
+          <div class="fw-semibold text-primary-emphasis">
+            <span class="fs-6"> {{ benchLabel(state.bench_key) }} </span>
+            <span class="text-primary \ ms-2">
+              ({{ state.items.length }} approved {{ state.items.length > 1 ?
+              'cases' : 'case' }})
             </span>
           </div>
           <div class="d-flex align-items-center gap-2 ms-auto">
-            <span *ngIf="state.pdfUrl" class="badge rounded-pill text-bg-success">Published</span>
-            <span *ngIf="!state.pdfUrl" class="badge rounded-pill text-bg-secondary">Not published</span>
+            <span
+              *ngIf="state.pdfUrl"
+              class="badge rounded-pill text-bg-success small fw-normal me-2"
+              >Published</span
+            >
+            <span
+              *ngIf="!state.pdfUrl"
+              class="badge rounded-pill text-bg-secondary me-2 fw-normal small"
+              >Not published</span
+            >
           </div>
         </div>
       </button>
@@ -109,7 +148,67 @@
       [attr.aria-labelledby]="'benchHeading' + i"
     >
       <div class="accordion-body">
-        <div class="d-flex justify-content-end gap-2 mb-3 flex-wrap">
+        <div class="text-muted small mb-2">
+          Select cases to include for
+          <strong>{{ selectedDate | date:'dd MMM, yyyy' }}</strong>.
+        </div>
+
+        <div class="table-responsive bench-table-wrap">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th class="fw-lighter small" style="width: 105px">#</th>
+                <th class="fw-normal small text-muted">Case Number</th>
+                <th style="width: 110px" class="text-center fw-light small">
+                  Include
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of state.items">
+                <td>
+                  <input
+                    type="number"
+                    class="form-control form-control-sm"
+                    [(ngModel)]="item.serial_no"
+                    [disabled]="!item.included"
+                    [ngModelOptions]="{ standalone: true }"
+                  />
+                </td>
+                <td>
+                  <div class="text-nowrap">{{ item.case_number || '-' }}</div>
+                  <div class="text-muted small" *ngIf="item.judge_listing_date">
+                    Reader preferred date: {{ item.judge_listing_date }}
+                  </div>
+                  <div
+                    class="alert alert-info py-1 px-2 mt-1 mb-0 small border-0"
+                    *ngIf="item.reader_listing_remark"
+                  >
+                    <i class="fa-solid fa-comment-dots me-1"></i>
+                    <strong>Reader Remark:</strong> {{
+                    item.reader_listing_remark }}
+                  </div>
+                </td>
+                <td class="text-center">
+                  <input
+                    type="checkbox"
+                    class="form-check-input"
+                    [(ngModel)]="item.included"
+                    [ngModelOptions]="{ standalone: true }"
+                  />
+                </td>
+              </tr>
+
+              <tr *ngIf="state.items.length === 0">
+                <td colspan="3" class="text-muted text-center py-3 small">
+                  No accepted cases assigned to this bench.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 flex-wrap mt-3">
           <button
             class="btn btn-sm btn-outline-primary"
             (click)="saveDraft(state)"
@@ -140,7 +239,8 @@
             (click)="publish(state)"
             [disabled]="state.isPublishing || !selectedDate || includedCount(state) === 0"
           >
-            {{ state.isPublishing ? 'Publishing...' : (state.pdfUrl ? 'Re-publish' : 'Publish') }}
+            {{ state.isPublishing ? 'Publishing...' : (state.pdfUrl ?
+            'Re-publish' : 'Publish') }}
           </button>
         </div>
 
@@ -200,4 +300,3 @@
     </div>
   </div>
 </div>
-
