@@ -50,6 +50,7 @@ class EfilingDocumentsIndexSerializer(serializers.ModelSerializer):
             "updated_at",
             "created_by",
             "updated_by",
+            "parent_document_index",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
 

@@ -433,7 +433,7 @@ class EfilingDocumentsIndex(BaseModel):
     is_new_for_scrutiny = models.BooleanField(default=False)#Added for allowing accept reject for new document (accepted cases)
     last_resubmitted_at = models.DateTimeField(blank=True, null=True)
     last_reviewed_at = models.DateTimeField(blank=True, null=True)
-
+    parent_document_index = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='resubmissions')
     class Meta:
       
         db_table = 'efiling_documents_index'
