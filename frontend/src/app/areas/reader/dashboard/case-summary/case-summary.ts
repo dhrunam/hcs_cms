@@ -7,8 +7,11 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import Swal from 'sweetalert2';
 
 import { EfilingService } from '../../../../services/advocate/efiling/efiling.services';
-import { ReaderService } from '../../../../services/reader/reader.service';
-import { benchLabel, BENCH_LABELS, BenchKey, isUnassignedBench, judgesForBench } from '../../shared/bench-labels';
+import {
+  BenchConfiguration,
+  ReaderService,
+  resolveBenchConfiguration,
+} from '../../../../services/reader/reader.service';
 
 type Filing = any;
 type CaseDetails = any;
@@ -44,9 +47,7 @@ export class ReaderCaseSummaryPage {
   targetListingDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   approvalForwardedForDate: string | null = null;
 
-  benchKeys: BenchKey[] = Object.keys(BENCH_LABELS) as BenchKey[];
-  benchLabel = benchLabel;
-  selectedBench: BenchKey | null = null;
+  benchConfigurations: BenchConfiguration[] = [];
 
   constructor(
     private route: ActivatedRoute,
@@ -72,6 +73,7 @@ export class ReaderCaseSummaryPage {
     this.loadError = '';
 
     forkJoin({
+      benchConfigurations: this.readerService.getBenchConfigurations({ accessible_only: true }),
       filing: this.efilingService.get_filing_by_id(this.filingId),
       caseDetails: this.efilingService.get_case_details_by_filing_id(this.filingId),
       litigants: this.efilingService.get_litigant_list_by_filing_id(this.filingId),
@@ -79,7 +81,8 @@ export class ReaderCaseSummaryPage {
       iaDocuments: this.efilingService.get_document_reviews_by_filing_id(this.filingId, true),
       registeredCases: this.readerService.getRegisteredCases({ page_size: 500 }),
     }).subscribe({
-      next: ({ filing, caseDetails, litigants, documents, iaDocuments, registeredCases }) => {
+      next: ({ benchConfigurations, filing, caseDetails, litigants, documents, iaDocuments, registeredCases }) => {
+        this.benchConfigurations = benchConfigurations?.items ?? [];
         this.filing = filing;
         this.caseDetails = Array.isArray(caseDetails?.results)
           ? caseDetails.results[0] ?? null
@@ -108,11 +111,6 @@ export class ReaderCaseSummaryPage {
           : [];
         this.requestedDocumentIndexIds = requestedIds;
         this.listingSummary = (currentCase?.listing_summary || '').trim();
-
-        const existingBench = (this.filing?.bench as string | null) ?? null;
-        this.selectedBench = (!isUnassignedBench(existingBench) && this.benchKeys.includes(existingBench as BenchKey)
-          ? (existingBench as BenchKey)
-          : this.benchKeys[0]) ?? null;
 
         this.isLoading = false;
       },
@@ -187,8 +185,12 @@ export class ReaderCaseSummaryPage {
     });
   }
 
+  get forwardBenchConfiguration(): BenchConfiguration | undefined {
+    return this.benchConfigurations.find((item) => item.is_forward_target);
+  }
+
   forwardToJudge(): void {
-    if (!this.filingId || !this.selectedBench) return;
+    if (!this.filingId || !this.forwardBenchConfiguration) return;
     const summary = (this.listingSummary || '').trim();
     if (!summary) {
       Swal.fire({ title: 'Summary Required', text: 'Please write case summary before forwarding.', icon: 'warning' });
@@ -196,39 +198,29 @@ export class ReaderCaseSummaryPage {
     }
     this.isForwarding = true;
     const today = new Date().toISOString().slice(0, 10);
-    // Ensure bench is persisted first so case appears in generator.
-    this.readerService.assignBenches([{ efiling_id: this.filingId, bench_key: this.selectedBench }]).subscribe({
+    this.readerService.forwardToCourtroom({
+      forwarded_for_date: today,
+      bench_key: this.forwardBenchConfiguration.bench_key,
+      listing_summary: summary,
+      document_index_ids: this.forwardDocumentIndexIds.length ? this.forwardDocumentIndexIds : undefined,
+      efiling_ids: [this.filingId],
+    }).subscribe({
       next: () => {
-        if (this.filing) this.filing.bench = this.selectedBench;
-        this.readerService.forwardToCourtroom({
-          forwarded_for_date: today,
-          bench_key: this.selectedBench!,
-          listing_summary: summary,
-          document_index_ids: this.forwardDocumentIndexIds.length ? this.forwardDocumentIndexIds : undefined,
-          efiling_ids: [this.filingId!],
-        }).subscribe({
-          next: () => {
-            this.isForwarding = false;
-            this.approvalStatus = 'PENDING';
-            Swal.fire({
-              title: 'Forwarded',
-              text: 'Bench saved and case forwarded to judge(s).',
-              icon: 'success',
-              timer: 1300,
-              showConfirmButton: false,
-            });
-          },
-          error: (err) => {
-            console.warn('forwardToJudge failed', err);
-            this.isForwarding = false;
-            Swal.fire({ title: 'Forward Failed', text: err?.error?.detail || 'Unable to forward request.', icon: 'error' });
-          },
+        this.isForwarding = false;
+        this.approvalStatus = 'PENDING';
+        this.approvalForwardedForDate = today;
+        Swal.fire({
+          title: 'Forwarded',
+          text: 'Case forwarded to your mapped judge for review.',
+          icon: 'success',
+          timer: 1300,
+          showConfirmButton: false,
         });
       },
       error: (err) => {
-        console.warn('assign before forward failed', err);
+        console.warn('forwardToJudge failed', err);
         this.isForwarding = false;
-        Swal.fire({ title: 'Bench Save Failed', text: err?.error?.detail || 'Unable to save bench before forwarding.', icon: 'error' });
+        Swal.fire({ title: 'Forward Failed', text: err?.error?.detail || 'Unable to forward request.', icon: 'error' });
       },
     });
   }
@@ -243,29 +235,19 @@ export class ReaderCaseSummaryPage {
     return res?.name || '-';
   }
 
-  get isBenchLocked(): boolean {
-    return !isUnassignedBench(this.filing?.bench);
+  benchLabel(key: string | null | undefined): string {
+    if (this.isUnassignedBench(key)) return '-';
+    const normalizedKey = String(key ?? '').trim();
+    return resolveBenchConfiguration(this.benchConfigurations, normalizedKey)?.label || normalizedKey;
   }
 
-  get judgesForSelectedBench(): string[] {
-    return judgesForBench(this.selectedBench);
+  private isUnassignedBench(key: string | null | undefined): boolean {
+    const value = String(key ?? '').trim().toLowerCase();
+    return !value || value === 'high court of sikkim' || value === 'high court of skkim';
   }
 
-  saveBench(): void {
-    if (!this.filingId || !this.selectedBench || this.isBenchLocked) return;
-    this.isSaving = true;
-    this.readerService
-      .assignBenches([{ efiling_id: this.filingId, bench_key: this.selectedBench }])
-      .subscribe({
-        next: () => {
-          if (this.filing) this.filing.bench = this.selectedBench;
-          this.isSaving = false;
-        },
-        error: (err) => {
-          console.warn('Failed to assign bench', err);
-          this.isSaving = false;
-        },
-      });
+  get canSendBackToScrutiny(): boolean {
+    return !this.approvalListingDate && !this.isUnassignedBench(this.filing?.bench);
   }
 
   listingRemark = '';

@@ -5,8 +5,10 @@ import { Router } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import Swal from 'sweetalert2';
 
-import { CauseListService } from '../../../../services/listing/cause-list.service';
-import { benchLabel, isUnassignedBench } from '../../shared/bench-labels';
+import {
+  BenchConfiguration,
+  CauseListService,
+} from '../../../../services/listing/cause-list.service';
 
 type RegisteredCase = {
   efiling_id: number;
@@ -39,14 +41,27 @@ export class RegisteredCasesPage {
   isLoading = false;
 
   cases: RegisteredCase[] = [];
-  benchLabel = benchLabel;
+  benchConfigurations: BenchConfiguration[] = [];
 
   loadError = '';
 
   constructor(private causeListService: CauseListService, private router: Router) {}
 
   ngOnInit(): void {
+    this.loadBenchConfigurations();
     this.loadRegisteredCases();
+  }
+
+  private loadBenchConfigurations(): void {
+    this.causeListService.getBenchConfigurations().subscribe({
+      next: (resp) => {
+        this.benchConfigurations = resp?.items ?? [];
+      },
+      error: (err) => {
+        console.warn('Failed to load bench configurations', err);
+        this.benchConfigurations = [];
+      },
+    });
   }
 
   private loadRegisteredCases(): void {
@@ -70,7 +85,18 @@ export class RegisteredCasesPage {
   }
 
   private hasBench(c: RegisteredCase): boolean {
-    return !isUnassignedBench(c.bench);
+    return !this.isUnassignedBench(c.bench);
+  }
+
+  benchLabel(key: string | null | undefined): string {
+    if (this.isUnassignedBench(key)) return '-';
+    const normalizedKey = String(key ?? '').trim();
+    return this.benchConfigurations.find((item) => item.bench_key === normalizedKey)?.label || normalizedKey;
+  }
+
+  private isUnassignedBench(key: string | null | undefined): boolean {
+    const value = String(key ?? '').trim().toLowerCase();
+    return !value || value === 'high court of sikkim' || value === 'high court of skkim';
   }
 
   get unassignedCases(): RegisteredCase[] {

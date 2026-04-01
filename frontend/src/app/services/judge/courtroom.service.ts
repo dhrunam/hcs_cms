@@ -162,7 +162,6 @@ export class CourtroomService {
   saveDecision(payload: {
     efiling_id: number;
     forwarded_for_date: string;
-    status: 'APPROVED' | 'DECLINED';
     decision_notes?: string | null;
     requested_document_index_ids?: number[];
   }): Observable<any> {

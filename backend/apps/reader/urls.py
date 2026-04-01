@@ -2,6 +2,7 @@ from django.urls import path
 from .views import (
     RegisteredCasesListView,
     AssignBenchesView,
+    BenchConfigurationsView,
     CourtroomForwardView,
     ReaderApprovedCasesView,
     ReaderAssignDateView,
@@ -11,6 +12,7 @@ from .views import (
 app_name = "reader"
 
 urlpatterns = [
+    path("bench-configurations/", BenchConfigurationsView.as_view(), name="bench-configurations"),
     path("registered-cases/", RegisteredCasesListView.as_view(), name="registered-cases"),
     path("assign-bench/", AssignBenchesView.as_view(), name="assign-bench"),
     path("forward/", CourtroomForwardView.as_view(), name="forward"),

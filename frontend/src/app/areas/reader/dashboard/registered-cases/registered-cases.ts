@@ -5,8 +5,11 @@ import { Router } from '@angular/router';
 import { catchError, of } from 'rxjs';
 import Swal from 'sweetalert2';
 
-import { ReaderService } from '../../../../services/reader/reader.service';
-import { benchLabel, isUnassignedBench } from '../../shared/bench-labels';
+import {
+  BenchConfiguration,
+  ReaderService,
+  resolveBenchConfiguration,
+} from '../../../../services/reader/reader.service';
 
 type RegisteredCase = {
   efiling_id: number;
@@ -14,6 +17,7 @@ type RegisteredCase = {
   petitioner_name: string | null;
   respondent_name: string | null;
   bench: string | null;
+  bench_key?: string | null;
 
   cause_of_action: string | null;
   date_of_cause_of_action: string | null;
@@ -39,14 +43,27 @@ export class RegisteredCasesPage {
   isLoading = false;
 
   cases: RegisteredCase[] = [];
-  benchLabel = benchLabel;
+  benchConfigurations: BenchConfiguration[] = [];
 
   loadError = '';
 
   constructor(private readerService: ReaderService, private router: Router) {}
 
   ngOnInit(): void {
+    this.loadBenchConfigurations();
     this.loadRegisteredCases();
+  }
+
+  private loadBenchConfigurations(): void {
+    this.readerService.getBenchConfigurations().subscribe({
+      next: (resp) => {
+        this.benchConfigurations = resp?.items ?? [];
+      },
+      error: (err) => {
+        console.warn('Failed to load bench configurations', err);
+        this.benchConfigurations = [];
+      },
+    });
   }
 
   private loadRegisteredCases(): void {
@@ -70,7 +87,18 @@ export class RegisteredCasesPage {
   }
 
   private hasBench(c: RegisteredCase): boolean {
-    return !isUnassignedBench(c.bench);
+    return !this.isUnassignedBench(c.bench);
+  }
+
+  benchLabel(key: string | null | undefined): string {
+    if (this.isUnassignedBench(key)) return '-';
+    const normalizedKey = String(key ?? '').trim();
+    return resolveBenchConfiguration(this.benchConfigurations, normalizedKey)?.label || normalizedKey;
+  }
+
+  private isUnassignedBench(key: string | null | undefined): boolean {
+    const value = String(key ?? '').trim().toLowerCase();
+    return !value || value === 'high court of sikkim' || value === 'high court of skkim';
   }
 
   approvalStatusLabel(c: RegisteredCase): string {

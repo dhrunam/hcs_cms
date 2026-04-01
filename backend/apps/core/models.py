@@ -795,3 +795,30 @@ class BenchT(BaseModel):
 
     class Meta:
         db_table = 'bench_t'
+
+
+class ReaderJudgeAssignment(BaseModel):
+    id = models.AutoField(primary_key=True)
+    judge = models.OneToOneField(
+        JudgeT,
+        on_delete=models.CASCADE,
+        related_name='reader_assignment',
+    )
+    reader_user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='reader_judge_assignments',
+    )
+    effective_from = models.DateField(default=timezone.localdate)
+    effective_to = models.DateField(blank=True, null=True)
+
+    class Meta:
+        db_table = 'reader_judge_assignment'
+        indexes = [
+            models.Index(fields=['reader_user']),
+            models.Index(fields=['effective_from', 'effective_to']),
+        ]
+
+    def __str__(self) -> str:
+        judge_name = self.judge.judge_name or self.judge.judge_code
+        return f'{judge_name} -> {self.reader_user}'

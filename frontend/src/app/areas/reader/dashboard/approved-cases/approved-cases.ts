@@ -2,8 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { ReaderService } from '../../../../services/reader/reader.service';
-import { benchLabel } from '../../shared/bench-labels';
+import { BenchConfiguration, ReaderService } from '../../../../services/reader/reader.service';
 import Swal from 'sweetalert2';
 
 @Component({
@@ -21,13 +20,7 @@ import Swal from 'sweetalert2';
           <div class="col-md-5">
             <label class="form-label small fw-bold">Select Bench</label>
             <select class="form-select border-0 shadow-sm" [(ngModel)]="benchKey">
-              <option value="CJ">Chief Justice</option>
-              <option value="Judge1">Judge 1</option>
-              <option value="Judge2">Judge 2</option>
-              <option value="CJ+Judge1">CJ + Judge 1 (Division)</option>
-              <option value="CJ+Judge2">CJ + Judge 2 (Division)</option>
-              <option value="Judge1+Judge2">Judge 1 + Judge 2 (Division)</option>
-              <option value="CJ+Judge1+Judge2">Full Bench</option>
+              <option *ngFor="let bench of benchConfigurations" [value]="bench.bench_key">{{ bench.label }}</option>
             </select>
           </div>
           <div class="col-md-5">
@@ -94,25 +87,33 @@ import Swal from 'sweetalert2';
   `]
 })
 export class ReaderApprovedCasesPage implements OnInit {
-  benchKey = 'CJ';
+  benchKey = '';
   forwardedForDate = new Date().toISOString().slice(0, 10);
   
   isLoading = false;
   searched = false;
   cases: any[] = [];
-  benchLabel = benchLabel;
+  benchConfigurations: BenchConfiguration[] = [];
 
   constructor(private readerService: ReaderService, private router: Router) {}
 
   ngOnInit(): void {
-    // Optionally auto-search for current bench
-    const storedGroup = sessionStorage.getItem('user_group');
-    if (storedGroup === 'READER_CJ') this.benchKey = 'CJ';
-    else if (storedGroup === 'READER_J1') this.benchKey = 'Judge1';
-    else if (storedGroup === 'READER_J2') this.benchKey = 'Judge2';
+    this.readerService.getBenchConfigurations({ accessible_only: true }).subscribe({
+      next: (resp) => {
+        this.benchConfigurations = (resp?.items ?? []).filter((item) => item.is_forward_target);
+        this.benchKey = this.benchConfigurations[0]?.bench_key || '';
+      },
+      error: () => {
+        this.benchConfigurations = [];
+      },
+    });
   }
 
   search(): void {
+    if (!this.benchKey) {
+      Swal.fire({ title: 'Bench Required', text: 'No bench is available for this reader.', icon: 'warning' });
+      return;
+    }
     this.isLoading = true;
     this.searched = false;
     this.readerService.getApprovedCases({ bench_key: this.benchKey, forwarded_for_date: this.forwardedForDate }).subscribe({

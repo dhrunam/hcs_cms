@@ -3,10 +3,13 @@ import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { firstValueFrom, forkJoin } from 'rxjs';
 import Swal from 'sweetalert2';
 import { ToastrService } from 'ngx-toastr';
-import { EfilingService } from '../../../../../services/advocate/efiling/efiling.services';
+import {
+  DistinctBenchOption,
+  EfilingService,
+} from '../../../../../services/advocate/efiling/efiling.services';
 
 @Component({
   selector: 'app-filed-case-details',
@@ -35,6 +38,7 @@ export class FiledCaseDetails {
   selectedDocumentBlobUrl: string | null = null;
   documentHistory: any[] = [];
   scrutinyChecklist: any[] = [];
+  distinctBenches: DistinctBenchOption[] = [];
   reviewNote = '';
   isLoading = false;
   isSavingReview = false;
@@ -208,22 +212,19 @@ export class FiledCaseDetails {
     this.submitReview('REJECTED');
   }
 
-  onRegisterCaseClick(): void {
+  async onRegisterCaseClick(): Promise<void> {
     if (!this.canSubmitApprovedFiling || !this.filingId || !this.allDocumentsAccepted) return;
+
+    const benchOptions = await this.getBenchInputOptions();
+    if (!benchOptions) {
+      return;
+    }
 
     Swal.fire({
       title: 'Register Case & Assign Bench',
       text: 'Please select the Bench (Judge) this case will be assigned to.',
       input: 'select',
-      inputOptions: {
-        'CJ': 'Chief Justice',
-        'Judge1': 'Judge 1',
-        'Judge2': 'Judge 2',
-        'CJ+Judge1': 'Division Bench (CJ + Judge 1)',
-        'CJ+Judge2': 'Division Bench (CJ + Judge 2)',
-        'Judge1+Judge2': 'Division Bench (Judge 1 + Judge 2)',
-        'CJ+Judge1+Judge2': 'Full Bench (CJ + Judge 1 + Judge 2)'
-      },
+      inputOptions: benchOptions,
       inputPlaceholder: '-- Choose Bench --',
       icon: 'question',
       showCancelButton: true,
@@ -244,6 +245,35 @@ export class FiledCaseDetails {
         this.submitApprovedFiling(result.value);
       }
     });
+  }
+
+  private async getBenchInputOptions(): Promise<Record<string, string> | null> {
+    try {
+      const benches = await firstValueFrom(this.efilingService.get_distinct_benches());
+      this.distinctBenches = Array.isArray(benches) ? benches : [];
+
+      const inputOptions = this.distinctBenches.reduce<Record<string, string>>((options, bench) => {
+        const benchCode = String(bench?.bench_code ?? '').trim();
+        if (!benchCode || options[benchCode]) {
+          return options;
+        }
+
+        const benchName = String(bench?.bench_name ?? '').trim();
+        options[benchCode] = benchName ? `${benchCode} - ${benchName}` : benchCode;
+        return options;
+      }, {});
+
+      if (Object.keys(inputOptions).length === 0) {
+        this.toastr.error('No benches are available for assignment.');
+        return null;
+      }
+
+      return inputOptions;
+    } catch (error) {
+      console.error('Failed to load distinct benches', error);
+      this.toastr.error('Unable to load benches right now.');
+      return null;
+    }
   }
 
   onSubmitReviewClick(): void {
