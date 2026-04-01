@@ -10,27 +10,8 @@
       Back
     </a>
 
-    <div class="d-flex gap-2 align-items-end flex-wrap">
-      <div></div>
-
-      <div class="d-flex gap-2 align-items-center">
-        <button
-          class="btn btn-sm"
-          [ngClass]="decisionStatus === 'APPROVED' ? 'btn-success' : 'btn-outline-success'"
-          (click)="setDecisionStatus('APPROVED')"
-          [disabled]="!canWrite"
-        >
-          Approve
-        </button>
-        <button
-          class="btn btn-sm"
-          [ngClass]="decisionStatus === 'DECLINED' ? 'btn-danger' : 'btn-outline-danger'"
-          (click)="setDecisionStatus('DECLINED')"
-          [disabled]="!canWrite"
-        >
-          Decline
-        </button>
-      </div>
+    <div class="text-muted small">
+      Saving this review sends the case back to the reader.
     </div>
   </div>
 
@@ -49,6 +30,12 @@
           <div class="col-md-6">
             <div class="small text-muted">Case Number</div>
             <div class="fw-semibold">{{ caseSummary.case_number || '-' }}</div>
+          </div>
+          <div class="col-md-6">
+            <div class="small text-muted">Bench</div>
+            <div class="fw-semibold">
+              {{ caseSummary.bench_label || benchLabel(caseSummary.bench_key) }}
+            </div>
           </div>
           <div
             class="col-md-6"

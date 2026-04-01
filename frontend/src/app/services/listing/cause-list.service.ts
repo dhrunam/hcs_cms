@@ -45,11 +45,28 @@ export type RegisteredCase = {
   requested_documents?: { document_index_id: number; document_part_name: string | null; document_type: string | null }[];
 };
 
+export type BenchConfiguration = {
+  bench_key: string;
+  label: string;
+  bench_code: string | null;
+  bench_name: string | null;
+  judge_names: string[];
+  judge_user_ids: number[];
+  reader_user_ids: number[];
+  is_accessible_to_reader: boolean;
+};
+
 @Injectable({
   providedIn: 'root',
 })
 export class CauseListService {
   constructor(private http: HttpClient) {}
+
+  getBenchConfigurations(): Observable<{ items: BenchConfiguration[] }> {
+    return this.http.get<{ items: BenchConfiguration[] }>(
+      `${app_url}/api/v1/reader/bench-configurations/`,
+    );
+  }
 
   getDraftPreview(
     cause_list_date: string,

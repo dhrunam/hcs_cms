@@ -3,10 +3,12 @@ import { Component } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { Router } from "@angular/router";
 import { catchError, of } from "rxjs";
-import Swal from "sweetalert2";
 
-import { ReaderService } from "../../../../services/reader/reader.service";
-import { benchLabel, isUnassignedBench } from "../../shared/bench-labels";
+import {
+  BenchConfiguration,
+  ReaderService,
+  resolveBenchConfiguration,
+} from "../../../../services/reader/reader.service";
 
 type RegisteredCase = {
   efiling_id: number;
@@ -15,6 +17,7 @@ type RegisteredCase = {
   respondent_name: string | null;
   petitioner_vs_respondent?: string | null;
   bench: string | null;
+  bench_key?: string | null;
 
   cause_of_action: string | null;
   date_of_cause_of_action: string | null;
@@ -32,6 +35,7 @@ type RegisteredCase = {
   approval_forwarded_for_date?: string | null;
   approval_listing_date?: string | null;
   listing_summary?: string | null;
+  can_assign_listing_date?: boolean;
   requested_documents?: {
     document_index_id: number;
     document_part_name: string | null;
@@ -47,10 +51,8 @@ type RegisteredCase = {
 })
 export class RegisteredCasesPage {
   isLoading = false;
-
   cases: RegisteredCase[] = [];
-  benchLabel = benchLabel;
-
+  benchConfigurations: BenchConfiguration[] = [];
   loadError = "";
 
   constructor(
@@ -59,7 +61,20 @@ export class RegisteredCasesPage {
   ) {}
 
   ngOnInit(): void {
+    this.loadBenchConfigurations();
     this.loadRegisteredCases();
+  }
+
+  private loadBenchConfigurations(): void {
+    this.readerService.getBenchConfigurations().subscribe({
+      next: (resp) => {
+        this.benchConfigurations = resp?.items ?? [];
+      },
+      error: (err) => {
+        console.warn('Failed to load bench configurations', err);
+        this.benchConfigurations = [];
+      },
+    });
   }
 
   private loadRegisteredCases(): void {
@@ -82,8 +97,15 @@ export class RegisteredCasesPage {
       });
   }
 
-  private hasBench(c: RegisteredCase): boolean {
-    return !isUnassignedBench(c.bench);
+  benchLabel(key: string | null | undefined): string {
+    if (this.isUnassignedBench(key)) return '-';
+    const normalizedKey = String(key ?? '').trim();
+    return resolveBenchConfiguration(this.benchConfigurations, normalizedKey)?.label || normalizedKey;
+  }
+
+  private isUnassignedBench(key: string | null | undefined): boolean {
+    const value = String(key ?? '').trim().toLowerCase();
+    return !value || value === 'high court of sikkim' || value === 'high court of skkim';
   }
 
   approvalStatusLabel(c: RegisteredCase): string {
@@ -131,6 +153,14 @@ export class RegisteredCasesPage {
       default:
         return "text-bg-primary";
     }
+  }
+
+  showDivisionBenchAuthorityHint(c: RegisteredCase): boolean {
+    return (
+      c.approval_status === "APPROVED" &&
+      !c.approval_listing_date &&
+      c.can_assign_listing_date === false
+    );
   }
 
   openCase(efilingId: number): void {

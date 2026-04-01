@@ -2,9 +2,9 @@
   class="dashboard-header mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2"
 >
   <div>
-    <h4 class="fw-semibold mb-0">Registered Cases</h4>
+    <h2 class="fw-semibold mb-0">Registered Cases</h2>
     <p class="text-muted small mb-0">
-      Assign each case to a bench, then forward it for listing
+      Scrutiny assigns the bench. Reader forwards the case to the mapped judge and then either returns it to scrutiny or sends it for cause list.
     </p>
   </div>
 </div>
@@ -63,6 +63,16 @@
 
         <div class="case-card-body">
           <div class="case-summary">
+            <div
+              class="summary-row"
+              *ngIf="showDivisionBenchAuthorityHint(c)"
+            >
+              <div class="summary-label">Division Bench</div>
+              <div class="summary-value text-muted">
+                Final listing date will be fixed by the higher-priority bench
+                reader.
+              </div>
+            </div>
             <div class="summary-row" *ngIf="c.approval_notes?.length">
               <div class="summary-label">Judge Remarks</div>
               <div class="summary-value">

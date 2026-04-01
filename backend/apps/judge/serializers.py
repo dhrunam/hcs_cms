@@ -31,7 +31,11 @@ class CourtroomCaseDocumentAnnotationUpsertSerializer(serializers.Serializer):
 class CourtroomDecisionSerializer(serializers.Serializer):
     efiling_id = serializers.IntegerField()
     forwarded_for_date = serializers.DateField()
-    status = serializers.ChoiceField(choices=CourtroomJudgeDecision.DecisionStatus.choices)
+    status = serializers.ChoiceField(
+        choices=CourtroomJudgeDecision.DecisionStatus.choices,
+        required=False,
+        default=CourtroomJudgeDecision.DecisionStatus.APPROVED,
+    )
     approved = serializers.BooleanField(required=False)
     decision_notes = serializers.CharField(allow_blank=True, required=False, allow_null=True)
     requested_document_index_ids = serializers.ListField(

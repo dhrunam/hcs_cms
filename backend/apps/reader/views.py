@@ -1,79 +1,357 @@
 from __future__ import annotations
 
-from typing import Dict, List, Sequence, Set, Any
+from typing import List
 from datetime import date as date_type
 
-from django.db import transaction
-from django.db.models import Prefetch, Q
+from django.db.models import Prefetch
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status as drf_status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.models import User
 from apps.core.models import Efiling, EfilingCaseDetails, EfilingDocumentsIndex
+from apps.core.bench_config import (
+    get_accessible_bench_codes_for_reader,
+    get_accessible_bench_keys_for_reader,
+    get_bench_configuration,
+    get_bench_configuration_for_stored_value,
+    get_bench_configurations,
+    get_forward_bench_keys_for_reader,
+    get_required_judge_groups,
+    is_reader_date_authority_for_bench,
+    is_reader_allowed_for_bench,
+)
 from apps.efiling.party_display import build_petitioner_vs_respondent
 from apps.judge.models import (
     CourtroomDecisionRequestedDocument,
     CourtroomJudgeDecision,
 )
-from apps.listing.models import CauseList, CauseListEntry
 from .models import CourtroomForward, CourtroomForwardDocument
 from .serializers import (
     CourtroomForwardSerializer,
     AssignBenchesSerializer,
 )
 
-BENCH_TO_REQUIRED_GROUPS: Dict[str, Sequence[str]] = {
-    "CJ": ("JUDGE_CJ",),
-    "Judge1": ("JUDGE_J1",),
-    "Judge2": ("JUDGE_J2",),
-    "CJ+Judge1": ("JUDGE_CJ", "JUDGE_J1"),
-    "CJ+Judge2": ("JUDGE_CJ", "JUDGE_J2"),
-    "Judge1+Judge2": ("JUDGE_J1", "JUDGE_J2"),
-    "CJ+Judge1+Judge2": ("JUDGE_CJ", "JUDGE_J1", "JUDGE_J2"),
-}
 
-def _get_reader_bench_filter(user: User, field_name: str = "bench", mock_group: str | None = None) -> Q:
-    # Use real group if authenticated, or mock_group if not
-    is_reader_cj = False
-    is_reader_j1 = False
-    is_reader_j2 = False
-
-    if user.is_authenticated:
-        # Check if user is a Reader
-        reader_groups = ["READER_CJ", "READER_J1", "READER_J2"]
-        is_reader_cj = user.groups.filter(name="READER_CJ").exists()
-        is_reader_j1 = user.groups.filter(name="READER_J1").exists()
-        is_reader_j2 = user.groups.filter(name="READER_J2").exists()
-
-    # IF mock_group is provided (dev), it overrides or complements
-    if mock_group:
-        if mock_group == "READER_CJ": is_reader_cj = True
-        elif mock_group == "READER_J1": is_reader_j1 = True
-        elif mock_group == "READER_J2": is_reader_j2 = True
-
-    if not (is_reader_cj or is_reader_j1 or is_reader_j2):
-        # If neither authenticated nor mock_group has a specific reader role, return everything
-        # to prevent "no cases found" during local testing.
-        return Q()
-
-    q_filter = Q()
-    if is_reader_cj:
-        q_filter |= Q(**{f"{field_name}__icontains": "CJ"})
-    if is_reader_j1:
-        q_filter |= Q(**{f"{field_name}__icontains": "Judge1"})
-    if is_reader_j2:
-        q_filter |= Q(**{f"{field_name}__icontains": "Judge2"})
-    return q_filter
+def _get_reader_allowed_bench_keys(
+    request,
+    reader_group: str | None = None,
+) -> set[str] | None:
+    user = (
+        request.user
+        if getattr(request.user, 'is_authenticated', False)
+        else None
+    )
+    return get_accessible_bench_keys_for_reader(
+        user,
+        reader_group=reader_group,
+    )
 
 
-def _bench_required_groups(bench_key: str) -> Sequence[str]:
-    req = BENCH_TO_REQUIRED_GROUPS.get(bench_key)
-    if not req:
+def _get_reader_allowed_bench_codes(
+    request,
+    reader_group: str | None = None,
+) -> set[str] | None:
+    user = (
+        request.user
+        if getattr(request.user, 'is_authenticated', False)
+        else None
+    )
+    return get_accessible_bench_codes_for_reader(
+        user,
+        reader_group=reader_group,
+    )
+
+
+def _get_reader_allowed_efiling_bench_filter(
+    request,
+    reader_group: str | None = None,
+) -> Q | None:
+    allowed_bench_codes = _get_reader_allowed_bench_codes(
+        request,
+        reader_group=reader_group,
+    )
+    allowed_bench_keys = _get_reader_allowed_bench_keys(
+        request,
+        reader_group=reader_group,
+    )
+
+    filter_q = Q()
+    has_filter = False
+    if allowed_bench_codes:
+        filter_q |= Q(bench__in=allowed_bench_codes)
+        has_filter = True
+    if allowed_bench_keys:
+        filter_q |= Q(bench__in=allowed_bench_keys)
+        has_filter = True
+
+    return filter_q if has_filter else None
+
+
+def _assert_known_bench_key(bench_key: str) -> None:
+    if get_bench_configuration(bench_key) is None:
         raise ValidationError({"bench_key": f"Unknown bench_key={bench_key}."})
-    return req
+
+
+def _bench_filter_for_configuration(bench_config) -> Q:
+    filter_q = Q(bench=bench_config.bench_key)
+    if bench_config.bench_code:
+        filter_q |= Q(bench=bench_config.bench_code)
+    return filter_q
+
+
+def _is_forward_relevant_to_bench(
+    forward: CourtroomForward,
+    bench_config,
+) -> bool:
+    forward_groups = set(get_required_judge_groups(forward.bench_key))
+    bench_groups = set(bench_config.judge_groups)
+    return bool(forward_groups) and forward_groups.issubset(bench_groups)
+
+
+def _get_relevant_forwards_for_bench(
+    forwards: list[CourtroomForward],
+    bench_config,
+) -> list[CourtroomForward]:
+    return [
+        forward
+        for forward in forwards
+        if _is_forward_relevant_to_bench(forward, bench_config)
+    ]
+
+
+def _resolve_reader_approval_state(
+    *,
+    efiling_id: int,
+    bench_config,
+    relevant_forwards: list[CourtroomForward],
+    decision_map: dict[tuple[int, date_type], dict[str, bool]],
+    decision_status_map: dict[tuple[int, date_type], dict[str, str]],
+    decision_notes_map: dict[tuple[int, date_type], List[str]],
+    decision_listing_date_map: dict[tuple[int, date_type], List[str]],
+    requested_docs_map: dict[tuple[int, date_type], List[dict]],
+) -> dict:
+    approval_status = "NOT_FORWARDED"
+    approval_notes: list[str] = []
+    approval_listing_date = None
+    requested_documents: list[dict] = []
+    approval_bench_key = None
+    approval_forwarded_for_date = None
+    listing_summary = (
+        relevant_forwards[0].listing_summary
+        if relevant_forwards
+        else None
+    )
+
+    if not bench_config or not relevant_forwards:
+        return {
+            "approval_status": approval_status,
+            "approval_notes": approval_notes,
+            "approval_listing_date": approval_listing_date,
+            "requested_documents": requested_documents,
+            "approval_bench_key": approval_bench_key,
+            "approval_forwarded_for_date": approval_forwarded_for_date,
+            "listing_summary": listing_summary,
+        }
+
+    required_groups = tuple(bench_config.judge_groups)
+    approval_bench_key = bench_config.bench_key
+
+    chosen_dates_by_group: dict[str, date_type] = {}
+    group_decisions: dict[str, bool] = {}
+    group_statuses: dict[str, str] = {}
+    selected_date_keys: list[tuple[int, date_type]] = []
+
+    for forward in relevant_forwards:
+        key = (efiling_id, forward.forwarded_for_date)
+        approvals_for_date = decision_map.get(key, {})
+        statuses_for_date = decision_status_map.get(key, {})
+        matched_group = False
+
+        for group_name in required_groups:
+            if group_name in chosen_dates_by_group:
+                continue
+            if (
+                group_name not in approvals_for_date
+                and group_name not in statuses_for_date
+            ):
+                continue
+            chosen_dates_by_group[group_name] = forward.forwarded_for_date
+            if group_name in approvals_for_date:
+                group_decisions[group_name] = approvals_for_date[group_name]
+            if group_name in statuses_for_date:
+                group_statuses[group_name] = statuses_for_date[group_name]
+            matched_group = True
+
+        if matched_group and key not in selected_date_keys:
+            selected_date_keys.append(key)
+
+        if len(chosen_dates_by_group) == len(required_groups):
+            break
+
+    if chosen_dates_by_group:
+        approval_forwarded_for_date = max(
+            chosen_dates_by_group.values(),
+        ).isoformat()
+    elif relevant_forwards:
+        approval_forwarded_for_date = (
+            relevant_forwards[0].forwarded_for_date.isoformat()
+        )
+
+    seen_notes: set[str] = set()
+    seen_document_ids: set[int] = set()
+    listing_dates: list[str] = []
+    for key in selected_date_keys:
+        for note in decision_notes_map.get(key, []):
+            if note not in seen_notes:
+                approval_notes.append(note)
+                seen_notes.add(note)
+        for listing_date in decision_listing_date_map.get(key, []):
+            if listing_date not in listing_dates:
+                listing_dates.append(listing_date)
+        for requested_document in requested_docs_map.get(key, []):
+            document_id = int(requested_document["document_index_id"])
+            if document_id in seen_document_ids:
+                continue
+            requested_documents.append(requested_document)
+            seen_document_ids.add(document_id)
+
+    if listing_dates:
+        approval_listing_date = sorted(listing_dates)[0]
+
+    requested_docs = any(
+        group_statuses.get(group_name) == "REQUESTED_DOCS"
+        for group_name in required_groups
+        if group_name in group_statuses
+    )
+    rejected = any(
+        group_decisions.get(group_name) is False
+        for group_name in required_groups
+        if group_name in group_decisions
+    )
+    approved_all = bool(required_groups) and all(
+        group_decisions.get(group_name) is True
+        for group_name in required_groups
+    )
+
+    if requested_docs:
+        approval_status = "REQUESTED_DOCS"
+    elif rejected:
+        approval_status = "REJECTED"
+    elif approved_all:
+        approval_status = "APPROVED"
+    elif relevant_forwards:
+        approval_status = "PENDING"
+
+    return {
+        "approval_status": approval_status,
+        "approval_notes": approval_notes,
+        "approval_listing_date": approval_listing_date,
+        "requested_documents": requested_documents,
+        "approval_bench_key": approval_bench_key,
+        "approval_forwarded_for_date": approval_forwarded_for_date,
+        "listing_summary": listing_summary,
+    }
+
+
+def _get_effective_forwarded_for_date(
+    *,
+    efiling: Efiling,
+    requested_forwarded_for_date,
+) -> date_type:
+    assigned_bench = get_bench_configuration_for_stored_value(efiling.bench)
+    if not assigned_bench:
+        return requested_forwarded_for_date
+
+    existing_forwards = list(
+        CourtroomForward.objects.filter(efiling_id=efiling.id)
+        .order_by("-forwarded_for_date", "-id")
+        .all()
+    )
+    relevant_forwards = _get_relevant_forwards_for_bench(
+        existing_forwards,
+        assigned_bench,
+    )
+    for forward in relevant_forwards:
+        has_listing_date = CourtroomJudgeDecision.objects.filter(
+            efiling_id=efiling.id,
+            forwarded_for_date=forward.forwarded_for_date,
+            listing_date__isnull=False,
+        ).exists()
+        if not has_listing_date:
+            return forward.forwarded_for_date
+
+    return requested_forwarded_for_date
+
+
+def _can_reader_assign_listing_date(
+    request,
+    bench_config,
+    reader_group: str | None = None,
+) -> bool:
+    if not bench_config:
+        return False
+
+    user = (
+        request.user
+        if getattr(request.user, 'is_authenticated', False)
+        else None
+    )
+    return is_reader_date_authority_for_bench(
+        bench_config.bench_key,
+        user,
+        reader_group=reader_group,
+    )
+
+
+class BenchConfigurationsView(APIView):
+    """
+    Reader: expose active bench metadata for dynamic frontend rendering.
+    """
+
+    def get(self, request, *args, **kwargs):
+        reader_group = request.query_params.get('reader_group')
+        accessible_only = str(
+            request.query_params.get('accessible_only', ''),
+        ).lower() in {'1', 'true', 'yes'}
+        allowed_bench_keys = _get_reader_allowed_bench_keys(
+            request,
+            reader_group=reader_group,
+        )
+        user = (
+            request.user
+            if getattr(request.user, 'is_authenticated', False)
+            else None
+        )
+        forward_bench_keys = get_forward_bench_keys_for_reader(
+            user,
+            reader_group=reader_group,
+        )
+
+        items = []
+        for bench in get_bench_configurations():
+            is_accessible = (
+                allowed_bench_keys is None
+                or bench.bench_key in allowed_bench_keys
+            )
+            if accessible_only and not is_accessible:
+                continue
+            items.append({
+                'bench_key': bench.bench_key,
+                'label': bench.label,
+                'bench_code': bench.bench_code,
+                'bench_name': bench.bench_name,
+                'judge_names': list(bench.judge_names),
+                'judge_user_ids': list(bench.judge_user_ids),
+                'reader_user_ids': list(bench.reader_user_ids),
+                'is_accessible_to_reader': is_accessible,
+                'is_forward_target': bench.bench_key in forward_bench_keys,
+            })
+
+        return Response({'items': items}, status=drf_status.HTTP_200_OK)
+
 
 class RegisteredCasesListView(APIView):
     """
@@ -84,14 +362,16 @@ class RegisteredCasesListView(APIView):
     def get(self, request, *args, **kwargs):
         page_size_raw = request.query_params.get("page_size")
         page_size = int(page_size_raw) if page_size_raw not in (None, "", "null") else 200
+        reader_group = request.query_params.get("reader_group")
 
         qs = Efiling.objects.filter(is_draft=False, status="ACCEPTED").order_by("-id")
-        
-        # FILTER BY READER ROLE
-        mock_group = request.query_params.get("reader_group")
-        q_filter = _get_reader_bench_filter(request.user, mock_group=mock_group)
-        if q_filter:
-            qs = qs.filter(q_filter)
+
+        allowed_bench_filter = _get_reader_allowed_efiling_bench_filter(
+            request,
+            reader_group=reader_group,
+        )
+        if allowed_bench_filter is not None:
+            qs = qs.filter(allowed_bench_filter)
 
         total = qs.count()
 
@@ -104,17 +384,16 @@ class RegisteredCasesListView(APIView):
         efilings = list(qs[:page_size])
         efiling_ids = [e.id for e in efilings]
 
-        latest_forward_by_efiling: dict[int, CourtroomForward] = {}
+        forwards_by_efiling: dict[int, list[CourtroomForward]] = {}
         forwards = (
             CourtroomForward.objects.filter(efiling_id__in=efiling_ids)
             .order_by("efiling_id", "-forwarded_for_date", "-id")
             .all()
         )
         for f in forwards:
-            if f.efiling_id not in latest_forward_by_efiling:
-                latest_forward_by_efiling[f.efiling_id] = f
+            forwards_by_efiling.setdefault(f.efiling_id, []).append(f)
 
-        forward_keys = {(f.efiling_id, f.forwarded_for_date) for f in latest_forward_by_efiling.values()}
+        forward_keys = {(f.efiling_id, f.forwarded_for_date) for f in forwards}
         decision_map: dict[tuple[int, date_type], dict[str, bool]] = {}
         decision_status_map: dict[tuple[int, date_type], dict[str, str]] = {}
         decision_notes_map: dict[tuple[int, date_type], List[str]] = {}
@@ -201,35 +480,50 @@ class RegisteredCasesListView(APIView):
             requested_documents = []
             approval_bench_key = None
             approval_forwarded_for_date = None
+            can_assign_listing_date = False
             
-            latest_forward = latest_forward_by_efiling.get(e.id)
-            if latest_forward:
-                approval_bench_key = latest_forward.bench_key
-                approval_forwarded_for_date = latest_forward.forwarded_for_date.isoformat()
-                req_groups = BENCH_TO_REQUIRED_GROUPS.get(latest_forward.bench_key, ())
-                key = (e.id, latest_forward.forwarded_for_date)
-                group_decisions = decision_map.get(key, {})
-                group_statuses = decision_status_map.get(key, {})
-                approval_notes = decision_notes_map.get(key, [])
-                listing_dates = decision_listing_date_map.get(key, [])
-                if listing_dates:
-                    approval_listing_date = sorted(listing_dates)[0]
-                requested_documents = requested_docs_map.get(key, [])
+            assigned_bench = get_bench_configuration_for_stored_value(e.bench)
+            relevant_forwards = []
+            if assigned_bench:
+                relevant_forwards = _get_relevant_forwards_for_bench(
+                    forwards_by_efiling.get(e.id, []),
+                    assigned_bench,
+                )
+                can_assign_listing_date = _can_reader_assign_listing_date(
+                    request,
+                    assigned_bench,
+                    reader_group=reader_group,
+                )
 
-                rejected = any(group_decisions.get(g) is False for g in req_groups if g in group_decisions)
-                approved_all = bool(req_groups) and all(group_decisions.get(g) is True for g in req_groups)
-                requested_docs = any(group_statuses.get(g) == 'REQUESTED_DOCS' for g in req_groups if g in group_statuses)
-                
-                if requested_docs: approval_status = "REQUESTED_DOCS"
-                elif rejected: approval_status = "REJECTED"
-                elif approved_all: approval_status = "APPROVED"
-                else: approval_status = "PENDING"
+            approval_state = _resolve_reader_approval_state(
+                efiling_id=e.id,
+                bench_config=assigned_bench,
+                relevant_forwards=relevant_forwards,
+                decision_map=decision_map,
+                decision_status_map=decision_status_map,
+                decision_notes_map=decision_notes_map,
+                decision_listing_date_map=decision_listing_date_map,
+                requested_docs_map=requested_docs_map,
+            )
+            approval_status = approval_state["approval_status"]
+            approval_notes = approval_state["approval_notes"]
+            approval_listing_date = approval_state["approval_listing_date"]
+            requested_documents = approval_state["requested_documents"]
+            approval_bench_key = approval_state["approval_bench_key"]
+            approval_forwarded_for_date = approval_state[
+                "approval_forwarded_for_date"
+            ]
 
             items.append({
                 "efiling_id": e.id,
                 "case_number": e.case_number,
                 "e_filing_number": e.e_filing_number,
                 "bench": e.bench,
+                "bench_key": (
+                    get_bench_configuration_for_stored_value(e.bench).bench_key
+                    if get_bench_configuration_for_stored_value(e.bench)
+                    else None
+                ),
                 "petitioner_name": e.petitioner_name,
                 "respondent_name": getattr(respondent, "name", None) if respondent else None,
                 "petitioner_vs_respondent": (e.petitioner_name or "").strip() or build_petitioner_vs_respondent(
@@ -241,8 +535,9 @@ class RegisteredCasesListView(APIView):
                 "approval_bench_key": approval_bench_key,
                 "approval_forwarded_for_date": approval_forwarded_for_date,
                 "approval_listing_date": approval_listing_date,
-                "listing_summary": latest_forward.listing_summary if latest_forward else None,
+                "listing_summary": approval_state["listing_summary"],
                 "requested_documents": requested_documents,
+                "can_assign_listing_date": can_assign_listing_date,
             })
 
         return Response({"total": total, "items": items}, status=drf_status.HTTP_200_OK)
@@ -262,6 +557,8 @@ class AssignBenchesView(APIView):
             return Response({"updated": 0}, status=drf_status.HTTP_200_OK)
 
         assign_map = {int(a["efiling_id"]): a["bench_key"] for a in assignments}
+        for bench_key in assign_map.values():
+            _assert_known_bench_key(bench_key)
         ef_qs = Efiling.objects.filter(id__in=assign_map.keys(), is_draft=False, status="ACCEPTED")
         ef_by_id = {e.id: e for e in ef_qs}
 
@@ -269,7 +566,8 @@ class AssignBenchesView(APIView):
         for eid, bench_key in assign_map.items():
             if eid in ef_by_id:
                 e = ef_by_id[eid]
-                e.bench = bench_key
+                bench_config = get_bench_configuration(bench_key)
+                e.bench = bench_config.bench_code or bench_key
                 updated_instances.append(e)
 
         Efiling.objects.bulk_update(updated_instances, ["bench"])
@@ -291,19 +589,40 @@ class CourtroomForwardView(APIView):
         document_index_ids = payload.validated_data.get("document_index_ids") or []
         efiling_ids = payload.validated_data["efiling_ids"]
         user = request.user if request.user.is_authenticated else None
+        reader_group = request.query_params.get("reader_group")
+        _assert_known_bench_key(bench_key)
+        if not is_reader_allowed_for_bench(bench_key, user, reader_group=reader_group):
+            raise ValidationError({"bench_key": "You do not have permission to forward to this bench."})
         
         # Security: check if user can forward these efilings
-        q_filter = _get_reader_bench_filter(request.user)
-        if q_filter and efiling_ids:
-            allowed_ids = list(Efiling.objects.filter(q_filter, id__in=efiling_ids).values_list("id", flat=True))
+        allowed_bench_filter = _get_reader_allowed_efiling_bench_filter(
+            request,
+            reader_group=reader_group,
+        )
+        if allowed_bench_filter is not None and efiling_ids:
+            allowed_ids = list(
+                Efiling.objects.filter(allowed_bench_filter, id__in=efiling_ids)
+                .values_list("id", flat=True)
+            )
             if len(allowed_ids) != len(efiling_ids):
                 raise ValidationError("You do not have permission to forward some of these cases.")
 
         updated = 0
         for eid in efiling_ids:
+            efiling = Efiling.objects.filter(
+                id=eid,
+                is_draft=False,
+                status="ACCEPTED",
+            ).first()
+            if not efiling:
+                continue
+            effective_forwarded_for_date = _get_effective_forwarded_for_date(
+                efiling=efiling,
+                requested_forwarded_for_date=forwarded_for_date,
+            )
             obj, _ = CourtroomForward.objects.update_or_create(
                 efiling_id=eid,
-                forwarded_for_date=forwarded_for_date,
+                forwarded_for_date=effective_forwarded_for_date,
                 bench_key=bench_key,
                 defaults={
                     "forwarded_by": user,
@@ -340,19 +659,25 @@ class ReaderApprovedCasesView(APIView):
             raise ValidationError({"bench_key": "Required.", "forwarded_for_date": "Required."})
 
         fwd_date = timezone.datetime.fromisoformat(forwarded_for_date).date()
-        required_groups = _bench_required_groups(bench_key)
+        required_groups = get_required_judge_groups(bench_key)
+        if not required_groups:
+            raise ValidationError({"bench_key": f"Unknown bench_key={bench_key}."})
         
-        forwarded_efiling_ids = CourtroomForward.objects.filter(
-            bench_key=bench_key, forwarded_for_date=fwd_date
+        bench_config = get_bench_configuration(bench_key)
+        forwarded_efiling_ids = Efiling.objects.filter(
+            _bench_filter_for_configuration(bench_config),
+            id__in=CourtroomForward.objects.filter(
+                forwarded_for_date=fwd_date,
+            ).values_list("efiling_id", flat=True),
         )
 
         # FILTER BY READER ROLE
-        mock_group = request.query_params.get("reader_group")
-        q_filter = _get_reader_bench_filter(request.user, field_name="bench_key", mock_group=mock_group)
-        if q_filter:
-            forwarded_efiling_ids = forwarded_efiling_ids.filter(q_filter)
-
-        forwarded_efiling_ids = forwarded_efiling_ids.values_list("efiling_id", flat=True)
+        reader_group = request.query_params.get("reader_group")
+        allowed_bench_keys = _get_reader_allowed_bench_keys(request, reader_group=reader_group)
+        if allowed_bench_keys is not None:
+            if bench_key not in allowed_bench_keys:
+                return Response({"results": []}, status=drf_status.HTTP_200_OK)
+        forwarded_efiling_ids = forwarded_efiling_ids.values_list("id", flat=True)
 
         approved_efiling_ids = []
         for eid in forwarded_efiling_ids:
@@ -395,16 +720,43 @@ class ReaderAssignDateView(APIView):
         ldate = request.data.get("listing_date")
         fwd_date = request.data.get("forwarded_for_date")
         lremark = request.data.get("listing_remark")
+        user = request.user if getattr(request.user, "is_authenticated", False) else None
 
         if not efiling_ids or not ldate or not fwd_date:
             raise ValidationError({"efiling_ids": "Required.", "listing_date": "Required.", "forwarded_for_date": "Required."})
 
         # Security: check if user can assign dates to these efilings
-        q_filter = _get_reader_bench_filter(request.user)
-        if q_filter:
-            allowed_ids = Efiling.objects.filter(q_filter, id__in=efiling_ids).values_list("id", flat=True)
+        reader_group = request.query_params.get("reader_group")
+        allowed_bench_filter = _get_reader_allowed_efiling_bench_filter(
+            request,
+            reader_group=reader_group,
+        )
+        if allowed_bench_filter is not None:
+            allowed_ids = Efiling.objects.filter(
+                allowed_bench_filter,
+                id__in=efiling_ids,
+            ).values_list("id", flat=True)
             if len(allowed_ids) != len(efiling_ids):
                 raise ValidationError("You do not have permission to assign dates to some of these cases.")
+
+        efilings = list(Efiling.objects.filter(id__in=efiling_ids))
+        unauthorized_efiling_ids: list[int] = []
+        for efiling in efilings:
+            assigned_bench = get_bench_configuration_for_stored_value(efiling.bench)
+            if not assigned_bench or not is_reader_date_authority_for_bench(
+                assigned_bench.bench_key,
+                user,
+                reader_group=reader_group,
+            ):
+                unauthorized_efiling_ids.append(efiling.id)
+
+        if unauthorized_efiling_ids:
+            raise ValidationError({
+                "efiling_ids": (
+                    "Only the higher-priority bench reader can assign the listing date for "
+                    f"these case(s): {', '.join(str(item) for item in unauthorized_efiling_ids)}."
+                )
+            })
 
         # Update all matching decisions. Note: in some cases (Division Bench) multiple judges 
         # have decisions for the same filing/date. We update all of them with the final date.
@@ -428,6 +780,9 @@ class ReaderResetBenchView(APIView):
             efiling = Efiling.objects.get(id=efiling_id)
         except Efiling.DoesNotExist:
             return Response({"detail": "Not found."}, status=drf_status.HTTP_404_NOT_FOUND)
+
+        CourtroomForward.objects.filter(efiling_id=efiling_id).delete()
+        CourtroomJudgeDecision.objects.filter(efiling_id=efiling_id).delete()
             
         efiling.bench = None
         efiling.save(update_fields=["bench"])

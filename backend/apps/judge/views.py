@@ -12,6 +12,11 @@ from rest_framework.views import APIView
 
 from django.contrib.auth import get_user_model
 from apps.accounts.models import User
+from apps.core.bench_config import (
+    get_bench_configurations,
+    get_bench_configuration_for_stored_value,
+    get_required_judge_groups,
+)
 from apps.core.models import Efiling, EfilingCaseDetails, EfilingDocumentsIndex, EfilingLitigant
 from apps.efiling.party_display import build_petitioner_vs_respondent
 from apps.efiling.serializers.efiling_document_index import EfilingDocumentsIndexSerializer
@@ -31,17 +36,6 @@ from .serializers import (
     CourtroomDocumentAnnotationSerializer,
     CourtroomPendingCaseSerializer,
 )
-
-
-BENCH_TO_REQUIRED_GROUPS: Dict[str, Sequence[str]] = {
-    "CJ": (JUDGE_GROUP_CJ,),
-    "Judge1": (JUDGE_GROUP_J1,),
-    "Judge2": (JUDGE_GROUP_J2,),
-    "CJ+Judge1": (JUDGE_GROUP_CJ, JUDGE_GROUP_J1),
-    "CJ+Judge2": (JUDGE_GROUP_CJ, JUDGE_GROUP_J2),
-    "Judge1+Judge2": (JUDGE_GROUP_J1, JUDGE_GROUP_J2),
-    "CJ+Judge1+Judge2": (JUDGE_GROUP_CJ, JUDGE_GROUP_J1, JUDGE_GROUP_J2),
-}
 
 _DUMMY_TOKEN_TO_DUMMY_EMAIL: Dict[str, str] = {
     "judge_cj_dummy_token": "dummy_judge_cj@hcs.local",
@@ -102,7 +96,7 @@ def _assert_judge(request) -> User:
 
 
 def _bench_required_groups(bench_key: str) -> Sequence[str]:
-    req = BENCH_TO_REQUIRED_GROUPS.get(bench_key)
+    req = get_required_judge_groups(bench_key)
     if not req:
         raise ValidationError({"bench_key": f"Unknown bench_key={bench_key}."})
     return req
@@ -111,6 +105,26 @@ def _bench_required_groups(bench_key: str) -> Sequence[str]:
 def _judge_can_view_forward(user_groups: Set[str], bench_key: str) -> bool:
     req = set(_bench_required_groups(bench_key))
     return bool(user_groups & req)
+
+
+def _allowed_bench_keys_for_judge(user_groups: Set[str]) -> list[str]:
+    allowed_bench_keys: list[str] = []
+    for bench in get_bench_configurations():
+        if set(bench.judge_groups) & user_groups:
+            allowed_bench_keys.append(bench.bench_key)
+    return allowed_bench_keys
+
+
+def _get_display_bench_for_efiling(
+    efiling: Efiling | None,
+    fallback_bench_key: str,
+) -> tuple[str, str]:
+    bench_config = get_bench_configuration_for_stored_value(
+        getattr(efiling, "bench", None),
+    )
+    if bench_config:
+        return bench_config.bench_key, bench_config.label
+    return fallback_bench_key, fallback_bench_key
 
 
 class CourtroomPendingCasesView(APIView):
@@ -147,6 +161,12 @@ class CourtroomPendingCasesView(APIView):
                 continue
             if _judge_can_view_forward(user_groups, f.bench_key):
                 seen.add(f.efiling_id)
+                display_bench_key, display_bench_label = (
+                    _get_display_bench_for_efiling(
+                        f.efiling,
+                        f.bench_key,
+                    )
+                )
                 decision = (
                     CourtroomJudgeDecision.objects.filter(
                         judge_user=user,
@@ -160,12 +180,14 @@ class CourtroomPendingCasesView(APIView):
                     "efiling_id": f.efiling_id,
                     "e_filing_number": getattr(f.efiling, "e_filing_number", None),
                     "case_number": f.efiling.case_number,
+                    "bench_key": display_bench_key,
+                    "bench_label": display_bench_label,
+                    "forward_bench_key": f.bench_key,
                     "petitioner_name": getattr(f.efiling, "petitioner_name", None),
                     "petitioner_vs_respondent": (getattr(f.efiling, "petitioner_name", None) or "").strip() or build_petitioner_vs_respondent(
                         f.efiling,
                         fallback_petitioner_name=getattr(f.efiling, "petitioner_name", None) or "",
                     ),
-                    "bench_key": f.bench_key,
                     "listing_summary": f.listing_summary,
                     "selected_document_count": f.selected_documents.count(),
                     "requested_document_count": 0,
@@ -217,12 +239,15 @@ class CourtroomCaseDocumentsView(APIView):
         user = _assert_judge(request)
         forwarded_for_date = request.query_params.get("forwarded_for_date")
         user_groups = _user_judge_groups(user)
+        allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
         forward = None
         if forwarded_for_date:
             forwarded_date = timezone.datetime.fromisoformat(forwarded_for_date).date()
             forward = (
                 CourtroomForward.objects.filter(
-                    efiling_id=efiling_id, forwarded_for_date=forwarded_date
+                    efiling_id=efiling_id,
+                    forwarded_for_date=forwarded_date,
+                    bench_key__in=allowed_bench_keys,
                 )
                 .order_by("-id")
                 .first()
@@ -232,7 +257,10 @@ class CourtroomCaseDocumentsView(APIView):
         # when client-provided date is stale.
         if not forward:
             forward = (
-                CourtroomForward.objects.filter(efiling_id=efiling_id)
+                CourtroomForward.objects.filter(
+                    efiling_id=efiling_id,
+                    bench_key__in=allowed_bench_keys,
+                )
                 .order_by("-forwarded_for_date", "-id")
                 .first()
             )
@@ -298,11 +326,7 @@ class CourtroomCaseSummaryView(APIView):
         user = _assert_judge(request)
         forwarded_for_date = request.query_params.get("forwarded_for_date")
         user_groups = _user_judge_groups(user)
-        allowed_bench_keys = [
-            bench_key
-            for bench_key, req_groups in BENCH_TO_REQUIRED_GROUPS.items()
-            if set(req_groups) & user_groups
-        ]
+        allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
         if not allowed_bench_keys:
             raise ValidationError({"detail": "Not authorized as judge."})
 
@@ -325,6 +349,10 @@ class CourtroomCaseSummaryView(APIView):
         )
         if not filing:
             raise ValidationError({"detail": "Case not found."})
+        display_bench_key, display_bench_label = _get_display_bench_for_efiling(
+            filing,
+            forward.bench_key,
+        )
 
         case_detail = (
             EfilingCaseDetails.objects.filter(e_filing_id=efiling_id)
@@ -367,7 +395,9 @@ class CourtroomCaseSummaryView(APIView):
                     filing, fallback_petitioner_name=filing.petitioner_name or ""
                 ),
                 "petitioner_contact": filing.petitioner_contact,
-                "bench_key": forward.bench_key,
+                "bench_key": display_bench_key,
+                "bench_label": display_bench_label,
+                "forward_bench_key": forward.bench_key,
                 "forwarded_for_date": forward.forwarded_for_date.isoformat(),
                 "listing_summary": forward.listing_summary,
                 "selected_documents": [
@@ -456,11 +486,7 @@ class CourtroomDocumentAnnotationView(APIView):
             raise ValidationError({"efiling_document_index_id": "Invalid document index."})
 
         user_groups = _user_judge_groups(user)
-        allowed_bench_keys = [
-            bench_key
-            for bench_key, req_groups in BENCH_TO_REQUIRED_GROUPS.items()
-            if set(req_groups) & user_groups
-        ]
+        allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
         if not CourtroomForward.objects.filter(
             efiling_id=doc_index.document.e_filing_id,
             bench_key__in=allowed_bench_keys,
@@ -480,7 +506,7 @@ class CourtroomDocumentAnnotationView(APIView):
 
 class CourtroomDecisionView(APIView):
     """
-    Judge: save approve/reject + listing_date for a forwarded case.
+    Judge: save a decision for a forwarded case and return it to reader flow.
     """
 
     def post(self, request, *args, **kwargs):
@@ -490,22 +516,26 @@ class CourtroomDecisionView(APIView):
 
         efiling_id = payload.validated_data["efiling_id"]
         forwarded_for_date = payload.validated_data["forwarded_for_date"]
-        listing_date = payload.validated_data.get("listing_date")
-        status = payload.validated_data["status"]
+        status = CourtroomJudgeDecision.DecisionStatus.APPROVED
         requested_document_index_ids = payload.validated_data.get("requested_document_index_ids") or []
-        approved = status == CourtroomJudgeDecision.DecisionStatus.APPROVED
+        approved = True
         decision_notes = payload.validated_data.get("decision_notes")
+        user_groups = _user_judge_groups(user)
+        allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
 
         # Ensure there is a forward row and judge is allowed.
         forward = (
-            CourtroomForward.objects.filter(efiling_id=efiling_id, forwarded_for_date=forwarded_for_date)
+            CourtroomForward.objects.filter(
+                efiling_id=efiling_id,
+                forwarded_for_date=forwarded_for_date,
+                bench_key__in=allowed_bench_keys,
+            )
             .order_by("-id")
             .first()
         )
         if not forward:
             raise ValidationError({"detail": "Case not forwarded for this date."})
 
-        user_groups = _user_judge_groups(user)
         if not _judge_can_view_forward(user_groups, forward.bench_key):
             raise ValidationError({"detail": "Not authorized for this case/bench."})
 
