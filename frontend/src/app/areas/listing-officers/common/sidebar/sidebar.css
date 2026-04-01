@@ -16,8 +16,8 @@
 .sidebar .nav-link {
   color: #475569;
   display: block;
-  padding: 8px 16px;
-  margin: 4px 12px;
+  padding: 8px 16px; /* inner spacing instead of outer margin */
+  margin: 4px 12px; /* no horizontal margin so background stays within sidebar */
   border-radius: 10px;
   font-weight: 300;
   transition: all 0.25s ease;
@@ -31,7 +31,7 @@
 .sidebar .nav-link:hover {
   background: #494949;
   color: #ffffff;
-  transform: none;
+  transform: none; /* avoid shifting outside sidebar border */
 }
 
 .sidebar .nav-link.active {
@@ -40,9 +40,13 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
+/* .sidebar-mobile {
+  width: 260px;
+  z-index: 1055;
+} */
+
 @media (max-width: 767px) {
   .sidebar {
     display: none !important;
   }
 }
-
