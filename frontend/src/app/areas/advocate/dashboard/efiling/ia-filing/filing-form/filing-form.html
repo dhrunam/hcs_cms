@@ -58,9 +58,7 @@
                       </div>
                     </div>
                     <div class="text-muted small mt-1 petitioner-vs-respondent">
-                      <span class="badge bg-dark me-1">P</span>{{ item.petitioners.join(', ') || item.filing.petitioner_name || '-' }}
-                      <span class="mx-1">vs</span>
-                      <span class="badge bg-secondary me-1">R</span>{{ item.respondents.join(', ') || '-' }}
+                      {{ getLitigantLabel(item) }}
                     </div>
                   </button>
                   <div *ngIf="filteredFilingsWithLitigants.length === 0" class="text-muted small p-3 text-center">
@@ -261,6 +259,8 @@
           [fileProgresses]="uploadFileProgresses"
           [uploadCompletedToken]="uploadCompletedToken"
           [defaultDocumentType]="'IA'"
+          [useTextIndexName]="true"
+          [enableAnnexureSequence]="true"
           (submitDoc)="handleDocUpload($event)"
         ></app-upload-documents>
       </div>

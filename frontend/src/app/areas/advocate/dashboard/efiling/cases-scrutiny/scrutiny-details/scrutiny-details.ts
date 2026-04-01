@@ -2,10 +2,11 @@ import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { catchError, forkJoin, of } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import Swal from 'sweetalert2';
 import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
+import { PaymentService } from '../../../../../../services/payment/payment.service';
 import { getValidationErrorMessage, validatePdfOcr, validatePdfSize } from '../../../../../../utils/pdf-validation';
 
 @Component({
@@ -46,10 +47,20 @@ export class ScrutinyDetails {
   selectedIaDocument: any = null;
   selectedIaDocumentUrl: SafeResourceUrl | null = null;
   selectedIaDocumentBlobUrl: string | null = null;
+  paymentOutcome: 'success' | 'failed' | null = null;
+  paymentDetails:
+    | {
+        txnId?: string;
+        paidAt?: string;
+        referenceNo?: string;
+        amount?: string;
+      }
+    | null = null;
 
   constructor(
     private route: ActivatedRoute,
     private efilingService: EfilingService,
+    private paymentService: PaymentService,
     private sanitizer: DomSanitizer,
     private toastr: ToastrService,
   ) {}
@@ -87,8 +98,9 @@ export class ScrutinyDetails {
       caseDetails: this.efilingService.get_case_details_by_filing_id(id),
       acts: this.efilingService.get_acts_by_filing_id(id),
       ias: this.efilingService.get_ias_by_efiling_id(id),
+      payment: this.paymentService.latest(id).pipe(catchError(() => of(null))),
     }).subscribe({
-      next: ({ filing, documents, iaDocuments, litigants, caseDetails, acts, ias }) => {
+      next: ({ filing, documents, iaDocuments, litigants, caseDetails, acts, ias, payment }) => {
         this.filing = filing;
         this.documents = documents?.results ?? [];
         this.groupedDocuments = this.groupDocumentsByType(this.documents);
@@ -99,6 +111,7 @@ export class ScrutinyDetails {
         this.actList = acts?.results ?? [];
         console.log('Act llist is', this.actList);
         this.iaList = Array.isArray(ias) ? ias : (ias?.results ?? []);
+        this.updatePaymentDetails(payment);
         const firstWithDocs = this.iaWithDocuments.find((i) => i.documents.length > 0);
         this.selectIaDocument(firstWithDocs?.groupedDocs[0]?.items[0] ?? null);
         this.selectDocument(
@@ -113,6 +126,22 @@ export class ScrutinyDetails {
         this.isLoading = false;
       },
     });
+  }
+
+  private updatePaymentDetails(tx: any): void {
+    if (!tx || (!tx.txn_id && !tx.reference_no && !tx.status)) {
+      this.paymentOutcome = null;
+      this.paymentDetails = null;
+      return;
+    }
+    const statusRaw = String(tx.status || '').toLowerCase();
+    this.paymentOutcome = /(success|paid|complete|ok)/i.test(statusRaw) ? 'success' : 'failed';
+    this.paymentDetails = {
+      txnId: tx.txn_id || undefined,
+      paidAt: tx.payment_datetime || tx.paid_at || undefined,
+      referenceNo: tx.reference_no || undefined,
+      amount: tx.amount || undefined,
+    };
   }
 
   groupDocumentsByType(docs: any[]): Array<{ document_type: string; items: any[] }> {

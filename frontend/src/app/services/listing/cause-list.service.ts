@@ -6,6 +6,9 @@ import { app_url } from '../../environment';
 export type DraftPreviewItem = {
   efiling_id: number;
   case_number: string | null;
+  e_filing_number?: string | null;
+  petitioner_name?: string | null;
+  petitioner_vs_respondent?: string | null;
   included: boolean;
   serial_no: number | null;
   judge_listing_date?: string | null;
@@ -26,6 +29,7 @@ export type RegisteredCase = {
   bench: string | null;
   petitioner_name: string | null;
   respondent_name: string | null;
+  petitioner_vs_respondent?: string | null;
   cause_of_action: string | null;
   date_of_cause_of_action: string | null;
   dispute_state: string | null;

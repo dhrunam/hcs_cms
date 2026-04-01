@@ -15,6 +15,7 @@ type RegisteredCase = {
   case_number: string | null;
   petitioner_name: string | null;
   respondent_name: string | null;
+  petitioner_vs_respondent?: string | null;
   bench: string | null;
 
   cause_of_action: string | null;

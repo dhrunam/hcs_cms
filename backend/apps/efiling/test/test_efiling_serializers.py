@@ -33,6 +33,7 @@ class EfilingSerializerTest(SimpleTestCase):
             "petitioner_name",
             "petitioner_contact",
             "e_filing_number",
+            "case_number",
             "is_draft",
             "status",
             "accepted_at",
@@ -41,11 +42,24 @@ class EfilingSerializerTest(SimpleTestCase):
             "updated_at",
             "created_by",
             "updated_by",
+            "petitioner_vs_respondent",
         ]
         self.assertEqual(EfilingSerializer.Meta.fields, expected_fields)
 
     def test_read_only_fields(self):
-        self.assertEqual(EfilingSerializer.Meta.read_only_fields, ["id", "created_at", "updated_at"])
+        self.assertEqual(
+            EfilingSerializer.Meta.read_only_fields,
+            [
+                "id",
+                "e_filing_number",
+                "case_number",
+                "status",
+                "accepted_at",
+                "created_at",
+                "updated_at",
+                "petitioner_vs_respondent",
+            ],
+        )
 
 
 class EfilingSerializerRepresentationTest(TestCase):

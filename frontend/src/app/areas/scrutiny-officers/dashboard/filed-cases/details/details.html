@@ -125,7 +125,7 @@
               Filing Information
             </div>
             <div class="filing-summary-grid">
-              <div class="filing-summary-item">
+              <div class="filing-summary-item" *ngIf="filing.case_number">
                 <span class="filing-summary-label">Bench</span>
                 <span class="filing-summary-value" [class.text-danger]="isReturned && !filing.bench">
                   {{ filing.bench || (isReturned ? 'Returned / Needs Re-assignment' : '-') }}
@@ -138,19 +138,15 @@
                   || '-' }}</span
                 >
               </div>
-              <!-- <div class="filing-summary-item">
-                  <span class="filing-summary-label">Petitioner Name</span>
-                  <span class="filing-summary-value">{{ filing.petitioner_name || '-' }}</span>
-                </div>
-                <div class="filing-summary-item">
-                  <span class="filing-summary-label">Petitioner Contact</span>
-                  <span class="filing-summary-value">{{ filing.petitioner_contact || '-' }}</span> -->
-              <!-- </div> -->
               <div class="filing-summary-item">
                 <span class="filing-summary-label">E-Filing Number</span>
                 <span class="filing-summary-value filing-number"
                   >{{ filing.e_filing_number || '-' }}</span
                 >
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Petitioner vs. Respondent</span>
+                <span class="filing-summary-value">{{ filing.petitioner_name || filing.petitioner_vs_respondent || "—" }}</span>
               </div>
               <div class="filing-summary-item">
                 <span class="filing-summary-label">Accepted At</span>
@@ -199,7 +195,6 @@
               </div>
             </div>
           </div>
-
           <!-- Litigants -->
           <div class="filing-summary-section" *ngIf="litigants.length > 0">
             <div class="filing-summary-section-title">
@@ -256,7 +251,41 @@
               </div>
             </div>
           </div>
-
+          <!-- Payment Details-->
+          <div class="filing-summary-section">
+            <div class="filing-summary-section-title">
+              <i class="fa-solid fa-indian-rupee-sign me-2"></i>
+              Payment Details
+            </div>
+            <div class="filing-summary-grid">
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Payment Status</span>
+                <span class="filing-summary-value">
+                  {{ paymentOutcome === 'success' ? 'Paid' : 'Not Paid' }}
+                </span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Amount</span>
+                <span class="filing-summary-value">
+                  {{ paymentDetails?.amount ? ('₹' + paymentDetails?.amount) : '-' }}
+                </span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Transaction ID</span>
+                <span class="filing-summary-value">{{ paymentDetails?.txnId || '-' }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Reference ID</span>
+                <span class="filing-summary-value">{{ paymentDetails?.referenceNo || '-' }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Date & Time</span>
+                <span class="filing-summary-value">
+                  {{ paymentDetails?.paidAt ? (paymentDetails?.paidAt | date: 'dd MMM yyyy, hh:mm a') : '-' }}
+                </span>
+              </div>
+            </div>
+          </div>
           <!-- Acts & Sections -->
           <!-- <div class="filing-summary-section">
             <div class="filing-summary-section-title">

@@ -11,6 +11,7 @@ export type RegisteredCase = {
   bench_key?: string | null;
   petitioner_name: string | null;
   respondent_name: string | null;
+  petitioner_vs_respondent?: string | null;
   cause_of_action: string | null;
   approval_status?: 'NOT_FORWARDED' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'REQUESTED_DOCS';
   approval_notes?: string[];

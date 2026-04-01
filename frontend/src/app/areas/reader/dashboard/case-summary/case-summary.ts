@@ -12,6 +12,7 @@ import {
   ReaderService,
   resolveBenchConfiguration,
 } from "../../../../services/reader/reader.service";
+import { formatPetitionerVsRespondent } from "../../../../utils/petitioner-vs-respondent";
 
 type Filing = any;
 type CaseDetails = any;
@@ -292,6 +293,16 @@ export class ReaderCaseSummaryPage {
           });
         },
       });
+  }
+
+  get petitionerVsRespondentLine(): string {
+    const fromApi = String(this.filing?.petitioner_vs_respondent || '').trim();
+    if (fromApi) return fromApi;
+    const computed = formatPetitionerVsRespondent(
+      this.litigants,
+      String(this.filing?.petitioner_name || ''),
+    );
+    return computed || '—';
   }
 
   get petitionerName(): string {

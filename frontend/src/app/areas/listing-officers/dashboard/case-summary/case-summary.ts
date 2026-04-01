@@ -11,6 +11,7 @@ import {
   BenchConfiguration,
   CauseListService,
 } from '../../../../services/listing/cause-list.service';
+import { formatPetitionerVsRespondent } from '../../../../utils/petitioner-vs-respondent';
 
 type Filing = any;
 type CaseDetails = any;
@@ -223,6 +224,16 @@ export class ListingCaseSummaryPage {
         Swal.fire({ title: 'Bench Save Failed', text: err?.error?.detail || 'Unable to save bench before forwarding.', icon: 'error' });
       },
     });
+  }
+
+  get petitionerVsRespondentLine(): string {
+    const fromApi = String(this.filing?.petitioner_vs_respondent || '').trim();
+    if (fromApi) return fromApi;
+    const computed = formatPetitionerVsRespondent(
+      this.litigants,
+      String(this.filing?.petitioner_name || ''),
+    );
+    return computed || '—';
   }
 
   get petitionerName(): string {

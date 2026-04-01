@@ -20,7 +20,10 @@ export class JudgePendingCasesPage {
 
   pendingForListing: {
     efiling_id: number;
+    e_filing_number?: string | null;
     case_number: string | null;
+    petitioner_name?: string | null;
+    petitioner_vs_respondent?: string | null;
     bench_key: string;
     bench_label?: string;
     judge_decision: boolean | null;
@@ -28,7 +31,10 @@ export class JudgePendingCasesPage {
   }[] = [];
   pendingForCauseList: {
     efiling_id: number;
+    e_filing_number?: string | null;
     case_number: string | null;
+    petitioner_name?: string | null;
+    petitioner_vs_respondent?: string | null;
     bench_key: string;
     bench_label?: string;
     judge_decision: boolean | null;
@@ -36,7 +42,10 @@ export class JudgePendingCasesPage {
   }[] = [];
   calendarItems: {
     efiling_id: number;
+    e_filing_number?: string | null;
     case_number: string | null;
+    petitioner_name?: string | null;
+    petitioner_vs_respondent?: string | null;
     status: 'APPROVED' | 'DECLINED' | 'REQUESTED_DOCS';
     decision_notes: string | null;
   }[] = [];

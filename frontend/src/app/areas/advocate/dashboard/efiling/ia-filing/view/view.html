@@ -28,8 +28,9 @@
           <thead style="background-color: #f8fafc">
             <tr class="text-secondary small fw-normal">
               <th>#</th>
-              <th>IA Filing No</th>
               <th>E-Filing Number</th>
+              <th>Petitioner vs. Respondent</th>
+              <th>IA Filing No</th>
               <th>Relief Sought</th>
               <th>Status</th>
               <th>Created Date</th>
@@ -39,8 +40,11 @@
           <tbody class="text-muted small">
             <tr *ngFor="let item of iaFilings; let i = index; trackBy: trackById">
               <td>{{ i + 1 }}</td>
-              <td class="fw-medium text-dark">{{ item.ia_number || '-' }}</td>
               <td class="fw-medium text-dark">{{ item.e_filing_number || '-' }}</td>
+              <td class="text-dark small" style="max-width: 280px">
+                {{ item.petitioner_name || item.petitioner_vs_respondent || "—" }}
+              </td>
+              <td class="fw-medium text-dark">{{ item.ia_number || '-' }}</td>
               <td>{{ item.ia_text || '-' }}</td>
               <td>
                 <span class="badge rounded-pill px-2 py-1" [ngClass]="getStatusBadgeClass(item.status)">

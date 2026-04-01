@@ -23,6 +23,7 @@ from apps.core.bench_config import (
     is_reader_date_authority_for_bench,
     is_reader_allowed_for_bench,
 )
+from apps.efiling.party_display import build_petitioner_vs_respondent
 from apps.judge.models import (
     CourtroomDecisionRequestedDocument,
     CourtroomJudgeDecision,
@@ -525,6 +526,9 @@ class RegisteredCasesListView(APIView):
                 ),
                 "petitioner_name": e.petitioner_name,
                 "respondent_name": getattr(respondent, "name", None) if respondent else None,
+                "petitioner_vs_respondent": (e.petitioner_name or "").strip() or build_petitioner_vs_respondent(
+                    e, fallback_petitioner_name=e.petitioner_name or ""
+                ),
                 "cause_of_action": getattr(case_detail, "cause_of_action", None) if case_detail else None,
                 "approval_status": approval_status,
                 "approval_notes": approval_notes,

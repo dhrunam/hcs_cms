@@ -14,8 +14,13 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.models import Efiling
-from apps.core.models import EfilerDocumentAccess, EfilingCaseDetails, EfilingLitigant
+from apps.core.models import (
+    Efiling,
+    EfilerDocumentAccess,
+    EfilingCaseDetails,
+    EfilingLitigant,
+)
+from apps.efiling.party_display import build_petitioner_vs_respondent
 from apps.judge.models import (
     CourtroomDecisionRequestedDocument,
     CourtroomJudgeDecision,
@@ -170,6 +175,7 @@ class CauseListDraftPreviewView(APIView):
                     status="ACCEPTED",
                     bench=bench_key,
                 )
+                .prefetch_related("litigants")
                 .order_by("id")
                 .all()
             )
@@ -180,6 +186,7 @@ class CauseListDraftPreviewView(APIView):
                     status="ACCEPTED",
                     bench=bench_key,
                 )
+                .prefetch_related("litigants")
                 .order_by("id")
                 .all()
             )
@@ -205,7 +212,12 @@ class CauseListDraftPreviewView(APIView):
             items.append(
                 {
                     "efiling_id": filing.id,
+                    "e_filing_number": filing.e_filing_number,
                     "case_number": filing.case_number,
+                    "petitioner_name": filing.petitioner_name,
+                    "petitioner_vs_respondent": (filing.petitioner_name or "").strip() or build_petitioner_vs_respondent(
+                        filing, fallback_petitioner_name=filing.petitioner_name or ""
+                    ),
                     "included": included,
                     "serial_no": serial_no,
                     "judge_listing_date": judge_listing_date_map.get(filing.id),

@@ -10,6 +10,8 @@ import {
   DistinctBenchOption,
   EfilingService,
 } from '../../../../../services/advocate/efiling/efiling.services';
+import { catchError, of } from 'rxjs';
+import { PaymentService } from '../../../../../services/payment/payment.service';
 
 @Component({
   selector: 'app-filed-case-details',
@@ -52,10 +54,20 @@ export class FiledCaseDetails {
   selectedIaDocumentUrl: SafeResourceUrl | null = null;
   selectedIaDocumentBlobUrl: string | null = null;
   isVerifyingIaId: number | null = null;
+  paymentOutcome: 'success' | 'failed' | null = null;
+  paymentDetails:
+    | {
+        txnId?: string;
+        paidAt?: string;
+        referenceNo?: string;
+        amount?: string;
+      }
+    | null = null;
 
   constructor(
     private route: ActivatedRoute,
     private efilingService: EfilingService,
+    private paymentService: PaymentService,
     private sanitizer: DomSanitizer,
     private toastr: ToastrService,
   ) {}
@@ -88,8 +100,9 @@ export class FiledCaseDetails {
       documents: this.efilingService.get_document_reviews_by_filing_id(id, false),
       iaDocuments: this.efilingService.get_document_reviews_by_filing_id(id, true),
       ias: this.efilingService.get_ias_by_efiling_id(id),
+      payment: this.paymentService.latest(id).pipe(catchError(() => of(null))),
     }).subscribe({
-      next: ({ filing, litigants, caseDetails, acts, documents, iaDocuments, ias }) => {
+      next: ({ filing, litigants, caseDetails, acts, documents, iaDocuments, ias, payment }) => {
         this.filing = filing;
         this.litigants = litigants?.results ?? [];
         this.caseDetails = caseDetails?.results?.[0] ?? null;
@@ -99,6 +112,7 @@ export class FiledCaseDetails {
         this.iaDocuments = iaDocuments?.results ?? [];
         this.groupedIaDocuments = this.groupDocumentsByType(this.iaDocuments);
         this.iaList = Array.isArray(ias) ? ias : (ias?.results ?? []);
+        this.updatePaymentDetails(payment);
         this.selectIaDocument(this.groupedIaDocuments[0]?.items[0] ?? null);
         this.loadChecklist();
         this.selectDocument(
@@ -111,6 +125,22 @@ export class FiledCaseDetails {
         this.isLoading = false;
       },
     });
+  }
+
+  private updatePaymentDetails(tx: any): void {
+    if (!tx || (!tx.txn_id && !tx.reference_no && !tx.status)) {
+      this.paymentOutcome = null;
+      this.paymentDetails = null;
+      return;
+    }
+    const statusRaw = String(tx.status || '').toLowerCase();
+    this.paymentOutcome = /(success|paid|complete|ok)/i.test(statusRaw) ? 'success' : 'failed';
+    this.paymentDetails = {
+      txnId: tx.txn_id || undefined,
+      paidAt: tx.payment_datetime || tx.paid_at || undefined,
+      referenceNo: tx.reference_no || undefined,
+      amount: tx.amount || undefined,
+    };
   }
 
   loadChecklist(): void {

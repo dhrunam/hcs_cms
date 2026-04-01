@@ -18,6 +18,10 @@ import {
   validatePdfFiles,
   validatePdfOcrForFiles,
 } from "../../../../../utils/pdf-validation";
+import {
+  formatPartyLine,
+  getOrderedPartyNames,
+} from "../../../../../utils/petitioner-vs-respondent";
 import { EFile } from "./e-file/e-file";
 import { UploadDocuments } from "./upload-documents/upload-documents";
 import Swal from "sweetalert2";
@@ -55,6 +59,7 @@ export class NewFiling {
   docList: any[] = [];
   isDeclarationChecked = false;
   isUploadingDocuments = false;
+  private isUploadRequestInFlight = false;
   uploadFileProgresses: number[] = [];
   uploadCompletedToken = 0;
   caseDetailsLocked = false;
@@ -631,8 +636,8 @@ export class NewFiling {
   } {
     const init = this.initialInputsForm?.value;
     const petitionerName = String(init?.petitioner_name || "").trim();
-    const petitioners = this.getOrderedPartyNames(true);
-    const respondents = this.getOrderedPartyNames(false);
+    const petitioners = getOrderedPartyNames(this.litigantList, true);
+    const respondents = getOrderedPartyNames(this.litigantList, false);
     const caseTypeVal = init?.case_type;
     let caseType = "";
     if (caseTypeVal && typeof caseTypeVal === "object") {
@@ -648,33 +653,11 @@ export class NewFiling {
       caseType = ct?.type_name || ct?.full_form || ct?.name || "";
     }
     return {
-      petitionerName: this.formatPartyForCoverPage(petitioners, petitionerName),
-      respondentName: this.formatPartyForCoverPage(respondents, ""),
+      petitionerName: formatPartyLine(petitioners, petitionerName),
+      respondentName: formatPartyLine(respondents, ""),
       caseNo: this.eFilingNumber || "",
       caseType: caseType.trim(),
     };
-  }
-
-  private getOrderedPartyNames(isPetitioner: boolean): string[] {
-    return (Array.isArray(this.litigantList) ? this.litigantList : [])
-      .filter(
-        (l: any) =>
-          this.normalizeIsPetitioner(l?.is_petitioner) ===
-          this.normalizeIsPetitioner(isPetitioner),
-      )
-      .sort(
-        (a: any, b: any) =>
-          (Number(a?.sequence_number) || 0) - (Number(b?.sequence_number) || 0),
-      )
-      .map((l: any) => String(l?.name || "").trim())
-      .filter((name) => !!name);
-  }
-
-  private formatPartyForCoverPage(names: string[], fallback = ""): string {
-    if (!names.length) return String(fallback || "").trim();
-    if (names.length === 1) return names[0];
-    if (names.length === 2) return `${names[0]} and Anr.`;
-    return `${names[0]} and Ors.`;
   }
 
   get setDeclarationForm(): FormGroup {
@@ -706,6 +689,7 @@ export class NewFiling {
     }
 
     if (this.step == 1 && this.litigantList.length > 0) {
+      this.syncPetitionerNameFromLitigants();
       this.step = 4;
       this.setCaseDetailsReviewState(this.step === 6);
       window.scrollTo({
@@ -767,6 +751,29 @@ export class NewFiling {
     window.scrollTo({
       top: 0,
       behavior: "smooth",
+    });
+  }
+
+  private syncPetitionerNameFromLitigants() {
+    const filingId = Number(this.filingId || 0);
+    if (!filingId) return;
+
+    const petitioners = getOrderedPartyNames(this.litigantList, true);
+    const respondents = getOrderedPartyNames(this.litigantList, false);
+    const fallback = String(this.initialInputsForm?.get("petitioner_name")?.value || "").trim();
+    const petitionerLine = formatPartyLine(petitioners, fallback);
+    const respondentLine = formatPartyLine(respondents, "");
+    const nextName = petitionerLine && respondentLine
+      ? `${petitionerLine} vs. ${respondentLine}`
+      : petitionerLine || respondentLine || fallback;
+
+    if (!nextName) return;
+    this.initialInputsForm.patchValue({ petitioner_name: nextName }, { emitEvent: false });
+    this.filingData = { ...(this.filingData || {}), petitioner_name: nextName };
+    this.eFilingService.update_filing_petitioner_name(filingId, nextName).subscribe({
+      error: () => {
+        this.toastr.warning("Could not sync petitioner/respondent title to filing.");
+      },
     });
   }
 
@@ -1410,35 +1417,36 @@ export class NewFiling {
   }
 
   async handleDocUpload(data: any) {
-    if (this.isUploadingDocuments) return;
-    const documentType = String(data?.document_type || "").trim();
-    const uploadItems = Array.isArray(data?.items) ? data.items : [];
-
-    if (!documentType || uploadItems.length === 0 || !this.filingId) return;
-
-    // Validate PDF size (≤ 25 MB) and OCR before upload
-    const files = uploadItems.map((i: any) => i.file).filter(Boolean);
-    const { valid, errors } = validatePdfFiles(files);
-    if (errors.length > 0) {
-      this.toastr.error(errors.join(" "));
-      return;
-    }
-    if (valid.length !== files.length) {
-      this.toastr.error(
-        "Some files could not be validated. Please ensure all files are PDFs under 25 MB.",
-      );
-      return;
-    }
-    const ocrError = await validatePdfOcrForFiles(valid);
-    if (ocrError) {
-      this.toastr.error(ocrError);
-      return;
-    }
-
-    this.isUploadingDocuments = true;
-    this.uploadFileProgresses = uploadItems.map(() => 0);
-
+    if (this.isUploadingDocuments || this.isUploadRequestInFlight) return;
+    this.isUploadRequestInFlight = true;
     try {
+      const documentType = String(data?.document_type || "").trim();
+      const uploadItems = Array.isArray(data?.items) ? data.items : [];
+
+      if (!documentType || uploadItems.length === 0 || !this.filingId) return;
+
+      // Validate PDF size (≤ 25 MB) and OCR before upload
+      const files = uploadItems.map((i: any) => i.file).filter(Boolean);
+      const { valid, errors } = validatePdfFiles(files);
+      if (errors.length > 0) {
+        this.toastr.error(errors.join(" "));
+        return;
+      }
+      if (valid.length !== files.length) {
+        this.toastr.error(
+          "Some files could not be validated. Please ensure all files are PDFs under 25 MB.",
+        );
+        return;
+      }
+      const ocrError = await validatePdfOcrForFiles(valid);
+      if (ocrError) {
+        this.toastr.error(ocrError);
+        return;
+      }
+
+      this.isUploadingDocuments = true;
+      this.uploadFileProgresses = uploadItems.map(() => 0);
+
       let documentRes = this.findExistingDocumentByType(documentType);
       let documentId = documentRes?.id;
 
@@ -1514,6 +1522,7 @@ export class NewFiling {
       this.toastr.error(friendlyMsg);
     } finally {
       this.isUploadingDocuments = false;
+      this.isUploadRequestInFlight = false;
     }
   }
 

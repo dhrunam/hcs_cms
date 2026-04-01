@@ -24,7 +24,7 @@ export const appConfig: ApplicationConfig = {
     provideToastr({
       positionClass: 'toast-top-right',
       closeButton: true,
-      timeOut: 0,
+      timeOut: 5000,
     }),
   ],
 };

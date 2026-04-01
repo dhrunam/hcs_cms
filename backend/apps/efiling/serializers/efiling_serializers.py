@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from apps.core.models import CaseTypeT, Efiling
+from apps.efiling.party_display import build_petitioner_vs_respondent
 
 
 class EfilingCaseTypeSerializer(serializers.ModelSerializer):
@@ -15,6 +16,7 @@ class EfilingSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
+    petitioner_vs_respondent = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Efiling
@@ -34,6 +36,7 @@ class EfilingSerializer(serializers.ModelSerializer):
             'updated_at',
             'created_by',
             'updated_by',
+            'petitioner_vs_respondent',
         ]
         read_only_fields = [
             'id',
@@ -43,7 +46,17 @@ class EfilingSerializer(serializers.ModelSerializer):
             'accepted_at',
             'created_at',
             'updated_at',
+            'petitioner_vs_respondent',
         ]
+
+    def get_petitioner_vs_respondent(self, obj):
+        preferred = str(getattr(obj, "petitioner_name", None) or "").strip()
+        if preferred:
+            return preferred
+        return build_petitioner_vs_respondent(
+            obj,
+            fallback_petitioner_name=getattr(obj, "petitioner_name", None) or "",
+        )
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
