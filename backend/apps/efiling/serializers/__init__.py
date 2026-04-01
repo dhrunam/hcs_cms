@@ -5,4 +5,6 @@ from .efiling_litigant_serializers import EfilingLitigantSerializer
 from .efiling_serializers import EfilingSerializer
 from .ia_acts_serializers import IAActsSerializer
 from .ia_serializers import IASerializer
+from .judge_serializers import JudgeTSerializer
+from .bench_serializers import BenchTSerializer
 
