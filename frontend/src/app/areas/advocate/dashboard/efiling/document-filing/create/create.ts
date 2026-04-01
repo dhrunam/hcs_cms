@@ -61,6 +61,7 @@ export class Create implements OnInit {
   readonly documentTypeOptions: string[] = [
     'Counter Affidavit',
     'Rejoinders',
+    'Sur-Rejoinder',
     'Additional Affidavits',
     'Compliance Report/affidavit',
     'Reply to Additional Affidavit',

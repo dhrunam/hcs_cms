@@ -44,10 +44,12 @@ class PaymentInitiateView(APIView):
 
         PaymentTransaction.objects.create(
             payment_type=payment_type,
+            payment_mode="online",
             application=str(application),
             reference_no=reference_no,
             status=payment_status.get("initiated", "initiated"),
             amount=str(amount),
+            court_fees=str(amount),
             message="Initiated",
             callback_method="INIT",
             callback_payload={
@@ -133,14 +135,90 @@ class PaymentLatestTransactionView(APIView):
         return Response(
             {
                 "application": tx.application,
+                "payment_mode": tx.payment_mode,
                 "txn_id": tx.txn_id,
                 "reference_no": tx.reference_no,
                 "amount": tx.amount,
+                "court_fees": tx.court_fees,
+                "payment_date": (
+                    tx.payment_date.isoformat() if getattr(tx, "payment_date", None) else None
+                ),
+                "bank_receipt": (
+                    request.build_absolute_uri(tx.bank_receipt.url)
+                    if getattr(tx, "bank_receipt", None)
+                    else None
+                ),
                 "status": tx.status,
                 "message": tx.message,
                 "payment_datetime": tx.updated_at.isoformat() if tx.updated_at else None,
                 "paid_at": tx.updated_at.isoformat() if tx.updated_at else None,
             }
+        )
+
+
+class PaymentOfflineSubmissionView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        application = str(request.data.get("application") or "").strip()
+        txn_id = str(request.data.get("txn_id") or "").strip()
+        court_fees = str(request.data.get("court_fees") or "").strip()
+        payment_date = str(request.data.get("payment_date") or "").strip()
+        bank_receipt = request.FILES.get("bank_receipt")
+        payment_type = str(request.data.get("payment_type") or "Court Fees").strip()
+
+        if not application:
+            return Response({"detail": "application is required."}, status=400)
+        if not txn_id:
+            return Response({"detail": "transaction id is required."}, status=400)
+        if not court_fees:
+            return Response({"detail": "court_fees is required."}, status=400)
+        if not bank_receipt:
+            return Response({"detail": "bank_receipt is required."}, status=400)
+        if not payment_date:
+            return Response({"detail": "payment_date is required."}, status=400)
+
+        parsed_payment_date = None
+        try:
+            parsed_payment_date = datetime.date.fromisoformat(payment_date)
+        except Exception:
+            return Response(
+                {"detail": "payment_date must be in YYYY-MM-DD format."},
+                status=400,
+            )
+
+        tx = PaymentTransaction.objects.create(
+            payment_type=payment_type,
+            payment_mode="offline",
+            application=application,
+            txn_id=txn_id,
+            amount=court_fees,
+            court_fees=court_fees,
+            payment_date=parsed_payment_date,
+            status="offline_submitted",
+            message="Offline payment proof uploaded.",
+            callback_method="OFFLINE",
+            callback_payload={"application": application},
+            bank_receipt=bank_receipt,
+        )
+        return Response(
+            {
+                "id": tx.id,
+                "application": tx.application,
+                "payment_mode": tx.payment_mode,
+                "txn_id": tx.txn_id,
+                "court_fees": tx.court_fees,
+                "payment_date": (
+                    tx.payment_date.isoformat() if tx.payment_date else None
+                ),
+                "status": tx.status,
+                "bank_receipt": (
+                    request.build_absolute_uri(tx.bank_receipt.url)
+                    if tx.bank_receipt
+                    else None
+                ),
+            },
+            status=201,
         )
 
 
