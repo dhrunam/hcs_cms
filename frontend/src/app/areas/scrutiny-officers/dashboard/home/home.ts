@@ -30,6 +30,7 @@ interface EfilingItem {
 export class ScrutinyOfficerHome {
   filedCases: EfilingItem[] = [];
   newIncomingFilingIds = new Set<number>();
+  urgentFilingIds = new Set<number>();
   isLoading = false;
 
   constructor(private eFilingService: EfilingService) {}
@@ -129,12 +130,54 @@ export class ScrutinyOfficerHome {
             .map((item: any) => item?.e_filing_id)
             .filter((id: number | null | undefined) => typeof id === 'number'),
         );
-        this.isLoading = false;
+        this.markUrgentCasesFromMemoOfAppeal();
       },
       error: (error) => {
         console.error('Failed to load filed cases', error);
         this.filedCases = [];
         this.newIncomingFilingIds = new Set<number>();
+        this.urgentFilingIds = new Set<number>();
+        this.isLoading = false;
+      },
+    });
+  }
+
+  private markUrgentCasesFromMemoOfAppeal(): void {
+    const filings = Array.isArray(this.filedCases) ? this.filedCases : [];
+    const requests = filings
+      .filter((filing) => Number.isFinite(Number(filing?.id)))
+      .map((filing) =>
+        this.eFilingService.get_document_reviews_by_filing_id(Number(filing.id), false).pipe(
+          catchError(() => of([])),
+        ),
+      );
+
+    if (requests.length === 0) {
+      this.urgentFilingIds = new Set<number>();
+      this.isLoading = false;
+      return;
+    }
+
+    forkJoin(requests).subscribe({
+      next: (responses) => {
+        const urgentIds = new Set<number>();
+        filings.forEach((filing, index) => {
+          const payload = responses[index];
+          const items = this.extractItems(payload);
+          const hasMemo = items.some((item: any) => {
+            const typeName = String(item?.document_type || '').trim().toLowerCase();
+            const partName = String(item?.document_part_name || '').trim().toLowerCase();
+            return typeName === 'memo of appeal' || partName.includes('memo of appeal');
+          });
+          if (hasMemo) {
+            urgentIds.add(Number(filing.id));
+          }
+        });
+        this.urgentFilingIds = urgentIds;
+        this.isLoading = false;
+      },
+      error: () => {
+        this.urgentFilingIds = new Set<number>();
         this.isLoading = false;
       },
     });
@@ -151,7 +194,13 @@ export class ScrutinyOfficerHome {
   }
 
   hasNewForScrutiny(filingId: number | null | undefined): boolean {
-    return typeof filingId === 'number' && this.newIncomingFilingIds.has(filingId);
+    const id = Number(filingId);
+    return Number.isFinite(id) && this.newIncomingFilingIds.has(id);
+  }
+
+  isUrgent(filingId: number | null | undefined): boolean {
+    const id = Number(filingId);
+    return Number.isFinite(id) && this.urgentFilingIds.has(id);
   }
 
   getStatusLabel(status: string | null): string {

@@ -188,6 +188,8 @@
                 [mandatoryIndexNames]="mandatoryIndexesForCurrentCase"
                 [enableAnnexureSequence]="isWPCCaseType"
                 [structuredIndexUpload]="isWPCCaseType"
+                [enableMemoOfAppeal]="true"
+                [memoAlreadyUploaded]="memoOfAppealUploaded"
                 (submitDoc)="handleDocUpload($event)"
               ></app-upload-documents>
             </div>
@@ -245,6 +247,41 @@
             </div>
 
             <div
+              class="mb-3"
+              *ngIf="requiresCourtFeePayment && paymentOutcome !== 'success'"
+            >
+              <label class="form-label d-block">Payment mode</label>
+              <div class="d-flex gap-3">
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="radio"
+                    name="draftPaymentMode"
+                    id="draftPaymentModeOnline"
+                    [checked]="paymentMode === 'online'"
+                    (change)="onPaymentModeChange('online')"
+                  />
+                  <label class="form-check-label" for="draftPaymentModeOnline"
+                    >Online</label
+                  >
+                </div>
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="radio"
+                    name="draftPaymentMode"
+                    id="draftPaymentModeOffline"
+                    [checked]="paymentMode === 'offline'"
+                    (change)="onPaymentModeChange('offline')"
+                  />
+                  <label class="form-check-label" for="draftPaymentModeOffline"
+                    >Offline</label
+                  >
+                </div>
+              </div>
+            </div>
+
+            <div
               class="alert alert-success py-2 mb-3"
               *ngIf="requiresCourtFeePayment && paymentOutcome === 'success'"
             >
@@ -266,12 +303,22 @@
                     </div>
                   </div>
                   <div class="col-md-6">
-                    <div class="text-muted small">Payment date/time</div>
+                    <div class="text-muted small">
+                      {{
+                        paymentDetails?.paymentMode === "offline"
+                          ? "Date of payment"
+                          : "Payment date/time"
+                      }}
+                    </div>
                     <div class="fw-semibold">
                       {{
-                        paymentDetails?.paidAt
-                          ? (paymentDetails?.paidAt | date : "medium")
-                          : "-"
+                        paymentDetails?.paymentMode === "offline"
+                          ? paymentDetails?.paymentDate
+                            ? (paymentDetails?.paymentDate | date : "mediumDate")
+                            : "-"
+                          : paymentDetails?.paidAt
+                            ? (paymentDetails?.paidAt | date : "medium")
+                            : "-"
                       }}
                     </div>
                   </div>
@@ -285,6 +332,26 @@
                     <div class="text-muted small">Amount</div>
                     <div class="fw-semibold">
                       ₹{{ paymentFeeRupees }}/-
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="text-muted small">Payment mode</div>
+                    <div class="fw-semibold text-capitalize">
+                      {{ paymentDetails?.paymentMode || paymentMode }}
+                    </div>
+                  </div>
+                  <div class="col-md-6" *ngIf="paymentDetails?.paymentDate">
+                    <div class="text-muted small">Date of payment</div>
+                    <div class="fw-semibold">
+                      {{ paymentDetails?.paymentDate | date : "mediumDate" }}
+                    </div>
+                  </div>
+                  <div class="col-md-6" *ngIf="paymentDetails?.bankReceipt">
+                    <div class="text-muted small">Bank receipt</div>
+                    <div class="fw-semibold">
+                      <a [href]="paymentDetails?.bankReceipt" target="_blank"
+                        >View receipt</a
+                      >
                     </div>
                   </div>
                 </div>
@@ -307,17 +374,113 @@
 
             <div
               class="d-flex flex-wrap gap-2 align-items-center"
-              *ngIf="requiresCourtFeePayment"
+              *ngIf="
+                requiresCourtFeePayment &&
+                paymentMode === 'online' &&
+                paymentOutcome !== 'success'
+              "
             >
               <button
                 type="button"
                 class="btn btn-primary"
                 (click)="confirmProceedToPay()"
-                [disabled]="!filingId || !eFilingNumber || paymentOutcome === 'success'"
+                [disabled]="!filingId || !eFilingNumber"
               >
                 <i class="fa-solid fa-arrow-up-right-from-square me-2"></i>
                 Proceed to pay fees
               </button>
+            </div>
+
+            <div
+              class="card border bg-light mb-3"
+              *ngIf="
+                requiresCourtFeePayment &&
+                paymentMode === 'offline' &&
+                paymentOutcome !== 'success'
+              "
+            >
+              <div class="card-body py-3">
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <label class="form-label mb-1">Transaction ID</label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      [(ngModel)]="offlineTransactionId"
+                      [ngModelOptions]="{ standalone: true }"
+                      placeholder="Enter transaction id"
+                    />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label mb-1">Court Fees</label>
+                    <input
+                      type="number"
+                      class="form-control"
+                      [(ngModel)]="offlineCourtFees"
+                      [ngModelOptions]="{ standalone: true }"
+                      placeholder="Enter court fees"
+                    />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label mb-1">Date of Payment</label>
+                    <input
+                      type="date"
+                      class="form-control"
+                      [(ngModel)]="offlinePaymentDate"
+                      [ngModelOptions]="{ standalone: true }"
+                    />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label mb-1">Upload Bank Receipt</label>
+                    <input
+                      type="file"
+                      class="form-control"
+                      accept="application/pdf"
+                      (change)="onOfflineReceiptChange($event)"
+                    />
+                    <div
+                      class="small text-muted mt-1"
+                      *ngIf="offlineBankReceiptName"
+                    >
+                      {{ offlineBankReceiptName }}
+                    </div>
+                  </div>
+                  <div class="col-12 d-flex flex-wrap gap-2 align-items-center">
+                    <button
+                      type="button"
+                      class="btn btn-primary"
+                      [disabled]="
+                        isSubmittingOfflinePayment ||
+                        !offlineTransactionId ||
+                        !offlineCourtFees ||
+                        !offlinePaymentDate ||
+                        !offlineBankReceipt
+                      "
+                      (click)="submitOfflinePayment()"
+                    >
+                      <span
+                        *ngIf="isSubmittingOfflinePayment"
+                        class="spinner-border spinner-border-sm me-2"
+                        role="status"
+                        aria-hidden="true"
+                      ></span>
+                      {{
+                        isSubmittingOfflinePayment
+                          ? "Uploading..."
+                          : "Submit Offline Payment"
+                      }}
+                    </button>
+                    <a
+                      *ngIf="paymentDetails?.bankReceipt"
+                      class="btn btn-outline-primary"
+                      [href]="paymentDetails?.bankReceipt"
+                      target="_blank"
+                    >
+                      View BR
+                    </a>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div class="d-flex justify-content-between mt-4">

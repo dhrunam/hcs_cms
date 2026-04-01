@@ -26,6 +26,11 @@
   color: #4f46e5;
   font-family: ui-monospace, monospace;
 }
+
+.urgent-flag {
+  background: #dc2626;
+  color: #fff;
+}
 .card-header{
   background-color: #312e81;
 }

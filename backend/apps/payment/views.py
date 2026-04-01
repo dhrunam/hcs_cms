@@ -1,7 +1,11 @@
 import datetime
 import hashlib
+import os
 import time
+import uuid
 from urllib.parse import urlencode
+
+from django.core.files.storage import default_storage
 
 from django.conf import settings
 from django.http import HttpResponseRedirect
@@ -10,6 +14,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.payment.models import PaymentTransaction
+
+
+def generate_payment_reference_no():
+    two_digit_year = datetime.datetime.now().year % 100
+    month = datetime.datetime.now().month
+    milliseconds = int(time.time() * 1000)
+    return f"SHC{month:02d}{two_digit_year}{milliseconds}"
 
 
 class PaymentInitiateView(APIView):
@@ -39,7 +50,7 @@ class PaymentInitiateView(APIView):
         if application in (None, ""):
             return Response({"detail": "Application id is required."}, status=400)
 
-        reference_no = self._generate_reference_no()
+        reference_no = generate_payment_reference_no()
         encdata = self._create_encdata(reference_no, amount, payee_name, payment_type)
 
         PaymentTransaction.objects.create(
@@ -89,13 +100,6 @@ class PaymentInitiateView(APIView):
     def _create_encdata(self, ref_number, fee, payee_name, payment_type):
         checksum_dict = self._create_checksum(ref_number, fee, payee_name, payment_type)
         return f"{checksum_dict['base_string']}checkSum={checksum_dict['checkSum']}"
-
-    def _generate_reference_no(self):
-        two_digit_year = datetime.datetime.now().year % 100
-        month = datetime.datetime.now().month
-        milliseconds = int(time.time() * 1000)
-        return f"SHC{month:02d}{two_digit_year}{milliseconds}"
-
 
 class PaymentGatewayConfigView(APIView):
     """
@@ -164,6 +168,7 @@ class PaymentOfflineSubmissionView(APIView):
         txn_id = str(request.data.get("txn_id") or "").strip()
         court_fees = str(request.data.get("court_fees") or "").strip()
         payment_date = str(request.data.get("payment_date") or "").strip()
+        e_filing_number = str(request.data.get("e_filing_number") or "").strip()
         bank_receipt = request.FILES.get("bank_receipt")
         payment_type = str(request.data.get("payment_type") or "Court Fees").strip()
 
@@ -178,6 +183,10 @@ class PaymentOfflineSubmissionView(APIView):
         if not payment_date:
             return Response({"detail": "payment_date is required."}, status=400)
 
+        ext = os.path.splitext(str(getattr(bank_receipt, "name", "")))[1].lower()
+        if ext != ".pdf":
+            return Response({"detail": "bank_receipt must be a PDF file."}, status=400)
+
         parsed_payment_date = None
         try:
             parsed_payment_date = datetime.date.fromisoformat(payment_date)
@@ -187,25 +196,46 @@ class PaymentOfflineSubmissionView(APIView):
                 status=400,
             )
 
+        folder_key = e_filing_number or application
+        folder_key = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in folder_key)
+        folder_key = folder_key.strip("_") or "unknown"
+        receipt_name = f"{uuid.uuid4().hex}.pdf"
+        saved_path = default_storage.save(
+            f"payment/bank_receipts/{folder_key}/{receipt_name}",
+            bank_receipt,
+        )
+
+        payment_status = getattr(
+            settings,
+            "PG_PAYMENT_STATUS",
+            {"initiated": "initiated", "success": "success", "failed": "failed"},
+        )
+        paid_status = payment_status.get("success", "success")
+        reference_no = generate_payment_reference_no()
+
         tx = PaymentTransaction.objects.create(
             payment_type=payment_type,
             payment_mode="offline",
             application=application,
+            reference_no=reference_no,
             txn_id=txn_id,
             amount=court_fees,
             court_fees=court_fees,
             payment_date=parsed_payment_date,
-            status="offline_submitted",
-            message="Offline payment proof uploaded.",
+            status=paid_status,
+            message="Offline court fee payment recorded.",
             callback_method="OFFLINE",
-            callback_payload={"application": application},
-            bank_receipt=bank_receipt,
+            callback_payload={"application": application, "e_filing_number": e_filing_number},
         )
+        tx.bank_receipt.name = saved_path
+        tx.save(update_fields=["bank_receipt", "updated_at"])
+
         return Response(
             {
                 "id": tx.id,
                 "application": tx.application,
                 "payment_mode": tx.payment_mode,
+                "reference_no": tx.reference_no,
                 "txn_id": tx.txn_id,
                 "court_fees": tx.court_fees,
                 "payment_date": (

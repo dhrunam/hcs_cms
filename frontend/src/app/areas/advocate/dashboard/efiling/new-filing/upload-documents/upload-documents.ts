@@ -54,6 +54,9 @@ interface StructuredIndexRow {
   file: File | null;
 }
 
+const MEMO_OF_APPEAL_DOCUMENT_TYPE = "Memo of Appeal";
+const MEMO_OF_APPEAL_INDEX_NAME = "Memo of Appeal";
+
 @Component({
   selector: "app-upload-documents",
   standalone: true,
@@ -90,8 +93,13 @@ export class UploadDocuments implements OnInit, OnChanges {
   @Input() structuredIndexUpload = false;
   /** Use free-text input for index name instead of dropdown. */
   @Input() useTextIndexName = false;
+  /** Optional memo-of-appeal upload (separate document type); does not affect mandatory indexes. */
+  @Input() enableMemoOfAppeal = false;
+  /** When true, main filing already has a "Memo of Appeal" document — hide duplicate upload. */
+  @Input() memoAlreadyUploaded = false;
   stagedIndexName = "";
   stagedFile: File | null = null;
+  memoAppealFile: File | null = null;
 
   entries: DocumentUploadEntry[] = [];
   indexMasters: DocumentIndexMaster[] = [];
@@ -157,6 +165,7 @@ export class UploadDocuments implements OnInit, OnChanges {
       }
       this.entries = [];
       this.annexureCounter = 1;
+      this.memoAppealFile = null;
       this.initializeStructuredRows();
     }
     if (changes["mandatoryIndexNames"] || changes["structuredIndexUpload"]) {
@@ -608,6 +617,57 @@ export class UploadDocuments implements OnInit, OnChanges {
         (entry) => entry.index_name && entry.index_name.trim().length > 0,
       )
     );
+  }
+
+  onMemoAppealFileChange(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] || null;
+    if (!file) return;
+    const { valid, errors } = validatePdfFiles([file]);
+    if (errors.length > 0) {
+      this.toastr.error(errors.join(" "));
+      input.value = "";
+      return;
+    }
+    this.memoAppealFile = valid[0] || null;
+    input.value = "";
+  }
+
+  clearMemoAppealFile() {
+    this.memoAppealFile = null;
+  }
+
+  clearMemoAppealWithInput(input: HTMLInputElement | null) {
+    this.memoAppealFile = null;
+    if (input) input.value = "";
+  }
+
+  submitMemoAppeal() {
+    if (
+      !this.enableMemoOfAppeal ||
+      this.memoAlreadyUploaded ||
+      this.isUploading
+    ) {
+      return;
+    }
+    if (!this.memoAppealFile) {
+      this.toastr.warning("Select a PDF for the memo of appeal.");
+      return;
+    }
+    const idxName = MEMO_OF_APPEAL_INDEX_NAME;
+    const matched = this.indexMasters.find(
+      (item) => item.name.toLowerCase() === idxName.toLowerCase(),
+    );
+    this.submitDoc.emit({
+      document_type: MEMO_OF_APPEAL_DOCUMENT_TYPE,
+      items: [
+        {
+          file: this.memoAppealFile,
+          index_name: idxName,
+          index_id: matched ? matched.id : null,
+        },
+      ],
+    });
   }
 
   submit() {
