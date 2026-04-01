@@ -31,6 +31,12 @@
             <div class="small text-muted">Case Number</div>
             <div class="fw-semibold">{{ caseSummary.case_number || '-' }}</div>
           </div>
+          <div class="col-md-6">
+            <div class="small text-muted">Bench</div>
+            <div class="fw-semibold">
+              {{ caseSummary.bench_label || benchLabel(caseSummary.bench_key) }}
+            </div>
+          </div>
           <div
             class="col-md-6"
             *ngIf="(caseSummary.litigants?.length ?? 0) > 0;"

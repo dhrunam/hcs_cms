@@ -1,15 +1,14 @@
-import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
-import { catchError, of } from 'rxjs';
-import Swal from 'sweetalert2';
+import { CommonModule } from "@angular/common";
+import { Component } from "@angular/core";
+import { FormsModule } from "@angular/forms";
+import { Router } from "@angular/router";
+import { catchError, of } from "rxjs";
 
 import {
   BenchConfiguration,
   ReaderService,
   resolveBenchConfiguration,
-} from '../../../../services/reader/reader.service';
+} from "../../../../services/reader/reader.service";
 
 type RegisteredCase = {
   efiling_id: number;
@@ -24,30 +23,40 @@ type RegisteredCase = {
   dispute_state: string | null;
   dispute_district: string | null;
   dispute_taluka: string | null;
-  approval_status?: 'NOT_FORWARDED' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'REQUESTED_DOCS';
+  approval_status?:
+    | "NOT_FORWARDED"
+    | "PENDING"
+    | "APPROVED"
+    | "REJECTED"
+    | "REQUESTED_DOCS";
   approval_notes?: string[];
   approval_bench_key?: string | null;
   approval_forwarded_for_date?: string | null;
   approval_listing_date?: string | null;
   listing_summary?: string | null;
-  requested_documents?: { document_index_id: number; document_part_name: string | null; document_type: string | null }[];
+  requested_documents?: {
+    document_index_id: number;
+    document_part_name: string | null;
+    document_type: string | null;
+  }[];
 };
 
 @Component({
-  selector: 'app-registered-cases',
+  selector: "app-registered-cases",
   imports: [CommonModule, FormsModule],
-  templateUrl: './registered-cases.html',
-  styleUrl: './registered-cases.css',
+  templateUrl: "./registered-cases.html",
+  styleUrl: "./registered-cases.css",
 })
 export class RegisteredCasesPage {
   isLoading = false;
-
   cases: RegisteredCase[] = [];
   benchConfigurations: BenchConfiguration[] = [];
+  loadError = "";
 
-  loadError = '';
-
-  constructor(private readerService: ReaderService, private router: Router) {}
+  constructor(
+    private readerService: ReaderService,
+    private router: Router,
+  ) {}
 
   ngOnInit(): void {
     this.loadBenchConfigurations();
@@ -67,16 +76,16 @@ export class RegisteredCasesPage {
   }
 
   private loadRegisteredCases(): void {
-    this.loadError = '';
+    this.loadError = "";
     this.isLoading = true;
 
     this.readerService
       .getRegisteredCases({ page_size: 200 })
       .pipe(
         catchError((err) => {
-          console.warn('Failed to load registered cases', err);
+          console.warn("Failed to load registered cases", err);
           this.isLoading = false;
-          this.loadError = 'Failed to load registered cases.';
+          this.loadError = "Failed to load registered cases.";
           return of({ items: [] });
         }),
       )
@@ -84,10 +93,6 @@ export class RegisteredCasesPage {
         this.cases = (resp?.items ?? []).map((c: any) => ({ ...c }));
         this.isLoading = false;
       });
-  }
-
-  private hasBench(c: RegisteredCase): boolean {
-    return !this.isUnassignedBench(c.bench);
   }
 
   benchLabel(key: string | null | undefined): string {
@@ -102,55 +107,53 @@ export class RegisteredCasesPage {
   }
 
   approvalStatusLabel(c: RegisteredCase): string {
-    if (c.approval_listing_date) return 'Forwarded for Listing';
+    if (c.approval_listing_date) return "Forwarded for Listing";
     switch (c.approval_status) {
-      case 'APPROVED':
-        return 'Judge Approved';
-      case 'REJECTED':
-        return 'Judge Rejected';
-      case 'REQUESTED_DOCS':
-        return 'Docs Requested';
-      case 'PENDING':
-        return 'Waiting for Judge';
+      case "APPROVED":
+        return "Judge Approved";
+      case "REJECTED":
+        return "Judge Rejected";
+      case "REQUESTED_DOCS":
+        return "Docs Requested";
+      case "PENDING":
+        return "Waiting for Judge";
       default:
-        return 'Pending Forward';
+        return "Pending Forward";
     }
   }
 
   approvalIcon(c: RegisteredCase): string {
-    if (c.approval_listing_date) return 'fa-check-double';
+    if (c.approval_listing_date) return "fa-check-double";
     switch (c.approval_status) {
-      case 'APPROVED':
-        return 'fa-check';
-      case 'REJECTED':
-        return 'fa-xmark';
-      case 'REQUESTED_DOCS':
-        return 'fa-file-circle-question';
-      case 'PENDING':
-        return 'fa-clock';
+      case "APPROVED":
+        return "fa-check";
+      case "REJECTED":
+        return "fa-xmark";
+      case "REQUESTED_DOCS":
+        return "fa-file-circle-question";
+      case "PENDING":
+        return "fa-clock";
       default:
-        return 'fa-paper-plane';
+        return "fa-paper-plane";
     }
   }
 
   approvalBadgeClass(c: RegisteredCase): string {
     switch (c.approval_status) {
-      case 'APPROVED':
-        return 'text-bg-success';
-      case 'REJECTED':
-        return 'text-bg-danger';
-      case 'REQUESTED_DOCS':
-        return 'text-bg-warning';
-      case 'PENDING':
-        return 'text-bg-warning';
+      case "APPROVED":
+        return "text-bg-success";
+      case "REJECTED":
+        return "text-bg-danger";
+      case "REQUESTED_DOCS":
+        return "text-bg-warning";
+      case "PENDING":
+        return "text-bg-warning";
       default:
-        return 'text-bg-secondary';
+        return "text-bg-primary";
     }
   }
 
-
   openCase(efilingId: number): void {
-    this.router.navigate(['/reader/dashboard/case', efilingId]);
+    this.router.navigate(["/reader/dashboard/case", efilingId]);
   }
 }
-
