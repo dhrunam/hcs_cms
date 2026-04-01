@@ -20,7 +20,19 @@
   border-radius: 10px;
   background: #ffffff;
 }
-
+.litigant-vs-badge {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #0f172a;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+}
 .filing-summary-label {
   display: block;
   font-size: 12px;
@@ -38,7 +50,7 @@
 .docs-list-panel {
   max-height: 460px;
   overflow: auto;
-  background: #fcfcfd;
+  background: #ffffff;
 }
 
 .doc-preview-item {
@@ -51,7 +63,10 @@
   display: flex;
   gap: 8px;
   justify-content: space-between;
-  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
   width: 100%;
 }
 
@@ -77,6 +92,7 @@
 
 .preview-panel {
   min-height: 460px;
+  /* height: 100vh; */
   background: #f8fafc;
 }
 
@@ -86,4 +102,3 @@
   border: 0;
   border-radius: 8px;
 }
-
