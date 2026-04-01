@@ -7,4 +7,5 @@ from .ia_acts_views import IAActsListCreateView, IAActsRetrieveUpdateDestroyView
 from .ia_views import IAListCreateView, IARetrieveUpdateDestroyView
 from .judge_views import JudgeTListCreateView, JudgeTRetrieveUpdateDestroyView
 from .bench_views import BenchTListCreateView, BenchTRetrieveUpdateDestroyView
+from .bench_distinct_views import BenchDistinctListView
 
