@@ -58,14 +58,9 @@ li::marker {
 
 /* Prevent submenu items under Filing from changing colors/background on hover */
 #filingSubmenu .nav-item:hover {
-  background: transparent;
-  color: inherit;
+  /* background: transparent; */
+  color: white;
   transform: none;
-}
-
-#filingSubmenu .nav-link:hover {
-  color: inherit;
-  background-color: transparent;
 }
 
 /* Smooth expand / collapse for Filing submenu */

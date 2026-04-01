@@ -33,6 +33,7 @@
             <tr class="text-secondary small fw-normal">
               <th>#</th>
               <th>E-Filing Number</th>
+              <th>Petitioner vs. Respondent</th>
               <th>Document Count</th>
               <th>Action</th>
             </tr>
@@ -41,6 +42,9 @@
             <tr *ngFor="let group of groupedByEfiling; let i = index; trackBy: trackByEfilingId">
               <td>{{ i + 1 }}</td>
               <td class="fw-medium text-dark">{{ group.efilingNumber }}</td>
+              <td class="text-dark small" style="max-width: 280px">
+                {{ group.petitionerVsRespondent || "—" }}
+              </td>
               <td>{{ group.docs.length }}</td>
               <td>
                 <a

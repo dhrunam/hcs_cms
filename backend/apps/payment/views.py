@@ -30,7 +30,7 @@ class PaymentInitiateView(APIView):
         amount = request.data.get("amount")
         application = request.data.get("application")
         e_filing_number = request.data.get("e_filing_number", "")
-        payment_type = str(request.data.get("payment_type", "application"))
+        payment_type = str(request.data.get("payment_type", "Court Fees"))
         source = str(request.data.get("source", "new_filing"))
         payee_name = str(request.data.get("payee_name", "Advocate"))
 

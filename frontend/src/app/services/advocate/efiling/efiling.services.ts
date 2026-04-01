@@ -76,6 +76,12 @@ export class EfilingService {
     );
   }
 
+  update_filing_petitioner_name(id: number, petitionerName: string): Observable<any> {
+    const fd = new FormData();
+    fd.append("petitioner_name", petitionerName);
+    return this.http.patch<any>(`${app_url}/api/v1/efiling/efilings/${id}/`, fd);
+  }
+
   add_case_details_act(fd: FormData) {
     return this.http.post<any>(`${app_url}/api/v1/efiling/efiling-acts/`, fd);
   }

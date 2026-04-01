@@ -18,6 +18,7 @@ from apps.core.bench_config import (
     get_required_judge_groups,
 )
 from apps.core.models import Efiling, EfilingCaseDetails, EfilingDocumentsIndex, EfilingLitigant
+from apps.efiling.party_display import build_petitioner_vs_respondent
 from apps.efiling.serializers.efiling_document_index import EfilingDocumentsIndexSerializer
 
 from .models import (
@@ -139,12 +140,18 @@ class CourtroomPendingCasesView(APIView):
             forwards = (
                 CourtroomForward.objects.filter(forwarded_for_date=forwarded_date)
                 .select_related("efiling")
+                .prefetch_related("efiling__litigants")
                 .order_by("-id")
             )
         else:
             # Fallback for UI: if no date is provided, show latest forwards first.
             forwarded_date = None
-            forwards = CourtroomForward.objects.all().select_related("efiling").order_by("-forwarded_for_date", "-id")
+            forwards = (
+                CourtroomForward.objects.all()
+                .select_related("efiling")
+                .prefetch_related("efiling__litigants")
+                .order_by("-forwarded_for_date", "-id")
+            )
         user_groups = _user_judge_groups(user)
         pending_for_listing: List[dict] = []
         pending_for_causelist: List[dict] = []
@@ -171,10 +178,16 @@ class CourtroomPendingCasesView(APIView):
                 )
                 item = {
                     "efiling_id": f.efiling_id,
+                    "e_filing_number": getattr(f.efiling, "e_filing_number", None),
                     "case_number": f.efiling.case_number,
                     "bench_key": display_bench_key,
                     "bench_label": display_bench_label,
                     "forward_bench_key": f.bench_key,
+                    "petitioner_name": getattr(f.efiling, "petitioner_name", None),
+                    "petitioner_vs_respondent": (getattr(f.efiling, "petitioner_name", None) or "").strip() or build_petitioner_vs_respondent(
+                        f.efiling,
+                        fallback_petitioner_name=getattr(f.efiling, "petitioner_name", None) or "",
+                    ),
                     "listing_summary": f.listing_summary,
                     "selected_document_count": f.selected_documents.count(),
                     "requested_document_count": 0,
@@ -329,7 +342,11 @@ class CourtroomCaseSummaryView(APIView):
         if not forward:
             raise ValidationError({"detail": "Case not forwarded for this judge/date."})
 
-        filing = Efiling.objects.filter(id=efiling_id).first()
+        filing = (
+            Efiling.objects.filter(id=efiling_id)
+            .prefetch_related("litigants")
+            .first()
+        )
         if not filing:
             raise ValidationError({"detail": "Case not found."})
         display_bench_key, display_bench_label = _get_display_bench_for_efiling(
@@ -374,6 +391,9 @@ class CourtroomCaseSummaryView(APIView):
                 "case_number": filing.case_number,
                 "e_filing_number": filing.e_filing_number,
                 "petitioner_name": filing.petitioner_name,
+                "petitioner_vs_respondent": (filing.petitioner_name or "").strip() or build_petitioner_vs_respondent(
+                    filing, fallback_petitioner_name=filing.petitioner_name or ""
+                ),
                 "petitioner_contact": filing.petitioner_contact,
                 "bench_key": display_bench_key,
                 "bench_label": display_bench_label,
@@ -611,14 +631,21 @@ class CourtroomDecisionCalendarView(APIView):
         rows = (
             CourtroomJudgeDecision.objects.filter(judge_user=user)
             .select_related("efiling")
+            .prefetch_related("efiling__litigants")
             .order_by("-listing_date", "-forwarded_for_date", "-id")
         )
         items = []
         for row in rows:
+            ef = row.efiling
             items.append(
                 {
                     "efiling_id": row.efiling_id,
+                    "e_filing_number": getattr(ef, "e_filing_number", None),
                     "case_number": row.efiling.case_number,
+                    "petitioner_name": getattr(ef, "petitioner_name", None),
+                    "petitioner_vs_respondent": (getattr(ef, "petitioner_name", None) or "").strip() or build_petitioner_vs_respondent(
+                        ef, fallback_petitioner_name=getattr(ef, "petitioner_name", None) or ""
+                    ),
                     "status": row.status,
                     "approved": row.approved,
                     "listing_date": row.listing_date.isoformat()

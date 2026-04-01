@@ -1,5 +1,7 @@
 from django.urls import path
 
+from apps.reader.views import AssignBenchesView, RegisteredCasesListView
+
 from apps.listing.views import (
     CauseListDraftPreviewView,
     CauseListDraftPdfPreviewView,
@@ -16,6 +18,8 @@ from apps.listing.views import (
 app_name = "listing"
 
 urlpatterns = [
+    path("registered-cases/", RegisteredCasesListView.as_view(), name="registered-cases"),
+    path("registered-cases/assign-bench/", AssignBenchesView.as_view(), name="registered-cases-assign-bench"),
 
     path(
         "cause-lists/draft/preview/",
