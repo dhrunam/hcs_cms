@@ -41,7 +41,7 @@ li::marker {
 }
 
 .nav-item:hover {
-  background: #494949;
+  background: #3a598b;
   transform: none;
 }
 
@@ -53,20 +53,27 @@ li::marker {
 }
 
 .nav-item.nav-item-has-submenu > .nav-link:hover {
-  color: inherit; 
+  color: inherit;
 }
 
 /* Prevent submenu items under Filing from changing colors/background on hover */
 #filingSubmenu .nav-item:hover {
-  /* background: transparent; */
-  color: white;
+  background: transparent;
+  color: inherit;
   transform: none;
+}
+
+#filingSubmenu .nav-link:hover {
+  color: inherit;
+  background-color: transparent;
 }
 
 /* Smooth expand / collapse for Filing submenu */
 #filingSubmenu.collapse,
 #filingSubmenu.collapsing {
-  transition: height 0.25s ease, opacity 0.25s ease;
+  transition:
+    height 0.25s ease,
+    opacity 0.25s ease;
   overflow: hidden;
 }
 
@@ -79,7 +86,7 @@ li::marker {
 }
 
 .nav-item.active {
-  background: #1e293b;
+  background: #052c65;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 

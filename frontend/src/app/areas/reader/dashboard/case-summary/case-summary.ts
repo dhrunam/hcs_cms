@@ -1,15 +1,21 @@
-import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
-import { ActivatedRoute, RouterLink, Router } from '@angular/router';
-import { forkJoin } from 'rxjs';
-import { FormsModule } from '@angular/forms';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import Swal from 'sweetalert2';
+import { CommonModule } from "@angular/common";
+import { Component } from "@angular/core";
+import { ActivatedRoute, RouterLink, Router } from "@angular/router";
+import { forkJoin } from "rxjs";
+import { FormsModule } from "@angular/forms";
+import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
+import Swal from "sweetalert2";
 
-import { EfilingService } from '../../../../services/advocate/efiling/efiling.services';
-import { ReaderService } from '../../../../services/reader/reader.service';
-import { benchLabel, BENCH_LABELS, BenchKey, isUnassignedBench, judgesForBench } from '../../shared/bench-labels';
-import { formatPetitionerVsRespondent } from '../../../../utils/petitioner-vs-respondent';
+import { EfilingService } from "../../../../services/advocate/efiling/efiling.services";
+import { ReaderService } from "../../../../services/reader/reader.service";
+import {
+  benchLabel,
+  BENCH_LABELS,
+  BenchKey,
+  isUnassignedBench,
+  judgesForBench,
+} from "../../shared/bench-labels";
+import { formatPetitionerVsRespondent } from "../../../../utils/petitioner-vs-respondent";
 
 type Filing = any;
 type CaseDetails = any;
@@ -17,15 +23,15 @@ type Litigant = any;
 type FilingDoc = any;
 
 @Component({
-  selector: 'app-listing-case-summary',
+  selector: "app-listing-case-summary",
   imports: [CommonModule, RouterLink, FormsModule],
-  templateUrl: './case-summary.html',
-  styleUrl: './case-summary.css',
+  templateUrl: "./case-summary.html",
+  styleUrl: "./case-summary.css",
 })
 export class ReaderCaseSummaryPage {
   isLoading = false;
   isSaving = false;
-  loadError = '';
+  loadError = "";
 
   filingId: number | null = null;
 
@@ -37,12 +43,19 @@ export class ReaderCaseSummaryPage {
   selectedDocumentUrl: SafeResourceUrl | null = null;
   selectedDocumentBlobUrl: string | null = null;
   requestedDocumentIndexIds: number[] = [];
-  listingSummary = '';
+  listingSummary = "";
   isForwarding = false;
-  approvalStatus: 'NOT_FORWARDED' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'REQUESTED_DOCS' = 'NOT_FORWARDED';
+  approvalStatus:
+    | "NOT_FORWARDED"
+    | "PENDING"
+    | "APPROVED"
+    | "REJECTED"
+    | "REQUESTED_DOCS" = "NOT_FORWARDED";
   approvalNotes: string[] = [];
   approvalListingDate: string | null = null;
-  targetListingDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  targetListingDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
   approvalForwardedForDate: string | null = null;
 
   benchKeys: BenchKey[] = Object.keys(BENCH_LABELS) as BenchKey[];
@@ -58,10 +71,10 @@ export class ReaderCaseSummaryPage {
   ) {}
 
   ngOnInit(): void {
-    const id = Number(this.route.snapshot.paramMap.get('id'));
+    const id = Number(this.route.snapshot.paramMap.get("id"));
     this.filingId = Number.isFinite(id) ? id : null;
     if (!this.filingId) {
-      this.loadError = 'Missing filing id.';
+      this.loadError = "Missing filing id.";
       return;
     }
     this.load();
@@ -70,34 +83,71 @@ export class ReaderCaseSummaryPage {
   private load(): void {
     if (!this.filingId) return;
     this.isLoading = true;
-    this.loadError = '';
+    this.loadError = "";
 
     forkJoin({
       filing: this.efilingService.get_filing_by_id(this.filingId),
-      caseDetails: this.efilingService.get_case_details_by_filing_id(this.filingId),
-      litigants: this.efilingService.get_litigant_list_by_filing_id(this.filingId),
-      documents: this.efilingService.get_document_reviews_by_filing_id(this.filingId, false),
-      iaDocuments: this.efilingService.get_document_reviews_by_filing_id(this.filingId, true),
-      registeredCases: this.readerService.getRegisteredCases({ page_size: 500 }),
+      caseDetails: this.efilingService.get_case_details_by_filing_id(
+        this.filingId,
+      ),
+      litigants: this.efilingService.get_litigant_list_by_filing_id(
+        this.filingId,
+      ),
+      documents: this.efilingService.get_document_reviews_by_filing_id(
+        this.filingId,
+        false,
+      ),
+      iaDocuments: this.efilingService.get_document_reviews_by_filing_id(
+        this.filingId,
+        true,
+      ),
+      registeredCases: this.readerService.getRegisteredCases({
+        page_size: 500,
+      }),
     }).subscribe({
-      next: ({ filing, caseDetails, litigants, documents, iaDocuments, registeredCases }) => {
+      next: ({
+        filing,
+        caseDetails,
+        litigants,
+        documents,
+        iaDocuments,
+        registeredCases,
+      }) => {
         this.filing = filing;
         this.caseDetails = Array.isArray(caseDetails?.results)
-          ? caseDetails.results[0] ?? null
+          ? (caseDetails.results[0] ?? null)
           : Array.isArray(caseDetails)
-            ? caseDetails[0] ?? null
+            ? (caseDetails[0] ?? null)
             : null;
-        this.litigants = Array.isArray(litigants?.results) ? litigants.results : Array.isArray(litigants) ? litigants : [];
-        const mainDocs = Array.isArray(documents?.results) ? documents.results : Array.isArray(documents) ? documents : [];
-        const iaDocs = Array.isArray(iaDocuments?.results) ? iaDocuments.results : Array.isArray(iaDocuments) ? iaDocuments : [];
+        this.litigants = Array.isArray(litigants?.results)
+          ? litigants.results
+          : Array.isArray(litigants)
+            ? litigants
+            : [];
+        const mainDocs = Array.isArray(documents?.results)
+          ? documents.results
+          : Array.isArray(documents)
+            ? documents
+            : [];
+        const iaDocs = Array.isArray(iaDocuments?.results)
+          ? iaDocuments.results
+          : Array.isArray(iaDocuments)
+            ? iaDocuments
+            : [];
         this.documents = [...mainDocs, ...iaDocs];
         this.selectedDocument = this.documents[0] ?? null;
         this.updatePreviewUrl(this.selectedDocument ?? null);
-        const currentCase = (registeredCases?.items ?? []).find((x: any) => Number(x?.efiling_id) === Number(this.filingId));
-        this.approvalStatus = (currentCase?.approval_status ?? 'NOT_FORWARDED') as any;
-        this.approvalNotes = Array.isArray(currentCase?.approval_notes) ? currentCase.approval_notes : [];
+        const currentCase = (registeredCases?.items ?? []).find(
+          (x: any) => Number(x?.efiling_id) === Number(this.filingId),
+        );
+        this.approvalStatus = (currentCase?.approval_status ??
+          "NOT_FORWARDED") as any;
+        this.approvalNotes = Array.isArray(currentCase?.approval_notes)
+          ? currentCase.approval_notes
+          : [];
         this.approvalListingDate = currentCase?.approval_listing_date || null;
-        this.approvalForwardedForDate = currentCase?.approval_forwarded_for_date || null;
+        this.approvalForwardedForDate =
+          currentCase?.approval_forwarded_for_date || null;
         if (this.approvalListingDate) {
           this.targetListingDate = this.approvalListingDate;
         }
@@ -108,25 +158,34 @@ export class ReaderCaseSummaryPage {
               .filter((x: number) => Number.isFinite(x))
           : [];
         this.requestedDocumentIndexIds = requestedIds;
-        this.listingSummary = (currentCase?.listing_summary || '').trim();
+        this.listingSummary = (currentCase?.listing_summary || "").trim();
 
         const existingBench = (this.filing?.bench as string | null) ?? null;
-        this.selectedBench = (!isUnassignedBench(existingBench) && this.benchKeys.includes(existingBench as BenchKey)
-          ? (existingBench as BenchKey)
-          : this.benchKeys[0]) ?? null;
+        this.selectedBench =
+          (!isUnassignedBench(existingBench) &&
+          this.benchKeys.includes(existingBench as BenchKey)
+            ? (existingBench as BenchKey)
+            : this.benchKeys[0]) ?? null;
 
         this.isLoading = false;
       },
       error: (err) => {
-        console.warn('Failed to load case summary', err);
-        this.loadError = 'Failed to load case summary.';
+        console.warn("Failed to load case summary", err);
+        this.loadError = "Failed to load case summary.";
         this.isLoading = false;
       },
     });
   }
 
   documentName(d: any): string {
-    return d?.document_part_name || d?.description || d?.document_name || d?.name || d?.file_name || 'Document';
+    return (
+      d?.document_part_name ||
+      d?.description ||
+      d?.document_name ||
+      d?.name ||
+      d?.file_name ||
+      "Document"
+    );
   }
 
   documentUrl(d: any): string | null {
@@ -151,7 +210,9 @@ export class ReaderCaseSummaryPage {
       new Set(
         this.documents
           .map((document) => Number(document?.id))
-          .filter((documentId) => Number.isFinite(documentId) && documentId > 0),
+          .filter(
+            (documentId) => Number.isFinite(documentId) && documentId > 0,
+          ),
       ),
     );
   }
@@ -168,7 +229,8 @@ export class ReaderCaseSummaryPage {
       return;
     }
     if (fileUrl) {
-      this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+      this.selectedDocumentUrl =
+        this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
     }
     const stream$ = docId
       ? this.efilingService.fetch_document_blob_by_index(docId)
@@ -176,11 +238,15 @@ export class ReaderCaseSummaryPage {
     stream$.subscribe({
       next: (blob) => {
         this.selectedDocumentBlobUrl = URL.createObjectURL(blob);
-        this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(this.selectedDocumentBlobUrl);
+        this.selectedDocumentUrl =
+          this.sanitizer.bypassSecurityTrustResourceUrl(
+            this.selectedDocumentBlobUrl,
+          );
       },
       error: () => {
         if (fileUrl) {
-          this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+          this.selectedDocumentUrl =
+            this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
         } else {
           this.selectedDocumentUrl = null;
         }
@@ -190,48 +256,69 @@ export class ReaderCaseSummaryPage {
 
   forwardToJudge(): void {
     if (!this.filingId || !this.selectedBench) return;
-    const summary = (this.listingSummary || '').trim();
+    const summary = (this.listingSummary || "").trim();
     if (!summary) {
-      Swal.fire({ title: 'Summary Required', text: 'Please write case summary before forwarding.', icon: 'warning' });
+      Swal.fire({
+        title: "Summary Required",
+        text: "Please write case summary before forwarding.",
+        icon: "warning",
+      });
       return;
     }
     this.isForwarding = true;
     const today = new Date().toISOString().slice(0, 10);
     // Ensure bench is persisted first so case appears in generator.
-    this.readerService.assignBenches([{ efiling_id: this.filingId, bench_key: this.selectedBench }]).subscribe({
-      next: () => {
-        if (this.filing) this.filing.bench = this.selectedBench;
-        this.readerService.forwardToCourtroom({
-          forwarded_for_date: today,
-          bench_key: this.selectedBench!,
-          listing_summary: summary,
-          document_index_ids: this.forwardDocumentIndexIds.length ? this.forwardDocumentIndexIds : undefined,
-          efiling_ids: [this.filingId!],
-        }).subscribe({
-          next: () => {
-            this.isForwarding = false;
-            this.approvalStatus = 'PENDING';
-            Swal.fire({
-              title: 'Forwarded',
-              text: 'Bench saved and case forwarded to judge(s).',
-              icon: 'success',
-              timer: 1300,
-              showConfirmButton: false,
+    this.readerService
+      .assignBenches([
+        { efiling_id: this.filingId, bench_key: this.selectedBench },
+      ])
+      .subscribe({
+        next: () => {
+          if (this.filing) this.filing.bench = this.selectedBench;
+          this.readerService
+            .forwardToCourtroom({
+              forwarded_for_date: today,
+              bench_key: this.selectedBench!,
+              listing_summary: summary,
+              document_index_ids: this.forwardDocumentIndexIds.length
+                ? this.forwardDocumentIndexIds
+                : undefined,
+              efiling_ids: [this.filingId!],
+            })
+            .subscribe({
+              next: () => {
+                this.isForwarding = false;
+                this.approvalStatus = "PENDING";
+                Swal.fire({
+                  title: "Forwarded",
+                  text: "Bench saved and case forwarded to judge(s).",
+                  icon: "success",
+                  timer: 1300,
+                  showConfirmButton: false,
+                });
+              },
+              error: (err) => {
+                console.warn("forwardToJudge failed", err);
+                this.isForwarding = false;
+                Swal.fire({
+                  title: "Forward Failed",
+                  text: err?.error?.detail || "Unable to forward request.",
+                  icon: "error",
+                });
+              },
             });
-          },
-          error: (err) => {
-            console.warn('forwardToJudge failed', err);
-            this.isForwarding = false;
-            Swal.fire({ title: 'Forward Failed', text: err?.error?.detail || 'Unable to forward request.', icon: 'error' });
-          },
-        });
-      },
-      error: (err) => {
-        console.warn('assign before forward failed', err);
-        this.isForwarding = false;
-        Swal.fire({ title: 'Bench Save Failed', text: err?.error?.detail || 'Unable to save bench before forwarding.', icon: 'error' });
-      },
-    });
+        },
+        error: (err) => {
+          console.warn("assign before forward failed", err);
+          this.isForwarding = false;
+          Swal.fire({
+            title: "Bench Save Failed",
+            text:
+              err?.error?.detail || "Unable to save bench before forwarding.",
+            icon: "error",
+          });
+        },
+      });
   }
 
   get petitionerVsRespondentLine(): string {
@@ -245,13 +332,13 @@ export class ReaderCaseSummaryPage {
   }
 
   get petitionerName(): string {
-    const pet = this.litigants.find((l: any) => l?.is_petitioner === true);
-    return pet?.name || this.filing?.petitioner_name || '-';
+    console.log("Filing is ", this.filing.petitioner_name);
+    return this.filing?.petitioner_name;
   }
 
   get respondentName(): string {
     const res = this.litigants.find((l: any) => l?.is_petitioner === false);
-    return res?.name || '-';
+    return res?.name || "-";
   }
 
   get isBenchLocked(): boolean {
@@ -266,58 +353,71 @@ export class ReaderCaseSummaryPage {
     if (!this.filingId || !this.selectedBench || this.isBenchLocked) return;
     this.isSaving = true;
     this.readerService
-      .assignBenches([{ efiling_id: this.filingId, bench_key: this.selectedBench }])
+      .assignBenches([
+        { efiling_id: this.filingId, bench_key: this.selectedBench },
+      ])
       .subscribe({
         next: () => {
           if (this.filing) this.filing.bench = this.selectedBench;
           this.isSaving = false;
         },
         error: (err) => {
-          console.warn('Failed to assign bench', err);
+          console.warn("Failed to assign bench", err);
           this.isSaving = false;
         },
       });
   }
 
-  listingRemark = '';
+  listingRemark = "";
 
   forwardForListing(): void {
-    if (!this.filingId || !this.targetListingDate || !this.approvalForwardedForDate) return;
+    if (
+      !this.filingId ||
+      !this.targetListingDate ||
+      !this.approvalForwardedForDate
+    )
+      return;
     this.isSaving = true;
-    this.readerService.assignDate({
-      efiling_ids: [this.filingId],
-      listing_date: this.targetListingDate,
-      forwarded_for_date: this.approvalForwardedForDate,
-      listing_remark: this.listingRemark
-    }).subscribe({
-      next: () => {
-        this.isSaving = false;
-        this.approvalListingDate = this.targetListingDate;
-        Swal.fire({
-          title: 'Forwarded for Listing',
-          text: `Case has been assigned listing date ${this.targetListingDate} and forwarded to Listing Officer.`,
-          icon: 'success',
-          timer: 2000,
-          showConfirmButton: false
-        });
-      },
-      error: (err) => {
-        console.warn('forwardForListing failed', err);
-        this.isSaving = false;
-        Swal.fire({ title: 'Error', text: 'Failed to assign date.', icon: 'error' });
-      }
-    });
+    this.readerService
+      .assignDate({
+        efiling_ids: [this.filingId],
+        listing_date: this.targetListingDate,
+        forwarded_for_date: this.approvalForwardedForDate,
+        listing_remark: this.listingRemark,
+      })
+      .subscribe({
+        next: () => {
+          this.isSaving = false;
+          this.approvalListingDate = this.targetListingDate;
+          Swal.fire({
+            title: "Forwarded for Listing",
+            text: `Case has been assigned listing date ${this.targetListingDate} and forwarded to Listing Officer.`,
+            icon: "success",
+            timer: 2000,
+            showConfirmButton: false,
+          });
+        },
+        error: (err) => {
+          console.warn("forwardForListing failed", err);
+          this.isSaving = false;
+          Swal.fire({
+            title: "Error",
+            text: "Failed to assign date.",
+            icon: "error",
+          });
+        },
+      });
   }
 
   sendBackToScrutiny(): void {
     if (!this.filingId) return;
     Swal.fire({
-      title: 'Send back to Scrutiny?',
-      text: 'This will reset the bench and send the case back to the Scrutiny pool for re-assignment.',
-      icon: 'warning',
+      title: "Send back to Scrutiny?",
+      text: "This will reset the bench and send the case back to the Scrutiny pool for re-assignment.",
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonText: 'Yes, Send Back',
-      confirmButtonColor: '#d33'
+      confirmButtonText: "Yes, Send Back",
+      confirmButtonColor: "#d33",
     }).then((result) => {
       if (result.isConfirmed) {
         this.isSaving = true;
@@ -325,42 +425,49 @@ export class ReaderCaseSummaryPage {
           next: () => {
             this.isSaving = false;
             Swal.fire({
-              title: 'Returned',
-              text: 'Case returned to Scrutiny pool.',
-              icon: 'success',
+              title: "Returned",
+              text: "Case returned to Scrutiny pool.",
+              icon: "success",
               timer: 1500,
-              showConfirmButton: false
+              showConfirmButton: false,
             });
-            this.router.navigate(['/reader/dashboard/registered-cases']);
+            this.router.navigate(["/reader/dashboard/registered-cases"]);
           },
           error: (err) => {
             this.isSaving = false;
-            console.warn('resetBench failed', err);
-            Swal.fire({ title: 'Error', text: 'Failed to reset bench.', icon: 'error' });
-          }
+            console.warn("resetBench failed", err);
+            Swal.fire({
+              title: "Error",
+              text: "Failed to reset bench.",
+              icon: "error",
+            });
+          },
         });
       }
     });
   }
 
   get formattedListingDate(): string {
-    if (!this.targetListingDate) return '';
+    if (!this.targetListingDate) return "";
     const date = new Date(this.targetListingDate);
     const day = date.getDate();
-    const month = date.toLocaleString('default', { month: 'long' });
+    const month = date.toLocaleString("default", { month: "long" });
     const year = date.getFullYear();
-    
+
     const suffix = (d: number) => {
-      if (d > 3 && d < 21) return 'th';
+      if (d > 3 && d < 21) return "th";
       switch (d % 10) {
-        case 1: return "st";
-        case 2: return "nd";
-        case 3: return "rd";
-        default: return "th";
+        case 1:
+          return "st";
+        case 2:
+          return "nd";
+        case 3:
+          return "rd";
+        default:
+          return "th";
       }
     };
-    
+
     return `${day}${suffix(day)} ${month} ${year}`;
   }
 }
-
