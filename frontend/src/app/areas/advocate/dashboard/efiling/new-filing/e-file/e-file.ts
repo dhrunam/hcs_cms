@@ -11,6 +11,7 @@ import {
   formatPetitionerVsRespondent,
   getOrderedPartyNames,
 } from '../../../../../../utils/petitioner-vs-respondent';
+import { jsPDF } from 'jspdf';
 
 @Component({
   selector: 'app-e-file',
@@ -26,6 +27,8 @@ export class EFile {
   @Input() caseDetailsData: any;
   @Input() filingData: any;
   @Input() paymentDetails: any;
+  /** Statutory court fee in rupees (e.g. WP(C) fee); optional, improves PDF court-fee line. */
+  @Input() paymentFeeRupees: number | null = null;
   @Output() goToPage = new EventEmitter<number>();
 
   caseTypes: any[] = [];
@@ -191,6 +194,105 @@ export class EFile {
     if (s.startsWith('http://') || s.startsWith('https://')) return s;
     const base = app_url.replace(/\/$/, '');
     return s.startsWith('/') ? `${base}${s}` : `${base}/${s}`;
+  }
+
+  get canDownloadOnlinePaymentReceipt(): boolean {
+    const pd = this.paymentDetails;
+    if (!pd || pd.required === false) return false;
+    if (pd.outcome !== 'success') return false;
+    const mode = String(pd.paymentMode || '').toLowerCase();
+    return mode === 'online';
+  }
+
+  downloadOnlinePaymentReceiptPdf(): void {
+    if (!this.canDownloadOnlinePaymentReceipt) return;
+    const pd = this.paymentDetails || {};
+    const init = this.initialInputsView || {};
+    const bench = String(init.bench || 'High Court Of Sikkim');
+    const caseType = (this.caseTypeFullForm || this.caseTypeLabel || '-').trim() || '-';
+    const eFilingNo = String(
+      init.e_filing_number || this.filingData?.e_filing_number || '-',
+    );
+    const filingIdRaw = this.filingData?.id ?? this.filingData?.pk;
+    const filingIdStr =
+      filingIdRaw !== undefined && filingIdRaw !== null && filingIdRaw !== ''
+        ? String(filingIdRaw)
+        : '-';
+    const amountStr = String(pd.courtFees || pd.amount || '').trim() || '-';
+    const feeInput = this.paymentFeeRupees;
+    const courtFeeStr =
+      feeInput != null && Number.isFinite(feeInput) && feeInput > 0
+        ? String(feeInput)
+        : amountStr;
+    const txnId = String(pd.txnId || '').trim() || '-';
+    const referenceNo = String(pd.referenceNo || '').trim() || '-';
+    const dateTimeLabel = this.formatPaymentReceiptDateTime(pd);
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    let y = 18;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('Court fee payment receipt', margin, y);
+    y += 9;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(bench, margin, y);
+    y += 11;
+
+    const rows: [string, string][] = [
+      ['E-filing number', eFilingNo],
+      ['Application ID', filingIdStr],
+      ['Case type', caseType],
+      ['Payment purpose', 'Court fee (e-filing)'],
+      ['Transaction ID', txnId],
+      ['Reference number', referenceNo],
+      ['Amount paid (INR)', `Rs. ${amountStr}/-`],
+      ['Court fee (INR)', `Rs. ${courtFeeStr}/-`],
+      ['Payment mode', 'Online'],
+      ['Payment date / time', dateTimeLabel],
+      ['Payment status', 'Successful'],
+    ];
+
+    doc.setFontSize(10);
+    const labelX = margin;
+    const valueX = margin + 52;
+    const valueMaxW = pageWidth - valueX - margin;
+
+    for (const [label, value] of rows) {
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${label}:`, labelX, y);
+      doc.setFont('helvetica', 'normal');
+      const lines = doc.splitTextToSize(String(value), valueMaxW);
+      doc.text(lines, valueX, y);
+      y += Math.max(6, lines.length * 5.5) + 2;
+    }
+
+    y += 6;
+    doc.setFontSize(9);
+    doc.setTextColor(90);
+    const footer = `Generated on ${new Date().toLocaleString()}. This document is a record of your online court fee payment.`;
+    doc.text(doc.splitTextToSize(footer, pageWidth - margin * 2), margin, y);
+    doc.setTextColor(0);
+
+    const safeEf = (eFilingNo !== '-' ? eFilingNo : `filing-${filingIdStr}`).replace(
+      /[^\w.-]+/g,
+      '_',
+    );
+    const safeTxn = (pd.txnId ? String(pd.txnId) : 'receipt')
+      .replace(/[^\w.-]+/g, '_')
+      .slice(0, 48);
+    doc.save(`payment-receipt-${safeEf}-${safeTxn}.pdf`);
+  }
+
+  private formatPaymentReceiptDateTime(pd: Record<string, unknown>): string {
+    const raw = (pd['paidAt'] || pd['paymentDate']) as string | undefined;
+    if (!raw || String(raw).trim() === '') return '-';
+    const d = new Date(raw);
+    if (!Number.isNaN(d.getTime())) return d.toLocaleString();
+    return String(raw);
   }
 
   canDownloadMerged(): boolean {

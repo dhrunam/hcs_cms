@@ -345,6 +345,16 @@
                     </div>
                   </div>
                 </div>
+                <div class="mt-3 pt-3 border-top" *ngIf="canDownloadOnlinePaymentReceipt">
+                  <button
+                    type="button"
+                    class="btn btn-outline-primary"
+                    (click)="downloadOnlinePaymentReceiptPdf()"
+                  >
+                    <i class="fa-solid fa-file-pdf me-2"></i>
+                    Download payment receipt (PDF)
+                  </button>
+                </div>
               </div>
             </div>
             <div
@@ -507,6 +517,7 @@
                 [litigantList]="litigantList"
                 [filingData]="filingData"
                 [paymentDetails]="paymentDetailsForPreview"
+                [paymentFeeRupees]="paymentFeeRupees"
               ></app-e-file>
             </div>
 
