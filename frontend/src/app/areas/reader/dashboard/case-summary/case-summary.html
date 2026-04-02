@@ -39,28 +39,16 @@
         <div>
           <h5 class="mb-1">
             {{ filing.case_type?.type_name || '' }}
-            <strong>{{ filing.case_number || '-' }}</strong>
+            <strong>/1 / 2026</strong>
+            - <strong class="filing--label mt-2" >  {{filing.petitioner_name}} </strong>
           </h5>
         </div>
-        <div>
-          <span class="filing-summary-label">Petitioner</span>
-          <span
-            class="fs-5 fw-normal ps-2"
-            style="border-left: 2px solid green; border-radius: 2px"
-            >{{ petitionerName }}</span
-          >
-        </div>
-        <span class="mx-2 fw-light litigant-vs-badge">V/S</span>
-        <div>
-          <span class="filing-summary-label">Respondent</span>
-          <span
-            class="fs-5 fw-normal pe-2"
-            style="border-right: 2px solid rgb(195, 178, 21); border-radius: 2px"
-            >{{ respondentName }}</span
-          >
-        </div>
-
-        <div class="text-end small text-muted">
+          
+          
+        <!-- <span class="mx-2 fw-light litigant-vs-badge">V/S</span> -->
+        
+        
+        <!-- <div class="text-end small text-muted">
           Current Bench: <strong>{{ benchLabel(filing.bench) }}</strong>
           <div class="mt-1">
             <span
@@ -70,7 +58,7 @@
               {{ approvalStatus }}
             </span>
           </div>
-        </div>
+        </div> -->
       </div>
     </div>
 
@@ -86,13 +74,13 @@
         <div class="filing-summary-section mt-4">
           <div class="filing-summary-section-title">
             <i class="fa-solid fa-file-pdf me-2"></i>
-            Documents
+            Pleadings
           </div>
           <div *ngIf="documents.length > 0; else noDocs" class="row g-3">
             <div class="col-lg-4">
               <div class="border rounded p-3 docs-list-panel bg-white">
                 <div class="small text-muted mb-2">
-                  Click a document to preview
+                  <!-- Click a document to preview -->
                 </div>
                 <div class="d-flex flex-column gap-2">
                   <button
