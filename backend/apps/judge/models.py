@@ -87,6 +87,7 @@ class CourtroomDocumentAnnotation(BaseModel):
         related_name="courtroom_annotations",
     )
     annotation_text = models.TextField(blank=True, null=True)
+    annotation_data = models.JSONField(blank=True, null=True, default=dict)
 
     class Meta:
         db_table = "courtroom_document_annotation"

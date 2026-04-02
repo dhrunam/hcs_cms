@@ -1,0 +1,109 @@
+<div class="elegant-dashboard">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <a
+      class="btn btn-sm btn-light border shadow-sm px-3 rounded-pill"
+      [routerLink]="['/judges/dashboard/courtview']"
+      style="font-weight: 500; color: #475569;"
+    >
+      <i class="fa fa-arrow-left me-2"></i> Dashboard
+    </a>
+  </div>
+
+  <div *ngIf="isLoading" class="text-center py-5">
+    <div class="spinner-border text-secondary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+
+  <div *ngIf="loadError" class="alert alert-warning shadow-sm border-0 rounded-3">
+    {{ loadError }}
+  </div>
+
+  <div *ngIf="!isLoading && !loadError && caseSummary" class="animate__animated animate__fadeIn">
+    
+    <!-- Clean Minimal Header -->
+    <div class="elegant-header">
+      <div class="case-title-row">
+        <div>
+          <h2 class="case-h">{{ caseSummary.case_number || 'No Case Number' }}</h2>
+          <div class="case-meta mt-1">Filing Date: {{ caseSummary.filing_date ? (caseSummary.filing_date | date:'dd MMM yyyy') : '-' }}</div>
+        </div>
+        <div class="text-end">
+          <div class="litigants-text">
+            <span>{{ petitionerNamesLabel }}</span>
+            <span class="vs-badge">V/S</span>
+            <span>{{ respondentNamesLabel }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Unified Single Column Layout for Extreme Simplicity -->
+    <div class="row g-4 h-100">
+      
+      <!-- Left Sidebar: Summary + Nav -->
+      <div class="col-xl-3 col-lg-4">
+        
+        <!-- Summary Box -->
+        <div class="elegant-panel mb-4">
+          <div class="panel-title">Case Summary</div>
+          <div class="summary-text">
+            {{ caseSummary.listing_summary || 'No summary notes available.' }}
+          </div>
+        </div>
+
+        <!-- Documents Box -->
+        <div class="elegant-panel pb-2">
+          <div class="panel-title d-flex justify-content-between align-items-center mb-3">
+            <span>Pleadings</span>
+            <span class="badge bg-light text-secondary border">{{ allCaseDocuments.length }}</span>
+          </div>
+          
+          <div class="doc-list-wrapper">
+            <ul class="doc-list">
+              <li 
+                *ngFor="let doc of allCaseDocuments; let i = index" 
+                class="doc-list-item"
+                [class.active-doc]="previewDocument?.id === doc.id"
+                (click)="selectPreviewDocument(doc)"
+              >
+                <i class="fa fa-file-pdf doc-icon"></i>
+                <div class="text-truncate">
+                  <div style="font-size: 13px; font-weight: 500;">{{ doc.document_part_name || doc.document_type || 'Document' }}</div>
+                  <div style="font-size: 11px; opacity: 0.7; margin-top: 2px;">Index #{{i + 1}}</div>
+                </div>
+              </li>
+            </ul>
+            <div *ngIf="allCaseDocuments.length === 0" class="text-muted small text-center py-4">
+              No files appended.
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right Main: Minimalist PDF Annotator Surface -->
+      <div class="col-xl-9 col-lg-8">
+        <div class="annotator-container">
+           <app-pdf-annotator
+              *ngIf="previewDocumentBlobUrl; else noDocPreview"
+              [pdfUrl]="previewDocumentBlobUrl"
+              [annotationData]="previewDocument?.annotation_data"
+              [canWrite]="canWrite"
+              (save)="onSaveAnnotations($event)"
+              class="d-block w-100 h-100"
+            ></app-pdf-annotator>
+            
+            <ng-template #noDocPreview>
+              <div class="d-flex flex-column justify-content-center align-items-center h-100 bg-light text-muted">
+                <i class="fa fa-folder-open fs-1 mb-3 opacity-25"></i>
+                <span class="opacity-75">{{ previewLoadError || 'Document viewer ready. Select a file.' }}</span>
+              </div>
+            </ng-template>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
