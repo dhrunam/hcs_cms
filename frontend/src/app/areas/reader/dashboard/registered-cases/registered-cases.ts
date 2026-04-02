@@ -71,7 +71,7 @@ export class RegisteredCasesPage {
         this.benchConfigurations = resp?.items ?? [];
       },
       error: (err) => {
-        console.warn('Failed to load bench configurations', err);
+        console.warn("Failed to load bench configurations", err);
         this.benchConfigurations = [];
       },
     });
@@ -94,18 +94,29 @@ export class RegisteredCasesPage {
       .subscribe((resp) => {
         this.cases = (resp?.items ?? []).map((c: any) => ({ ...c }));
         this.isLoading = false;
+
+        console.log("Register Cases ", this.cases);
       });
   }
 
   benchLabel(key: string | null | undefined): string {
-    if (this.isUnassignedBench(key)) return '-';
-    const normalizedKey = String(key ?? '').trim();
-    return resolveBenchConfiguration(this.benchConfigurations, normalizedKey)?.label || normalizedKey;
+    if (this.isUnassignedBench(key)) return "-";
+    const normalizedKey = String(key ?? "").trim();
+    return (
+      resolveBenchConfiguration(this.benchConfigurations, normalizedKey)
+        ?.label || normalizedKey
+    );
   }
 
   private isUnassignedBench(key: string | null | undefined): boolean {
-    const value = String(key ?? '').trim().toLowerCase();
-    return !value || value === 'high court of sikkim' || value === 'high court of skkim';
+    const value = String(key ?? "")
+      .trim()
+      .toLowerCase();
+    return (
+      !value ||
+      value === "high court of sikkim" ||
+      value === "high court of skkim"
+    );
   }
 
   approvalStatusLabel(c: RegisteredCase): string {
