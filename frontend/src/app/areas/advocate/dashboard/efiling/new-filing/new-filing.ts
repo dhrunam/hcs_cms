@@ -307,7 +307,6 @@ export class NewFiling {
 
     const rows: [string, string][] = [
       ["E-filing number", eFilingNo],
-      ["Application ID", filingIdStr],
       ["Case type", caseType],
       ["Payment purpose", "Court fee (e-filing)"],
       ["Transaction ID", txnId],
