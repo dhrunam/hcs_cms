@@ -47,12 +47,16 @@
             </div>
 
             <div class="litigant-info-grid">
-              <div><strong>Gender:</strong> {{ item.gender || '-' }}</div>
-              <div><strong>Age:</strong> {{ item.age || '-' }}</div>
+              <div *ngIf="item.gender">
+                <strong>Gender:</strong> {{ item.gender || '-' }}
+              </div>
+              <div *ngIf="item.age">
+                <strong>Age:</strong> {{ item.age || '-' }}
+              </div>
               <div><strong>Email:</strong> {{ item.email || '-' }}</div>
               <div><strong>Mobile:</strong> {{ item.contact || '-' }}</div>
               <div><strong>Address:</strong> {{ item.address || '-' }}</div>
-              <div>
+              <div *ngIf="item.age">
                 <strong>Differently Abled:</strong>
                 {{ item.is_diffentially_abled ? 'Yes' : 'No' }}
               </div>

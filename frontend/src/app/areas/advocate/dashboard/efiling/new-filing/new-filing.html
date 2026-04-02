@@ -289,7 +289,7 @@
               <div class="card-body py-3">
                 <div class="row g-3">
                   <div class="col-md-6">
-                    <div class="text-muted small">Transaction ID</div>
+                    <div class="text-muted small">Transaction ID / Bank Receipt No.</div>
                     <div class="fw-semibold">
                       {{ paymentDetails?.txnId || "-" }}
                     </div>
@@ -402,13 +402,13 @@
               <div class="card-body py-3">
                 <div class="row g-3">
                   <div class="col-md-4">
-                    <label class="form-label mb-1">Transaction ID</label>
+                    <label class="form-label mb-1">Bank Receipt No.</label>
                     <input
                       type="text"
                       class="form-control"
                       [(ngModel)]="offlineTransactionId"
                       [ngModelOptions]="{ standalone: true }"
-                      placeholder="Enter transaction id"
+                      placeholder="Enter Bank Receipt No."
                     />
                   </div>
                   <div class="col-md-4">
@@ -419,6 +419,7 @@
                       [(ngModel)]="offlineCourtFees"
                       [ngModelOptions]="{ standalone: true }"
                       placeholder="Enter court fees"
+                      disabled
                     />
                   </div>
                   <div class="col-md-4">
