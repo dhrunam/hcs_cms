@@ -14,4 +14,4 @@ def manually_fake_apply(app, migration):
     print(f"Manually marked {app}.{migration} as applied.")
 
 if __name__ == "__main__":
-    manually_fake_apply('core', '0033_initial')
+    manually_fake_apply('core', '0033_initial_models')

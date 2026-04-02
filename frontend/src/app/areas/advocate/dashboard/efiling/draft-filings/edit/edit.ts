@@ -25,6 +25,7 @@ import { HttpEventType } from "@angular/common/http";
 import { firstValueFrom } from "rxjs";
 import { CaseTypeService } from "../../../../../../services/master/case-type.services";
 import { PaymentService } from "../../../../../../services/payment/payment.service";
+import { jsPDF } from "jspdf";
 
 @Component({
   selector: "app-edit",
@@ -251,6 +252,99 @@ export class Edit {
   get isPaymentSuccessful(): boolean {
     if (!this.requiresCourtFeePayment) return true;
     return this.paymentOutcome === "success";
+  }
+
+  /** Receipt PDF is only for successful online gateway payments (not offline upload flow). */
+  get canDownloadOnlinePaymentReceipt(): boolean {
+    if (!this.requiresCourtFeePayment || this.paymentOutcome !== "success") {
+      return false;
+    }
+    const mode = this.paymentDetails?.paymentMode ?? this.paymentMode;
+    return mode === "online";
+  }
+
+  downloadOnlinePaymentReceiptPdf(): void {
+    if (!this.canDownloadOnlinePaymentReceipt) return;
+    const pd = this.paymentDetails;
+    const bench = String(
+      this.initialInputsForm?.get("bench")?.value || "High Court Of Sikkim",
+    );
+    const caseType = this.getSelectedCaseTypeLabel().trim() || "-";
+    const amountStr =
+      pd?.courtFees ||
+      pd?.amount ||
+      String(this.paymentFeeRupees);
+    const eFilingNo = this.eFilingNumber || "-";
+    const filingIdStr =
+      this.filingId != null ? String(this.filingId) : "-";
+    const txnId = pd?.txnId?.trim() || "-";
+    const referenceNo = pd?.referenceNo?.trim() || "-";
+    const dateTimeLabel = this.formatPaymentReceiptDateTime();
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    let y = 18;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("Court fee payment receipt", margin, y);
+    y += 9;
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(bench, margin, y);
+    y += 11;
+
+    const rows: [string, string][] = [
+      ["E-filing number", eFilingNo],
+      ["Application ID", filingIdStr],
+      ["Case type", caseType],
+      ["Payment purpose", "Court fee (e-filing)"],
+      ["Transaction ID", txnId],
+      ["Reference number", referenceNo],
+      ["Amount paid (INR)", `Rs. ${amountStr}/-`],
+      ["Court fee (INR)", `Rs. ${this.paymentFeeRupees}/-`],
+      ["Payment mode", "Online"],
+      ["Payment date / time", dateTimeLabel],
+      ["Payment status", "Successful"],
+    ];
+
+    doc.setFontSize(10);
+    const labelX = margin;
+    const valueX = margin + 52;
+    const valueMaxW = pageWidth - valueX - margin;
+
+    for (const [label, value] of rows) {
+      doc.setFont("helvetica", "bold");
+      doc.text(`${label}:`, labelX, y);
+      doc.setFont("helvetica", "normal");
+      const lines = doc.splitTextToSize(String(value), valueMaxW);
+      doc.text(lines, valueX, y);
+      y += Math.max(6, lines.length * 5.5) + 2;
+    }
+
+    y += 6;
+    doc.setFontSize(9);
+    doc.setTextColor(90);
+    const footer = `Generated on ${new Date().toLocaleString()}. This document is a record of your online court fee payment.`;
+    doc.text(doc.splitTextToSize(footer, pageWidth - margin * 2), margin, y);
+    doc.setTextColor(0);
+
+    const safeEf = (this.eFilingNumber || `filing-${this.filingId}`).replace(
+      /[^\w.-]+/g,
+      "_",
+    );
+    const safeTxn = (pd?.txnId || "receipt").replace(/[^\w.-]+/g, "_").slice(0, 48);
+    doc.save(`payment-receipt-${safeEf}-${safeTxn}.pdf`);
+  }
+
+  private formatPaymentReceiptDateTime(): string {
+    const pd = this.paymentDetails;
+    const raw = pd?.paidAt || pd?.paymentDate;
+    if (!raw || String(raw).trim() === "") return "-";
+    const d = new Date(raw as string);
+    if (!Number.isNaN(d.getTime())) return d.toLocaleString();
+    return String(raw);
   }
 
   private getSelectedCaseTypeLabel(): string {
