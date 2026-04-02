@@ -1,0 +1,51 @@
+<div class="container-fluid">
+  <div class="judge-header d-flex justify-content-between align-items-end flex-wrap gap-3 mb-3">
+    <div>
+      <h3 class="mb-1">Courtview</h3>
+      <div class="text-muted small">Access and annotate your listed cases</div>
+    </div>
+
+    <div class="text-end">
+      <div class="small text-muted mb-1 text-uppercase fw-semibold tracking-wider" style="letter-spacing: 0.05em; font-size: 11px;">Serving Date</div>
+      <h5 class="mb-0 text-primary">{{ forwardedForDate | date:'longDate' }}</h5>
+    </div>
+  </div>
+
+  <div *ngIf="isLoading" class="text-center py-4 text-muted">Loading...</div>
+  <div *ngIf="loadError" class="alert alert-warning">{{ loadError }}</div>
+  
+  <div *ngIf="!isLoading && !loadError" class="row g-3">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white fw-semibold">Listed Cases for Hearing</div>
+        <div class="card-body p-0 table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Filing Date</th>
+                <th>Petitioner vs. Respondent</th>
+                <th>Case No</th>
+                <th style="width: 140px;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let c of listedCases">
+                <td class="text-nowrap small fw-medium">{{ c.filing_date ? (c.filing_date | date:'dd MMM yyyy') : '—' }}</td>
+                <td class="small" style="max-width: 280px">{{ c.petitioner_vs_respondent || '—' }}</td>
+                <td class="text-nowrap">{{ c.case_number || '-' }}</td>
+                <td>
+                  <button class="btn btn-sm btn-outline-primary" (click)="openCourtroom(c.efiling_id, c.forwarded_for_date)">
+                    View Case
+                  </button>
+                </td>
+              </tr>
+              <tr *ngIf="listedCases.length === 0">
+                <td colspan="4" class="text-muted text-center py-4">No cases listed for this date.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

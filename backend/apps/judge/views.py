@@ -184,10 +184,8 @@ class CourtroomPendingCasesView(APIView):
                     "bench_label": display_bench_label,
                     "forward_bench_key": f.bench_key,
                     "petitioner_name": getattr(f.efiling, "petitioner_name", None),
-                    "petitioner_vs_respondent": (getattr(f.efiling, "petitioner_name", None) or "").strip() or build_petitioner_vs_respondent(
-                        f.efiling,
-                        fallback_petitioner_name=getattr(f.efiling, "petitioner_name", None) or "",
-                    ),
+                    "petitioner_vs_respondent": getattr(f.efiling, "petitioner_vs_respondent_display", "-"),
+                    "filing_date": getattr(f.efiling, "filing_date", None).isoformat() if getattr(f.efiling, "filing_date", None) else None,
                     "listing_summary": f.listing_summary,
                     "selected_document_count": f.selected_documents.count(),
                     "requested_document_count": 0,
@@ -313,6 +311,7 @@ class CourtroomCaseDocumentsView(APIView):
             idx_id = item.get("id")
             anno = anno_map.get(idx_id)
             item["annotation_text"] = anno.annotation_text if anno else (item.get("draft_comments") or item.get("comments") or None)
+            item["annotation_data"] = anno.annotation_data if anno else {}
 
         return Response({"items": doc_items}, status=drf_status.HTTP_200_OK)
 
@@ -391,9 +390,8 @@ class CourtroomCaseSummaryView(APIView):
                 "case_number": filing.case_number,
                 "e_filing_number": filing.e_filing_number,
                 "petitioner_name": filing.petitioner_name,
-                "petitioner_vs_respondent": (filing.petitioner_name or "").strip() or build_petitioner_vs_respondent(
-                    filing, fallback_petitioner_name=filing.petitioner_name or ""
-                ),
+                "petitioner_vs_respondent": filing.petitioner_vs_respondent_display,
+                "filing_date": filing.filing_date.isoformat() if getattr(filing, "filing_date", None) else None,
                 "petitioner_contact": filing.petitioner_contact,
                 "bench_key": display_bench_key,
                 "bench_label": display_bench_label,
@@ -474,6 +472,7 @@ class CourtroomDocumentAnnotationView(APIView):
 
         doc_index_id = payload.validated_data["efiling_document_index_id"]
         annotation_text = payload.validated_data.get("annotation_text")
+        annotation_data = payload.validated_data.get("annotation_data") or {}
 
         # Authorization: only allow annotating documents belonging to efilings
         # that were forwarded for a bench where this judge role applies.
@@ -496,10 +495,17 @@ class CourtroomDocumentAnnotationView(APIView):
         ann, _ = CourtroomDocumentAnnotation.objects.update_or_create(
             judge_user=user,
             efiling_document_index_id=doc_index_id,
-            defaults={"annotation_text": annotation_text},
+            defaults={
+                "annotation_text": annotation_text,
+                "annotation_data": annotation_data,
+            },
         )
         return Response(
-            {"efiling_document_index": doc_index_id, "annotation_text": ann.annotation_text},
+            {
+                "efiling_document_index": doc_index_id,
+                "annotation_text": ann.annotation_text,
+                "annotation_data": ann.annotation_data,
+            },
             status=drf_status.HTTP_200_OK,
         )
 
@@ -643,9 +649,8 @@ class CourtroomDecisionCalendarView(APIView):
                     "e_filing_number": getattr(ef, "e_filing_number", None),
                     "case_number": row.efiling.case_number,
                     "petitioner_name": getattr(ef, "petitioner_name", None),
-                    "petitioner_vs_respondent": (getattr(ef, "petitioner_name", None) or "").strip() or build_petitioner_vs_respondent(
-                        ef, fallback_petitioner_name=getattr(ef, "petitioner_name", None) or ""
-                    ),
+                    "petitioner_vs_respondent": getattr(ef, "petitioner_vs_respondent_display", "-"),
+                    "filing_date": getattr(ef, "filing_date", None).isoformat() if getattr(ef, "filing_date", None) else None,
                     "status": row.status,
                     "approved": row.approved,
                     "listing_date": row.listing_date.isoformat()

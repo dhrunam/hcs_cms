@@ -20,12 +20,13 @@ class CourtroomPendingCaseSerializer(serializers.Serializer):
 class CourtroomDocumentAnnotationSerializer(serializers.ModelSerializer):
     class Meta:
         model = CourtroomDocumentAnnotation
-        fields = ["efiling_document_index", "annotation_text"]
+        fields = ["efiling_document_index", "annotation_text", "annotation_data"]
 
 
 class CourtroomCaseDocumentAnnotationUpsertSerializer(serializers.Serializer):
     efiling_document_index_id = serializers.IntegerField()
     annotation_text = serializers.CharField(allow_blank=True, required=False, allow_null=True)
+    annotation_data = serializers.JSONField(required=False, allow_null=True)
 
 
 class CourtroomDecisionSerializer(serializers.Serializer):

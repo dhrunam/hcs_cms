@@ -157,9 +157,10 @@ export class CourtroomService {
 
   saveDocumentAnnotation(payload: {
     efiling_document_index_id: number;
-    annotation_text: string | null | undefined;
-  }): Observable<{ efiling_document_index: number; annotation_text: string | null }> {
-    return this.http.post<{ efiling_document_index: number; annotation_text: string | null }>(
+    annotation_text?: string | null;
+    annotation_data?: any;
+  }): Observable<{ efiling_document_index: number; annotation_text: string | null; annotation_data: any }> {
+    return this.http.post<{ efiling_document_index: number; annotation_text: string | null; annotation_data: any }>(
       `${app_url}/api/v1/judge/courtroom/document-annotations/`,
       payload,
     );

@@ -130,13 +130,12 @@
                   <iframe
                     *ngIf="previewDocumentUrl; else noDocPreview"
                     [src]="previewDocumentUrl"
-                    title="Judge document preview"
-                    class="judge-preview-frame"
+                    class="d-block w-100"
+                    style="min-height: 800px; border: none;"
                   ></iframe>
                   <ng-template #noDocPreview>
                     <div class="text-muted small p-2">
-                      {{ previewLoadError || 'Select a document and click View
-                      for inline preview.' }}
+                      {{ previewLoadError || 'Select a document to preview.' }}
                     </div>
                   </ng-template>
                 </div>
