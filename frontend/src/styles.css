@@ -1,5 +1,5 @@
 /* You can add global styles to this file, and also import other style files */
-@import 'ngx-toastr/toastr';
+@import "ngx-toastr/toastr";
 body {
   font-family: Poppins !important;
 }
@@ -93,4 +93,12 @@ body {
 .status-badge-danger {
   background: #fee2e2;
   color: #991b1b;
+}
+
+body.fullscreen-mode app-sidebar {
+  display: none !important;
+}
+
+body.fullscreen-mode nav.navbar {
+  display: none !important;
 }

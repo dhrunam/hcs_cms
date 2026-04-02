@@ -110,7 +110,7 @@
   padding: 0.8rem 0.9rem;
   text-align: left;
   transition: all 0.2s ease;
-  width: 100%;
+  /* width: 100%; */
 }
 
 .document-item:hover,
@@ -131,7 +131,7 @@
 }
 
 .review-panel {
-  padding: 1rem;
+  /* padding: 1rem; */
 }
 
 .notes-area {
@@ -299,8 +299,8 @@
 }
 
 .document-type-header {
-  background:  #312e81 ;
-  border: 1px solid  #312e81 ;
+  background: #312e81;
+  border: 1px solid #312e81;
   border-radius: 12px;
   color: white;
   font-weight: 700;
@@ -569,4 +569,76 @@
   border: 1px dashed #e2e8f0;
   border-radius: 12px;
   text-align: center;
+}
+
+.document-group {
+  position: relative;
+}
+
+.document-group::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 32px; /* start below header */
+  bottom: 8px;
+  width: 1px;
+  background: #dee2e6;
+}
+
+/* child items */
+.document-item {
+  position: relative;
+  margin-left: 20px;
+  padding-left: 10px;
+}
+
+/* small connector line */
+.document-item::before {
+  content: "";
+  position: absolute;
+  left: -10px;
+  top: 14px;
+  width: 10px;
+  height: 1px;
+  background: #dee2e6;
+}
+
+.document-type-header {
+  font-weight: 600;
+}
+
+.document-group::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 40px;
+  bottom: 8px;
+  width: 1px;
+  /* background: #dee2e6; */
+  z-index: 0; /* behind */
+}
+
+.document-type-header {
+  position: relative;
+  z-index: 1; /* above line */
+}
+
+.fullscreen-mode .sidebar {
+  width: 0px !important;
+}
+
+/* optional: expand main content */
+.fullscreen-mode .main-content {
+  width: 100% !important;
+}
+
+body.fullscreen-mode app-sidebar {
+  display: none !important;
+}
+
+:host-context(body.fullscreen-mode) .case-summary-header {
+  display: none !important;
+}
+:host-context(body.fullscreen-mode) .page-header {
+  display: none !important;
 }

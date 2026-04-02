@@ -1,31 +1,31 @@
-import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { ActivatedRoute, RouterLink } from '@angular/router';
-import { firstValueFrom, forkJoin } from 'rxjs';
-import Swal from 'sweetalert2';
-import { ToastrService } from 'ngx-toastr';
+import { CommonModule } from "@angular/common";
+import { Component } from "@angular/core";
+import { FormsModule } from "@angular/forms";
+import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
+import { ActivatedRoute, RouterLink } from "@angular/router";
+import { firstValueFrom, forkJoin } from "rxjs";
+import Swal from "sweetalert2";
+import { ToastrService } from "ngx-toastr";
 import {
   DistinctBenchOption,
   EfilingService,
-} from '../../../../../services/advocate/efiling/efiling.services';
-import { catchError, of } from 'rxjs';
-import { PaymentService } from '../../../../../services/payment/payment.service';
+} from "../../../../../services/advocate/efiling/efiling.services";
+import { catchError, of } from "rxjs";
+import { PaymentService } from "../../../../../services/payment/payment.service";
 
 @Component({
-  selector: 'app-filed-case-details',
+  selector: "app-filed-case-details",
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
-  templateUrl: './details.html',
-  styleUrl: './details.css',
+  templateUrl: "./details.html",
+  styleUrl: "./details.css",
 })
 export class FiledCaseDetails {
   readonly hiddenHistoryComments = new Set([
-    'Document uploaded by advocate.',
-    'Document re-uploaded by advocate.',
-    'Document sent to scrutiny queue.',
-    'Document review item created.',
+    "Document uploaded by advocate.",
+    "Document re-uploaded by advocate.",
+    "Document sent to scrutiny queue.",
+    "Document review item created.",
   ]);
 
   filingId: number | null = null;
@@ -41,31 +41,31 @@ export class FiledCaseDetails {
   documentHistory: any[] = [];
   scrutinyChecklist: any[] = [];
   distinctBenches: DistinctBenchOption[] = [];
-  reviewNote = '';
+  reviewNote = "";
   isLoading = false;
+
   isSavingReview = false;
   isSubmittingApprovedCase = false;
   missingFilingId = false;
-  activeTab: 'filing' | 'documents' | 'ia' = 'filing';
+  activeTab: "filing" | "documents" | "ia" = "filing";
   iaList: any[] = [];
+  fullScreen = false;
   iaDocuments: any[] = [];
   groupedIaDocuments: Array<{ document_type: string; items: any[] }> = [];
   selectedIaDocument: any = null;
   selectedIaDocumentUrl: SafeResourceUrl | null = null;
   selectedIaDocumentBlobUrl: string | null = null;
   isVerifyingIaId: number | null = null;
-  paymentOutcome: 'success' | 'failed' | null = null;
-  paymentDetails:
-    | {
-        txnId?: string;
-        paidAt?: string;
-        referenceNo?: string;
-        amount?: string;
-        paymentMode?: 'online' | 'offline';
-        bankReceipt?: string;
-        paymentDate?: string;
-      }
-    | null = null;
+  paymentOutcome: "success" | "failed" | null = null;
+  paymentDetails: {
+    txnId?: string;
+    paidAt?: string;
+    referenceNo?: string;
+    amount?: string;
+    paymentMode?: "online" | "offline";
+    bankReceipt?: string;
+    paymentDate?: string;
+  } | null = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -75,13 +75,13 @@ export class FiledCaseDetails {
     private toastr: ToastrService,
   ) {}
 
-  setActiveTab(tab: 'filing' | 'documents' | 'ia'): void {
+  setActiveTab(tab: "filing" | "documents" | "ia"): void {
     this.activeTab = tab;
   }
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((params) => {
-      const rawId = params.get('id');
+      const rawId = params.get("id");
       const nextId = rawId ? Number(rawId) : null;
       this.filingId = nextId && !Number.isNaN(nextId) ? nextId : null;
       this.missingFilingId = !this.filingId;
@@ -92,6 +92,16 @@ export class FiledCaseDetails {
     });
   }
 
+  toogleScreen() {
+    this.fullScreen = !this.fullScreen;
+
+    if (this.fullScreen) {
+      document.body.classList.add("fullscreen-mode");
+    } else {
+      document.body.classList.remove("fullscreen-mode");
+    }
+  }
+
   loadWorkspace(id: number, preferredDocumentId?: number): void {
     this.isLoading = true;
 
@@ -100,12 +110,27 @@ export class FiledCaseDetails {
       litigants: this.efilingService.get_litigant_list_by_filing_id(id),
       caseDetails: this.efilingService.get_case_details_by_filing_id(id),
       acts: this.efilingService.get_acts_by_filing_id(id),
-      documents: this.efilingService.get_document_reviews_by_filing_id(id, false),
-      iaDocuments: this.efilingService.get_document_reviews_by_filing_id(id, true),
+      documents: this.efilingService.get_document_reviews_by_filing_id(
+        id,
+        false,
+      ),
+      iaDocuments: this.efilingService.get_document_reviews_by_filing_id(
+        id,
+        true,
+      ),
       ias: this.efilingService.get_ias_by_efiling_id(id),
       payment: this.paymentService.latest(id).pipe(catchError(() => of(null))),
     }).subscribe({
-      next: ({ filing, litigants, caseDetails, acts, documents, iaDocuments, ias, payment }) => {
+      next: ({
+        filing,
+        litigants,
+        caseDetails,
+        acts,
+        documents,
+        iaDocuments,
+        ias,
+        payment,
+      }) => {
         this.filing = filing;
         this.litigants = litigants?.results ?? [];
         this.caseDetails = caseDetails?.results?.[0] ?? null;
@@ -119,12 +144,16 @@ export class FiledCaseDetails {
         this.selectIaDocument(this.groupedIaDocuments[0]?.items[0] ?? null);
         this.loadChecklist();
         this.selectDocument(
-          this.documents.find((document) => document.id === preferredDocumentId) ?? this.documents[0] ?? null,
+          this.documents.find(
+            (document) => document.id === preferredDocumentId,
+          ) ??
+            this.documents[0] ??
+            null,
         );
         this.isLoading = false;
       },
       error: (error) => {
-        console.error('Failed to load scrutiny workspace', error);
+        console.error("Failed to load scrutiny workspace", error);
         this.isLoading = false;
       },
     });
@@ -136,18 +165,22 @@ export class FiledCaseDetails {
       this.paymentDetails = null;
       return;
     }
-    const statusRaw = String(tx.status || '').toLowerCase();
+    const statusRaw = String(tx.status || "").toLowerCase();
     const paymentMode =
-      String(tx.payment_mode || '').toLowerCase() === 'offline' ? 'offline' : 'online';
+      String(tx.payment_mode || "").toLowerCase() === "offline"
+        ? "offline"
+        : "online";
     if (
       /(success|paid|complete|ok)/i.test(statusRaw) ||
-      (paymentMode === 'offline' &&
+      (paymentMode === "offline" &&
         !!tx.bank_receipt &&
-        /(offline_submitted|submitted|pending|success|paid|complete|ok)/i.test(statusRaw))
+        /(offline_submitted|submitted|pending|success|paid|complete|ok)/i.test(
+          statusRaw,
+        ))
     ) {
-      this.paymentOutcome = 'success';
+      this.paymentOutcome = "success";
     } else if (statusRaw) {
-      this.paymentOutcome = 'failed';
+      this.paymentOutcome = "failed";
     } else {
       this.paymentOutcome = null;
     }
@@ -181,7 +214,7 @@ export class FiledCaseDetails {
 
   selectDocument(document: any): void {
     this.selectedDocument = document;
-    this.reviewNote = document?.draft_comments ?? document?.comments ?? '';
+    this.reviewNote = document?.draft_comments ?? document?.comments ?? "";
     this.updatePreviewUrl(document ?? null);
 
     if (!document?.id) {
@@ -213,7 +246,8 @@ export class FiledCaseDetails {
     }
 
     if (fileUrl) {
-      this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+      this.selectedDocumentUrl =
+        this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
     }
     const stream$ = docId
       ? this.efilingService.fetch_document_blob_by_index(docId)
@@ -221,13 +255,15 @@ export class FiledCaseDetails {
     stream$.subscribe({
       next: (blob) => {
         this.selectedDocumentBlobUrl = URL.createObjectURL(blob);
-        this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
-          this.selectedDocumentBlobUrl,
-        );
+        this.selectedDocumentUrl =
+          this.sanitizer.bypassSecurityTrustResourceUrl(
+            this.selectedDocumentBlobUrl,
+          );
       },
       error: () => {
         if (fileUrl) {
-          this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+          this.selectedDocumentUrl =
+            this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
         } else {
           this.selectedDocumentUrl = null;
         }
@@ -235,12 +271,14 @@ export class FiledCaseDetails {
     });
   }
 
-  groupDocumentsByType(docs: any[]): Array<{ document_type: string; items: any[] }> {
+  groupDocumentsByType(
+    docs: any[],
+  ): Array<{ document_type: string; items: any[] }> {
     if (!Array.isArray(docs) || docs.length === 0) return [];
 
     const map = new Map<string, any[]>();
     for (const doc of docs) {
-      const type = (doc?.document_type ?? '').trim() || 'Main Document';
+      const type = (doc?.document_type ?? "").trim() || "Main Document";
       const bucket = map.get(type);
       if (bucket) {
         bucket.push(doc);
@@ -249,20 +287,28 @@ export class FiledCaseDetails {
       }
     }
 
-    return Array.from(map.entries()).map(([document_type, items]) => ({ document_type, items }));
+    return Array.from(map.entries()).map(([document_type, items]) => ({
+      document_type,
+      items,
+    }));
   }
 
   acceptDocument(): void {
-    this.submitReview('ACCEPTED');
+    this.submitReview("ACCEPTED");
   }
 
   rejectDocument(): void {
     // Rejecting a document also persists the current notes in the same review update.
-    this.submitReview('REJECTED');
+    this.submitReview("REJECTED");
   }
 
   async onRegisterCaseClick(): Promise<void> {
-    if (!this.canSubmitApprovedFiling || !this.filingId || !this.allDocumentsAccepted) return;
+    if (
+      !this.canSubmitApprovedFiling ||
+      !this.filingId ||
+      !this.allDocumentsAccepted
+    )
+      return;
 
     const benchOptions = await this.getBenchInputOptions();
     if (!benchOptions) {
@@ -270,25 +316,25 @@ export class FiledCaseDetails {
     }
 
     Swal.fire({
-      title: 'Register Case & Assign Bench',
-      text: 'Please select the Bench (Judge) this case will be assigned to.',
-      input: 'select',
+      title: "Register Case & Assign Bench",
+      text: "Please select the Bench (Judge) this case will be assigned to.",
+      input: "select",
       inputOptions: benchOptions,
-      inputPlaceholder: '-- Choose Bench --',
-      icon: 'question',
+      inputPlaceholder: "-- Choose Bench --",
+      icon: "question",
       showCancelButton: true,
-      confirmButtonText: 'Register Case',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#0d6efd',
+      confirmButtonText: "Register Case",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#0d6efd",
       inputValidator: (value) => {
         return new Promise((resolve) => {
           if (value) {
             resolve(null);
           } else {
-            resolve('Please select a bench');
+            resolve("Please select a bench");
           }
         });
-      }
+      },
     }).then((result) => {
       if (result.isConfirmed) {
         this.submitApprovedFiling(result.value);
@@ -298,45 +344,57 @@ export class FiledCaseDetails {
 
   private async getBenchInputOptions(): Promise<Record<string, string> | null> {
     try {
-      const benches = await firstValueFrom(this.efilingService.get_distinct_benches());
+      const benches = await firstValueFrom(
+        this.efilingService.get_distinct_benches(),
+      );
       this.distinctBenches = Array.isArray(benches) ? benches : [];
 
-      const inputOptions = this.distinctBenches.reduce<Record<string, string>>((options, bench) => {
-        const benchCode = String(bench?.bench_code ?? '').trim();
-        if (!benchCode || options[benchCode]) {
-          return options;
-        }
+      const inputOptions = this.distinctBenches.reduce<Record<string, string>>(
+        (options, bench) => {
+          const benchCode = String(bench?.bench_code ?? "").trim();
+          if (!benchCode || options[benchCode]) {
+            return options;
+          }
 
-        const benchName = String(bench?.bench_name ?? '').trim();
-        options[benchCode] = benchName ? `${benchCode} - ${benchName}` : benchCode;
-        return options;
-      }, {});
+          const benchName = String(bench?.bench_name ?? "").trim();
+          options[benchCode] = benchName
+            ? `${benchCode} - ${benchName}`
+            : benchCode;
+          return options;
+        },
+        {},
+      );
 
       if (Object.keys(inputOptions).length === 0) {
-        this.toastr.error('No benches are available for assignment.');
+        this.toastr.error("No benches are available for assignment.");
         return null;
       }
 
       return inputOptions;
     } catch (error) {
-      console.error('Failed to load distinct benches', error);
-      this.toastr.error('Unable to load benches right now.');
+      console.error("Failed to load distinct benches", error);
+      this.toastr.error("Unable to load benches right now.");
       return null;
     }
   }
 
   onSubmitReviewClick(): void {
-    if (!this.canSubmitApprovedFiling || !this.filingId || this.allDocumentsAccepted) return;
+    if (
+      !this.canSubmitApprovedFiling ||
+      !this.filingId ||
+      this.allDocumentsAccepted
+    )
+      return;
 
     Swal.fire({
-      title: 'Submit Review?',
-      html: 'Your review decisions will be submitted. The advocate will be notified. The case will not be registered since some documents were rejected.',
-      icon: 'question',
+      title: "Submit Review?",
+      html: "Your review decisions will be submitted. The advocate will be notified. The case will not be registered since some documents were rejected.",
+      icon: "question",
       showCancelButton: true,
-      confirmButtonText: 'Yes, Submit',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#0d6efd',
-      cancelButtonColor: '#6c757d',
+      confirmButtonText: "Yes, Submit",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#0d6efd",
+      cancelButtonColor: "#6c757d",
     }).then((result) => {
       if (result.isConfirmed) {
         this.submitApprovedFiling();
@@ -355,19 +413,26 @@ export class FiledCaseDetails {
         this.isSubmittingApprovedCase = false;
         this.filing = filing;
         this.toastr.success(
-          this.filing?.case_number ? 'Case registered successfully.' : 'Review submitted. Advocate has been notified.',
+          this.filing?.case_number
+            ? "Case registered successfully."
+            : "Review submitted. Advocate has been notified.",
         );
         this.loadWorkspace(this.filingId!);
       },
       error: (error) => {
-        console.error('Failed to submit approved filing', error);
+        console.error("Failed to submit approved filing", error);
         this.isSubmittingApprovedCase = false;
       },
     });
   }
 
   submitReview(status: string): void {
-    if (!this.canReviewDocuments || !this.selectedDocument?.id || !this.filingId || this.isSavingReview) {
+    if (
+      !this.canReviewDocuments ||
+      !this.selectedDocument?.id ||
+      !this.filingId ||
+      this.isSavingReview
+    ) {
       return;
     }
 
@@ -383,11 +448,15 @@ export class FiledCaseDetails {
           this.isSavingReview = false;
           this.applyReviewedDocument(updatedDocument);
           const nextDocument = this.getNextDocumentForReview(currentDocumentId);
-          this.selectDocument(nextDocument ?? this.documents.find((d) => d.id === currentDocumentId) ?? null);
+          this.selectDocument(
+            nextDocument ??
+              this.documents.find((d) => d.id === currentDocumentId) ??
+              null,
+          );
           this.refreshFilingSummary();
         },
         error: (error) => {
-          console.error('Failed to update review', error);
+          console.error("Failed to update review", error);
           this.isSavingReview = false;
         },
       });
@@ -395,7 +464,7 @@ export class FiledCaseDetails {
 
   openInNewTab(): void {
     if (this.selectedDocument?.file_url) {
-      window.open(this.selectedDocument.file_url, '_blank', 'noopener');
+      window.open(this.selectedDocument.file_url, "_blank", "noopener");
     }
   }
 
@@ -405,116 +474,132 @@ export class FiledCaseDetails {
       return this.filing?.status ?? null;
     }
 
-    const tones = allActive.map((doc) => this.getStatusTone(this.getEffectiveReviewStatus(doc)));
+    const tones = allActive.map((doc) =>
+      this.getStatusTone(this.getEffectiveReviewStatus(doc)),
+    );
 
-    if (tones.every((tone) => tone === 'success')) {
+    if (tones.every((tone) => tone === "success")) {
       // Only show ACCEPTED when case is registered. Until then, show Under Scrutiny
       // so the status does not change to Accepted until "Register Case" is clicked.
       if (this.isCaseRegistered) {
-        return 'ACCEPTED';
+        return "ACCEPTED";
       }
-      return 'UNDER_SCRUTINY';
+      return "UNDER_SCRUTINY";
     }
 
-    if (tones.includes('danger')) {
-      const hasNonRejected = tones.some((tone) => tone !== 'danger');
-      return hasNonRejected ? 'PARTIALLY_REJECTED' : 'REJECTED';
+    if (tones.includes("danger")) {
+      const hasNonRejected = tones.some((tone) => tone !== "danger");
+      return hasNonRejected ? "PARTIALLY_REJECTED" : "REJECTED";
     }
 
-    return this.filing?.status ?? 'UNDER_SCRUTINY';
+    return this.filing?.status ?? "UNDER_SCRUTINY";
   }
 
   getStatusLabel(status: string | null): string {
-    const normalizedStatus = (status ?? '').trim().toLowerCase();
-    if (!normalizedStatus || normalizedStatus === 'submitted' || normalizedStatus === 'under_scrutiny') {
-      return 'Under Scrutiny';
+    const normalizedStatus = (status ?? "").trim().toLowerCase();
+    if (
+      !normalizedStatus ||
+      normalizedStatus === "submitted" ||
+      normalizedStatus === "under_scrutiny"
+    ) {
+      return "Under Scrutiny";
     }
-    if (normalizedStatus.includes('accept')) {
-      return 'Accepted';
+    if (normalizedStatus.includes("accept")) {
+      return "Accepted";
     }
-    if (normalizedStatus.includes('reject') || normalizedStatus.includes('object')) {
-      return 'Rejected';
+    if (
+      normalizedStatus.includes("reject") ||
+      normalizedStatus.includes("object")
+    ) {
+      return "Rejected";
     }
-    if (normalizedStatus.includes('partially')) {
-      return 'Partially Rejected';
+    if (normalizedStatus.includes("partially")) {
+      return "Partially Rejected";
     }
-    if (normalizedStatus === 'draft') {
-      return 'Draft';
+    if (normalizedStatus === "draft") {
+      return "Draft";
     }
-    return status ?? 'Under Scrutiny';
+    return status ?? "Under Scrutiny";
   }
 
-  getStatusTone(status: string | null): 'warning' | 'success' | 'danger' {
+  getStatusTone(status: string | null): "warning" | "success" | "danger" {
     const label = this.getStatusLabel(status).toLowerCase();
-    if (label.includes('accept')) {
-      return 'success';
+    if (label.includes("accept")) {
+      return "success";
     }
-    if (label.includes('reject') || label.includes('object')) {
-      return 'danger';
+    if (label.includes("reject") || label.includes("object")) {
+      return "danger";
     }
-    return 'warning';
+    return "warning";
   }
 
   getStatusClass(status: string | null): string {
     const tone = this.getStatusTone(status);
-    if (tone === 'success') {
-      return 'status-badge-success';
+    if (tone === "success") {
+      return "status-badge-success";
     }
-    if (tone === 'danger') {
-      return 'status-badge-danger';
+    if (tone === "danger") {
+      return "status-badge-danger";
     }
-    return 'status-badge-warning';
+    return "status-badge-warning";
   }
 
   getDocumentStatusLabel(document: any): string {
-    const draftStatus = (document?.draft_scrutiny_status ?? '').trim();
+    const draftStatus = (document?.draft_scrutiny_status ?? "").trim();
     if (draftStatus) {
       const baseLabel = this.getStatusLabel(draftStatus);
-      return baseLabel === 'Under Scrutiny' ? baseLabel : `Draft ${baseLabel}`;
+      return baseLabel === "Under Scrutiny" ? baseLabel : `Draft ${baseLabel}`;
     }
     return this.getStatusLabel(document?.scrutiny_status ?? null);
   }
 
   getDocumentStatusClass(document: any): string {
-    const draftStatus = (document?.draft_scrutiny_status ?? '').trim();
-    return this.getStatusClass(draftStatus || document?.scrutiny_status || null);
+    const draftStatus = (document?.draft_scrutiny_status ?? "").trim();
+    return this.getStatusClass(
+      draftStatus || document?.scrutiny_status || null,
+    );
   }
 
   private extractFileName(value: string | null | undefined): string {
-    const raw = (value ?? '').trim();
-    if (!raw) return '';
+    const raw = (value ?? "").trim();
+    if (!raw) return "";
 
-    const withoutQuery = raw.split('?')[0];
-    const parts = withoutQuery.split('/');
-    return parts[parts.length - 1] || '';
+    const withoutQuery = raw.split("?")[0];
+    const parts = withoutQuery.split("/");
+    return parts[parts.length - 1] || "";
   }
 
   getDocumentTitle(document: any): string {
-    const partName = (document?.document_part_name ?? '').trim();
+    const partName = (document?.document_part_name ?? "").trim();
     if (partName) return partName;
 
     const fileUrl = document?.file_url ?? document?.file_part_path;
     const fileName = this.extractFileName(fileUrl);
-    return fileName || 'Uploaded document';
+    return fileName || "Uploaded document";
   }
 
   getDocumentMeta(document: any): string {
-    return 'PDF document';
+    return "PDF document";
   }
 
   getDocumentDate(document: any): string | null {
-    return document?.last_reviewed_at ?? document?.last_resubmitted_at ?? document?.updated_at ?? null;
+    return (
+      document?.last_reviewed_at ??
+      document?.last_resubmitted_at ??
+      document?.updated_at ??
+      null
+    );
   }
 
   historyClass(status: string | null): string {
     const tone = this.getStatusTone(status);
-    if (tone === 'success') {
-      return 'history-success';
+    if (tone === "success") {
+      return "history-success";
     }
-    if (tone === 'danger') {
-      return 'history-danger';
+    if (tone === "danger") {
+      return "history-danger";
     }
-    return 'history-warning';
+    return "history-warning";
   }
 
   trackById(_: number, item: any): number {
@@ -522,18 +607,20 @@ export class FiledCaseDetails {
   }
 
   trackByGroupIndex(index: number, group: any): string {
-    return `${index}__${group?.document_type ?? 'unknown'}`;
+    return `${index}__${group?.document_type ?? "unknown"}`;
   }
 
   get visibleDocumentHistory(): any[] {
     return this.documentHistory.filter((item) => {
-      const comment = (item?.comments ?? '').trim();
+      const comment = (item?.comments ?? "").trim();
       return Boolean(comment) && !this.hiddenHistoryComments.has(comment);
     });
   }
 
   get sortedLitigants(): any[] {
-    return [...this.litigants].sort((a, b) => (a?.sequence_number ?? 0) - (b?.sequence_number ?? 0));
+    return [...this.litigants].sort(
+      (a, b) => (a?.sequence_number ?? 0) - (b?.sequence_number ?? 0),
+    );
   }
 
   get petitioners(): any[] {
@@ -546,26 +633,32 @@ export class FiledCaseDetails {
 
   get acceptedCount(): number {
     return this.activeDocuments.filter(
-      (document) => this.getStatusTone(this.getEffectiveReviewStatus(document)) === 'success',
+      (document) =>
+        this.getStatusTone(this.getEffectiveReviewStatus(document)) ===
+        "success",
     ).length;
   }
 
   get rejectedCount(): number {
     return this.activeDocuments.filter(
-      (document) => this.getStatusTone(this.getEffectiveReviewStatus(document)) === 'danger',
+      (document) =>
+        this.getStatusTone(this.getEffectiveReviewStatus(document)) ===
+        "danger",
     ).length;
   }
 
   get pendingCount(): number {
-    return this.activeDocuments.filter((document) => this.isPendingDraftReview(document)).length;
+    return this.activeDocuments.filter((document) =>
+      this.isPendingDraftReview(document),
+    ).length;
   }
   getActName(act: any): string {
-    return act?.act?.actname ?? act?.actname ?? '-';
+    return act?.act?.actname ?? act?.actname ?? "-";
   }
 
   selectIaDocument(document: any): void {
     this.selectedIaDocument = document;
-    this.reviewNoteIa = document?.draft_comments ?? document?.comments ?? '';
+    this.reviewNoteIa = document?.draft_comments ?? document?.comments ?? "";
     if (this.selectedIaDocumentBlobUrl) {
       URL.revokeObjectURL(this.selectedIaDocumentBlobUrl);
       this.selectedIaDocumentBlobUrl = null;
@@ -577,7 +670,8 @@ export class FiledCaseDetails {
       return;
     }
     if (fileUrl) {
-      this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+      this.selectedIaDocumentUrl =
+        this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
     }
     const stream$ = docId
       ? this.efilingService.fetch_document_blob_by_index(docId)
@@ -585,13 +679,15 @@ export class FiledCaseDetails {
     stream$.subscribe({
       next: (blob) => {
         this.selectedIaDocumentBlobUrl = URL.createObjectURL(blob);
-        this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
-          this.selectedIaDocumentBlobUrl,
-        );
+        this.selectedIaDocumentUrl =
+          this.sanitizer.bypassSecurityTrustResourceUrl(
+            this.selectedIaDocumentBlobUrl,
+          );
       },
       error: () => {
         if (fileUrl) {
-          this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+          this.selectedIaDocumentUrl =
+            this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
         } else {
           this.selectedIaDocumentUrl = null;
         }
@@ -612,20 +708,25 @@ export class FiledCaseDetails {
     });
   }
 
-  reviewNoteIa = '';
+  reviewNoteIa = "";
   documentHistoryIa: any[] = [];
   isSavingReviewIa = false;
 
   acceptIaDocument(): void {
-    this.submitIaReview('ACCEPTED');
+    this.submitIaReview("ACCEPTED");
   }
 
   rejectIaDocument(): void {
-    this.submitIaReview('REJECTED');
+    this.submitIaReview("REJECTED");
   }
 
   private submitIaReview(status: string): void {
-    if (!this.canReviewDocuments || !this.selectedIaDocument?.id || !this.filingId || this.isSavingReviewIa) {
+    if (
+      !this.canReviewDocuments ||
+      !this.selectedIaDocument?.id ||
+      !this.filingId ||
+      this.isSavingReviewIa
+    ) {
       return;
     }
 
@@ -640,14 +741,16 @@ export class FiledCaseDetails {
         next: (updatedDocument) => {
           this.isSavingReviewIa = false;
           this.applyReviewedIaDocument(updatedDocument);
-          const updatedDoc = this.iaDocuments.find((d) => d.id === currentDocumentId);
+          const updatedDoc = this.iaDocuments.find(
+            (d) => d.id === currentDocumentId,
+          );
           if (updatedDoc) {
             this.selectIaDocument(updatedDoc);
           }
           this.refreshFilingSummary();
         },
         error: (error) => {
-          console.error('Failed to update IA document review', error);
+          console.error("Failed to update IA document review", error);
           this.isSavingReviewIa = false;
         },
       });
@@ -663,7 +766,7 @@ export class FiledCaseDetails {
 
   get visibleDocumentHistoryIa(): any[] {
     return this.documentHistoryIa.filter((item) => {
-      const comment = (item?.comments ?? '').trim();
+      const comment = (item?.comments ?? "").trim();
       return Boolean(comment) && !this.hiddenHistoryComments.has(comment);
     });
   }
@@ -672,45 +775,54 @@ export class FiledCaseDetails {
     return this.getDocumentTitle(document);
   }
 
-  getIaReliefStatus(item: { ia: any; documents: any[] }): 'ACCEPTED' | 'REJECTED' | 'PENDING' {
+  getIaReliefStatus(item: {
+    ia: any;
+    documents: any[];
+  }): "ACCEPTED" | "REJECTED" | "PENDING" {
     const savedStatus = this.getNormalizedStatus(item?.ia?.status);
-    if (savedStatus.includes('accept')) {
-      return 'ACCEPTED';
+    if (savedStatus.includes("accept")) {
+      return "ACCEPTED";
     }
-    if (savedStatus.includes('reject') || savedStatus.includes('object')) {
-      return 'REJECTED';
+    if (savedStatus.includes("reject") || savedStatus.includes("object")) {
+      return "REJECTED";
     }
 
     const docs = item?.documents ?? [];
     if (!docs.length) {
-      return 'PENDING';
+      return "PENDING";
     }
 
-    const allAccepted = docs.every((doc) => this.getStatusTone(this.getEffectiveReviewStatus(doc)) === 'success');
+    const allAccepted = docs.every(
+      (doc) =>
+        this.getStatusTone(this.getEffectiveReviewStatus(doc)) === "success",
+    );
     if (allAccepted) {
-      return 'ACCEPTED';
+      return "ACCEPTED";
     }
 
-    const hasRejected = docs.some((doc) => this.getStatusTone(this.getEffectiveReviewStatus(doc)) === 'danger');
+    const hasRejected = docs.some(
+      (doc) =>
+        this.getStatusTone(this.getEffectiveReviewStatus(doc)) === "danger",
+    );
     if (hasRejected) {
-      return 'REJECTED';
+      return "REJECTED";
     }
 
-    return 'PENDING';
+    return "PENDING";
   }
 
   getIaReliefStatusLabel(item: { ia: any; documents: any[] }): string {
     const status = this.getIaReliefStatus(item);
-    if (status === 'PENDING') {
-      return 'Pending';
+    if (status === "PENDING") {
+      return "Pending";
     }
     return this.getStatusLabel(status);
   }
 
   getIaReliefStatusClass(item: { ia: any; documents: any[] }): string {
     const status = this.getIaReliefStatus(item);
-    if (status === 'PENDING') {
-      return 'status-badge-warning';
+    if (status === "PENDING") {
+      return "status-badge-warning";
     }
     return this.getStatusClass(status);
   }
@@ -721,9 +833,9 @@ export class FiledCaseDetails {
     groupedDocs: Array<{ document_type: string; items: any[] }>;
   }> {
     return this.iaList.map((ia) => {
-      const iaNum = (ia?.ia_number ?? '').trim();
+      const iaNum = (ia?.ia_number ?? "").trim();
       const documents = this.iaDocuments.filter(
-        (doc) => ((doc?.ia_number ?? '').trim() || null) === (iaNum || null),
+        (doc) => ((doc?.ia_number ?? "").trim() || null) === (iaNum || null),
       );
       return {
         ia,
@@ -738,56 +850,66 @@ export class FiledCaseDetails {
   }
 
   getIaStatusBadgeClass(status: string | null): string {
-    const s = (status ?? '').trim().toLowerCase();
-    if (s.includes('accept')) return 'status-badge-success';
-    if (s.includes('reject') || s.includes('partial')) return 'status-badge-danger';
-    return 'status-badge-warning';
+    const s = (status ?? "").trim().toLowerCase();
+    if (s.includes("accept")) return "status-badge-success";
+    if (s.includes("reject") || s.includes("partial"))
+      return "status-badge-danger";
+    return "status-badge-warning";
   }
 
   getIaStatusLabel(status: string | null): string {
-    const s = (status ?? '').trim().toLowerCase();
-    if (!s) return 'Pending';
-    if (s.includes('under_scrutiny') || s === 'under scrutiny' || s.includes('submitted')) return 'Under Scrutiny';
-    if (s.includes('accept')) return 'Accepted';
-    if (s.includes('reject') || s.includes('partial')) return 'Rejected';
-    return status ?? 'Under Scrutiny';
+    const s = (status ?? "").trim().toLowerCase();
+    if (!s) return "Pending";
+    if (
+      s.includes("under_scrutiny") ||
+      s === "under scrutiny" ||
+      s.includes("submitted")
+    )
+      return "Under Scrutiny";
+    if (s.includes("accept")) return "Accepted";
+    if (s.includes("reject") || s.includes("partial")) return "Rejected";
+    return status ?? "Under Scrutiny";
   }
 
   canVerifyIa(ia: any): boolean {
     if (!ia?.id) return false;
-    const s = (ia?.status ?? '').trim().toLowerCase();
-    return !s.includes('accept');
+    const s = (ia?.status ?? "").trim().toLowerCase();
+    return !s.includes("accept");
   }
 
   verifyIa(ia: any): void {
     if (!ia?.id || !this.canVerifyIa(ia)) return;
-    const iaLabel = ia?.ia_number || ia?.id || 'this IA';
+    const iaLabel = ia?.ia_number || ia?.id || "this IA";
     Swal.fire({
-      title: 'Verify IA?',
+      title: "Verify IA?",
       html: `Are you sure you want to verify <strong>IA ${iaLabel}</strong>? The status will be set to Accepted.`,
-      icon: 'question',
+      icon: "question",
       showCancelButton: true,
-      confirmButtonText: 'Yes, Verify',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#198754',
-      cancelButtonColor: '#6c757d',
+      confirmButtonText: "Yes, Verify",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#198754",
+      cancelButtonColor: "#6c757d",
     }).then((result) => {
       if (!result.isConfirmed) return;
       this.isVerifyingIaId = ia.id;
       this.efilingService.verify_ia(ia.id).subscribe({
         next: () => {
-          this.toastr.success('IA verified successfully.');
+          this.toastr.success("IA verified successfully.");
           this.isVerifyingIaId = null;
           if (this.filingId) {
             this.efilingService.get_ias_by_efiling_id(this.filingId).subscribe({
               next: (data) => {
-                this.iaList = Array.isArray(data) ? data : (data?.results ?? []);
+                this.iaList = Array.isArray(data)
+                  ? data
+                  : (data?.results ?? []);
               },
             });
           }
         },
         error: (err) => {
-          this.toastr.error(err?.error?.detail || err?.message || 'Failed to verify IA.');
+          this.toastr.error(
+            err?.error?.detail || err?.message || "Failed to verify IA.",
+          );
           this.isVerifyingIaId = null;
         },
       });
@@ -801,9 +923,9 @@ export class FiledCaseDetails {
 
   isDocumentAccepted(doc: any): boolean {
     if (!doc) return false;
-    const status = doc?.draft_scrutiny_status || doc?.scrutiny_status || '';
-    const norm = (status ?? '').trim().toLowerCase();
-    return norm.includes('accept');
+    const status = doc?.draft_scrutiny_status || doc?.scrutiny_status || "";
+    const norm = (status ?? "").trim().toLowerCase();
+    return norm.includes("accept");
   }
 
   isIaDocumentAccepted(doc: any): boolean {
@@ -815,7 +937,9 @@ export class FiledCaseDetails {
     }
 
     this.documents = this.documents.map((document) =>
-      document.id === updatedDocument.id ? { ...document, ...updatedDocument } : document,
+      document.id === updatedDocument.id
+        ? { ...document, ...updatedDocument }
+        : document,
     );
     this.groupedDocuments = this.groupDocumentsByType(this.documents);
   }
@@ -830,7 +954,7 @@ export class FiledCaseDetails {
         this.filing = filing;
       },
       error: (error) => {
-        console.error('Failed to refresh filing summary', error);
+        console.error("Failed to refresh filing summary", error);
       },
     });
   }
@@ -838,24 +962,35 @@ export class FiledCaseDetails {
   private getNextDocumentForReview(currentDocumentId: number): any {
     const nextPendingDocument =
       this.documents.find(
-        (document) => document.id !== currentDocumentId && this.isPendingDraftReview(document),
+        (document) =>
+          document.id !== currentDocumentId &&
+          this.isPendingDraftReview(document),
       ) ?? null;
 
     if (nextPendingDocument) {
       return nextPendingDocument;
     }
 
-    const currentIndex = this.documents.findIndex((document) => document.id === currentDocumentId);
+    const currentIndex = this.documents.findIndex(
+      (document) => document.id === currentDocumentId,
+    );
     if (currentIndex === -1) {
       return this.documents[0] ?? null;
     }
 
-    return this.documents[currentIndex + 1] ?? this.documents[currentIndex - 1] ?? this.documents[currentIndex];
+    return (
+      this.documents[currentIndex + 1] ??
+      this.documents[currentIndex - 1] ??
+      this.documents[currentIndex]
+    );
   }
 
   get allDocumentsReviewed(): boolean {
     const allActive = [...this.activeDocuments, ...this.activeIaDocuments];
-    return allActive.length > 0 && allActive.every((document) => !this.isPendingDraftReview(document));
+    return (
+      allActive.length > 0 &&
+      allActive.every((document) => !this.isPendingDraftReview(document))
+    );
   }
 
   /** All documents (main + IA) are accepted – no rejections. */
@@ -863,7 +998,8 @@ export class FiledCaseDetails {
     const allActive = [...this.activeDocuments, ...this.activeIaDocuments];
     if (allActive.length === 0) return false;
     return allActive.every(
-      (doc) => this.getStatusTone(this.getEffectiveReviewStatus(doc)) === 'success',
+      (doc) =>
+        this.getStatusTone(this.getEffectiveReviewStatus(doc)) === "success",
     );
   }
 
@@ -874,7 +1010,10 @@ export class FiledCaseDetails {
 
   get isReturned(): boolean {
     const b = this.filing?.bench;
-    return this.isCaseRegistered && (!b || b === 'null' || b === 'undefined' || b === 'None');
+    return (
+      this.isCaseRegistered &&
+      (!b || b === "null" || b === "undefined" || b === "None")
+    );
   }
 
   get canReviewDocuments(): boolean {
@@ -904,21 +1043,23 @@ export class FiledCaseDetails {
 
   get submitReviewButtonLabel(): string {
     if (this.isSubmittingApprovedCase) {
-      return 'Submitting...';
+      return "Submitting...";
     }
     if (this.isCaseRegistered) {
-      return this.hasReviewCycleItems ? 'Submit New Review' : 'Submitted';
+      return this.hasReviewCycleItems ? "Submit New Review" : "Submitted";
     }
-    return 'Submit Review';
+    return "Submit Review";
   }
 
   private isPendingDraftReview(document: any): boolean {
-    const draftStatus = this.getNormalizedStatus(document?.draft_scrutiny_status);
-    if (['accepted', 'rejected'].includes(draftStatus)) {
+    const draftStatus = this.getNormalizedStatus(
+      document?.draft_scrutiny_status,
+    );
+    if (["accepted", "rejected"].includes(draftStatus)) {
       return false;
     }
     const finalStatus = this.getNormalizedStatus(document?.scrutiny_status);
-    return !['accepted', 'rejected'].includes(finalStatus);
+    return !["accepted", "rejected"].includes(finalStatus);
   }
 
   private getEffectiveReviewStatus(document: any): string | null {
@@ -926,29 +1067,39 @@ export class FiledCaseDetails {
   }
 
   private getNormalizedStatus(status: string | null | undefined): string {
-    return String(status ?? '').trim().toLowerCase();
+    return String(status ?? "")
+      .trim()
+      .toLowerCase();
   }
 
   private get activeDocuments(): any[] {
-    const explicitlyActive = this.documents.filter((document) => document?.is_active !== false);
+    const explicitlyActive = this.documents.filter(
+      (document) => document?.is_active !== false,
+    );
     return explicitlyActive.length > 0 ? explicitlyActive : this.documents;
   }
 
   private get activeIaDocuments(): any[] {
-    const explicitlyActive = this.iaDocuments.filter((document) => document?.is_active !== false);
+    const explicitlyActive = this.iaDocuments.filter(
+      (document) => document?.is_active !== false,
+    );
     return explicitlyActive.length > 0 ? explicitlyActive : this.iaDocuments;
   }
 
   private get reviewCycleDocuments(): any[] {
     const allActive = [...this.activeDocuments, ...this.activeIaDocuments];
     return allActive.filter((document) => {
-      const hasDraftStatus = Boolean(String(document?.draft_scrutiny_status ?? '').trim());
+      const hasDraftStatus = Boolean(
+        String(document?.draft_scrutiny_status ?? "").trim(),
+      );
       return Boolean(document?.is_new_for_scrutiny) || hasDraftStatus;
     });
   }
 
   private get hasPendingReviewItems(): boolean {
-    return this.reviewCycleDocuments.some((document) => this.isPendingDraftReview(document));
+    return this.reviewCycleDocuments.some((document) =>
+      this.isPendingDraftReview(document),
+    );
   }
 
   private get hasReviewCycleItems(): boolean {
@@ -958,7 +1109,9 @@ export class FiledCaseDetails {
   private get allReviewCycleItemsReviewed(): boolean {
     return (
       this.reviewCycleDocuments.length > 0 &&
-      this.reviewCycleDocuments.every((document) => !this.isPendingDraftReview(document))
+      this.reviewCycleDocuments.every(
+        (document) => !this.isPendingDraftReview(document),
+      )
     );
   }
 }
