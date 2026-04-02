@@ -26,9 +26,28 @@ export class Litigant {
   ) {}
 
   ngOnInit() {
-    // this.get_organisation_list();
+    this.get_organisation_list();
     this.get_state_list();
     this.bindOrganisationToggle();
+
+    const updateName = () => {
+      const orgId = this.form.get("organization")?.value;
+      const isOrg = this.form.get("is_organisation")?.value;
+      const selectedOrg = this.organisations.find((o) => o.id == orgId);
+
+      if (isOrg && orgId && selectedOrg) {
+        this.form.get("name")?.setValue(selectedOrg.orgname);
+      } else {
+        this.form.get("name")?.setValue("");
+      }
+    };
+
+    this.form.get("organization")?.valueChanges.subscribe(updateName);
+    this.form.get("is_organisation")?.valueChanges.subscribe(updateName);
+  }
+
+  setPartyType(value: boolean) {
+    this.form.get("is_petitioner")?.setValue(value);
   }
 
   private bindOrganisationToggle() {
@@ -68,11 +87,7 @@ export class Litigant {
         item.is_petitioner === 1 ||
         item.is_petitioner === "1" ||
         item.is_petitioner === "true",
-      is_organisation:
-        item.is_organisation === true ||
-        item.is_organisation === 1 ||
-        item.is_organisation === "1" ||
-        item.is_organisation === "true",
+      is_organisation: item.organization !== null,
       organization:
         item.organization_detail?.id ??
         item.organization ??
