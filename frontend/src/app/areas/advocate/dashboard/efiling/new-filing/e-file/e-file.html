@@ -365,8 +365,19 @@
     class="card shadow-sm mb-4 border-0 text-start"
     *ngIf="paymentDetails"
   >
-    <div class="card-header bg-dark text-white fw-semibold">
-      Court Fee Payment
+    <div
+      class="card-header bg-dark text-white fw-semibold d-flex justify-content-between align-items-center flex-wrap gap-2"
+    >
+      <span>Court Fee Payment</span>
+      <button
+        *ngIf="canDownloadOnlinePaymentReceipt"
+        type="button"
+        class="btn btn-sm btn-light d-flex align-items-center gap-1"
+        (click)="downloadOnlinePaymentReceiptPdf()"
+      >
+        <i class="fa-solid fa-file-pdf"></i>
+        Download receipt (PDF)
+      </button>
     </div>
     <div class="card-body">
       <ng-container *ngIf="paymentDetails.required === false">
