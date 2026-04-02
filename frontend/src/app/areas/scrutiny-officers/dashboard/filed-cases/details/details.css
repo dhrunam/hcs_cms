@@ -115,8 +115,9 @@
 
 .document-item:hover,
 .document-item-active {
+  border: 1px solid #6366f1;
   border-color: #6366f1;
-  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.12);
+  /* box-shadow: 0 5px 2px rgba(79, 70, 229, 0.1); */
 }
 
 .document-title {
