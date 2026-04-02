@@ -822,3 +822,12 @@ class ReaderJudgeAssignment(BaseModel):
     def __str__(self) -> str:
         judge_name = self.judge.judge_name or self.judge.judge_code
         return f'{judge_name} -> {self.reader_user}'
+    
+class ChatMessage(BaseModel):
+    id = models.AutoField(primary_key=True)
+    e_filing = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name='chat_messages')
+    sender = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_chat_messages')
+    message = models.TextField(blank=True, null=True, max_length=2000)    
+
+    class Meta:
+        db_table = 'chat_message'
