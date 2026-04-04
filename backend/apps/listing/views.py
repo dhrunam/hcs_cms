@@ -151,13 +151,28 @@ class CauseListDraftPreviewView(APIView):
         judge_listing_date_map: Dict[int, str | None] = {}
         judge_listing_remark_map: Dict[int, str | None] = {}
         if approved_only:
-            approved_ids = _judge_approved_efiling_ids(cause_list_date, bench_key)
-            # Reference-only metadata: judge suggested listing date per case.
-            if approved_ids:
+            # WORKFLOW CORRECTION: Use Reader's 'Forward' as the signal for the Listing Officer.
+            try:
+                cld_obj = timezone.datetime.fromisoformat(cause_list_date).date()
+            except ValueError:
+                cld_obj = None
+
+            target_ids = set()
+            if cld_obj:
+                target_ids = set(
+                    CourtroomForward.objects.filter(
+                        bench_key=bench_key,
+                        forwarded_for_date=cld_obj,
+                    ).values_list("efiling_id", flat=True)
+                )
+
+            # Still pull Judge data (if any) as metadata for the Listing Officer.
+            if target_ids:
                 rows = (
                     CourtroomJudgeDecision.objects.filter(
-                        efiling_id__in=approved_ids,
-                        approved=True,
+                        efiling_id__in=target_ids,
+                        # We don't filter by approved=True here because we want to see 
+                        # all suggested metadata for forwarded cases.
                     )
                     .values("efiling_id", "listing_date", "reader_listing_remark")
                     .order_by("efiling_id", "-listing_date", "-id")
@@ -170,10 +185,9 @@ class CauseListDraftPreviewView(APIView):
                         judge_listing_remark_map[eid] = row.get("reader_listing_remark")
             accepted = (
                 Efiling.objects.filter(
-                    id__in=approved_ids,
+                    id__in=target_ids,
                     is_draft=False,
                     status="ACCEPTED",
-                    bench=bench_key,
                 )
                 .prefetch_related("litigants")
                 .order_by("id")
@@ -193,21 +207,41 @@ class CauseListDraftPreviewView(APIView):
 
         existing_entries = {}
         if draft:
-            qs = CauseListEntry.objects.filter(cause_list=draft).only("efiling_id", "included", "serial_no")
+            qs = CauseListEntry.objects.filter(cause_list=draft).only(
+                "efiling_id", "included", "serial_no", "petitioner_advocate", "respondent_advocate", "selected_ias"
+            )
             existing_entries = {row.efiling_id: row for row in qs}
+
+        # Fetch all IAs for these filings
+        from apps.core.models import IA
+        efiling_ids = [f.id for f in accepted]
+        all_ias = IA.objects.filter(e_filing_id__in=efiling_ids).values("e_filing_id", "ia_number", "ia_text")
+        ia_map: Dict[int, List[Dict[str, str]]] = {}
+        for ia in all_ias:
+            eid = int(ia["e_filing_id"])
+            if eid not in ia_map:
+                ia_map[eid] = []
+            ia_map[eid].append({"ia_number": ia["ia_number"], "ia_text": ia["ia_text"]})
 
         items: List[Dict[str, Any]] = []
         for idx, filing in enumerate(accepted, start=1):
             existing = existing_entries.get(filing.id)
             if existing is not None:
                 included = bool(existing.included)
-                serial_no = existing.serial_no if existing.serial_no is not None else idx
+                serial_no = (
+                    existing.serial_no if existing.serial_no is not None else idx
+                )
+                petitioner_advocate = existing.petitioner_advocate or ""
+                respondent_advocate = existing.respondent_advocate or ""
+                selected_ias = existing.selected_ias or []
             else:
-                # For freshly judge-approved cases, show them in the approved pool
-                # but do NOT auto-include them in the list. Listing Officer must
-                # explicitly select which approved cases to include for the date.
-                included = not approved_only
+                # WORKFLOW IMPROVEMENT: Default to 'True' for forwarded cases 
+                # to reduce manual work for the Listing Officer.
+                included = True
                 serial_no = idx
+                petitioner_advocate = ""
+                respondent_advocate = ""
+                selected_ias = []
 
             items.append(
                 {
@@ -220,6 +254,10 @@ class CauseListDraftPreviewView(APIView):
                     ),
                     "included": included,
                     "serial_no": serial_no,
+                    "petitioner_advocate": petitioner_advocate,
+                    "respondent_advocate": respondent_advocate,
+                    "available_ias": ia_map.get(filing.id, []),
+                    "selected_ias": selected_ias,
                     "judge_listing_date": judge_listing_date_map.get(filing.id),
                     "reader_listing_remark": judge_listing_remark_map.get(filing.id),
                 }
@@ -260,8 +298,22 @@ class CauseListDraftPdfPreviewView(APIView):
             .first()
         )
 
+        try:
+            cld_obj = timezone.datetime.fromisoformat(cause_list_date).date()
+        except ValueError:
+            cld_obj = None
+
+        target_ids = set()
+        if cld_obj:
+            target_ids = set(
+                CourtroomForward.objects.filter(
+                    bench_key=bench_key,
+                    forwarded_for_date=cld_obj,
+                ).values_list("efiling_id", flat=True)
+            )
+
         accepted = (
-            Efiling.objects.filter(is_draft=False, status="ACCEPTED", bench=bench_key)
+            Efiling.objects.filter(id__in=target_ids, is_draft=False, status="ACCEPTED")
             .order_by("id")
             .all()
         )
@@ -270,7 +322,7 @@ class CauseListDraftPdfPreviewView(APIView):
         if draft:
             qs = (
                 CauseListEntry.objects.filter(cause_list=draft)
-                .only("efiling_id", "included", "serial_no")
+                .only("efiling_id", "included", "serial_no", "petitioner_advocate", "respondent_advocate", "selected_ias")
                 .all()
             )
             existing_entries = {row.efiling_id: row for row in qs}
@@ -292,11 +344,29 @@ class CauseListDraftPdfPreviewView(APIView):
                 fallback_serial += 1
 
             main_parties = _main_parties_for_filing(filing)
-            pet_adv, resp_adv = _advocates_for_filing(filing)
+            
+            # Formatted IA strings
+            ia_list = existing.selected_ias if existing and existing.selected_ias else []
+            ia_items = []
+            for ia_obj in ia_list:
+                num = ia_obj.get("ia_number", "")
+                txt = ia_obj.get("ia_text", "")
+                ia_items.append(f"(with) IA {num} ({txt})")
+            ia_str = "\n".join(ia_items)
+
+            # Advocates: manual or auto
+            pet_adv_auto, resp_adv_auto = _advocates_for_filing(filing)
+            if existing:
+                pet_adv = (existing.petitioner_advocate or "").strip() or pet_adv_auto
+                resp_adv = (existing.respondent_advocate or "").strip() or resp_adv_auto
+            else:
+                pet_adv, resp_adv = pet_adv_auto, resp_adv_auto
+
             rows.append(
                 CauseListRow(
                     serial_no=int(serial),
-                    case_number=filing.case_number or "",
+                    case_number=filing.case_number or "-",
+                    ia_info=ia_str,
                     main_parties=main_parties,
                     petitioner_advocates=pet_adv,
                     respondent_advocates=resp_adv,
@@ -334,7 +404,8 @@ class CauseListDraftSaveView(APIView):
 
     def post(self, request, *args, **kwargs):
         payload = CauseListDraftSaveSerializer(data=request.data)
-        payload.is_valid(raise_exception=True)
+        if not payload.is_valid():
+            raise ValidationError(payload.errors)
 
         cause_list_date = payload.validated_data["cause_list_date"]
         bench_key = payload.validated_data["bench_key"]
@@ -377,14 +448,17 @@ class CauseListDraftSaveView(APIView):
                             "efiling_id": f"efiling_id={efiling_id} is not ACCEPTED and cannot be added to cause list."
                         }
                     )
-                # We trust bench_key mapping per plan: Efiling.bench decides bench.
-                if filing.bench != bench_key:
-                    raise ValidationError({"bench_key": "efiling_id does not belong to selected bench_key."})
 
                 CauseListEntry.objects.update_or_create(
                     cause_list=cause_list,
                     efiling=filing,
-                    defaults={"included": included, "serial_no": serial_no},
+                    defaults={
+                        "included": included,
+                        "serial_no": serial_no,
+                        "petitioner_advocate": e.get("petitioner_advocate", ""),
+                        "respondent_advocate": e.get("respondent_advocate", ""),
+                        "selected_ias": e.get("selected_ias", []),
+                    },
                 )
 
             # For a consistent snapshot UI, any missing case becomes un-included.
@@ -411,6 +485,7 @@ class CauseListPublishView(APIView):
         cause_list = get_object_or_404(CauseList, pk=pk)
 
         if cause_list.status != CauseList.CauseListStatus.DRAFT:
+            print(f"DEBUG: CauseListPublishView error: status is {cause_list.status}, not DRAFT.")
             raise ValidationError({"detail": "Only DRAFT cause lists can be published."})
 
         with transaction.atomic():
@@ -421,13 +496,25 @@ class CauseListPublishView(APIView):
             )
 
             entries = list(entries_qs)
-            # Sort by serial_no (nulls last), then by id for stability.
             included_ids = {e.efiling_id for e in entries}
-            allowed_ids = _judge_approved_efiling_ids(
-                cause_list.cause_list_date.isoformat(), cause_list.bench_key
+            # Sort by serial_no (nulls last), then by id for stability.
+            # WORKFLOW CORRECTION: Listing Officer's publication is final. 
+            # It only requires that the cases were forwarded by the Reader for this date.
+            try:
+                cld_str = cause_list.cause_list_date.isoformat()
+                cld_obj = cause_list.cause_list_date
+            except:
+                raise ValidationError({"detail": "Invalid cause list date."})
+
+            allowed_ids = set(
+                CourtroomForward.objects.filter(
+                    bench_key=cause_list.bench_key,
+                    forwarded_for_date=cld_obj,
+                ).values_list("efiling_id", flat=True)
             )
+
             if not included_ids.issubset(allowed_ids):
-                raise ValidationError({"detail": "Some selected cases are not judge-approved for this date/bench."})
+                raise ValidationError({"detail": "Some selected cases have not been forwarded by the Reader for this date/bench."})
             entries.sort(key=lambda e: (e.serial_no is None, e.serial_no or 10**12, e.id))
 
             rows: List[CauseListRow] = []
@@ -436,11 +523,26 @@ class CauseListPublishView(APIView):
                 serial = e.serial_no if e.serial_no is not None else sequential_fallback
                 sequential_fallback += 1
                 main_parties = _main_parties_for_filing(e.efiling)
-                pet_adv, resp_adv = _advocates_for_filing(e.efiling)
+                
+                # Use manually entered advocates if present, otherwise fallback to auto-generated
+                pet_adv_auto, resp_adv_auto = _advocates_for_filing(e.efiling)
+                pet_adv = (e.petitioner_advocate or "").strip() or pet_adv_auto
+                resp_adv = (e.respondent_advocate or "").strip() or resp_adv_auto
+                
+                # IAs
+                ia_list = e.selected_ias or []
+                ia_items = []
+                for ia_obj in ia_list:
+                    num = ia_obj.get("ia_number", "")
+                    txt = ia_obj.get("ia_text", "")
+                    ia_items.append(f"(with) IA {num} ({txt})")
+                ia_str = "\n".join(ia_items)
+
                 rows.append(
                     CauseListRow(
                         serial_no=int(serial),
-                        case_number=e.efiling.case_number or "",
+                        case_number=e.efiling.case_number or "-",
+                        ia_info=ia_str,
                         main_parties=main_parties,
                         petitioner_advocates=pet_adv,
                         respondent_advocates=resp_adv,
@@ -521,13 +623,17 @@ class CauseListPublishDirectView(APIView):
                     raise ValidationError({"efiling_id": f"Invalid efiling_id={efiling_id}"})
                 if filing.is_draft or filing.status != "ACCEPTED":
                     raise ValidationError({"efiling_id": f"efiling_id={efiling_id} is not ACCEPTED."})
-                if filing.bench != bench_key:
-                    raise ValidationError({"bench_key": "efiling_id does not belong to selected bench_key."})
 
                 CauseListEntry.objects.update_or_create(
                     cause_list=cause_list,
                     efiling=filing,
-                    defaults={"included": included, "serial_no": serial_no},
+                    defaults={
+                        "included": included, 
+                        "serial_no": serial_no,
+                        "petitioner_advocate": e.get("petitioner_advocate", ""),
+                        "respondent_advocate": e.get("respondent_advocate", ""),
+                        "selected_ias": e.get("selected_ias", []),
+                    },
                 )
 
             (
@@ -545,11 +651,14 @@ class CauseListPublishDirectView(APIView):
                     "efiling_id", flat=True
                 )
             )
-            allowed_ids = _judge_approved_efiling_ids(
-                cause_list_date.isoformat(), bench_key
+            allowed_ids = set(
+                CourtroomForward.objects.filter(
+                    bench_key=bench_key,
+                    forwarded_for_date=cause_list_date,
+                ).values_list("efiling_id", flat=True)
             )
             if not included_ids.issubset(allowed_ids):
-                raise ValidationError({"detail": "Some included cases are not judge-approved for this date/bench."})
+                raise ValidationError({"detail": "Some included cases have not been forwarded by the Reader for this date/bench."})
 
             # Safety net: for this date, keep each case in only one bench.
             if incoming_id_set:
@@ -580,11 +689,26 @@ class CauseListPublishDirectView(APIView):
                 serial = e.serial_no if e.serial_no is not None else fallback
                 fallback += 1
                 main_parties = _main_parties_for_filing(e.efiling)
-                pet_adv, resp_adv = _advocates_for_filing(e.efiling)
+                
+                # Use manually entered advocates if present, otherwise fallback to auto-generated
+                pet_adv_auto, resp_adv_auto = _advocates_for_filing(e.efiling)
+                pet_adv = (e.petitioner_advocate or "").strip() or pet_adv_auto
+                resp_adv = (e.respondent_advocate or "").strip() or resp_adv_auto
+
+                # IAs
+                ia_list = e.selected_ias or []
+                ia_items = []
+                for ia_obj in ia_list:
+                    num = ia_obj.get("ia_number", "")
+                    txt = ia_obj.get("ia_text", "")
+                    ia_items.append(f"(with) IA {num} ({txt})")
+                ia_str = "\n".join(ia_items)
+
                 rows.append(
                     CauseListRow(
                         serial_no=int(serial),
-                        case_number=e.efiling.case_number or "",
+                        case_number=e.efiling.case_number or "-",
+                        ia_info=ia_str,
                         main_parties=main_parties,
                         petitioner_advocates=pet_adv,
                         respondent_advocates=resp_adv,
@@ -837,6 +961,7 @@ class CauseListEntryLookupByCaseNumberView(APIView):
         return Response(
             {
                 "found": True,
+                "efiling_id": filing.id,
                 "cause_list_id": cl.id,
                 "bench_key": cl.bench_key,
                 "serial_no": entry.serial_no,

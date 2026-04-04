@@ -62,6 +62,7 @@ from apps.efiling.views.judge_views import JudgeTListCreateView, JudgeTRetrieveU
 from apps.efiling.views.bench_views import BenchTListCreateView, BenchTRetrieveUpdateDestroyView
 from apps.efiling.views.bench_distinct_views import BenchDistinctListView
 from apps.efiling.views.budget_head_views import BudgetHeadTListView
+from apps.efiling.views.chat_message_views import ChatMessageListCreateView
 
 
 app_name = "efiling"
@@ -79,6 +80,11 @@ urlpatterns = [
         "efilings/<int:pk>/submit-approved/",
         EfilingSubmitApprovedView.as_view(),
         name="efiling-submit-approved",
+    ),
+    path(
+        "efilings/<int:pk>/chat-messages/",
+        ChatMessageListCreateView.as_view(),
+        name="efiling-chat-messages",
     ),
     path(
         "ias/",

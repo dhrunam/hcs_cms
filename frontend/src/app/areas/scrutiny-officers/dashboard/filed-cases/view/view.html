@@ -33,6 +33,9 @@
               <td>{{ filing.case_type?.type_name || '-' }}</td>
               <td>{{ filing.created_at | date: 'dd MMM yyyy' }}</td>
               <td>
+                <span *ngIf="hasUnreadChat(filing)" class="badge rounded-pill text-bg-danger me-2">
+                  Unread Chat
+                </span>
                 <span *ngIf="hasNewForScrutiny(filing.id)" class="badge rounded-pill text-bg-danger me-2">
                   New
                 </span>
@@ -99,6 +102,9 @@
               <td>{{ filing.petitioner_contact || '-' }}</td>
               <td>{{ filing.created_at | date: 'dd MMM yyyy' }}</td>
               <td>
+                <span *ngIf="hasUnreadChat(filing)" class="badge rounded-pill text-bg-danger me-2">
+                  Unread Chat
+                </span>
                 <span *ngIf="hasNewForScrutiny(filing.id)" class="badge rounded-pill text-bg-danger me-2">
                   New
                 </span>

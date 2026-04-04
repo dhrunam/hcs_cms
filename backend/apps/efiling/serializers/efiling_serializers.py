@@ -17,6 +17,9 @@ class EfilingSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
     petitioner_vs_respondent = serializers.SerializerMethodField(read_only=True)
+    latest_chat_message_id = serializers.SerializerMethodField(read_only=True)
+    latest_chat_message_at = serializers.SerializerMethodField(read_only=True)
+    latest_chat_is_from_current_user = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Efiling
@@ -37,6 +40,9 @@ class EfilingSerializer(serializers.ModelSerializer):
             'created_by',
             'updated_by',
             'petitioner_vs_respondent',
+            'latest_chat_message_id',
+            'latest_chat_message_at',
+            'latest_chat_is_from_current_user',
         ]
         read_only_fields = [
             'id',
@@ -47,6 +53,9 @@ class EfilingSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
             'petitioner_vs_respondent',
+            'latest_chat_message_id',
+            'latest_chat_message_at',
+            'latest_chat_is_from_current_user',
         ]
 
     def get_petitioner_vs_respondent(self, obj):
@@ -57,6 +66,23 @@ class EfilingSerializer(serializers.ModelSerializer):
             obj,
             fallback_petitioner_name=getattr(obj, "petitioner_name", None) or "",
         )
+
+    def get_latest_chat_message_id(self, obj):
+        latest_message = obj.chat_messages.filter(is_active=True).order_by('-created_at', '-id').first()
+        return latest_message.id if latest_message else None
+
+    def get_latest_chat_message_at(self, obj):
+        latest_message = obj.chat_messages.filter(is_active=True).order_by('-created_at', '-id').first()
+        return latest_message.created_at if latest_message else None
+
+    def get_latest_chat_is_from_current_user(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        latest_message = obj.chat_messages.filter(is_active=True).order_by('-created_at', '-id').first()
+        if not latest_message or not latest_message.sender_id:
+            return False
+        return latest_message.sender_id == request.user.id
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

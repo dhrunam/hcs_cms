@@ -102,52 +102,112 @@ select {
 
 .litigant-split-view {
   align-items: stretch;
+  flex-wrap: nowrap;
+}
+
+.litigant-side {
+  flex: 1 1 420px;
+  min-width: 320px;
+}
+
+.litigant-actions {
+  margin-bottom: 12px;
 }
 
 .litigant-vs-col {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 56px;
+  max-width: 56px;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .litigant-vs-badge {
-  width: 52px;
-  height: 52px;
+  width: 56px;
+  height: 56px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
   letter-spacing: 0.5px;
-  color: #0f172a;
-  background: #f3f4f6;
-  border: 1px solid #d1d5db;
+  color: #ffffff;
+  background: #0f172a;
+  border: 3px solid #f7f9fb;
+  box-shadow: 0 5px 10px rgba(15, 23, 42, 0.2);
 }
 
 .litigant-panel {
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 14px;
-  background: #ffffff;
+  border: 1px solid rgba(195, 198, 206, 0.35);
+  border-radius: 14px;
+  padding: 18px;
+  /* background: #f7f9fb; */
   height: 100%;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.06);
+}
+
+.litigant-form-slot {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #e5e7eb;
+}
+
+.litigant-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.litigant-add-btn {
+  border: none;
+  background: transparent;
+  color: #314863;
+  font-weight: 600;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.litigant-add-btn:hover {
+  color: #0f172a;
 }
 
 .petitioner-panel {
-  border-left: 4px solid #16a34a;
+  border-left: 4px solid #0f172a;
 }
 
 .respondent-panel {
-  border-left: 4px solid #d97706;
+  border-left: 4px solid #314863;
 }
 
 .litigant-panel-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   font-weight: 600;
   margin-bottom: 12px;
   padding-bottom: 10px;
-  border-bottom: 1px dashed #e5e7eb;
+  border-bottom: 1px solid rgba(195, 198, 206, 0.35);
+}
+
+.litigant-panel-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.litigant-title-text {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.litigant-subtitle {
+  font-size: 0.8rem;
+  color: #6b7280;
 }
 
 .litigant-count {
@@ -161,12 +221,13 @@ select {
   font-size: 12px;
 }
 
+
 .litigant-item {
-  border: 1px solid #eceff3;
-  border-radius: 10px;
+  border: 1px solid rgba(195, 198, 206, 0.35);
+  border-radius: 12px;
   padding: 12px;
   margin-bottom: 10px;
-  background: #fafafa;
+  background: #ffffff;
 }
 
 .litigant-item:last-child {

@@ -235,8 +235,10 @@ class Efiling(BaseModel):
     case_type= models.ForeignKey(CaseTypeT, on_delete=models.SET_NULL, null=True, blank=True, related_name='efilings')
     bench = models.CharField(max_length=200, blank=True, null=True)
     petitioner_name = models.CharField(max_length=300, blank=True, null=True)
+    petitioner_vs_respondent = models.CharField(max_length=600, blank=True, null=True)
     petitioner_contact = models.CharField(max_length=10, blank=True, null=True)
     e_filing_number = models.CharField(max_length=100, unique=True, blank=True, null=True) # Should be genrated at last submission step and should be unique.
+    filing_date = models.DateField(blank=True, null=True)
     case_number = models.CharField(max_length=120, unique=True, blank=True, null=True)
     is_draft = models.BooleanField(default=True)
     status = models.CharField(max_length=50, blank=True, null=True) # e.g., DRAFT, SUBMITTED, ACCEPTED, REJECTED, etc.
@@ -248,6 +250,13 @@ class Efiling(BaseModel):
         
     # generate e_filing_number in the format ASK2024XXXXXXXCYYYYZZZZZ where XXXXXXX is a zero-padded sequence number, YYYY is the current year, and 
     # ZZZZZ is a zero-padded sequence number of length 5. The prefix "ASK" and suffix "C" are constant. The sequence number should be unique for each e-filing and should reset every year.
+
+    @property
+    def petitioner_vs_respondent_display(self):
+        from apps.efiling.party_display import build_petitioner_vs_respondent
+        if self.petitioner_vs_respondent:
+            return self.petitioner_vs_respondent
+        return build_petitioner_vs_respondent(self, fallback_petitioner_name=self.petitioner_name or "Petitioner")
 
     def save(self, *args, **kwargs):
         # Generate filing number only on first save
