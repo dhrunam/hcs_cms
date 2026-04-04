@@ -133,6 +133,8 @@ class CaseTypeT(BaseModel):
     lfull_form = models.CharField(max_length=100, blank=True, null=True)
     type_flag = models.TextField()  # This field type is a guess.
     est_code_src = models.CharField(max_length=6)
+    reg_no = models.IntegerField()
+    reg_year = models.SmallIntegerField()
 
     class Meta:
       
@@ -277,6 +279,9 @@ class Efiling(BaseModel):
 class DocumentIndex(BaseModel):
     name=models.CharField(max_length=215, null=False, blank=False)
     case_type= models.ForeignKey(CaseTypeT, on_delete=models.SET_NULL, null=True, blank=True, related_name='document_index')
+    sequence_number = models.IntegerField(blank=False, null=False)
+    for_new_filing = models.BooleanField(default=False)
+    fee_amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     class Meta:
       
         db_table = 'document_index'
@@ -825,3 +830,22 @@ class ReaderJudgeAssignment(BaseModel):
     def __str__(self) -> str:
         judge_name = self.judge.judge_name or self.judge.judge_code
         return f'{judge_name} -> {self.reader_user}'
+    
+class ChatMessage(BaseModel):
+    id = models.AutoField(primary_key=True)
+    e_filing = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name='chat_messages')
+    sender = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_chat_messages')
+    message = models.TextField(blank=True, null=True, max_length=2000)    
+
+    class Meta:
+        db_table = 'chat_message'
+        
+class BudgetHeadT(BaseModel):
+    id = models.AutoField(primary_key=True)
+    major_head = models.CharField(max_length=4, blank=False, null=False)
+    minor_head = models.CharField(max_length=6, blank=False, null=False)
+    case_type = models.ForeignKey(CaseTypeT, on_delete=models.SET_NULL, null=True, blank=True, related_name='budget_heads')
+    description = models.CharField(max_length=255, blank=True, null=True)
+    
+    class Meta:
+        db_table = 'budget_head_t'
