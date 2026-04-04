@@ -10,13 +10,14 @@ import {
   DistinctBenchOption,
   EfilingService,
 } from "../../../../../services/advocate/efiling/efiling.services";
+import { EfilingChatComponent } from "../../../../../shared/efiling-chat/efiling-chat";
 import { catchError, of } from "rxjs";
 import { PaymentService } from "../../../../../services/payment/payment.service";
 
 @Component({
   selector: "app-filed-case-details",
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, EfilingChatComponent],
   templateUrl: "./details.html",
   styleUrl: "./details.css",
 })
@@ -47,7 +48,7 @@ export class FiledCaseDetails {
   isSavingReview = false;
   isSubmittingApprovedCase = false;
   missingFilingId = false;
-  activeTab: "filing" | "documents" | "ia" = "filing";
+  activeTab: "filing" | "documents" | "ia" | "chat" = "filing";
   iaList: any[] = [];
   fullScreen = false;
   iaDocuments: any[] = [];
@@ -75,7 +76,7 @@ export class FiledCaseDetails {
     private toastr: ToastrService,
   ) {}
 
-  setActiveTab(tab: "filing" | "documents" | "ia"): void {
+  setActiveTab(tab: "filing" | "documents" | "ia" | "chat"): void {
     this.activeTab = tab;
   }
 
