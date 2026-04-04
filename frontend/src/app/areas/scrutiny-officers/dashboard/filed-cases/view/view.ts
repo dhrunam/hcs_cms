@@ -3,6 +3,7 @@ import { Component } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { catchError, forkJoin, of } from 'rxjs';
 import { EfilingService } from '../../../../../services/advocate/efiling/efiling.services';
+import { ChatReadStateService } from '../../../../../services/chat/chat-read-state.service';
 
 interface EfilingCaseType {
   type_name?: string;
@@ -19,6 +20,9 @@ interface EfilingItem {
   status: string | null;
   bench: string | null;
   case_type: EfilingCaseType | null;
+  latest_chat_message_id?: number | null;
+  latest_chat_message_at?: string | null;
+  latest_chat_is_from_current_user?: boolean;
 }
 
 @Component({
@@ -38,6 +42,7 @@ export class FiledCasesView {
   constructor(
     private eFilingService: EfilingService,
     private route: ActivatedRoute,
+    private chatReadStateService: ChatReadStateService,
   ) {}
 
   ngOnInit(): void {
@@ -155,6 +160,19 @@ export class FiledCasesView {
   isUrgentCase(filing: EfilingItem | null | undefined): boolean {
     const id = Number(filing?.id);
     return Number.isFinite(id) && this.urgentFilingIds.has(id);
+  }
+
+  hasUnreadChat(filing: EfilingItem | null | undefined): boolean {
+    const filingId = Number(filing?.id);
+    const latestMessageId = Number(filing?.latest_chat_message_id || 0);
+    if (!Number.isFinite(filingId) || latestMessageId <= 0) {
+      return false;
+    }
+    if (filing?.latest_chat_is_from_current_user) {
+      return false;
+    }
+    const lastSeenId = this.chatReadStateService.getLastSeenMessageId(filingId, 'scrutiny_officer');
+    return latestMessageId > lastSeenId;
   }
 
   getStatusLabel(item: EfilingItem): string {
