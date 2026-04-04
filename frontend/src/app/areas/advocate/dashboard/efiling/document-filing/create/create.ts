@@ -292,6 +292,14 @@ export class Create implements OnInit {
     return item?.id ?? 0;
   }
 
+  private maxDocumentSequence(parts: any[]): number {
+    if (!Array.isArray(parts) || parts.length === 0) return 0;
+    return parts.reduce(
+      (m, p) => Math.max(m, Number(p?.document_sequence) || 0),
+      0,
+    );
+  }
+
   getDocDisplayLabel(doc: any): string {
     if (doc?.ia_number && doc?.document_type === 'IA') return doc.ia_number;
     return doc?.document_type || '-';
@@ -397,27 +405,54 @@ export class Create implements OnInit {
       const documentId = documentRes?.id;
       if (!documentId) throw new Error('Document creation failed');
 
+      const existingIndexes = Array.isArray(documentRes?.document_indexes)
+        ? documentRes.document_indexes
+        : [];
+      let nextSeq = this.maxDocumentSequence(existingIndexes);
       const uploadedDocumentParts: any[] = [];
+      const groupName = String(data?.parent_group_name ?? '').trim();
+      let parentIndexId: number | null = null;
+
+      if (groupName) {
+        nextSeq += 1;
+        const parentFd = new FormData();
+        parentFd.append('document', String(documentId));
+        parentFd.append('document_part_name', groupName);
+        parentFd.append('document_sequence', String(nextSeq));
+        const parentRes = await firstValueFrom(
+          this.eFilingService.createDocumentIndexMetadata(parentFd),
+        );
+        parentIndexId = parentRes?.id != null ? Number(parentRes.id) : null;
+        if (parentRes) uploadedDocumentParts.push(parentRes);
+      }
 
       for (let i = 0; i < uploadItems.length; i++) {
         const item = uploadItems[i];
+        nextSeq += 1;
         const indexPayload = new FormData();
         indexPayload.append('document', String(documentId));
         indexPayload.append('document_part_name', String(item.index_name || '').trim());
         indexPayload.append('file_part_path', item.file);
-        indexPayload.append('document_sequence', String(i + 1));
+        indexPayload.append('document_sequence', String(nextSeq));
         if (item.index_id) {
           indexPayload.append('index', String(item.index_id));
+        }
+        if (parentIndexId != null) {
+          indexPayload.append('parent_document_index', String(parentIndexId));
         }
 
         const indexRes = await this.uploadIndexFileWithProgress(indexPayload, i);
         uploadedDocumentParts.push(indexRes);
       }
 
+      const firstFileUrl = uploadedDocumentParts.find(
+        (p: any) => p?.file_url || p?.file_part_path,
+      );
       this.uploadedDocList.push({
         ...documentRes,
         document_indexes: uploadedDocumentParts,
-        final_document: uploadedDocumentParts[0]?.file_url || documentRes?.final_document,
+        final_document:
+          firstFileUrl?.file_url || firstFileUrl?.file_part_path || documentRes?.final_document,
       });
 
       this.uploadCompletedToken++;

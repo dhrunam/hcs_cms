@@ -413,58 +413,68 @@
                     *ngFor="let group of groupedDocuments; trackBy: trackByGroupIndex"
                   >
                     <div
-                      class="document-type-header d-flex justify-content-between"
+                      class="document-type-header"
                     >
                       <span>
                         {{ group.document_type || 'Main Document' }}
                       </span>
+                      <br>
                       <span class="text-white small fw-light">
-                        {{ getDocumentDate(group.items[0]) | date: 'dd MMM yyyy'
-                        }}</span
+                        Filed on {{ getDocumentDate(group.rows[0]?.document) | date: 'dd MMM yyyy'
+                        }} at {{ getDocumentDate(group.rows[0]?.document) | date: 'hh:mm a' }}</span
                       >
                     </div>
 
-                    <button
-                      type="button"
-                      class="document-item"
-                      *ngFor="let document of group.items; trackBy: trackById"
-                      [class.document-item-active]="selectedDocument?.id === document.id"
-                      (click)="selectDocument(document)"
+                    <div
+                      *ngFor="let row of group.rows; trackBy: trackByRowDocumentId"
+                      class="document-index-row"
+                      [style.paddingLeft.rem]="0.5 + row.depth * 1.2"
                     >
                       <div
-                        class="d-flex justify-content-between align-items-start gap-2"
+                        class="document-item"
+                        [class.document-item-interactive]="isDocumentIndexClickable(row.document)"
+                        [class.document-item-active]="
+                          selectedDocument?.id === row.document.id &&
+                          isDocumentIndexClickable(row.document)
+                        "
+                        (click)="officerDocumentRowClick(row.document)"
+                        [attr.tabindex]="isDocumentIndexClickable(row.document) ? 0 : -1"
+                        [attr.role]="isDocumentIndexClickable(row.document) ? 'button' : null"
+                        (keydown.enter)="officerDocumentRowClick(row.document)"
+                        (keydown.space)="officerDocumentRowKeydown($event, row.document)"
                       >
-                        <div>
-                          <!-- Treat document_part_name as the actual "file" row -->
-                          <div class="document-title fw-normal">
-                            <!-- <i class="fa-solid fa-angle-right"></i> -->
-                            {{ document.document_part_name ||
-                            getDocumentTitle(document) }}
-                          </div>
-                          <!-- <div class="document-meta">Seq {{ document.document_sequence || '-' }}</div> -->
-                          <div
-                            class="document-meta"
-                            *ngIf="getDocumentDate(document)"
-                          ></div>
-                        </div>
-
                         <div
-                          class="d-flex align-items-center gap-2 flex-wrap justify-content-end"
+                          class="d-flex justify-content-between align-items-start gap-2"
                         >
-                          <span
-                            class="new-tag"
-                            *ngIf="document.is_new_for_scrutiny"
-                            >new</span
+                          <div>
+                            <div class="document-title fw-normal">
+                              {{ row.document.document_part_name ||
+                              getDocumentTitle(row.document) }}
+                            </div>
+                            <div
+                              class="document-meta"
+                              *ngIf="getDocumentDate(row.document)"
+                            ></div>
+                          </div>
+
+                          <div
+                            class="d-flex align-items-center gap-2 flex-wrap justify-content-end"
                           >
-                          <span
-                            class="status-badge status-badge-sm"
-                            [ngClass]="getDocumentStatusClass(document)"
-                          >
-                            {{ getDocumentStatusLabel(document) }}
-                          </span>
+                            <span
+                              class="new-tag"
+                              *ngIf="row.document.is_new_for_scrutiny"
+                              >new</span
+                            >
+                            <span
+                              class="status-badge status-badge-sm"
+                              [ngClass]="getDocumentStatusClass(row.document)"
+                            >
+                              {{ getDocumentStatusLabel(row.document) }}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -483,9 +493,9 @@
                           class="preview-frame"
                           *ngIf="selectedDocumentUrl; else noPreview"
                         >
+                          <!-- PDF sidebar: hidden via URL fragment (#navpanes=0) in details.ts -->
                           <iframe
                             [src]="selectedDocumentUrl"
-                            [src]="selectedDocumentUrl + '#navpanes=0'"
                             title="Scrutiny PDF preview"
                             class="vh-100"
                           ></iframe>
@@ -705,28 +715,40 @@
                               <div class="document-type-header">
                                 {{ group.document_type || 'Main Document' }}
                               </div>
-                              <button
-                                type="button"
-                                class="document-item"
-                                *ngFor="let doc of group.items; trackBy: trackById"
-                                [class.document-item-active]="selectedIaDocument?.id === doc.id"
-                                (click)="selectIaDocument(doc)"
+                              <div
+                                *ngFor="let row of group.rows; trackBy: trackByRowDocumentId"
+                                class="document-index-row"
+                                [style.paddingLeft.rem]="0.5 + row.depth * 1.2"
                               >
                                 <div
-                                  class="d-flex justify-content-between align-items-start gap-2"
+                                  class="document-item"
+                                  [class.document-item-interactive]="isDocumentIndexClickable(row.document)"
+                                  [class.document-item-active]="
+                                    selectedIaDocument?.id === row.document.id &&
+                                    isDocumentIndexClickable(row.document)
+                                  "
+                                  (click)="officerIaDocumentRowClick(row.document)"
+                                  [attr.tabindex]="isDocumentIndexClickable(row.document) ? 0 : -1"
+                                  [attr.role]="isDocumentIndexClickable(row.document) ? 'button' : null"
+                                  (keydown.enter)="officerIaDocumentRowClick(row.document)"
+                                  (keydown.space)="officerIaDocumentRowKeydown($event, row.document)"
                                 >
-                                  <div class="document-title">
-                                    {{ doc.document_part_name ||
-                                    getDocumentFileLabel(doc) }}
-                                  </div>
-                                  <span
-                                    class="status-badge status-badge-sm"
-                                    [ngClass]="getDocumentStatusClass(doc)"
+                                  <div
+                                    class="d-flex justify-content-between align-items-start gap-2"
                                   >
-                                    {{ getDocumentStatusLabel(doc) }}
-                                  </span>
+                                    <div class="document-title">
+                                      {{ row.document.document_part_name ||
+                                      getDocumentFileLabel(row.document) }}
+                                    </div>
+                                    <span
+                                      class="status-badge status-badge-sm"
+                                      [ngClass]="getDocumentStatusClass(row.document)"
+                                    >
+                                      {{ getDocumentStatusLabel(row.document) }}
+                                    </span>
+                                  </div>
                                 </div>
-                              </button>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -746,6 +768,7 @@
                               class="preview-frame"
                               *ngIf="selectedIaDocumentUrl; else noPreviewIa"
                             >
+                              <!-- PDF sidebar: hidden via URL fragment in details.ts -->
                               <iframe
                                 [src]="selectedIaDocumentUrl"
                                 title="IA document preview"

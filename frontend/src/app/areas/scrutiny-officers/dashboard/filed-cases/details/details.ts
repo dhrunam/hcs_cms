@@ -12,6 +12,14 @@ import {
 } from "../../../../../services/advocate/efiling/efiling.services";
 import { catchError, of } from "rxjs";
 import { PaymentService } from "../../../../../services/payment/payment.service";
+import {
+  EfilingDocumentIndexGroup,
+  firstClickableEfilingDocumentIndexInGrouped,
+  firstClickableEfilingDocumentIndexInList,
+  groupEfilingDocumentIndexesByType,
+  isEfilingDocumentIndexClickable,
+  trackByEfilingDocumentIndexRowId,
+} from "../../../../../utils/efiling-document-index-tree";
 
 @Component({
   selector: "app-filed-case-details",
@@ -21,6 +29,32 @@ import { PaymentService } from "../../../../../services/payment/payment.service"
   styleUrl: "./details.css",
 })
 export class FiledCaseDetails {
+  /**
+   * Adobe / Chromium-style PDF fragment params to hide the viewer thumbnail/outline sidebar.
+   * Applied to iframe src; support depends on the user's built-in PDF viewer.
+   */
+  private withPdfViewerNoSidepane(url: string): string {
+    const u = String(url || "").trim();
+    if (!u) return u;
+    const hashIdx = u.indexOf("#");
+    const add = "navpanes=0&pagemode=UseNone";
+    if (hashIdx === -1) {
+      return `${u}#${add}`;
+    }
+    const fragment = u.slice(hashIdx + 1);
+    if (/(^|&)navpanes=/i.test(fragment)) {
+      return u;
+    }
+    const joiner = fragment.length > 0 && !fragment.endsWith("&") ? "&" : "";
+    return `${u.slice(0, hashIdx + 1)}${fragment}${joiner}${add}`;
+  }
+
+  private trustPdfPreviewUrl(url: string): SafeResourceUrl {
+    return this.sanitizer.bypassSecurityTrustResourceUrl(
+      this.withPdfViewerNoSidepane(url),
+    );
+  }
+
   readonly hiddenHistoryComments = new Set([
     "Document uploaded by advocate.",
     "Document re-uploaded by advocate.",
@@ -34,7 +68,7 @@ export class FiledCaseDetails {
   caseDetails: any = null;
   acts: any[] = [];
   documents: any[] = [];
-  groupedDocuments: Array<{ document_type: string; items: any[] }> = [];
+  groupedDocuments: EfilingDocumentIndexGroup[] = [];
   selectedDocument: any = null;
   selectedDocumentUrl: SafeResourceUrl | null = null;
   selectedDocumentBlobUrl: string | null = null;
@@ -51,7 +85,7 @@ export class FiledCaseDetails {
   iaList: any[] = [];
   fullScreen = false;
   iaDocuments: any[] = [];
-  groupedIaDocuments: Array<{ document_type: string; items: any[] }> = [];
+  groupedIaDocuments: EfilingDocumentIndexGroup[] = [];
   selectedIaDocument: any = null;
   selectedIaDocumentUrl: SafeResourceUrl | null = null;
   selectedIaDocumentBlobUrl: string | null = null;
@@ -141,15 +175,24 @@ export class FiledCaseDetails {
         this.groupedIaDocuments = this.groupDocumentsByType(this.iaDocuments);
         this.iaList = Array.isArray(ias) ? ias : (ias?.results ?? []);
         this.updatePaymentDetails(payment);
-        this.selectIaDocument(this.groupedIaDocuments[0]?.items[0] ?? null);
-        this.loadChecklist();
-        this.selectDocument(
-          this.documents.find(
-            (document) => document.id === preferredDocumentId,
-          ) ??
-            this.documents[0] ??
-            null,
+        const firstIaWithDocs = this.iaWithDocuments.find(
+          (i) => i.documents.length > 0,
         );
+        this.selectIaDocument(
+          firstIaWithDocs
+            ? this.firstClickableInGroupedDocs(firstIaWithDocs.groupedDocs)
+            : null,
+        );
+        this.loadChecklist();
+        const preferred =
+          preferredDocumentId != null
+            ? (this.documents.find((d) => d.id === preferredDocumentId) ?? null)
+            : null;
+        const initialDoc =
+          preferred && this.isDocumentIndexClickable(preferred)
+            ? preferred
+            : this.firstClickableInDocList(this.documents);
+        this.selectDocument(initialDoc ?? null);
         this.isLoading = false;
       },
       error: (error) => {
@@ -239,15 +282,14 @@ export class FiledCaseDetails {
     }
 
     const docId = Number(document?.id || 0);
-    const fileUrl = document?.file_url ?? null;
+    const fileUrl = document?.file_url ? document.file_url : null;
     if (!docId && !fileUrl) {
       this.selectedDocumentUrl = null;
       return;
     }
 
     if (fileUrl) {
-      this.selectedDocumentUrl =
-        this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+      this.selectedDocumentUrl = this.trustPdfPreviewUrl(fileUrl);
     }
     const stream$ = docId
       ? this.efilingService.fetch_document_blob_by_index(docId)
@@ -255,15 +297,13 @@ export class FiledCaseDetails {
     stream$.subscribe({
       next: (blob) => {
         this.selectedDocumentBlobUrl = URL.createObjectURL(blob);
-        this.selectedDocumentUrl =
-          this.sanitizer.bypassSecurityTrustResourceUrl(
-            this.selectedDocumentBlobUrl,
-          );
+        this.selectedDocumentUrl = this.trustPdfPreviewUrl(
+          this.selectedDocumentBlobUrl,
+        );
       },
       error: () => {
         if (fileUrl) {
-          this.selectedDocumentUrl =
-            this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+          this.selectedDocumentUrl = this.trustPdfPreviewUrl(fileUrl);
         } else {
           this.selectedDocumentUrl = null;
         }
@@ -271,27 +311,47 @@ export class FiledCaseDetails {
     });
   }
 
-  groupDocumentsByType(
-    docs: any[],
-  ): Array<{ document_type: string; items: any[] }> {
-    if (!Array.isArray(docs) || docs.length === 0) return [];
-
-    const map = new Map<string, any[]>();
-    for (const doc of docs) {
-      const type = (doc?.document_type ?? "").trim() || "Main Document";
-      const bucket = map.get(type);
-      if (bucket) {
-        bucket.push(doc);
-      } else {
-        map.set(type, [doc]);
-      }
-    }
-
-    return Array.from(map.entries()).map(([document_type, items]) => ({
-      document_type,
-      items,
-    }));
+  groupDocumentsByType(docs: any[]): EfilingDocumentIndexGroup[] {
+    return groupEfilingDocumentIndexesByType(docs);
   }
+
+  isDocumentIndexClickable(doc: any): boolean {
+    return isEfilingDocumentIndexClickable(doc);
+  }
+
+  officerDocumentRowClick(doc: any): void {
+    if (!this.isDocumentIndexClickable(doc)) return;
+    this.selectDocument(doc);
+  }
+
+  officerDocumentRowKeydown(event: Event, doc: any): void {
+    if (!this.isDocumentIndexClickable(doc)) return;
+    event.preventDefault();
+    this.selectDocument(doc);
+  }
+
+  officerIaDocumentRowClick(doc: any): void {
+    if (!this.isDocumentIndexClickable(doc)) return;
+    this.selectIaDocument(doc);
+  }
+
+  officerIaDocumentRowKeydown(event: Event, doc: any): void {
+    if (!this.isDocumentIndexClickable(doc)) return;
+    event.preventDefault();
+    this.selectIaDocument(doc);
+  }
+
+  private firstClickableInDocList(docs: any[]): any | null {
+    return firstClickableEfilingDocumentIndexInList(docs);
+  }
+
+  private firstClickableInGroupedDocs(
+    grouped: EfilingDocumentIndexGroup[],
+  ): any | null {
+    return firstClickableEfilingDocumentIndexInGrouped(grouped);
+  }
+
+  readonly trackByRowDocumentId = trackByEfilingDocumentIndexRowId;
 
   acceptDocument(): void {
     this.submitReview("ACCEPTED");
@@ -670,8 +730,7 @@ export class FiledCaseDetails {
       return;
     }
     if (fileUrl) {
-      this.selectedIaDocumentUrl =
-        this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+      this.selectedIaDocumentUrl = this.trustPdfPreviewUrl(fileUrl);
     }
     const stream$ = docId
       ? this.efilingService.fetch_document_blob_by_index(docId)
@@ -679,15 +738,13 @@ export class FiledCaseDetails {
     stream$.subscribe({
       next: (blob) => {
         this.selectedIaDocumentBlobUrl = URL.createObjectURL(blob);
-        this.selectedIaDocumentUrl =
-          this.sanitizer.bypassSecurityTrustResourceUrl(
-            this.selectedIaDocumentBlobUrl,
-          );
+        this.selectedIaDocumentUrl = this.trustPdfPreviewUrl(
+          this.selectedIaDocumentBlobUrl,
+        );
       },
       error: () => {
         if (fileUrl) {
-          this.selectedIaDocumentUrl =
-            this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+          this.selectedIaDocumentUrl = this.trustPdfPreviewUrl(fileUrl);
         } else {
           this.selectedIaDocumentUrl = null;
         }
@@ -830,7 +887,7 @@ export class FiledCaseDetails {
   get iaWithDocuments(): Array<{
     ia: any;
     documents: any[];
-    groupedDocs: Array<{ document_type: string; items: any[] }>;
+    groupedDocs: EfilingDocumentIndexGroup[];
   }> {
     return this.iaList.map((ia) => {
       const iaNum = (ia?.ia_number ?? "").trim();
@@ -960,11 +1017,13 @@ export class FiledCaseDetails {
   }
 
   private getNextDocumentForReview(currentDocumentId: number): any {
+    const clickable = (d: any) => isEfilingDocumentIndexClickable(d);
     const nextPendingDocument =
       this.documents.find(
         (document) =>
           document.id !== currentDocumentId &&
-          this.isPendingDraftReview(document),
+          this.isPendingDraftReview(document) &&
+          clickable(document),
       ) ?? null;
 
     if (nextPendingDocument) {
@@ -974,14 +1033,28 @@ export class FiledCaseDetails {
     const currentIndex = this.documents.findIndex(
       (document) => document.id === currentDocumentId,
     );
+    const findNeighbor = (from: number, step: number): any | null => {
+      for (
+        let i = from + step;
+        i >= 0 && i < this.documents.length;
+        i += step
+      ) {
+        const d = this.documents[i];
+        if (clickable(d)) return d;
+      }
+      return null;
+    };
+
     if (currentIndex === -1) {
-      return this.documents[0] ?? null;
+      return this.firstClickableInDocList(this.documents);
     }
 
     return (
-      this.documents[currentIndex + 1] ??
-      this.documents[currentIndex - 1] ??
-      this.documents[currentIndex]
+      findNeighbor(currentIndex, 1) ??
+      findNeighbor(currentIndex, -1) ??
+      (clickable(this.documents[currentIndex])
+        ? this.documents[currentIndex]
+        : null)
     );
   }
 

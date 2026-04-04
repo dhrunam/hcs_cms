@@ -412,7 +412,10 @@ class EfilingDocumentsIndex(BaseModel):
             default="document_type",
         )
         return f"efile/{efiling_number}/{document_type_folder}/{part_name}.pdf"
-    file_part_path = models.FileField(upload_to=file_part_upload_to, max_length=512)
+    # Nullable: parent "header" rows (name only) for grouped index uploads; file rows link via parent_document_index.
+    file_part_path = models.FileField(
+        upload_to=file_part_upload_to, max_length=512, blank=True, null=True
+    )
     is_locked = models.BooleanField(default=False)
     document_sequence = models.IntegerField(blank=True, null=True)
     is_compliant = models.BooleanField(default=False)
