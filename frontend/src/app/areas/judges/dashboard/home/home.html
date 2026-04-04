@@ -1,130 +1,113 @@
-<div class="container-fluid">
-  <div class="judge-header d-flex justify-content-between align-items-end flex-wrap gap-3 mb-3">
+<div class="container-fluid py-3 px-4  min-vh-100">
+
+  <!-- HEADER -->
+  <div
+    class="judge-header d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4 p-3 rounded-4 shadow-sm bg-white">
+
     <div>
-      <h3 class="mb-1">Case Summary</h3>
+      <h3 class="mb-1 fw-bold text-dark">Case Summary</h3>
       <div class="text-muted small">Review forwarded case requests and provide decision</div>
     </div>
 
-    <div>
-      <label class="form-label small fw-semibold mb-1">Forwarded For Date</label>
-      <input type="date" class="form-control form-control-sm" [(ngModel)]="forwardedForDate"
-        (change)="onDateChange()" />
+    <div class="d-flex flex-column">
+      <label class="form-label small fw-semibold mb-1 text-secondary">Forwarded For Date</label>
+      <input type="date" class="form-control form-control-sm rounded-3 shadow-sm border-2"
+        [(ngModel)]="forwardedForDate" (change)="onDateChange()" />
     </div>
+
   </div>
 
-  <div *ngIf="isLoading" class="text-center py-4 text-muted">Loading...</div>
-  <div *ngIf="loadError" class="alert alert-warning">{{ loadError }}</div>
+  <!-- STATES -->
+  <div *ngIf="isLoading" class="text-center py-5 text-muted fs-5">
+    <div class="spinner-border text-primary mb-2"></div>
+    <div>Loading cases...</div>
+  </div>
 
-  <div *ngIf="!isLoading && !loadError" class="row g-3">
-    <!-- <div class="col-12">
-      <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white fw-semibold">Pending for Listing</div>
-        <div class="card-body p-0 table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead>
-              <tr>
-                <th>Filing No</th>
-                <th>Petitioner vs. Respondent</th>
-                <th>Case No</th>
-                <th>Bench</th>
-                <th>Status</th>
-                <th style="width: 140px;">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let c of pendingForListing">
-                <td class="text-nowrap small fw-medium">{{ c.e_filing_number || '—' }}</td>
-                <td class="small" style="max-width: 280px">{{ c.petitioner_name || c.petitioner_vs_respondent || '—' }}
-                </td>
-                <td class="text-nowrap">{{ c.case_number || '-' }}</td>
-                <td>{{ c.bench_label || benchLabel(c.bench_key) }}</td>
-                <td><span class="badge text-bg-warning">Pending</span></td>
-                <td>
-                  <button class="btn btn-sm btn-outline-primary" (click)="openCourtroom(c.efiling_id)">
-                    View Case Summary
-                  </button>
-                </td>
-              </tr>
-              <tr *ngIf="pendingForListing.length === 0">
-                <td colspan="6" class="text-muted text-center py-4">No cases pending for listing.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div> -->
+  <div *ngIf="loadError" class="alert alert-warning shadow-sm rounded-3">
+    {{ loadError }}
+  </div>
+
+  <!-- MAIN TABLE -->
+  <div *ngIf="!isLoading && !loadError" class="row g-4">
 
     <div class="col-12">
-      <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white fw-semibold">Reviewed Requests</div>
-        <div class="card-body p-0 table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead>
+      <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+
+        <!-- CARD HEADER -->
+        <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+          <span class="fw-semibold fs-5 text-dark">Reviewed Requests</span>
+          <span class="badge bg-light text-dark border small px-3 py-2">
+            {{ pendingForCauseList.length }} Cases
+          </span>
+        </div>
+
+        <!-- TABLE -->
+        <div class="table-responsive p-3">
+          <table class="table align-middle mb-0">
+
+            <thead class="bg-light">
               <tr>
-                <th>Filing No</th>
-                <th>Petitioner vs. Respondent</th>
-                <th>Case No</th>
-                <th>Bench</th>
-                <th>Status</th>
-                <th style="width: 140px;">Action</th>
+                <th class="small text-secondary fw-semibold">Filing No</th>
+                <th class="small text-secondary fw-semibold">Petitioner vs. Respondent</th>
+                <th class="small text-secondary fw-semibold">Case No</th>
+                <th class="small text-secondary fw-semibold">Bench</th>
+                <th class="small text-secondary fw-semibold">Status</th>
+                <th class="small text-secondary fw-semibold text-center">Action</th>
               </tr>
             </thead>
+
             <tbody>
-              <tr *ngFor="let c of pendingForCauseList">
-                <td class="text-nowrap small fw-medium">{{ c.e_filing_number || '—' }}</td>
-                <td class="small" style="max-width: 280px">{{ c.petitioner_name || c.petitioner_vs_respondent || '—' }}
+              <tr *ngFor="let c of pendingForCauseList" class="table-row-hover">
+
+                <td class="text-nowrap small fw-semibold text-dark">
+                  {{ c.e_filing_number || '—' }}
                 </td>
-                <td class="text-nowrap">{{ c.case_number || '-' }}</td>
-                <td>{{ c.bench_label || benchLabel(c.bench_key) }}</td>
-                <td><span class="badge"
-                    [ngClass]="{'text-bg-info' : c.judge_decision, 'text-bg-warning' : !c.judge_decision}">{{
-                    c.judge_decision ? 'Reviewed' : 'Pending' }}</span>
+
+                <td class="small text-muted" style="max-width: 300px;">
+                  {{ c.petitioner_name || c.petitioner_vs_respondent || '—' }}
                 </td>
+
+                <td class="text-nowrap small">
+                  {{ c.case_number || '-' }}
+                </td>
+
+                <td class="small">
+                  {{ c.bench_label || benchLabel(c.bench_key) }}
+                </td>
+
                 <td>
-                  <button class="btn btn-sm btn-outline-primary" (click)="openCourtroom(c.efiling_id)">
-                    View Case Summary
+                  <span class="badge px-3 py-2 rounded-pill" [ngClass]="{
+                      'bg-success-subtle text-success border border-success-subtle': c.judge_decision,
+                      'bg-warning-subtle text-warning border border-warning-subtle': !c.judge_decision
+                    }">
+                    {{ c.judge_decision ? 'Reviewed' : 'Pending' }}
+                  </span>
+                </td>
+
+                <td class="text-center">
+                  <button class="btn btn-sm btn-primary rounded-pill px-3 shadow-sm"
+                    (click)="openCourtroom(c.efiling_id)">
+                    <i class="fa fa-eye me-1"></i> View
                   </button>
                 </td>
+
               </tr>
+
+              <!-- EMPTY STATE -->
               <tr *ngIf="pendingForCauseList.length === 0">
-                <td colspan="6" class="text-muted text-center py-4">No reviewed requests yet.</td>
+                <td colspan="6" class="text-center py-5 text-muted">
+                  <i class="fa fa-folder-open fa-2x mb-2"></i>
+                  <div>No reviewed requests yet.</div>
+                </td>
               </tr>
+
             </tbody>
+
           </table>
         </div>
+
       </div>
     </div>
 
-    <div class="col-12">
-      <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white fw-semibold">Calendar</div>
-        <div class="card-body p-0 table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead>
-              <tr>
-                <th>Filing No</th>
-                <th>Petitioner vs. Respondent</th>
-                <th>Case No</th>
-                <th>Status</th>
-                <th>Remarks</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let c of calendarItems">
-                <td class="text-nowrap small fw-medium">{{ c.e_filing_number || '—' }}</td>
-                <td class="small" style="max-width: 280px">{{ c.petitioner_name || c.petitioner_vs_respondent || '—' }}
-                </td>
-                <td class="text-nowrap">{{ c.case_number || '-' }}</td>
-                <td><span class="badge" [ngClass]="statusBadge(c.status)">{{ c.status }}</span></td>
-                <td>{{ c.decision_notes || '-' }}</td>
-              </tr>
-              <tr *ngIf="calendarItems.length === 0">
-                <td colspan="5" class="text-muted text-center py-4">No calendar events yet.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
   </div>
 </div>
