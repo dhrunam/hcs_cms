@@ -12,7 +12,7 @@
   "packageManager": "npm@10.8.2",
   "dependencies": {
     "@angular/animations": "21.2.3",
-    "@angular/cdk": "21.2.3",
+    "@angular/cdk": "^21.2.3",
     "@angular/common": "21.2.3",
     "@angular/compiler": "21.2.3",
     "@angular/core": "21.2.3",
@@ -26,7 +26,7 @@
     "ngx-toastr": "^20.0.5",
     "pdfjs-dist": "^3.11.174",
     "rxjs": "~7.8.0",
-    "sweetalert2": "^11.26.23",
+    "sweetalert2": "^11.26.24",
     "tslib": "^2.3.0",
     "zone.js": "^0.16.1"
   },

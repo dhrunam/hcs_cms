@@ -75,19 +75,17 @@ export class NewFiling {
   /** Set from payment gateway return URL or sessionStorage */
   paymentOutcome: "success" | "failed" | null = null;
 
-  paymentDetails:
-    | {
-        txnId?: string;
-        paidAt?: string;
-        referenceNo?: string;
-        amount?: string;
-        courtFees?: string;
-        paymentMode?: "online" | "offline";
-        bankReceipt?: string;
-        paymentDate?: string;
-        outcome?: "success" | "failed" | null;
-      }
-    | null = null;
+  paymentDetails: {
+    txnId?: string;
+    paidAt?: string;
+    referenceNo?: string;
+    amount?: string;
+    courtFees?: string;
+    paymentMode?: "online" | "offline";
+    bankReceipt?: string;
+    paymentDate?: string;
+    outcome?: "success" | "failed" | null;
+  } | null = null;
   paymentMode: "online" | "offline" = "online";
   offlineTransactionId = "";
   offlineCourtFees = "";
@@ -141,7 +139,7 @@ export class NewFiling {
           is_petitioner: [true],
 
           is_organisation: [false],
-          // organization: [""],
+          organization: [""],
 
           contact: ["", [Validators.pattern(/^[0-9]{10}$/)]],
           email: ["", [Validators.email]],
@@ -220,8 +218,7 @@ export class NewFiling {
         params["e_filing_id"] ??
         params["application"];
       this.filingId = Number(idParam || 0) || null;
-      this.eFilingNumber =
-        params["e_filing_number"] || this.eFilingNumber;
+      this.eFilingNumber = params["e_filing_number"] || this.eFilingNumber;
       this.applyPaymentReturnQueryParams(params);
       if (this.filingId) {
         this.restorePaymentOutcomeFromStorage();
@@ -281,12 +278,9 @@ export class NewFiling {
     );
     const caseType = this.getSelectedCaseTypeLabel().trim() || "-";
     const amountStr =
-      pd?.courtFees ||
-      pd?.amount ||
-      String(this.paymentFeeRupees);
+      pd?.courtFees || pd?.amount || String(this.paymentFeeRupees);
     const eFilingNo = this.eFilingNumber || "-";
-    const filingIdStr =
-      this.filingId != null ? String(this.filingId) : "-";
+    const filingIdStr = this.filingId != null ? String(this.filingId) : "-";
     const txnId = pd?.txnId?.trim() || "-";
     const referenceNo = pd?.referenceNo?.trim() || "-";
     const dateTimeLabel = this.formatPaymentReceiptDateTime();
@@ -343,7 +337,9 @@ export class NewFiling {
       /[^\w.-]+/g,
       "_",
     );
-    const safeTxn = (pd?.txnId || "receipt").replace(/[^\w.-]+/g, "_").slice(0, 48);
+    const safeTxn = (pd?.txnId || "receipt")
+      .replace(/[^\w.-]+/g, "_")
+      .slice(0, 48);
     doc.save(`payment-receipt-${safeEf}-${safeTxn}.pdf`);
   }
 
@@ -361,19 +357,14 @@ export class NewFiling {
     const caseTypeVal = init?.case_type;
     if (caseTypeVal && typeof caseTypeVal === "object") {
       return (
-        caseTypeVal.type_name ||
-        caseTypeVal.full_form ||
-        caseTypeVal.name ||
-        ""
+        caseTypeVal.type_name || caseTypeVal.full_form || caseTypeVal.name || ""
       );
     }
     if (caseTypeVal) {
       const ct = this.caseTypes?.find(
         (c: any) => Number(c.id) === Number(caseTypeVal),
       );
-      return (
-        ct?.type_name || ct?.full_form || ct?.name || String(caseTypeVal)
-      );
+      return ct?.type_name || ct?.full_form || ct?.name || String(caseTypeVal);
     }
     return "";
   }
@@ -538,7 +529,8 @@ export class NewFiling {
         String(this.paymentFeeRupees),
       paymentMode: this.paymentDetails?.paymentMode || this.paymentMode,
       bankReceipt: this.paymentDetails?.bankReceipt || "",
-      paymentDate: this.paymentDetails?.paymentDate || this.offlinePaymentDate || "",
+      paymentDate:
+        this.paymentDetails?.paymentDate || this.offlinePaymentDate || "",
       outcome: this.paymentOutcome,
     };
   }
@@ -726,7 +718,8 @@ export class NewFiling {
   }
 
   private moveToPreviewIfPaymentComplete() {
-    if (!this.requiresCourtFeePayment || this.paymentOutcome !== "success") return;
+    if (!this.requiresCourtFeePayment || this.paymentOutcome !== "success")
+      return;
     if (this.step === 5) {
       this.step = 6;
       this.setCaseDetailsReviewState(true);
@@ -820,8 +813,7 @@ export class NewFiling {
   get memoOfAppealUploaded(): boolean {
     const list = Array.isArray(this.docList) ? this.docList : [];
     return list.some(
-      (d: any) =>
-        this.normalizeDocType(d?.document_type) === "memo of appeal",
+      (d: any) => this.normalizeDocType(d?.document_type) === "memo of appeal",
     );
   }
 
@@ -989,21 +981,31 @@ export class NewFiling {
 
     const petitioners = getOrderedPartyNames(this.litigantList, true);
     const respondents = getOrderedPartyNames(this.litigantList, false);
-    const fallback = String(this.initialInputsForm?.get("petitioner_name")?.value || "").trim();
+    const fallback = String(
+      this.initialInputsForm?.get("petitioner_name")?.value || "",
+    ).trim();
     const petitionerLine = formatPartyLine(petitioners, fallback);
     const respondentLine = formatPartyLine(respondents, "");
-    const nextName = petitionerLine && respondentLine
-      ? `${petitionerLine} vs. ${respondentLine}`
-      : petitionerLine || respondentLine || fallback;
+    const nextName =
+      petitionerLine && respondentLine
+        ? `${petitionerLine} vs. ${respondentLine}`
+        : petitionerLine || respondentLine || fallback;
 
     if (!nextName) return;
-    this.initialInputsForm.patchValue({ petitioner_name: nextName }, { emitEvent: false });
+    this.initialInputsForm.patchValue(
+      { petitioner_name: nextName },
+      { emitEvent: false },
+    );
     this.filingData = { ...(this.filingData || {}), petitioner_name: nextName };
-    this.eFilingService.update_filing_petitioner_name(filingId, nextName).subscribe({
-      error: () => {
-        this.toastr.warning("Could not sync petitioner/respondent title to filing.");
-      },
-    });
+    this.eFilingService
+      .update_filing_petitioner_name(filingId, nextName)
+      .subscribe({
+        error: () => {
+          this.toastr.warning(
+            "Could not sync petitioner/respondent title to filing.",
+          );
+        },
+      });
   }
 
   prev() {
@@ -1163,7 +1165,9 @@ export class NewFiling {
             id: "",
             is_diffentially_abled: false,
             is_petitioner: formValue.is_petitioner,
-            sequence_number: this.getNextSequenceNumber(formValue.is_petitioner),
+            sequence_number: this.getNextSequenceNumber(
+              formValue.is_petitioner,
+            ),
             gender: "",
             organization: "",
           });
@@ -1492,7 +1496,11 @@ export class NewFiling {
 
     const names = new Set(
       (mainPetition.document_indexes || [])
-        .map((x: any) => String(x?.document_part_name || "").trim().toLowerCase())
+        .map((x: any) =>
+          String(x?.document_part_name || "")
+            .trim()
+            .toLowerCase(),
+        )
         .filter(Boolean),
     );
     const requiredWithoutAnnexure = this.wpMainPetitionMandatoryIndexes
