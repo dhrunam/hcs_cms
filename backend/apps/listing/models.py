@@ -63,6 +63,11 @@ class CauseListEntry(BaseModel):
     serial_no = models.PositiveIntegerField(blank=True, null=True)
     included = models.BooleanField(default=True)
 
+    petitioner_advocate = models.TextField(blank=True, null=True)
+    respondent_advocate = models.TextField(blank=True, null=True)
+
+    selected_ias = models.JSONField(default=list, blank=True)
+
     class Meta:
         db_table = "cause_list_entry"
         unique_together = ("cause_list", "efiling")

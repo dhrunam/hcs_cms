@@ -71,6 +71,8 @@ export class NewFiling {
   caseTypes: any[] = [];
 
   form!: FormGroup;
+  petitionerForm!: FormGroup;
+  respondentForm!: FormGroup;
 
   /** Set from payment gateway return URL or sessionStorage */
   paymentOutcome: "success" | "failed" | null = null;
@@ -126,56 +128,6 @@ export class NewFiling {
         e_filing_number: [this.eFilingNumber],
       }),
 
-      litigants: this.fb.group(
-        {
-          id: [""],
-          name: ["", Validators.required],
-          gender: [""],
-          age: [""],
-
-          sequence_number: ["", Validators.required],
-
-          is_diffentially_abled: [false],
-          is_petitioner: [true],
-
-          is_organisation: [false],
-          organization: [""],
-
-          contact: ["", [Validators.pattern(/^[0-9]{10}$/)]],
-          email: ["", [Validators.email]],
-
-          religion: [""],
-          caste: [""],
-          occupation: [""],
-
-          address: ["", Validators.required],
-
-          state_id: [""],
-          district_id: [""],
-
-          taluka: [""],
-          village: [""],
-        },
-
-        {
-          validators: (group) => {
-            const isOrg = group.get("is_organisation")?.value;
-            const age = group.get("age")?.value;
-            const gender = group.get("gender")?.value;
-
-            if (!isOrg && !age) {
-              return { ageRequired: true };
-            }
-
-            if (!isOrg && !gender) {
-              return { genderRequired: true };
-            }
-
-            return null;
-          },
-        },
-      ),
-
       // caseDetails: this.fb.group({
       //   cause_of_action: ["-", Validators.required],
       //   date_of_cause_of_action: ["2026-01-01", Validators.required],
@@ -200,10 +152,14 @@ export class NewFiling {
         isDeclarationChecked: [false, Validators.requiredTrue],
       }),
     });
+
+    this.petitionerForm = this.buildLitigantForm(true);
+    this.respondentForm = this.buildLitigantForm(false);
   }
 
   ngOnInit() {
-    this.bindLitigantSequenceAutoGeneration();
+    this.bindLitigantSequenceAutoGeneration(this.petitionerForm);
+    this.bindLitigantSequenceAutoGeneration(this.respondentForm);
     this.caseTypeService.get_case_types().subscribe({
       next: (data) => {
         this.caseTypes = Array.isArray(data?.results)
@@ -233,6 +189,57 @@ export class NewFiling {
         // this.loadActList();
       }
     });
+  }
+
+  private buildLitigantForm(isPetitioner: boolean): FormGroup {
+    return this.fb.group(
+      {
+        id: [""],
+        name: ["", Validators.required],
+        gender: [""],
+        age: [""],
+
+        sequence_number: ["", Validators.required],
+
+        is_diffentially_abled: [false],
+        is_petitioner: [isPetitioner],
+
+        is_organisation: [false],
+        organization: [""],
+
+        contact: ["", [Validators.pattern(/^[0-9]{10}$/)]],
+        email: ["", [Validators.email]],
+
+        religion: [""],
+        caste: [""],
+        occupation: [""],
+
+        address: ["", Validators.required],
+
+        state_id: [""],
+        district_id: [""],
+
+        taluka: [""],
+        village: [""],
+      },
+      {
+        validators: (group) => {
+          const isOrg = group.get("is_organisation")?.value;
+          const age = group.get("age")?.value;
+          const gender = group.get("gender")?.value;
+
+          if (!isOrg && !age) {
+            return { ageRequired: true };
+          }
+
+          if (!isOrg && !gender) {
+            return { genderRequired: true };
+          }
+
+          return null;
+        },
+      },
+    );
   }
 
   get isWPCCaseType(): boolean {
@@ -611,7 +618,8 @@ export class NewFiling {
       .subscribe({
         next: (data) => {
           this.litigantList = Array.isArray(data?.results) ? data.results : [];
-          this.refreshLitigantSequenceNumber();
+          this.refreshLitigantSequenceNumber(this.petitionerForm, true);
+          this.refreshLitigantSequenceNumber(this.respondentForm, true);
         },
       });
   }
@@ -723,7 +731,7 @@ export class NewFiling {
     if (this.step === 5) {
       this.step = 6;
       this.setCaseDetailsReviewState(true);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      // window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }
 
@@ -795,7 +803,7 @@ export class NewFiling {
   }
 
   get litigantsForm(): FormGroup {
-    return this.form.get("litigants") as FormGroup;
+    return this.petitionerForm;
   }
 
   get caseDetailsForm(): FormGroup {
@@ -887,7 +895,7 @@ export class NewFiling {
 
   getCurrentForm(): FormGroup {
     if (this.step === 1) {
-      return this.form.get("litigants") as FormGroup;
+      return this.form;
     }
 
     if (this.step === 3) {
@@ -913,10 +921,10 @@ export class NewFiling {
       this.syncPetitionerNameFromLitigants();
       this.step = 4;
       this.setCaseDetailsReviewState(this.step === 6);
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
+      // window.scrollTo({
+      //   top: 0,
+      //   behavior: "smooth",
+      // });
       return;
     }
 
@@ -969,10 +977,10 @@ export class NewFiling {
 
     this.setCaseDetailsReviewState(this.step === 6);
 
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    // window.scrollTo({
+    //   top: 0,
+    //   behavior: "smooth",
+    // });
   }
 
   private syncPetitionerNameFromLitigants() {
@@ -1103,9 +1111,20 @@ export class NewFiling {
   //   });
   // }
 
-  saveStep2() {
+  handleSubmitLitigant(side: "petitioner" | "respondent") {
+    this.saveLitigant(this.getLitigantForm(side));
+  }
+
+  handleUpdateLitigant(side: "petitioner" | "respondent") {
+    this.updateLitigant(this.getLitigantForm(side));
+  }
+
+  handleUndoLitigant(side: "petitioner" | "respondent") {
+    this.resetLitigantForm(this.getLitigantForm(side), side === "petitioner");
+  }
+
+  private saveLitigant(form: FormGroup) {
     const initialForm = this.form.get("initialInputs") as FormGroup;
-    const form = this.form.get("litigants") as FormGroup;
     const formValue = { ...form.getRawValue() };
     const currentLitigantId = Number(formValue.id || 0);
 
@@ -1133,7 +1152,7 @@ export class NewFiling {
         },
       );
       form.get("sequence_number")?.markAsTouched();
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      // window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
@@ -1143,7 +1162,7 @@ export class NewFiling {
 
     if (form.invalid) {
       form.markAllAsTouched();
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      // window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
@@ -1157,7 +1176,7 @@ export class NewFiling {
       this.eFilingService
         .post_litigant_details(payload)
         .subscribe((res: any) => {
-          this.litigantList.push(res);
+          this.litigantList = [...this.litigantList, res];
 
           console.log("Litigant details are", res);
 
@@ -1171,11 +1190,10 @@ export class NewFiling {
             gender: "",
             organization: "",
           });
-
-          window.scrollTo({
-            top: document.body.scrollHeight * 3,
-            behavior: "smooth",
-          });
+//          window.scrollTo({
+//   top: window.innerHeight / 3,
+//   behavior: "smooth",
+// });
 
           const typeLabel = this.getLitigantTypeLabel(formValue.is_petitioner);
           this.toastr.success(`1 ${typeLabel} added`, "", {
@@ -1222,19 +1240,23 @@ export class NewFiling {
 
   onDelete(id: number) {
     this.litigantList = this.litigantList.filter((item) => item.id !== id);
-    this.refreshLitigantSequenceNumber();
+    this.refreshLitigantSequenceNumber(this.petitionerForm);
+    this.refreshLitigantSequenceNumber(this.respondentForm);
   }
 
-  undoLitigantEdit() {
-    const form = this.form.get("litigants") as FormGroup;
+  startNewLitigant(side: "petitioner" | "respondent") {
+    this.resetLitigantForm(this.getLitigantForm(side), side === "petitioner");
+  }
+
+  private resetLitigantForm(form: FormGroup, isPetitioner: boolean) {
     form.reset({
       id: "",
       name: "",
       gender: "",
       age: "",
-      sequence_number: this.getNextSequenceNumber(true),
+      sequence_number: this.getNextSequenceNumber(isPetitioner),
       is_diffentially_abled: false,
-      is_petitioner: true,
+      is_petitioner: isPetitioner,
       is_organisation: false,
       organization: "",
       contact: "",
@@ -1250,11 +1272,10 @@ export class NewFiling {
     });
     form.markAsPristine();
     form.markAsUntouched();
-    this.refreshLitigantSequenceNumber(true);
+    this.refreshLitigantSequenceNumber(form, true);
   }
 
-  updateStep2() {
-    const form = this.form.get("litigants") as FormGroup;
+  private updateLitigant(form: FormGroup) {
     const formValue = { ...form.getRawValue() };
     const litigantId = Number(formValue.id || 0);
 
@@ -1340,10 +1361,10 @@ export class NewFiling {
         this.toastr.success("Litigant updated successfully", "", {
           timeOut: 3000,
         });
-        window.scrollTo({
-          top: document.body.scrollHeight * 0.3,
-          behavior: "smooth",
-        });
+        // window.scrollTo({
+        //   top: document.body.scrollHeight * 0.3,
+        //   behavior: "smooth",
+        // });
       });
   }
 
@@ -1386,8 +1407,10 @@ export class NewFiling {
     return maxSequence + 1;
   }
 
-  private refreshLitigantSequenceNumber(force = false): void {
-    const form = this.litigantsForm;
+  private refreshLitigantSequenceNumber(
+    form: FormGroup,
+    force = false,
+  ): void {
     if (!form) return;
     const isEditing = Number(form.get("id")?.value || 0) > 0;
     if (isEditing && !force) return;
@@ -1400,14 +1423,17 @@ export class NewFiling {
     );
   }
 
-  private bindLitigantSequenceAutoGeneration(): void {
-    const form = this.litigantsForm;
+  private bindLitigantSequenceAutoGeneration(form: FormGroup): void {
     if (!form) return;
     form.get("sequence_number")?.disable({ emitEvent: false });
-    this.refreshLitigantSequenceNumber(true);
+    this.refreshLitigantSequenceNumber(form, true);
     form.get("is_petitioner")?.valueChanges.subscribe(() => {
-      this.refreshLitigantSequenceNumber();
+      this.refreshLitigantSequenceNumber(form);
     });
+  }
+
+  private getLitigantForm(side: "petitioner" | "respondent"): FormGroup {
+    return side === "petitioner" ? this.petitionerForm : this.respondentForm;
   }
 
   private hasPetitionerOnly(): boolean {

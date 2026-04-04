@@ -20,6 +20,11 @@ export const DashboardRoutes: Routes = [
         loadComponent: () => import('./cause-list/cause-list').then((c) => c.CauseListPage),
         title: 'Cause List | CMS',
       },
+      {
+        path: 'courtview/:id',
+        loadComponent: () => import('./courtview/advocate-courtview').then((c) => c.AdvocateCourtviewPage),
+        title: 'Courtview | CMS',
+      },
     ],
   },
 ];
