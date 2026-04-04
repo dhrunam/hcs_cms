@@ -44,25 +44,65 @@
       <!-- Left Sidebar: Summary + Nav -->
       <div class="col-xl-3 col-lg-4">
         
-        <!-- Summary Box -->
-        <div class="elegant-panel mb-4">
-          <div class="panel-title">Case Summary</div>
-          <div class="summary-text">
-            {{ caseSummary.listing_summary || 'No summary notes available.' }}
+        <!-- Advocate Shared View Box (ONLY if published) -->
+        <div *ngIf="caseSummary.is_published" class="elegant-panel mb-4 share-panel" [class.share-active]="activeShare">
+          <div class="panel-title d-flex justify-content-between align-items-center">
+            <span>Advocate Live View</span>
+            <span *ngIf="activeShare" class="live-indicator">LIVE</span>
           </div>
+          
+          <div *ngIf="!activeShare" class="no-share-content">
+            <i class="fa fa-podcast mb-2"></i>
+            <p>Waiting for advocate to share...</p>
+          </div>
+
+          <div *ngIf="activeShare" class="share-info">
+            <div class="advocate-name"><i class="fa fa-user-circle me-1"></i> {{ activeShare.advocate_name }}</div>
+            <div class="current-doc text-truncate" *ngIf="isSyncEnabled"><i class="fa fa-file-text-o me-1"></i> {{ previewDocument?.document_part_name }}</div>
+            <div class="current-page" *ngIf="isSyncEnabled">Page {{ activeShare.page_index + 1 }}</div>
+            
+            <button class="btn btn-sync mt-3 w-100" 
+                    [class.btn-sync-active]="isSyncEnabled"
+                    (click)="toggleSync()">
+              <i class="fa" [class.fa-link]="!isSyncEnabled" [class.fa-unlink]="isSyncEnabled"></i>
+              {{ isSyncEnabled ? 'Following' : 'Follow Advocate' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Pre-Listing Alert (if not published) -->
+        <div *ngIf="!caseSummary.is_published" class="elegant-panel mb-4" style="border-left: 4px solid #f59e0b; background: rgba(251, 191, 36, 0.05);">
+          <div class="panel-title d-flex align-items-center" style="color: #d97706; font-size: 11px;">
+            <i class="fa fa-info-circle me-1"></i> PRE-HEARING REVIEW
+          </div>
+          <p class="small mb-0" style="color: #92400e; line-height: 1.4;">
+            This case is forwarded for your review. Live synchronization will activate once the Listing Officer publishes the cause-list.
+          </p>
         </div>
 
         <!-- Documents Box -->
         <div class="elegant-panel pb-2">
-          <div class="panel-title d-flex justify-content-between align-items-center mb-3">
+          <div class="panel-title d-flex justify-content-between align-items-center mb-2">
             <span>Pleadings</span>
-            <span class="badge bg-light text-secondary border">{{ allCaseDocuments.length }}</span>
+            <span class="badge bg-light text-secondary border">{{ filteredCaseDocuments.length }}</span>
+          </div>
+          
+          <!-- Modern Search Bar -->
+          <div class="search-wrapper mb-3">
+            <i class="fa fa-search search-icon"></i>
+            <input 
+              type="text" 
+              class="search-input" 
+              placeholder="Search documents..." 
+              [(ngModel)]="documentSearchQuery"
+            >
+            <i *ngIf="documentSearchQuery" class="fa fa-times clear-search" (click)="documentSearchQuery = ''"></i>
           </div>
           
           <div class="doc-list-wrapper">
-            <ul class="doc-list">
+            <ul class="doc-list" *ngIf="filteredCaseDocuments.length > 0">
               <li 
-                *ngFor="let doc of allCaseDocuments; let i = index" 
+                *ngFor="let doc of filteredCaseDocuments; let i = index" 
                 class="doc-list-item"
                 [class.active-doc]="previewDocument?.id === doc.id"
                 (click)="selectPreviewDocument(doc)"
@@ -74,6 +114,9 @@
                 </div>
               </li>
             </ul>
+            <div *ngIf="filteredCaseDocuments.length === 0 && allCaseDocuments.length > 0" class="text-muted small text-center py-4">
+              No matching files.
+            </div>
             <div *ngIf="allCaseDocuments.length === 0" class="text-muted small text-center py-4">
               No files appended.
             </div>

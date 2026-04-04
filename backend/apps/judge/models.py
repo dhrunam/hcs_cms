@@ -94,3 +94,22 @@ class CourtroomDocumentAnnotation(BaseModel):
         unique_together = ("judge_user", "efiling_document_index")
         indexes = [models.Index(fields=["judge_user"])]
 
+
+class CourtroomSharedView(BaseModel):
+    """
+    Advocate sharing their current document + page index with judges.
+    """
+    efiling = models.ForeignKey(
+        Efiling, on_delete=models.CASCADE, related_name="shared_views"
+    )
+    advocate_user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="shared_views"
+    )
+    document_index_id = models.IntegerField()
+    page_index = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "courtroom_shared_view"
+        unique_together = ("efiling", "advocate_user")
+        indexes = [models.Index(fields=["efiling", "is_active"])]

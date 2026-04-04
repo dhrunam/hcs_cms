@@ -134,3 +134,132 @@
   border: 1px solid #f1f5f9;
   background: white;
 }
+
+/* Modern Search Bar */
+.search-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 8px 35px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  color: #1e293b;
+}
+
+.search-input:focus {
+  outline: none;
+  background: #fff;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.clear-search {
+  position: absolute;
+  right: 12px;
+  color: #94a3b8;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.clear-search:hover {
+  color: #64748b;
+}
+
+/* Advocate Live View Panel */
+.share-panel {
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.share-panel.share-active {
+  border-color: #bfdbfe;
+  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.05);
+}
+
+.live-indicator {
+  font-size: 0.65rem;
+  font-weight: 800;
+  background-color: #fee2e2;
+  color: #ef4444;
+  padding: 2px 8px;
+  border-radius: 99px;
+  border: 1px solid #fecaca;
+  letter-spacing: 0.05em;
+  animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.no-share-content {
+  text-align: center;
+  padding: 12px 0;
+  color: #94a3b8;
+}
+
+.no-share-content i { font-size: 1.5rem; opacity: 0.3; }
+.no-share-content p { font-size: 0.85rem; margin: 0; }
+
+.share-info { font-size: 0.9rem; }
+
+.advocate-name {
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 4px;
+}
+
+.current-doc {
+  color: #64748b;
+  font-size: 0.8rem;
+  margin-bottom: 2px;
+}
+
+.current-page {
+  color: #3b82f6;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.btn-sync {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #1e293b;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 8px;
+  transition: all 0.2s ease;
+}
+
+.btn-sync:hover {
+  background-color: #f1f5f9;
+}
+
+.btn-sync-active {
+  background-image: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: white;
+  border-color: #1d4ed8;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+.btn-sync-active:hover {
+  background-image: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  color: white;
+}

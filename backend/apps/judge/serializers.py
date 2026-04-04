@@ -7,6 +7,7 @@ from apps.core.models import EfilingDocumentsIndex
 from .models import (
     CourtroomDocumentAnnotation,
     CourtroomJudgeDecision,
+    CourtroomSharedView,
 )
 
 
@@ -52,3 +53,8 @@ class CourtroomDecisionSerializer(serializers.Serializer):
             )
         return attrs
 
+
+class CourtroomSharedViewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CourtroomSharedView
+        fields = ["efiling_id", "document_index_id", "page_index", "is_active"]
