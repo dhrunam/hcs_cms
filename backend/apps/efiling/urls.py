@@ -61,6 +61,7 @@ from apps.efiling.views.document_stream_views import EfilingDocumentStreamByInde
 from apps.efiling.views.judge_views import JudgeTListCreateView, JudgeTRetrieveUpdateDestroyView
 from apps.efiling.views.bench_views import BenchTListCreateView, BenchTRetrieveUpdateDestroyView
 from apps.efiling.views.bench_distinct_views import BenchDistinctListView
+from apps.efiling.views.budget_head_views import BudgetHeadTListView
 
 
 app_name = "efiling"
@@ -206,5 +207,6 @@ urlpatterns = [
     path("benches/", BenchTListCreateView.as_view(), name="bench-list-create"),
     path("benches/<int:pk>/", BenchTRetrieveUpdateDestroyView.as_view(), name="bench-detail"),
     path("benches/distinct/", BenchDistinctListView.as_view(), name="bench-distinct-list"),
+    path("budget-heads/", BudgetHeadTListView.as_view(), name="budget-head-list"),
 ]
 
