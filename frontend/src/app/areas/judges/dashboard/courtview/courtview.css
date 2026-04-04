@@ -2,6 +2,95 @@
   min-height: 400px;
 }
 
+
+/* HEADER */
+
+.judge-header:hover {
+  transform: translateY(-2px);
+}
+
+/* DATE SELECTOR */
+.date-selector {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+}
+
+.date-selector input {
+  outline: none;
+  font-size: 13px;
+}
+
+/* CARD */
+.hearing-card {
+  transition: all 0.25s ease;
+  cursor: pointer;
+}
+
+.hearing-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+/* BADGES */
+.serial-badge {
+  background: #eef2ff;
+  color: #4e73df;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 999px;
+}
+
+.bench-badge {
+  background: #f1f3f5;
+  color: #495057;
+  /* font-size: 14px; */
+  padding: 5px 10px;
+  border-radius: 999px;
+}
+
+/* CASE NUMBER */
+.case-number {
+  font-weight: 600;
+  color: #212529;
+}
+
+/* TEXT */
+.petitioner-respondent {
+  line-height: 1.5;
+}
+
+/* BUTTON */
+.btn-start-hearing {
+  border-radius: 999px;
+  padding: 10px;
+  font-weight: 600;
+  border: none;
+  background: linear-gradient(135deg, #4e73df, #224abe);
+  color: white;
+  /* transition: 0.2s ease; */
+}
+
+.btn-start-hearing:hover {
+  background: linear-gradient(135deg, #2e59d9, #1b3ea8);
+  /* transform: scale(1.03); */
+}
+
+/* EMPTY STATE */
+.empty-state {
+  border: 2px dashed #e2e8f0;
+  background: #ffffff;
+}
+
+/* GENERAL */
+.card {
+  border-radius: 16px;
+}
+
+.bg-light {
+  background-color: #f8fafc !important;
+}
+
 .hearing-card {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 16px;
