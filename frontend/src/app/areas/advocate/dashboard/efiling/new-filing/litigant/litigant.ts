@@ -1,5 +1,11 @@
 import { CommonModule } from "@angular/common";
-import { Component, EventEmitter, Input, Output } from "@angular/core";
+import {
+  Component,
+  EventEmitter,
+  Input,
+  Output,
+  SimpleChanges,
+} from "@angular/core";
 import { FormGroup, ReactiveFormsModule } from "@angular/forms";
 import { OrganisationService } from "../../../../../../services/master/organisation.services";
 import { EfilingService } from "../../../../../../services/advocate/efiling/efiling.services";
@@ -12,17 +18,19 @@ import { StateAndDistrictService } from "../../../../../../services/master/state
   styleUrl: "./litigant.css",
 })
 export class Litigant {
-  @Input() form!: FormGroup;
+  @Input() petitionerForm!: FormGroup;
+  @Input() respondentForm!: FormGroup;
   @Input() litigantList!: any;
   organisations: any[] = [];
   states: any[] = [];
   districts: any[] = [];
   @Output() deleted = new EventEmitter<number>();
-  @Output() submitLitigant = new EventEmitter<void>();
-  @Output() updateLitigant = new EventEmitter<void>();
-  @Output() undoEdit = new EventEmitter<void>();
-  @Output() startNew = new EventEmitter<boolean>();
-  activeSide: "petitioner" | "respondent" = "petitioner";
+  @Output() submitLitigant = new EventEmitter<"petitioner" | "respondent">();
+  @Output() updateLitigant = new EventEmitter<"petitioner" | "respondent">();
+  @Output() undoEdit = new EventEmitter<"petitioner" | "respondent">();
+  @Output() startNew = new EventEmitter<"petitioner" | "respondent">();
+  showPetitionerForm = true;
+  showRespondentForm = true;
 
   constructor(
     private organisationService: OrganisationService,
@@ -33,76 +41,74 @@ export class Litigant {
   ngOnInit() {
     this.get_organisation_list();
     this.get_state_list();
-    this.bindOrganisationToggle();
-
-    const syncSide = (value: any) => {
-      this.activeSide = this.isPetitioner(value)
-        ? "petitioner"
-        : "respondent";
-    };
-
-    syncSide(this.form.get("is_petitioner")?.value);
-    this.form.get("is_petitioner")?.valueChanges.subscribe(syncSide);
-
-    const updateName = () => {
-      const orgId = this.form.get("organization")?.value;
-      const isOrg = this.form.get("is_organisation")?.value;
-      const selectedOrg = this.organisations.find((o) => o.id == orgId);
-
-      if (isOrg && orgId && selectedOrg) {
-        this.form.get("name")?.setValue(selectedOrg.orgname);
-      } else {
-        this.form.get("name")?.setValue("");
-      }
-    };
-
-    this.form.get("organization")?.valueChanges.subscribe(updateName);
-    this.form.get("is_organisation")?.valueChanges.subscribe(updateName);
+    this.bindOrganisationToggle(this.petitionerForm);
+    this.bindOrganisationToggle(this.respondentForm);
+    this.bindOrganisationName(this.petitionerForm);
+    this.bindOrganisationName(this.respondentForm);
+    this.syncFormVisibility();
   }
 
-  setPartyType(value: boolean) {
-    this.form.get("is_petitioner")?.setValue(value);
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes["litigantList"]) {
+      this.syncFormVisibility();
+    }
   }
 
-  startNewLitigant(isPetitioner: boolean) {
-    this.activeSide = isPetitioner ? "petitioner" : "respondent";
-    this.form.get("is_petitioner")?.setValue(isPetitioner);
-    this.startNew.emit(isPetitioner);
+  startNewLitigant(side: "petitioner" | "respondent") {
+    if (side === "petitioner") {
+      this.showPetitionerForm = true;
+    } else {
+      this.showRespondentForm = true;
+    }
+    this.startNew.emit(side);
   }
 
-  onSubmit() {
-    if (this.isEditing) {
-      this.updateLitigant.emit();
+  onSubmit(side: "petitioner" | "respondent", form: FormGroup) {
+    if (this.isEditing(form)) {
+      this.updateLitigant.emit(side);
       return;
     }
 
-    this.submitLitigant.emit();
+    this.submitLitigant.emit(side);
   }
 
-  onUndo() {
-    this.undoEdit.emit();
+  onUndo(side: "petitioner" | "respondent") {
+    this.undoEdit.emit(side);
   }
 
-  get isEditing(): boolean {
-    return !!this.form?.get("id")?.value;
+  isEditing(form: FormGroup): boolean {
+    return !!form?.get("id")?.value;
   }
 
-  get activeLabel(): string {
-    return this.activeSide === "petitioner" ? "Petitioner" : "Respondent";
-  }
-
-  private bindOrganisationToggle() {
-    const orgCtrl = this.form?.get("is_organisation");
+  private bindOrganisationToggle(form: FormGroup) {
+    const orgCtrl = form?.get("is_organisation");
     if (!orgCtrl) return;
 
     orgCtrl.valueChanges.subscribe((isOrg) => {
       if (isOrg) {
-        this.form.patchValue({ gender: "", age: "" }, { emitEvent: false });
+        form.patchValue({ gender: "", age: "" }, { emitEvent: false });
         return;
       }
 
-      this.form.patchValue({ organization: "" }, { emitEvent: false });
+      form.patchValue({ organization: "" }, { emitEvent: false });
     });
+  }
+
+  private bindOrganisationName(form: FormGroup) {
+    const updateName = () => {
+      const orgId = form.get("organization")?.value;
+      const isOrg = form.get("is_organisation")?.value;
+      const selectedOrg = this.organisations.find((o) => o.id == orgId);
+
+      if (isOrg && orgId && selectedOrg) {
+        form.get("name")?.setValue(selectedOrg.orgname);
+      } else if (isOrg) {
+        form.get("name")?.setValue("");
+      }
+    };
+
+    form.get("organization")?.valueChanges.subscribe(updateName);
+    form.get("is_organisation")?.valueChanges.subscribe(updateName);
   }
 
   delete_ligitant_details(id: number) {
@@ -116,7 +122,11 @@ export class Litigant {
   editLitigant(item: any) {
     if (!item) return;
 
-    this.form.patchValue({
+    const targetForm = this.isPetitioner(item.is_petitioner)
+      ? this.petitionerForm
+      : this.respondentForm;
+
+    targetForm.patchValue({
       id: item.id ?? "",
       name: item.name ?? "",
       gender: item.gender ?? "",
@@ -150,11 +160,6 @@ export class Litigant {
     if (stateId) {
       this.get_district_list_by_state_id(stateId);
     }
-
-    this.activeSide = this.isPetitioner(item.is_petitioner)
-      ? "petitioner"
-      : "respondent";
-
     // window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -176,6 +181,13 @@ export class Litigant {
   get respondentLitigants() {
     const list = Array.isArray(this.litigantList) ? this.litigantList : [];
     return list.filter((item: any) => !this.isPetitioner(item.is_petitioner));
+  }
+
+  private syncFormVisibility() {
+    const petitionerCount = this.petitionerLitigants.length;
+    const respondentCount = this.respondentLitigants.length;
+    this.showPetitionerForm = petitionerCount === 0;
+    this.showRespondentForm = respondentCount === 0;
   }
 
   get hasRequiredLitigants(): boolean {

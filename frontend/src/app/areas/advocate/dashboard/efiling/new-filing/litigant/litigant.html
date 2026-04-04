@@ -22,13 +22,18 @@
       <div class="litigant-side">
         <div class="litigant-panel petitioner-panel">
           <div class="litigant-panel-header">
-            <span>Petitioners</span>
+            <div class="litigant-panel-title">
+              <div class="litigant-title-text">Petitioner(s)</div>
+              <!-- <div class="litigant-subtitle">
+                Primary party initiating the legal action
+              </div> -->
+            </div>
             <span class="litigant-count">{{ petitionerLitigants.length }}</span>
           </div>
 
-          <div *ngIf="petitionerLitigants.length === 0" class="empty-state">
+          <!-- <div *ngIf="petitionerLitigants.length === 0" class="empty-state">
             No petitioner added yet.
-          </div>
+          </div> -->
 
           <div *ngFor="let item of petitionerLitigants" class="litigant-item">
             <div class="litigant-item-top">
@@ -75,22 +80,19 @@
             </div>
           </div>
 
-      <div class="text-center mt-2">
-           <button
-        type="button"
-        class="btn btn-sm btn-success"
-        (click)="startNewLitigant(true)"
-      >
-        + Add Petitioner
-      </button>
-      </div>
+          <div class="text-center mt-2">
+            <button
+              type="button"
+              class="litigant-add-btn"
+              (click)="startNewLitigant('petitioner')"
+            >
+              + Add Petitioner
+            </button>
+          </div>
 
-          <div
-            class="litigant-form-slot"
-            *ngIf="activeSide === 'petitioner'"
-          >
+          <div class="litigant-form-slot" *ngIf="showPetitionerForm">
             <ng-container
-              *ngTemplateOutlet="litigantForm; context: { side: 'petitioner' }"
+              *ngTemplateOutlet="litigantForm; context: { side: 'petitioner', form: petitionerForm }"
             ></ng-container>
           </div>
         </div>
@@ -103,13 +105,18 @@
       <div class="litigant-side">
         <div class="litigant-panel respondent-panel">
           <div class="litigant-panel-header">
-            <span>Respondents</span>
+            <div class="litigant-panel-title">
+              <div class="litigant-title-text">Respondent(s)</div>
+              <!-- <div class="litigant-subtitle">
+                Opposing party/defendant in the matter
+              </div> -->
+            </div>
             <span class="litigant-count">{{ respondentLitigants.length }}</span>
           </div>
 
-          <div *ngIf="respondentLitigants.length === 0" class="empty-state">
+          <!-- <div *ngIf="respondentLitigants.length === 0" class="empty-state">
             No respondent added yet.
-          </div>
+          </div> -->
 
           <div *ngFor="let item of respondentLitigants" class="litigant-item">
             <div class="litigant-item-top">
@@ -150,21 +157,19 @@
               </div>
             </div>
           </div>
-              <button
-        type="button"
-        class="btn btn-sm"
-        [ngClass]="activeSide === 'respondent' ? 'btn-dark' : 'btn-outline-dark'"
-        (click)="startNewLitigant(false)"
-      >
-        + Add Respondent
-      </button>
+          <div class="text-center mt-2">
+            <button
+              type="button"
+              class="litigant-add-btn"
+              (click)="startNewLitigant('respondent')"
+            >
+              + Add Respondent
+            </button>
+          </div>
 
-          <div
-            class="litigant-form-slot"
-            *ngIf="activeSide === 'respondent'"
-          >
+          <div class="litigant-form-slot" *ngIf="showRespondentForm">
             <ng-container
-              *ngTemplateOutlet="litigantForm; context: { side: 'respondent' }"
+              *ngTemplateOutlet="litigantForm; context: { side: 'respondent', form: respondentForm }"
             ></ng-container>
           </div>
         </div>
@@ -173,7 +178,7 @@
   </div>
 </div>
 
-<ng-template #litigantForm let-side="side">
+<ng-template #litigantForm let-side="side" let-form="form">
   <form [formGroup]="form" class="form-wrapper">
     <input type="hidden" formControlName="id" />
 
@@ -183,17 +188,17 @@
       <div class="section-title">{{ side === 'petitioner' ? 'Petitioner' : 'Respondent' }} Details</div>
 
       <div class="row g-3">
-        <div class="col-md-12 mt-1">
-          <div class="d-flex gap-4 mb-1">
-            <div class="form-check">
-              <label class="form-check-label">Is Organisation?</label>
-              <input
-                type="checkbox"
-                class="form-check-input"
-                [value]="true"
-                formControlName="is_organisation"
-              />
-            </div>
+        <div class="col-md-12 mt-3">
+          <div class="form-check">
+            <input
+              type="checkbox"
+              class="form-check-input"
+              formControlName="is_organisation"
+              id="{{ side }}-is-organisation"
+            />
+            <label class="form-check-label" for="{{ side }}-is-organisation">
+              Is Organisation?
+            </label>
           </div>
         </div>
 
@@ -231,7 +236,7 @@
           />
         </div>
 
-        <div class="col-md-4" *ngIf="!form.get('is_organisation')?.value">
+        <div class="col-md-6" *ngIf="!form.get('is_organisation')?.value">
           <label class="form-label"
             >Gender
             <small *ngIf="!form.get('is_organisation')?.value" class="text-danger"
@@ -286,7 +291,7 @@
         </div>
 
         <div
-          class="col-md-4 d-flex align-items-center"
+          class="col-md-8 d-flex align-items-center justify-content-end"
           *ngIf="!form.get('is_organisation')?.value"
         >
           <div class="form-check mt-4">
@@ -359,27 +364,27 @@
         <button
           type="button"
           class="btn btn-primary"
-          (click)="onSubmit()"
+          (click)="onSubmit(side, form)"
         >
           <i
             class="fa-regular fa-save"
-            *ngIf="!isEditing"
+            *ngIf="!isEditing(form)"
           ></i>
           <i
             class="fa-solid fa-pen"
-            *ngIf="isEditing"
+            *ngIf="isEditing(form)"
           ></i>
-          {{ isEditing ? 'Update ' : 'Submit ' }}
+          {{ isEditing(form) ? 'Update ' : 'Submit ' }}
 
 
-          {{isEditing ? side === 'petitioner' ? 'Petitioner' : 'Respondent' :'' }}
+          {{ isEditing(form) ? (side === 'petitioner' ? 'Petitioner' : 'Respondent') : '' }}
         </button>
 
         <button
-          *ngIf="isEditing"
+          *ngIf="isEditing(form)"
           type="button"
           class="btn btn-sm btn-outline-secondary text-dark"
-          (click)="onUndo()"
+          (click)="onUndo(side)"
         >
           <i class="fa-solid fa-rotate-left me-1"></i>
           Undo
