@@ -723,7 +723,7 @@ export class NewFiling {
     if (this.step === 5) {
       this.step = 6;
       this.setCaseDetailsReviewState(true);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      // window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }
 
@@ -913,10 +913,10 @@ export class NewFiling {
       this.syncPetitionerNameFromLitigants();
       this.step = 4;
       this.setCaseDetailsReviewState(this.step === 6);
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
+      // window.scrollTo({
+      //   top: 0,
+      //   behavior: "smooth",
+      // });
       return;
     }
 
@@ -969,10 +969,10 @@ export class NewFiling {
 
     this.setCaseDetailsReviewState(this.step === 6);
 
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    // window.scrollTo({
+    //   top: 0,
+    //   behavior: "smooth",
+    // });
   }
 
   private syncPetitionerNameFromLitigants() {
@@ -1133,7 +1133,7 @@ export class NewFiling {
         },
       );
       form.get("sequence_number")?.markAsTouched();
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      // window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
@@ -1143,7 +1143,7 @@ export class NewFiling {
 
     if (form.invalid) {
       form.markAllAsTouched();
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      // window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
@@ -1171,11 +1171,10 @@ export class NewFiling {
             gender: "",
             organization: "",
           });
-
-          window.scrollTo({
-            top: document.body.scrollHeight * 3,
-            behavior: "smooth",
-          });
+//          window.scrollTo({
+//   top: window.innerHeight / 3,
+//   behavior: "smooth",
+// });
 
           const typeLabel = this.getLitigantTypeLabel(formValue.is_petitioner);
           this.toastr.success(`1 ${typeLabel} added`, "", {
@@ -1250,6 +1249,12 @@ export class NewFiling {
     });
     form.markAsPristine();
     form.markAsUntouched();
+    this.refreshLitigantSequenceNumber(true);
+  }
+
+  startNewLitigant(isPetitioner: boolean) {
+    this.undoLitigantEdit();
+    this.litigantsForm.patchValue({ is_petitioner: isPetitioner });
     this.refreshLitigantSequenceNumber(true);
   }
 
@@ -1340,10 +1345,10 @@ export class NewFiling {
         this.toastr.success("Litigant updated successfully", "", {
           timeOut: 3000,
         });
-        window.scrollTo({
-          top: document.body.scrollHeight * 0.3,
-          behavior: "smooth",
-        });
+        // window.scrollTo({
+        //   top: document.body.scrollHeight * 0.3,
+        //   behavior: "smooth",
+        // });
       });
   }
 
