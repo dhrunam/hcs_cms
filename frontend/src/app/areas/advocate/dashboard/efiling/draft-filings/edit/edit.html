@@ -39,11 +39,12 @@
 
           <app-litigant
             (deleted)="onDelete($event)"
-            (submitLitigant)="saveStep2()"
-            (updateLitigant)="updateStep2()"
-            (undoEdit)="undoLitigantEdit()"
+            (submitLitigant)="handleSubmitLitigant($event)"
+            (updateLitigant)="handleUpdateLitigant($event)"
+            (undoEdit)="handleUndoLitigant($event)"
             (startNew)="startNewLitigant($event)"
-            [form]="litigantsForm"
+            [petitionerForm]="petitionerForm"
+            [respondentForm]="respondentForm"
             [litigantList]="litigantList"
           ></app-litigant>
 
