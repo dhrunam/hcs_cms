@@ -39,39 +39,17 @@
 
           <app-litigant
             (deleted)="onDelete($event)"
-            [form]="litigantsForm"
+            (submitLitigant)="handleSubmitLitigant($event)"
+            (updateLitigant)="handleUpdateLitigant($event)"
+            (undoEdit)="handleUndoLitigant($event)"
+            (startNew)="startNewLitigant($event)"
+            [petitionerForm]="petitionerForm"
+            [respondentForm]="respondentForm"
             [litigantList]="litigantList"
           ></app-litigant>
 
           <div class="d-flex justify-content-end mt-4">
             <div class="d-flex">
-              <button
-                class="btn btn-p me-2"
-                [class.btn-dark]="!litigantsForm.get('id')?.value"
-                [class.btn-primary]="!!litigantsForm.get('id')?.value"
-                (click)="litigantsForm.get('id')?.value ? updateStep2() : saveStep2()"
-              >
-                <i
-                  class="fa-regular fa-plus"
-                  *ngIf="!litigantsForm.get('id')?.value"
-                ></i>
-                <i
-                  class="fa-solid fa-pen"
-                  *ngIf="!!litigantsForm.get('id')?.value"
-                ></i>
-                {{ litigantsForm.get('id')?.value ? 'Update Litigant' : 'Add
-                Litigant' }}
-              </button>
-
-              <button
-                *ngIf="litigantsForm.get('id')?.value"
-                class="btn btn-sm btn-outline-secondary me-2 text-dark"
-                (click)="undoLitigantEdit()"
-              >
-                <i class="fa-solid fa-rotate-left me-1"></i>
-                Undo
-              </button>
-
               <button
                 class="btn btn-outline-dark"
                 (click)="next()"

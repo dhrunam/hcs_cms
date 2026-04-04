@@ -1,0 +1,75 @@
+<div class="chat-shell">
+  <div class="chat-header">
+    <div>
+      <div class="chat-kicker">E-Filing Conversation</div>
+      <h6 class="chat-title mb-0">Advocate and scrutiny officer discussion</h6>
+    </div>
+    <button
+      type="button"
+      class="btn btn-outline-secondary btn-sm"
+      (click)="loadMessages()"
+      [disabled]="isLoading"
+    >
+      {{ isLoading ? 'Refreshing...' : 'Refresh' }}
+    </button>
+  </div>
+
+  <div *ngIf="errorMessage" class="alert alert-danger py-2 px-3 mb-3">{{ errorMessage }}</div>
+
+  <div class="chat-thread" *ngIf="messages.length > 0; else emptyState">
+    <div
+      class="chat-bubble"
+      *ngFor="let message of messages"
+      [class.chat-bubble-own]="message.is_current_user"
+      [class.chat-bubble-advocate]="isAdvocateMessage(message)"
+      [class.chat-bubble-scrutiny]="isScrutinyMessage(message)"
+    >
+      <div class="chat-bubble-meta">
+        <div class="chat-identity-block">
+          <span class="chat-author">{{ message.sender_name || 'User' }}</span>
+          <span
+            class="chat-role-pill"
+            [class.chat-role-pill-advocate]="isAdvocateMessage(message)"
+            [class.chat-role-pill-scrutiny]="isScrutinyMessage(message)"
+          >
+            {{ getRoleLabel(message) }}
+          </span>
+        </div>
+        <span class="chat-timestamp">{{ message.created_at | date: 'dd MMM yyyy, hh:mm a' }}</span>
+      </div>
+      <div class="chat-message-text">{{ message.message }}</div>
+      <div class="chat-bubble-tag" *ngIf="message.is_current_user">{{ composerTitle }}</div>
+    </div>
+  </div>
+
+  <ng-template #emptyState>
+    <div class="chat-empty">
+      <div class="chat-empty-title">No conversation yet</div>
+      <div class="chat-empty-copy">
+        Start a thread about objections, clarifications, or filing updates for this e-filing.
+      </div>
+    </div>
+  </ng-template>
+
+  <div class="chat-composer">
+    <label class="form-label chat-label mb-2">{{ composerTitle }}</label>
+    <textarea
+      class="form-control chat-textarea"
+      [(ngModel)]="draftMessage"
+      rows="4"
+      maxlength="2000"
+      placeholder="Write a message related to this e-filing"
+    ></textarea>
+    <div class="chat-composer-footer">
+      <span class="chat-counter">{{ draftMessage.length }}/2000</span>
+      <button
+        type="button"
+        class="btn btn-primary"
+        (click)="sendMessage()"
+        [disabled]="isSending || !draftMessage.trim()"
+      >
+        {{ isSending ? 'Sending...' : 'Send Message' }}
+      </button>
+    </div>
+  </div>
+</div>

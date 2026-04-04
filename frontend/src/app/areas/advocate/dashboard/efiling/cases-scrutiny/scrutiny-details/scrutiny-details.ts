@@ -8,11 +8,12 @@ import Swal from 'sweetalert2';
 import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
 import { PaymentService } from '../../../../../../services/payment/payment.service';
 import { getValidationErrorMessage, validatePdfOcr, validatePdfSize } from '../../../../../../utils/pdf-validation';
+import { EfilingChatComponent } from '../../../../../../shared/efiling-chat/efiling-chat';
 
 @Component({
   selector: 'app-scrutiny-details',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, EfilingChatComponent],
   templateUrl: './scrutiny-details.html',
   styleUrl: './scrutiny-details.css',
 })
@@ -40,7 +41,7 @@ export class ScrutinyDetails {
   notesPopupOpen = false;
   canShowReplaceBtn: boolean = false;
   pendingReplacements: Array<{ documentId: number; document: any; file: File }> = [];
-  activeTab: 'filing' | 'documents' | 'ia' = 'filing';
+  activeTab: 'filing' | 'documents' | 'ia' | 'chat' = 'filing';
   iaList: any[] = [];
   iaDocuments: any[] = [];
   groupedIaDocuments: Array<{ document_type: string; items: any[] }> = [];
@@ -76,7 +77,7 @@ export class ScrutinyDetails {
     this.notesPopupOpen = false;
   }
 
-  setActiveTab(tab: 'filing' | 'documents' | 'ia'): void {
+  setActiveTab(tab: 'filing' | 'documents' | 'ia' | 'chat'): void {
     this.activeTab = tab;
   }
 
