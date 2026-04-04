@@ -102,12 +102,26 @@ select {
 
 .litigant-split-view {
   align-items: stretch;
+  flex-wrap: nowrap;
+}
+
+.litigant-side {
+  flex: 1 1 420px;
+  min-width: 320px;
+}
+
+.litigant-actions {
+  margin-bottom: 12px;
 }
 
 .litigant-vs-col {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 56px;
+  max-width: 56px;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .litigant-vs-badge {
@@ -130,6 +144,19 @@ select {
   padding: 14px;
   background: #ffffff;
   height: 100%;
+}
+
+.litigant-form-slot {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #e5e7eb;
+}
+
+.litigant-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
 }
 
 .petitioner-panel {

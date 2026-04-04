@@ -18,6 +18,11 @@ export class Litigant {
   states: any[] = [];
   districts: any[] = [];
   @Output() deleted = new EventEmitter<number>();
+  @Output() submitLitigant = new EventEmitter<void>();
+  @Output() updateLitigant = new EventEmitter<void>();
+  @Output() undoEdit = new EventEmitter<void>();
+  @Output() startNew = new EventEmitter<boolean>();
+  activeSide: "petitioner" | "respondent" = "petitioner";
 
   constructor(
     private organisationService: OrganisationService,
@@ -29,6 +34,15 @@ export class Litigant {
     this.get_organisation_list();
     this.get_state_list();
     this.bindOrganisationToggle();
+
+    const syncSide = (value: any) => {
+      this.activeSide = this.isPetitioner(value)
+        ? "petitioner"
+        : "respondent";
+    };
+
+    syncSide(this.form.get("is_petitioner")?.value);
+    this.form.get("is_petitioner")?.valueChanges.subscribe(syncSide);
 
     const updateName = () => {
       const orgId = this.form.get("organization")?.value;
@@ -48,6 +62,33 @@ export class Litigant {
 
   setPartyType(value: boolean) {
     this.form.get("is_petitioner")?.setValue(value);
+  }
+
+  startNewLitigant(isPetitioner: boolean) {
+    this.activeSide = isPetitioner ? "petitioner" : "respondent";
+    this.form.get("is_petitioner")?.setValue(isPetitioner);
+    this.startNew.emit(isPetitioner);
+  }
+
+  onSubmit() {
+    if (this.isEditing) {
+      this.updateLitigant.emit();
+      return;
+    }
+
+    this.submitLitigant.emit();
+  }
+
+  onUndo() {
+    this.undoEdit.emit();
+  }
+
+  get isEditing(): boolean {
+    return !!this.form?.get("id")?.value;
+  }
+
+  get activeLabel(): string {
+    return this.activeSide === "petitioner" ? "Petitioner" : "Respondent";
   }
 
   private bindOrganisationToggle() {
@@ -110,7 +151,11 @@ export class Litigant {
       this.get_district_list_by_state_id(stateId);
     }
 
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    this.activeSide = this.isPetitioner(item.is_petitioner)
+      ? "petitioner"
+      : "respondent";
+
+    // window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   get sortedLitigants() {
