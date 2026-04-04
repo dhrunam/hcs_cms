@@ -647,7 +647,7 @@ export class Edit {
     if (this.step === 5) {
       this.step = 6;
       this.setCaseDetailsReviewState(true);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      // window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }
 
@@ -858,10 +858,10 @@ export class Edit {
     if (this.step == 1 && this.litigantList.length > 0) {
       this.step = 4;
       this.setCaseDetailsReviewState(this.step === 6);
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
+      // window.scrollTo({
+      //   top: 0,
+      //   behavior: "smooth",
+      // });
       return;
     }
 
@@ -875,10 +875,10 @@ export class Edit {
       }
       this.step = 6;
       this.setCaseDetailsReviewState(this.step === 6);
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
+      // window.scrollTo({
+      //   top: 0,
+      //   behavior: "smooth",
+      // });
       return;
     }
 
@@ -891,10 +891,10 @@ export class Edit {
       }
       this.step = 5;
       this.setCaseDetailsReviewState(this.step === 6);
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
+      // window.scrollTo({
+      //   top: 0,
+      //   behavior: "smooth",
+      // });
       return;
     }
 
@@ -910,10 +910,10 @@ export class Edit {
 
     this.setCaseDetailsReviewState(this.step === 6);
 
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    // window.scrollTo({
+    //   top: 0,
+    //   behavior: "smooth",
+    // });
   }
 
   prev() {
@@ -1031,7 +1031,7 @@ export class Edit {
         },
       );
       form.get("sequence_number")?.markAsTouched();
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      // window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
@@ -1041,7 +1041,7 @@ export class Edit {
 
     if (form.invalid) {
       form.markAllAsTouched();
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      // window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
@@ -1066,7 +1066,7 @@ export class Edit {
         organization: "",
       });
 
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      // window.scrollTo({ top: 0, behavior: "smooth" });
 
       const typeLabel = this.getLitigantTypeLabel(formValue.is_petitioner);
       this.toastr.success(`1 ${typeLabel} added`, "", {
@@ -1105,6 +1105,12 @@ export class Edit {
     });
     form.markAsPristine();
     form.markAsUntouched();
+    this.refreshLitigantSequenceNumber(true);
+  }
+
+  startNewLitigant(isPetitioner: boolean) {
+    this.undoLitigantEdit();
+    this.litigantsForm.patchValue({ is_petitioner: isPetitioner });
     this.refreshLitigantSequenceNumber(true);
   }
 
@@ -1256,7 +1262,7 @@ export class Edit {
           id: "",
           is_diffentially_abled: false,
           is_petitioner: formValue.is_petitioner,
-          sequence_number: "",
+          sequence_number: this.getNextSequenceNumber(formValue.is_petitioner),
           gender: "",
           organization: "",
         });
@@ -1264,7 +1270,7 @@ export class Edit {
         this.toastr.success("Litigant updated successfully", "", {
           timeOut: 3000,
         });
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        // window.scrollTo({ top: 0, behavior: "smooth" });
       });
   }
 
@@ -1287,7 +1293,7 @@ export class Edit {
         },
       );
       if (missingRequiredDetails) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        // window.scrollTo({ top: 0, behavior: "smooth" });
       }
       return;
     }
