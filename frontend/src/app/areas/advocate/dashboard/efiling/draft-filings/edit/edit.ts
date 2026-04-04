@@ -1543,9 +1543,26 @@ export class Edit {
       const existingIndexes = Array.isArray(documentRes?.document_indexes)
         ? documentRes.document_indexes
         : [];
+      let nextSeq = this.maxDocumentSequence(existingIndexes);
+      const groupName = String(data?.parent_group_name ?? "").trim();
+      let parentIndexId: number | null = null;
+
+      if (groupName) {
+        nextSeq += 1;
+        const parentFd = new FormData();
+        parentFd.append("document", String(documentId));
+        parentFd.append("document_part_name", groupName);
+        parentFd.append("document_sequence", String(nextSeq));
+        const parentRes = await firstValueFrom(
+          this.eFilingService.createDocumentIndexMetadata(parentFd),
+        );
+        parentIndexId = parentRes?.id != null ? Number(parentRes.id) : null;
+        if (parentRes) uploadedDocumentParts.push(parentRes);
+      }
 
       for (let i = 0; i < uploadItems.length; i++) {
         const item = uploadItems[i];
+        nextSeq += 1;
 
         const indexPayload = new FormData();
         indexPayload.append("document", String(documentId));
@@ -1554,12 +1571,12 @@ export class Edit {
           String(item.index_name || "").trim(),
         );
         indexPayload.append("file_part_path", item.file);
-        indexPayload.append(
-          "document_sequence",
-          String(existingIndexes.length + i + 1),
-        );
+        indexPayload.append("document_sequence", String(nextSeq));
         if (item.index_id) {
           indexPayload.append("index", String(item.index_id));
+        }
+        if (parentIndexId != null) {
+          indexPayload.append("parent_document_index", String(parentIndexId));
         }
 
         const indexRes = await this.uploadIndexFileWithProgress(
@@ -1570,12 +1587,17 @@ export class Edit {
       }
 
       const mergedIndexes = [...existingIndexes, ...uploadedDocumentParts];
+      const firstWithFile = mergedIndexes.find(
+        (p: any) => p?.file_url || p?.file_part_path,
+      );
       const mergedDoc = {
         ...documentRes,
         document_type: documentType,
         document_indexes: mergedIndexes,
         final_document:
-          mergedIndexes[0]?.file_url || documentRes?.final_document,
+          firstWithFile?.file_url ||
+          firstWithFile?.file_part_path ||
+          documentRes?.final_document,
       };
 
       const existingIndex = this.docList.findIndex(
@@ -1604,6 +1626,14 @@ export class Edit {
     return String(value || "")
       .trim()
       .toLowerCase();
+  }
+
+  private maxDocumentSequence(parts: any[]): number {
+    if (!Array.isArray(parts) || parts.length === 0) return 0;
+    return parts.reduce(
+      (m, p) => Math.max(m, Number(p?.document_sequence) || 0),
+      0,
+    );
   }
 
   private findExistingDocumentByType(documentType: string): any | null {

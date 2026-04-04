@@ -53,6 +53,9 @@ class EfilingDocumentsIndexSerializer(serializers.ModelSerializer):
             "parent_document_index",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+        extra_kwargs = {
+            "file_part_path": {"required": False, "allow_null": True},
+        }
 
     def get_file_url(self, obj):
         request = self.context.get("request")

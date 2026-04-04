@@ -103,6 +103,11 @@
   gap: 0.75rem;
 }
 
+.document-index-row {
+  margin-top: 0.35rem;
+}
+
+
 .document-item {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
@@ -110,14 +115,18 @@
   padding: 0.8rem 0.9rem;
   text-align: left;
   transition: all 0.2s ease;
+  cursor: default;
   /* width: 100%; */
 }
 
-.document-item:hover,
-.document-item-active {
+.document-item-interactive {
+  cursor: pointer;
+}
+
+.document-item-interactive:hover,
+.document-item-interactive.document-item-active {
   border: 1px solid #6366f1;
   border-color: #6366f1;
-  /* box-shadow: 0 5px 2px rgba(79, 70, 229, 0.1); */
 }
 
 .document-title {
@@ -586,15 +595,14 @@
   background: #dee2e6;
 }
 
-/* child items */
-.document-item {
+/* Legacy tree connectors — scope to old flat list only; rows use .document-index-row + nested padding */
+.document-group > .document-index-row .document-item {
   position: relative;
   margin-left: 20px;
   padding-left: 10px;
 }
 
-/* small connector line */
-.document-item::before {
+.document-group > .document-index-row .document-item::before {
   content: "";
   position: absolute;
   left: -10px;

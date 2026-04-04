@@ -70,9 +70,15 @@ class EfilingDocumentsIndexListCreateView(ListCreateAPIView):
                 created_by=self.request.user if self.request.user.is_authenticated else None,
                 updated_by=self.request.user if self.request.user.is_authenticated else None,
             )
+            has_file = bool(instance.file_part_path and getattr(instance.file_part_path, "name", None))
+            default_comment = (
+                "Document index group header created (no file yet)."
+                if not has_file
+                else "Document review item created."
+            )
             create_scrutiny_history(
                 instance,
-                comments=instance.comments or "Document review item created.",
+                comments=instance.comments or default_comment,
                 user=self.request.user if self.request.user.is_authenticated else None,
                 scrutiny_status=instance.scrutiny_status,
             )

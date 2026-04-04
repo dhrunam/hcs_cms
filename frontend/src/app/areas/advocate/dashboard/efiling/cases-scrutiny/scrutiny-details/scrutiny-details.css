@@ -83,21 +83,45 @@
   gap: 0.75rem;
 }
 
+.document-list {
+  max-height: 880px;
+  overflow: auto;
+  padding-right: 0.2rem;
+}
+
+.document-index-row {
+  margin-top: 0.35rem;
+}
+
+.new-tag {
+  background: #dbeafe;
+  border-radius: 999px;
+  color: #1d4ed8;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  text-transform: uppercase;
+}
+
 .document-item {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 16px;
-  cursor: pointer;
+  cursor: default;
   padding: 0.95rem 1rem;
   text-align: left;
   transition: all 0.2s ease;
   width: 100%;
 }
 
-.document-item:hover,
-.document-item-active {
-  border-color: #1e293b;
-  box-shadow: 0 8px 20px rgba(30, 41, 59, 0.12);
+.document-item-interactive {
+  cursor: pointer;
+}
+
+.document-item-interactive:hover,
+.document-item-interactive.document-item-active {
+  border-color: #6366f1;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.15);
 }
 
 .document-title {
@@ -210,6 +234,35 @@
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
+  position: relative;
+}
+
+/* Tree guide: vertical spine + per-row stub (same as scrutiny-officer filed-case details) */
+.document-group::before {
+  background: #dee2e6;
+  bottom: 8px;
+  content: "";
+  left: 10px;
+  position: absolute;
+  top: 40px;
+  width: 1px;
+  z-index: 0;
+}
+
+.document-group > .document-index-row .document-item {
+  margin-left: 20px;
+  padding-left: 10px;
+  position: relative;
+}
+
+.document-group > .document-index-row .document-item::before {
+  background: #dee2e6;
+  content: "";
+  height: 1px;
+  left: -10px;
+  position: absolute;
+  top: 14px;
+  width: 10px;
 }
 
 .document-type-header {
@@ -219,6 +272,8 @@
   color: white;
   font-weight: 700;
   padding: 0.45rem 0.65rem;
+  position: relative;
+  z-index: 1;
 }
 
 .notes-popup-backdrop {

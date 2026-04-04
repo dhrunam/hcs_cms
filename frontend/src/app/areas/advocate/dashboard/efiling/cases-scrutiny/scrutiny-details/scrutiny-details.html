@@ -325,76 +325,100 @@
                       *ngFor="let group of groupedDocuments; trackBy: trackByGroupIndex"
                     >
                       <div class="document-type-header">
-                        {{ group.document_type || 'Main Document' }}
+                        <span>{{ group.document_type || 'Main Document' }}</span>
+                        <ng-container *ngIf="getDocumentDate(group.rows[0]?.document) as d0">
+                          <br />
+                          <span class="text-white small fw-light">
+                            Filed on {{ d0 | date: 'dd MMM yyyy' }} at {{ d0 |
+                            date: 'hh:mm a' }}
+                          </span>
+                        </ng-container>
                       </div>
 
-                      <button
-                        type="button"
-                        class="document-item"
-                        *ngFor="let document of group.items; trackBy: trackById"
-                        [class.document-item-active]="selectedDocument?.id === document.id"
-                        (click)="selectDocument(document)"
+                      <div
+                        *ngFor="let row of group.rows; trackBy: trackByRowDocumentId"
+                        class="document-index-row"
+                        [style.paddingLeft.rem]="0.5 + row.depth * 1.2"
                       >
                         <div
-                          class="d-flex justify-content-between align-items-start gap-2"
+                          class="document-item"
+                          [class.document-item-interactive]="isDocumentIndexClickable(row.document)"
+                          [class.document-item-active]="
+                            selectedDocument?.id === row.document.id &&
+                            isDocumentIndexClickable(row.document)
+                          "
+                          (click)="advocateDocumentRowClick(row.document)"
+                          [attr.tabindex]="isDocumentIndexClickable(row.document) ? 0 : -1"
+                          [attr.role]="isDocumentIndexClickable(row.document) ? 'button' : null"
+                          (keydown.enter)="advocateDocumentRowClick(row.document)"
+                          (keydown.space)="advocateDocumentRowKeydown($event, row.document)"
                         >
-                          <div>
-                            <!-- Treat document_part_name as the actual "file" row -->
-                            <div class="document-title">
-                              {{ document.document_part_name ||
-                              getDocumentFileLabel(document) }}
+                          <div
+                            class="d-flex justify-content-between align-items-start gap-2"
+                          >
+                            <div>
+                              <div class="document-title fw-normal">
+                                {{ row.document.document_part_name ||
+                                getDocumentTitle(row.document) }}
+                              </div>
+                            </div>
+
+                            <div
+                              class="d-flex align-items-center gap-2 flex-wrap justify-content-end"
+                              (click)="$event.stopPropagation()"
+                            >
+                              <span
+                                class="new-tag"
+                                *ngIf="row.document.is_new_for_scrutiny"
+                                >new</span
+                              >
+                              <span
+                                class="status-badge status-badge-sm"
+                                [ngClass]="getDocumentStatusClass(row.document)"
+                              >
+                                {{ getDocumentStatusLabel(row.document) }}
+                              </span>
+                              <input
+                                #rowReplaceInput
+                                type="file"
+                                accept="application/pdf"
+                                hidden
+                                (click)="$event.stopPropagation()"
+                                (change)="addPendingReplacement($event)"
+                              />
+                              <button
+                                type="button"
+                                class="btn btn-danger btn-sm"
+                                *ngIf="canReplace(row.document)"
+                                [disabled]="isReplacing"
+                                (click)="startReplace(row.document, rowReplaceInput, $event)"
+                              >
+                                {{ hasPendingReplacement(row.document.id) ?
+                                'Change file' : 'Select file' }}
+                              </button>
+                              <button
+                                type="button"
+                                class="btn btn-outline-primary btn-sm"
+                                *ngIf="canReplace(row.document) && hasPendingReplacement(row.document.id)"
+                                (click)="viewPendingFile(row.document.id); $event.stopPropagation()"
+                              >
+                                <i class="fa fa-eye"></i> View
+                              </button>
+                              <button
+                                type="button"
+                                class="btn btn-outline-secondary btn-sm"
+                                *ngIf="canReplace(row.document) && hasPendingReplacement(row.document.id)"
+                                [disabled]="isReplacing"
+                                (click)="
+                                  removePendingReplacement(row.document.id); $event.stopPropagation()
+                                "
+                              >
+                                Clear
+                              </button>
                             </div>
                           </div>
-
-                          <div
-                            class="d-flex align-items-center gap-2 flex-wrap justify-content-end"
-                          >
-                            <span
-                              class="status-badge status-badge-sm"
-                              [ngClass]="getStatusClass(document.scrutiny_status)"
-                            >
-                              {{ getStatusLabel(document.scrutiny_status) }}
-                            </span>
-                            <input
-                              #rowReplaceInput
-                              type="file"
-                              accept="application/pdf"
-                              hidden
-                              (click)="$event.stopPropagation()"
-                              (change)="addPendingReplacement($event)"
-                            />
-                            <button
-                              type="button"
-                              class="btn btn-danger btn-sm"
-                              *ngIf="canReplace(document)"
-                              [disabled]="isReplacing"
-                              (click)="startReplace(document, rowReplaceInput, $event)"
-                            >
-                              {{ hasPendingReplacement(document.id) ? 'Change
-                              file' : 'Select file' }}
-                            </button>
-                            <button
-                              type="button"
-                              class="btn btn-outline-primary btn-sm"
-                              *ngIf="canReplace(document) && hasPendingReplacement(document.id)"
-                              (click)="viewPendingFile(document.id); $event.stopPropagation()"
-                            >
-                              <i class="fa fa-eye"></i> View
-                            </button>
-                            <button
-                              type="button"
-                              class="btn btn-outline-secondary btn-sm"
-                              *ngIf="canReplace(document) && hasPendingReplacement(document.id)"
-                              [disabled]="isReplacing"
-                              (click)="
-                                removePendingReplacement(document.id); $event.stopPropagation()
-                              "
-                            >
-                              Clear
-                            </button>
-                          </div>
                         </div>
-                      </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -651,70 +675,90 @@
                                 *ngFor="let group of item.groupedDocs; trackBy: trackByGroupIndex"
                               >
                                 <div class="document-type-header">
-                                  {{ group.document_type || 'Main Document' }}
+                                  <span>{{ group.document_type || 'Main Document' }}</span>
+                                  <ng-container *ngIf="getDocumentDate(group.rows[0]?.document) as id0">
+                                    <br />
+                                    <span class="text-white small fw-light">
+                                      Filed on {{ id0 | date: 'dd MMM yyyy' }} at {{ id0 |
+                                      date: 'hh:mm a' }}
+                                    </span>
+                                  </ng-container>
                                 </div>
                                 <div
-                                  *ngFor="let doc of group.items; trackBy: trackById"
-                                  class="document-item"
-                                  [class.document-item-active]="selectedIaDocument?.id === doc.id"
-                                  (click)="selectIaDocument(doc)"
-                                  role="button"
-                                  tabindex="0"
-                                  (keydown.enter)="selectIaDocument(doc)"
-                                  (keydown.space)="selectIaDocument(doc); $event.preventDefault()"
+                                  *ngFor="let row of group.rows; trackBy: trackByRowDocumentId"
+                                  class="document-index-row"
+                                  [style.paddingLeft.rem]="0.5 + row.depth * 1.2"
                                 >
                                   <div
-                                    class="d-flex justify-content-between align-items-start gap-2"
+                                    class="document-item"
+                                    [class.document-item-interactive]="isDocumentIndexClickable(row.document)"
+                                    [class.document-item-active]="
+                                      selectedIaDocument?.id === row.document.id &&
+                                      isDocumentIndexClickable(row.document)
+                                    "
+                                    (click)="advocateIaDocumentRowClick(row.document)"
+                                    [attr.tabindex]="isDocumentIndexClickable(row.document) ? 0 : -1"
+                                    [attr.role]="isDocumentIndexClickable(row.document) ? 'button' : null"
+                                    (keydown.enter)="advocateIaDocumentRowClick(row.document)"
+                                    (keydown.space)="advocateIaDocumentRowKeydown($event, row.document)"
                                   >
-                                    <div class="document-title">
-                                      {{ doc.document_part_name ||
-                                      getDocumentFileLabel(doc) }}
-                                    </div>
                                     <div
-                                      class="d-flex align-items-center gap-2 flex-wrap justify-content-end"
-                                      (click)="$event.stopPropagation()"
+                                      class="d-flex justify-content-between align-items-start gap-2"
                                     >
-                                      <span
-                                        class="status-badge status-badge-sm"
-                                        [ngClass]="getStatusClass(doc.scrutiny_status)"
+                                      <div class="document-title fw-normal">
+                                        {{ row.document.document_part_name ||
+                                        getDocumentTitle(row.document) }}
+                                      </div>
+                                      <div
+                                        class="d-flex align-items-center gap-2 flex-wrap justify-content-end"
+                                        (click)="$event.stopPropagation()"
                                       >
-                                        {{ getStatusLabel(doc.scrutiny_status)
-                                        }}
-                                      </span>
-                                      <input
-                                        #iaRowReplaceInput
-                                        type="file"
-                                        accept="application/pdf"
-                                        hidden
-                                        (change)="addPendingReplacement($event)"
-                                      />
-                                      <button
-                                        type="button"
-                                        class="btn btn-danger btn-sm"
-                                        *ngIf="canReplaceIa(doc)"
-                                        [disabled]="isReplacing"
-                                        (click)="startReplaceIa(doc, iaRowReplaceInput, $event)"
-                                      >
-                                        {{ hasPendingReplacement(doc.id) ?
-                                        'Change file' : 'Select file' }}
-                                      </button>
-                                      <button
-                                        type="button"
-                                        class="btn btn-outline-primary btn-sm"
-                                        *ngIf="canReplaceIa(doc) && hasPendingReplacement(doc.id)"
-                                        (click)="viewPendingFile(doc.id)"
-                                      >
-                                        <i class="fa fa-eye"></i> View
-                                      </button>
-                                      <button
-                                        type="button"
-                                        class="btn btn-outline-secondary btn-sm"
-                                        *ngIf="canReplaceIa(doc) && hasPendingReplacement(doc.id)"
-                                        [disabled]="isReplacing"
-                                        (click)="removePendingReplacement(doc.id)"
-                                      >
-                                        Clear
-                                      </button>
+                                        <span
+                                          class="new-tag"
+                                          *ngIf="row.document.is_new_for_scrutiny"
+                                          >new</span
+                                        >
+                                        <span
+                                          class="status-badge status-badge-sm"
+                                          [ngClass]="getDocumentStatusClass(row.document)"
+                                        >
+                                          {{ getDocumentStatusLabel(row.document) }}
+                                        </span>
+                                        <input
+                                          #iaRowReplaceInput
+                                          type="file"
+                                          accept="application/pdf"
+                                          hidden
+                                          (change)="addPendingReplacement($event)"
+                                        />
+                                        <button
+                                          type="button"
+                                          class="btn btn-danger btn-sm"
+                                          *ngIf="canReplaceIa(row.document)"
+                                          [disabled]="isReplacing"
+                                          (click)="startReplaceIa(row.document, iaRowReplaceInput, $event)"
+                                        >
+                                          {{ hasPendingReplacement(row.document.id) ?
+                                          'Change file' : 'Select file' }}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          class="btn btn-outline-primary btn-sm"
+                                          *ngIf="canReplaceIa(row.document) && hasPendingReplacement(row.document.id)"
+                                          (click)="viewPendingFile(row.document.id)"
+                                        >
+                                          <i class="fa fa-eye"></i> View
+                                        </button>
+                                        <button
+                                          type="button"
+                                          class="btn btn-outline-secondary btn-sm"
+                                          *ngIf="canReplaceIa(row.document) && hasPendingReplacement(row.document.id)"
+                                          [disabled]="isReplacing"
+                                          (click)="removePendingReplacement(row.document.id)"
+                                        >
+                                          Clear
+                                        </button>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>

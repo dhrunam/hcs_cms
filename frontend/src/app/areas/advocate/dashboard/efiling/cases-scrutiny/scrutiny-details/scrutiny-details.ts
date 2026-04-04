@@ -8,6 +8,14 @@ import Swal from 'sweetalert2';
 import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
 import { PaymentService } from '../../../../../../services/payment/payment.service';
 import { getValidationErrorMessage, validatePdfOcr, validatePdfSize } from '../../../../../../utils/pdf-validation';
+import {
+  EfilingDocumentIndexGroup,
+  firstClickableEfilingDocumentIndexInGrouped,
+  firstClickableEfilingDocumentIndexInList,
+  groupEfilingDocumentIndexesByType,
+  isEfilingDocumentIndexClickable,
+  trackByEfilingDocumentIndexRowId,
+} from '../../../../../../utils/efiling-document-index-tree';
 
 @Component({
   selector: 'app-scrutiny-details',
@@ -27,7 +35,7 @@ export class ScrutinyDetails {
   filingId: number | null = null;
   filing: any = null;
   documents: any[] = [];
-  groupedDocuments: Array<{ document_type: string; items: any[] }> = [];
+  groupedDocuments: EfilingDocumentIndexGroup[] = [];
   litigantList: any[] = [];
   caseDetails: any = null;
   actList: any[] = [];
@@ -43,7 +51,6 @@ export class ScrutinyDetails {
   activeTab: 'filing' | 'documents' | 'ia' = 'filing';
   iaList: any[] = [];
   iaDocuments: any[] = [];
-  groupedIaDocuments: Array<{ document_type: string; items: any[] }> = [];
   selectedIaDocument: any = null;
   selectedIaDocumentUrl: SafeResourceUrl | null = null;
   selectedIaDocumentBlobUrl: string | null = null;
@@ -108,7 +115,6 @@ export class ScrutinyDetails {
         this.documents = documents?.results ?? [];
         this.groupedDocuments = this.groupDocumentsByType(this.documents);
         this.iaDocuments = iaDocuments?.results ?? [];
-        this.groupedIaDocuments = this.groupDocumentsByType(this.iaDocuments);
         this.litigantList = litigants?.results ?? [];
         this.caseDetails = caseDetails?.results?.[0] ?? null;
         this.actList = acts?.results ?? [];
@@ -116,12 +122,20 @@ export class ScrutinyDetails {
         this.iaList = Array.isArray(ias) ? ias : (ias?.results ?? []);
         this.updatePaymentDetails(payment);
         const firstWithDocs = this.iaWithDocuments.find((i) => i.documents.length > 0);
-        this.selectIaDocument(firstWithDocs?.groupedDocs[0]?.items[0] ?? null);
-        this.selectDocument(
-          this.documents.find((document) => document.id === preferredDocumentId) ??
-            this.documents[0] ??
-            null,
+        this.selectIaDocument(
+          firstWithDocs
+            ? this.firstClickableInGroupedDocs(firstWithDocs.groupedDocs)
+            : null,
         );
+        const preferred =
+          preferredDocumentId != null
+            ? (this.documents.find((d) => d.id === preferredDocumentId) ?? null)
+            : null;
+        const initialPleading =
+          preferred && this.isDocumentIndexClickable(preferred)
+            ? preferred
+            : this.firstClickableInDocList(this.documents);
+        this.selectDocument(initialPleading ?? null);
         this.isLoading = false;
       },
       error: (error) => {
@@ -163,29 +177,51 @@ export class ScrutinyDetails {
     };
   }
 
-  groupDocumentsByType(docs: any[]): Array<{ document_type: string; items: any[] }> {
-    if (!Array.isArray(docs) || docs.length === 0) return [];
-
-    // Preserve original ordering (as returned by the API) while grouping by "main document type".
-    const map = new Map<string, any[]>();
-    for (const doc of docs) {
-      const type = (doc?.document_type ?? '').trim() || 'Main Document';
-      const bucket = map.get(type);
-      if (bucket && !bucket.some((item: any) => item.file_part_path === null)) {
-        bucket.push(doc);
-      } else {
-        map.set(type, [doc]);
-      }
-    }
-
-    return Array.from(map.entries()).map(([document_type, items]) => ({ document_type, items }));
+  groupDocumentsByType(docs: any[]): EfilingDocumentIndexGroup[] {
+    return groupEfilingDocumentIndexesByType(docs);
   }
+
+  isDocumentIndexClickable(doc: any): boolean {
+    return isEfilingDocumentIndexClickable(doc);
+  }
+
+  advocateDocumentRowClick(doc: any): void {
+    if (!this.isDocumentIndexClickable(doc)) return;
+    this.selectDocument(doc);
+  }
+
+  advocateDocumentRowKeydown(event: Event, doc: any): void {
+    if (!this.isDocumentIndexClickable(doc)) return;
+    event.preventDefault();
+    this.selectDocument(doc);
+  }
+
+  advocateIaDocumentRowClick(doc: any): void {
+    if (!this.isDocumentIndexClickable(doc)) return;
+    this.selectIaDocument(doc);
+  }
+
+  advocateIaDocumentRowKeydown(event: Event, doc: any): void {
+    if (!this.isDocumentIndexClickable(doc)) return;
+    event.preventDefault();
+    this.selectIaDocument(doc);
+  }
+
+  private firstClickableInDocList(docs: any[]): any | null {
+    return firstClickableEfilingDocumentIndexInList(docs);
+  }
+
+  private firstClickableInGroupedDocs(grouped: EfilingDocumentIndexGroup[]): any | null {
+    return firstClickableEfilingDocumentIndexInGrouped(grouped);
+  }
+
+  readonly trackByRowDocumentId = trackByEfilingDocumentIndexRowId;
 
   selectDocument(document: any): void {
     this.selectedDocument = document;
-    // this.canShowReplaceBtn = this.canShowReplaceButton(document);
-    this.canShowReplaceBtn =
-      document && document.scrutiny_status.toLowerCase().includes('rejected');
+    this.canShowReplaceBtn = Boolean(
+      document?.scrutiny_status?.toLowerCase().includes('rejected'),
+    );
     this.updatePreviewUrl(document?.file_url ?? null);
 
     if (!document?.id) {
@@ -516,7 +552,7 @@ export class ScrutinyDetails {
   get iaWithDocuments(): Array<{
     ia: any;
     documents: any[];
-    groupedDocs: Array<{ document_type: string; items: any[] }>;
+    groupedDocs: EfilingDocumentIndexGroup[];
   }> {
     return this.iaList.map((ia) => {
       const iaNum = (ia?.ia_number ?? '').trim();
@@ -557,6 +593,38 @@ export class ScrutinyDetails {
     const fileUrl = document?.file_url ?? document?.file_part_path;
     const fileName = this.extractFileName(fileUrl);
     return fileName || 'Document';
+  }
+
+  getDocumentTitle(document: any): string {
+    const partName = (document?.document_part_name ?? '').trim();
+    if (partName) return partName;
+
+    const fileUrl = document?.file_url ?? document?.file_part_path;
+    const fileName = this.extractFileName(fileUrl);
+    return fileName || 'Index entry';
+  }
+
+  getDocumentDate(document: any): string | null {
+    return (
+      document?.last_reviewed_at ??
+      document?.last_resubmitted_at ??
+      document?.updated_at ??
+      null
+    );
+  }
+
+  getDocumentStatusLabel(document: any): string {
+    const draftStatus = (document?.draft_scrutiny_status ?? '').trim();
+    if (draftStatus) {
+      const baseLabel = this.getStatusLabel(draftStatus);
+      return baseLabel === 'Under Scrutiny' ? baseLabel : `Draft ${baseLabel}`;
+    }
+    return this.getStatusLabel(document?.scrutiny_status ?? null);
+  }
+
+  getDocumentStatusClass(document: any): string {
+    const draftStatus = (document?.draft_scrutiny_status ?? '').trim();
+    return this.getStatusClass(draftStatus || document?.scrutiny_status || null);
   }
 
   get visibleDocumentHistory(): any[] {

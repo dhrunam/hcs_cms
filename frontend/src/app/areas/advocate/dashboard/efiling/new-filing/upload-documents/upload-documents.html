@@ -61,6 +61,24 @@
   </div>
 
   <div class="mb-3 mt-2" *ngIf="!structuredIndexUpload && useTextIndexName">
+    <div class="row g-2 mb-3" *ngIf="useParentIndexGroup">
+      <div class="col-md-6 text-start">
+        <label class="form-label ps-lg-2"
+          >Name <small class="text-danger">*</small></label
+        >
+        <input
+          type="text"
+          class="form-control"
+          [(ngModel)]="parentGroupName"
+          [ngModelOptions]="{ standalone: true }"
+          [disabled]="isUploading"
+          placeholder="Header name for this document group (saved before files)"
+        />
+        <small class="text-muted"
+          >Creates a parent index record; each PDF below links to it.</small
+        >
+      </div>
+    </div>
     <div class="table-responsive">
       <table class="table table-sm align-middle mb-0">
         <thead>

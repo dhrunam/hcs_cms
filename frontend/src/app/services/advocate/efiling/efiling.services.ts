@@ -61,6 +61,14 @@ export class EfilingService {
     );
   }
 
+  /** Create document index row without a file (parent header for grouped uploads). */
+  createDocumentIndexMetadata(fd: FormData): Observable<any> {
+    return this.http.post<any>(
+      `${app_url}/api/v1/efiling/efiling-documents-index/`,
+      fd,
+    );
+  }
+
   delete_case_documnets_before_final_filing(id: number): Observable<any> {
     return this.http.delete<any>(
       `${app_url}/api/v1/efiling/efiling-documents/${id}/`,

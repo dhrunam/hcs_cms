@@ -45,6 +45,8 @@ interface UploadDocumentsPayloadItem {
 
 interface UploadDocumentsPayload {
   document_type: string;
+  /** When set, a header row is created first (no file); file rows link via parent_document_index. */
+  parent_group_name?: string;
   items: UploadDocumentsPayloadItem[];
 }
 
@@ -93,12 +95,19 @@ export class UploadDocuments implements OnInit, OnChanges {
   @Input() structuredIndexUpload = false;
   /** Use free-text input for index name instead of dropdown. */
   @Input() useTextIndexName = false;
+  /**
+   * With useTextIndexName: require a top-level "Name" for the parent index row (no file),
+   * then upload indexes/annexures as children linked in the database.
+   */
+  @Input() useParentIndexGroup = false;
   /** Optional memo-of-appeal upload (separate document type); does not affect mandatory indexes. */
   @Input() enableMemoOfAppeal = false;
   /** When true, main filing already has a "Memo of Appeal" document — hide duplicate upload. */
   @Input() memoAlreadyUploaded = false;
   stagedIndexName = "";
   stagedFile: File | null = null;
+  /** Parent EfilingDocumentsIndex.document_part_name (header row, no file) when useParentIndexGroup. */
+  parentGroupName = "";
   memoAppealFile: File | null = null;
 
   entries: DocumentUploadEntry[] = [];
@@ -166,6 +175,7 @@ export class UploadDocuments implements OnInit, OnChanges {
       this.entries = [];
       this.annexureCounter = 1;
       this.memoAppealFile = null;
+      this.parentGroupName = "";
       this.initializeStructuredRows();
     }
     if (changes["mandatoryIndexNames"] || changes["structuredIndexUpload"]) {
@@ -604,10 +614,14 @@ export class UploadDocuments implements OnInit, OnChanges {
       return !this.isUploading && hasAllMandatory && hasAnnexure;
     }
     if (this.useTextIndexName) {
+      const hasParentName =
+        !this.useParentIndexGroup ||
+        !!String(this.parentGroupName || "").trim();
       return (
         !this.isUploading &&
         !!this.stagedFile &&
-        !!String(this.stagedIndexName || "").trim()
+        !!String(this.stagedIndexName || "").trim() &&
+        hasParentName
       );
     }
     return (
@@ -690,6 +704,10 @@ export class UploadDocuments implements OnInit, OnChanges {
       document_type: this.getEffectiveDocumentType(),
       items,
     };
+    if (this.useTextIndexName && this.useParentIndexGroup) {
+      const g = String(this.parentGroupName || "").trim();
+      if (g) payload.parent_group_name = g;
+    }
     // console.log(payload);
     this.submitDoc.emit(payload);
     this.submitAttempted = false;
