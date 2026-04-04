@@ -1,49 +1,73 @@
-<div class="container-fluid">
-  <div class="judge-header d-flex justify-content-between align-items-end flex-wrap gap-3 mb-3">
+<div class="container-fluid py-4 min-vh-100 bg-slate-50">
+  <!-- Modern Hero Header -->
+  <div class="judge-header d-flex justify-content-between align-items-center flex-wrap gap-4 mb-5 animate__animated animate__fadeIn">
     <div>
-      <h3 class="mb-1">Courtview</h3>
-      <div class="text-muted small">Access and annotate your listed cases</div>
+      <h3 class="display-6 mb-1">Electronic Hearing Board</h3>
+      <p class="text-muted fw-medium small mb-0">Select a listed case to start your digital courtroom session</p>
     </div>
 
-    <div class="text-end">
-      <div class="small text-muted mb-1 text-uppercase fw-semibold tracking-wider" style="letter-spacing: 0.05em; font-size: 11px;">Serving Date</div>
-      <h5 class="mb-0 text-primary">{{ forwardedForDate | date:'longDate' }}</h5>
+    <div class="date-selector d-flex align-items-center gap-3 bg-white border rounded-pill px-4 py-2 shadow-sm">
+      <i class="fa fa-calendar-alt text-primary"></i>
+      <div class="d-flex flex-column">
+        <span class="label text-uppercase fw-bold text-muted" style="font-size: 9px; letter-spacing: 0.1em;">Hearing Date</span>
+        <input
+          type="date"
+          [(ngModel)]="forwardedForDate"
+          (change)="onDateChange()"
+        />
+      </div>
     </div>
   </div>
 
-  <div *ngIf="isLoading" class="text-center py-4 text-muted">Loading...</div>
-  <div *ngIf="loadError" class="alert alert-warning">{{ loadError }}</div>
+  <div *ngIf="isLoading" class="text-center py-5">
+    <div class="spinner-border text-primary opacity-25" role="status"></div>
+    <p class="mt-3 text-muted fw-medium">Streaming hearings board...</p>
+  </div>
+
+  <div *ngIf="loadError" class="alert alert-soft-warning border-0 shadow-sm animate__animated animate__shakeX">
+    <i class="fa fa-circle-exclamation me-2"></i> {{ loadError }}
+  </div>
   
-  <div *ngIf="!isLoading && !loadError" class="row g-3">
-    <div class="col-12">
-      <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white fw-semibold">Listed Cases for Hearing</div>
-        <div class="card-body p-0 table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead>
-              <tr>
-                <th>Filing Date</th>
-                <th>Petitioner vs. Respondent</th>
-                <th>Case No</th>
-                <th style="width: 140px;">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let c of listedCases">
-                <td class="text-nowrap small fw-medium">{{ c.filing_date ? (c.filing_date | date:'dd MMM yyyy') : '—' }}</td>
-                <td class="small" style="max-width: 280px">{{ c.petitioner_vs_respondent || '—' }}</td>
-                <td class="text-nowrap">{{ c.case_number || '-' }}</td>
-                <td>
-                  <button class="btn btn-sm btn-outline-primary" (click)="openCourtroom(c.efiling_id, c.forwarded_for_date)">
-                    View Case
-                  </button>
-                </td>
-              </tr>
-              <tr *ngIf="listedCases.length === 0">
-                <td colspan="4" class="text-muted text-center py-4">No cases listed for this date.</td>
-              </tr>
-            </tbody>
-          </table>
+  <div *ngIf="!isLoading && !loadError" class="hearings-container animate__animated animate__fadeIn">
+    <div class="row g-4">
+      <div *ngFor="let c of listedCases" class="col-xxl-3 col-xl-4 col-md-6">
+        <div class="hearing-card card h-100 shadow-sm border-0">
+          <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-start mb-4">
+              <span class="serial-badge">SL #{{ c.serial_no || '-' }}</span>
+              <span class="bench-badge">{{ c.bench_label || c.bench_key }}</span>
+            </div>
+            
+            <h4 class="case-number mb-2 d-flex align-items-center">
+              <i class="fa fa-file-invoice text-primary opacity-25 me-2 fs-5"></i>
+              {{ c.case_number || '-' }}
+            </h4>
+            
+            <div class="petitioner-respondent mt-3">
+              {{ c.petitioner_vs_respondent || '—' }}
+            </div>
+
+            <div class="d-grid mt-4">
+              <button class="btn btn-start-hearing d-flex align-items-center justify-content-center gap-2" 
+                      (click)="openCourtroom(c.efiling_id, c.forwarded_for_date)">
+                <i class="fa fa-gavel"></i>
+                Start Digital Hearing
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="listedCases.length === 0" class="col-12">
+        <div class="card border-0 shadow-sm p-5 text-center bg-white opacity-75" style="border-radius: 20px; border: 2px dashed #e2e8f0;">
+          <div class="mb-4 opacity-10">
+            <i class="fa fa-gavel fa-5x"></i>
+          </div>
+          <h4 class="fw-bold text-dark mb-2">No Hearings Scheduled</h4>
+          <p class="text-muted mx-auto" style="max-width: 400px;">
+            There are no cases forwarded for hearing or published in the cause-list for the selected date.
+          </p>
         </div>
       </div>
     </div>

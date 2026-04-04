@@ -188,5 +188,17 @@ export class CourtroomService {
   }> {
     return this.http.get<any>(`${app_url}/api/v1/judge/courtroom/decisions/calendar/`);
   }
+
+  updateSharedView(payload: { efiling_id: number; document_index_id: number; page_index: number }): Observable<any> {
+    return this.http.post(`${app_url}/api/v1/judge/courtroom/shares/`, payload);
+  }
+
+  stopSharedView(efiling_id: number): Observable<any> {
+    return this.http.delete(`${app_url}/api/v1/judge/courtroom/shares/?efiling_id=${efiling_id}`);
+  }
+
+  getActiveSharedView(efiling_id: number): Observable<any> {
+    return this.http.get(`${app_url}/api/v1/judge/courtroom/shares/?efiling_id=${efiling_id}`);
+  }
 }
 

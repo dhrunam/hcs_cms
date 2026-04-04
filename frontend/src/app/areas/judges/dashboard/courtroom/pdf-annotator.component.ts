@@ -1,5 +1,6 @@
-import { Component, Input, Output, EventEmitter, ViewChildren, QueryList, ElementRef, OnChanges, SimpleChanges, NgZone, AfterViewInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ViewChildren, QueryList, ElementRef, OnChanges, SimpleChanges, NgZone, AfterViewInit, ViewChild, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { DragDropModule, CdkDragEnd } from '@angular/cdk/drag-drop';
 import { FormsModule } from '@angular/forms';
 import * as pdfjsLib from 'pdfjs-dist';
 
@@ -31,16 +32,18 @@ interface PageData {
 @Component({
   selector: 'app-pdf-annotator',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DragDropModule],
   templateUrl: './pdf-annotator.component.html',
   styleUrl: './pdf-annotator.component.css'
 })
-export class PdfAnnotatorComponent implements OnChanges, AfterViewInit {
+export class PdfAnnotatorComponent implements OnChanges, AfterViewInit, OnDestroy {
   @Input() pdfUrl: string = '';
   @Input() annotationData: any = null;
   @Input() canWrite: boolean = false;
   @Output() save = new EventEmitter<any>();
+  @Output() pageChange = new EventEmitter<number>();
 
+  @ViewChild('scrollContainer') scrollContainer!: ElementRef<HTMLDivElement>;
   @ViewChildren('pdfCanvas') pdfCanvases!: QueryList<ElementRef<HTMLCanvasElement>>;
   @ViewChildren('drawCanvas') drawCanvases!: QueryList<ElementRef<HTMLCanvasElement>>;
 
@@ -49,6 +52,10 @@ export class PdfAnnotatorComponent implements OnChanges, AfterViewInit {
   pdfDocument: any | null = null;
   
   pages: PageData[] = [];
+  scale: number = 1.0;
+  currentPageIndex: number = 0;
+
+  private resizeObserver: ResizeObserver | null = null;
 
   currentTool: 'pen' | 'highlighter' | 'note' = 'pen';
   penColor: string = '#000000';
@@ -57,6 +64,8 @@ export class PdfAnnotatorComponent implements OnChanges, AfterViewInit {
   isDrawing = false;
   currentPath: DrawPath | null = null;
   activePageIndex: number | null = null;
+  
+  undoStack: { pageIndex: number; type: 'path' | 'note'; item: any }[] = [];
 
   constructor(private ngZone: NgZone) {}
 
@@ -70,6 +79,44 @@ export class PdfAnnotatorComponent implements OnChanges, AfterViewInit {
     this.drawCanvases.changes.subscribe(() => {
       this.redrawAllAnnotations();
     });
+    this.setupResizeObserver();
+  }
+
+  ngOnDestroy(): void {
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+    }
+  }
+
+  setupResizeObserver() {
+    this.resizeObserver = new ResizeObserver(() => {
+      this.ngZone.run(() => {
+        this.recalculateScaleAndRender();
+      });
+    });
+    if (this.scrollContainer) {
+      this.resizeObserver.observe(this.scrollContainer.nativeElement);
+    }
+  }
+
+  async recalculateScaleAndRender() {
+    if (!this.pages.length || !this.pdfDocument || this.isLoading) return;
+    
+    // Default to 1.5 as requested (previous size)
+    const newScale = 1.5;
+    
+    if (Math.abs(this.scale - newScale) < 0.01) return;
+    
+    this.scale = newScale;
+    
+    for (let i = 0; i < this.pages.length; i++) {
+      const page = await this.pdfDocument.getPage(i + 1);
+      const viewport = page.getViewport({ scale: this.scale });
+      this.pages[i].width = viewport.width;
+      this.pages[i].height = viewport.height;
+    }
+    
+    this.renderPdfPages();
   }
 
   setTool(tool: 'pen' | 'highlighter' | 'note', color?: string) {
@@ -83,6 +130,7 @@ export class PdfAnnotatorComponent implements OnChanges, AfterViewInit {
     this.isLoading = true;
     this.loadingProgress = 0;
     this.pages = [];
+    this.undoStack = [];
 
     try {
       const loadingTask = pdfjsLib.getDocument(this.pdfUrl);
@@ -97,21 +145,34 @@ export class PdfAnnotatorComponent implements OnChanges, AfterViewInit {
 
       this.pdfDocument = await loadingTask.promise;
       const numPages = this.pdfDocument.numPages;
-      const parsedData = this.annotationData || { pages: [] };
+      
+      let parsedData = this.annotationData;
+      if (typeof parsedData === 'string' && parsedData) {
+        try {
+          parsedData = JSON.parse(parsedData);
+        } catch (e) {
+          parsedData = { pages: [] };
+        }
+      }
+      if (!parsedData || !Array.isArray(parsedData.pages)) {
+        parsedData = { pages: [] };
+      }
+
+      this.scale = 1.5; // Fixed size (previous size)
 
       for (let i = 1; i <= numPages; i++) {
         const page = await this.pdfDocument.getPage(i);
-        const viewport = page.getViewport({ scale: 1.5 });
+        const viewport = page.getViewport({ scale: this.scale });
         
-        const existingData = parsedData.pages.find((p: any) => p.pageIndex === i - 1) || { paths: [], notes: [] };
+        const existingData = (parsedData.pages as any[]).find((p: any) => p.pageIndex === i - 1) || { paths: [], notes: [] };
 
         this.pages.push({
           pageIndex: i - 1,
           width: viewport.width,
           height: viewport.height,
           pdfPage: page,
-          paths: existingData.paths || [],
-          notes: existingData.notes || []
+          paths: Array.isArray(existingData.paths) ? existingData.paths : [],
+          notes: Array.isArray(existingData.notes) ? existingData.notes : []
         });
       }
       
@@ -127,11 +188,23 @@ export class PdfAnnotatorComponent implements OnChanges, AfterViewInit {
     const canvasArray = this.pdfCanvases.toArray();
     for (let i = 0; i < this.pages.length; i++) {
         const pd = this.pages[i];
+        if (!canvasArray[i]) continue;
         const canvas = canvasArray[i].nativeElement;
         const ctx = canvas.getContext('2d');
         if (!ctx) continue;
 
-        const viewport = pd.pdfPage.getViewport({ scale: 1.5 });
+        const viewport = pd.pdfPage.getViewport({ scale: this.scale });
+        
+        // CRITICAL FIX: Explicitly set canvas dimensions to prevent blurry/small view
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        
+        const drawCanvasArray = this.drawCanvases.toArray();
+        if (drawCanvasArray[i]) {
+          drawCanvasArray[i].nativeElement.width = viewport.width;
+          drawCanvasArray[i].nativeElement.height = viewport.height;
+        }
+
         await pd.pdfPage.render({ canvasContext: ctx, viewport: viewport }).promise;
     }
     this.redrawAllAnnotations();
@@ -213,6 +286,9 @@ export class PdfAnnotatorComponent implements OnChanges, AfterViewInit {
   }
 
   onMouseUp() {
+    if (this.isDrawing && this.activePageIndex !== null && this.currentPath) {
+       this.undoStack.push({ pageIndex: this.activePageIndex, type: 'path', item: this.currentPath });
+    }
     this.isDrawing = false;
     this.activePageIndex = null;
     this.currentPath = null;
@@ -224,7 +300,66 @@ export class PdfAnnotatorComponent implements OnChanges, AfterViewInit {
     const x = Math.max(0, Math.min((event.clientX - rect.left) / canvas.width, 0.8));
     const y = Math.max(0, Math.min((event.clientY - rect.top) / canvas.height, 0.9));
 
-    this.pages[pageIndex].notes.push({ x, y, text: '' });
+    const newNote = { x, y, text: '' };
+    this.pages[pageIndex].notes.push(newNote);
+    this.undoStack.push({ pageIndex, type: 'note', item: newNote });
+    this.setTool('pen');
+  }
+
+  onScroll(event: any) {
+    const container = event.target;
+    if (this.pages.length === 0) return;
+    const pageHeight = container.scrollHeight / this.pages.length;
+    const newIndex = Math.round(container.scrollTop / pageHeight);
+    
+    if (newIndex !== this.currentPageIndex && newIndex >= 0 && newIndex < this.pages.length) {
+      this.currentPageIndex = newIndex;
+      this.pageChange.emit(newIndex);
+    }
+  }
+
+  scrollToPage(index: number) {
+    if (!this.scrollContainer || index < 0 || index >= this.pages.length) return;
+    const container = this.scrollContainer.nativeElement;
+    const pageHeight = container.scrollHeight / this.pages.length;
+    container.scrollTo({
+      top: index * pageHeight,
+      behavior: 'smooth'
+    });
+  }
+
+  undoLastAction() {
+    const action = this.undoStack.pop();
+    if (!action) return;
+
+    const page = this.pages[action.pageIndex];
+    if (!page) return;
+
+    if (action.type === 'path') {
+      const idx = page.paths.indexOf(action.item);
+      if (idx !== -1) page.paths.splice(idx, 1);
+    } else {
+      const idx = page.notes.indexOf(action.item);
+      if (idx !== -1) page.notes.splice(idx, 1);
+    }
+    this.redrawAllAnnotations();
+  }
+
+  onNoteDropped(event: CdkDragEnd, pageIndex: number, noteIndex: number) {
+    const note = this.pages[pageIndex].notes[noteIndex];
+    const element = event.source.element.nativeElement;
+    const parent = element.parentElement;
+    if (!parent) return;
+
+    const parentRect = parent.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+
+    // Calculate new relative position
+    note.x = (elementRect.left - parentRect.left) / parentRect.width;
+    note.y = (elementRect.top - parentRect.top) / parentRect.height;
+    
+    // Reset the transform so Angular's [style.left.px] takes over properly
+    event.source.reset();
   }
 
   getNotesForPage(pageIndex: number) {

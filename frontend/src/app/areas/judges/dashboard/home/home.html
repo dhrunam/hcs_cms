@@ -7,12 +7,8 @@
 
     <div>
       <label class="form-label small fw-semibold mb-1">Forwarded For Date</label>
-      <input
-        type="date"
-        class="form-control form-control-sm"
-        [(ngModel)]="forwardedForDate"
-        (change)="onDateChange()"
-      />
+      <input type="date" class="form-control form-control-sm" [(ngModel)]="forwardedForDate"
+        (change)="onDateChange()" />
     </div>
   </div>
 
@@ -20,7 +16,7 @@
   <div *ngIf="loadError" class="alert alert-warning">{{ loadError }}</div>
 
   <div *ngIf="!isLoading && !loadError" class="row g-3">
-    <div class="col-12">
+    <!-- <div class="col-12">
       <div class="card border-0 shadow-sm">
         <div class="card-header bg-white fw-semibold">Pending for Listing</div>
         <div class="card-body p-0 table-responsive">
@@ -38,7 +34,8 @@
             <tbody>
               <tr *ngFor="let c of pendingForListing">
                 <td class="text-nowrap small fw-medium">{{ c.e_filing_number || '—' }}</td>
-                <td class="small" style="max-width: 280px">{{ c.petitioner_name || c.petitioner_vs_respondent || '—' }}</td>
+                <td class="small" style="max-width: 280px">{{ c.petitioner_name || c.petitioner_vs_respondent || '—' }}
+                </td>
                 <td class="text-nowrap">{{ c.case_number || '-' }}</td>
                 <td>{{ c.bench_label || benchLabel(c.bench_key) }}</td>
                 <td><span class="badge text-bg-warning">Pending</span></td>
@@ -55,7 +52,7 @@
           </table>
         </div>
       </div>
-    </div>
+    </div> -->
 
     <div class="col-12">
       <div class="card border-0 shadow-sm">
@@ -75,10 +72,14 @@
             <tbody>
               <tr *ngFor="let c of pendingForCauseList">
                 <td class="text-nowrap small fw-medium">{{ c.e_filing_number || '—' }}</td>
-                <td class="small" style="max-width: 280px">{{ c.petitioner_name || c.petitioner_vs_respondent || '—' }}</td>
+                <td class="small" style="max-width: 280px">{{ c.petitioner_name || c.petitioner_vs_respondent || '—' }}
+                </td>
                 <td class="text-nowrap">{{ c.case_number || '-' }}</td>
                 <td>{{ c.bench_label || benchLabel(c.bench_key) }}</td>
-                <td><span class="badge text-bg-info">Reviewed</span></td>
+                <td><span class="badge"
+                    [ngClass]="{'text-bg-info' : c.judge_decision, 'text-bg-warning' : !c.judge_decision}">{{
+                    c.judge_decision ? 'Reviewed' : 'Pending' }}</span>
+                </td>
                 <td>
                   <button class="btn btn-sm btn-outline-primary" (click)="openCourtroom(c.efiling_id)">
                     View Case Summary
@@ -111,7 +112,8 @@
             <tbody>
               <tr *ngFor="let c of calendarItems">
                 <td class="text-nowrap small fw-medium">{{ c.e_filing_number || '—' }}</td>
-                <td class="small" style="max-width: 280px">{{ c.petitioner_name || c.petitioner_vs_respondent || '—' }}</td>
+                <td class="small" style="max-width: 280px">{{ c.petitioner_name || c.petitioner_vs_respondent || '—' }}
+                </td>
                 <td class="text-nowrap">{{ c.case_number || '-' }}</td>
                 <td><span class="badge" [ngClass]="statusBadge(c.status)">{{ c.status }}</span></td>
                 <td>{{ c.decision_notes || '-' }}</td>
@@ -126,4 +128,3 @@
     </div>
   </div>
 </div>
-

@@ -1,2 +1,65 @@
-/* keep minimal styling; using global/bootstrap */
+.hearings-container {
+  min-height: 400px;
+}
 
+.hearing-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 16px;
+  overflow: hidden;
+  background: white;
+  border: 1px solid #f1f5f9;
+}
+
+.hearing-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.1) !important;
+  border-color: #e2e8f0;
+}
+
+.serial-badge {
+  background-color: #f1f5f9;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+
+.bench-badge {
+  background-color: #eff6ff;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.case-number {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.btn-enter-courtroom {
+  background-color: #1e293b;
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.btn-enter-courtroom:hover {
+  background-color: #0f172a;
+  color: white;
+  box-shadow: 0 4px 12px rgba(30, 41, 59, 0.2);
+}
+
+.date-selector input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}

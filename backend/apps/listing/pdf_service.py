@@ -13,12 +13,15 @@ from reportlab.pdfgen import canvas
 from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 import os
+import html
+from typing import List, Dict, Any, Optional, Union, Tuple
 
 
 @dataclass(frozen=True)
 class CauseListRow:
     serial_no: int
     case_number: str
+    ia_info: str
     main_parties: str
     petitioner_advocates: str
     respondent_advocates: str
@@ -250,18 +253,30 @@ def generate_cause_list_pdf_bytes(
     ]
 
     data = [header_row]
+    def _ea(s: str) -> str:
+        """Escape and Format: handle XML escaping then replace newlines with <br/>."""
+        if not s:
+            return "-"
+        return html.escape(s).replace("\n", "<br/>")
+
     for r in list(rows):
+        case_no_esc = html.escape(r.case_number or "-")
+        case_cell_content = f"<b>{case_no_esc}</b>"
+        if r.ia_info:
+            formatted_ia = _ea(r.ia_info)
+            case_cell_content += f"<br/>{formatted_ia}"
+
         data.append(
             [
                 Paragraph(f"{r.serial_no})", cell_style),
-                Paragraph(r.case_number or "-", cell_style),
-                Paragraph((r.main_parties or "-").replace("\n", "<br/>"), cell_style),
-                Paragraph((r.petitioner_advocates or "-").replace("\n", "<br/>"), cell_style),
-                Paragraph((r.respondent_advocates or "-").replace("\n", "<br/>"), cell_style),
+                Paragraph(case_cell_content, cell_style),
+                Paragraph(_ea(r.main_parties), cell_style),
+                Paragraph(_ea(r.petitioner_advocates), cell_style),
+                Paragraph(_ea(r.respondent_advocates), cell_style),
             ]
         )
 
-    col_widths = [0.55 * inch, 1.15 * inch, 2.15 * inch, 1.75 * inch, 1.75 * inch]
+    col_widths = [0.5 * inch, 1.0 * inch, 2.0 * inch, 1.75 * inch, 1.75 * inch]
     table = Table(data, colWidths=col_widths, hAlign="LEFT", repeatRows=1)
     table.setStyle(
         TableStyle(

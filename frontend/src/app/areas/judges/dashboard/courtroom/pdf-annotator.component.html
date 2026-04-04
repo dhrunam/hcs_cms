@@ -3,7 +3,7 @@
     Loading Document... {{ loadingProgress }}%
   </div>
   
-  <div class="annotator-toolbar">
+  <div class="annotator-toolbar" *ngIf="canWrite">
     <div class="btn-group btn-group-sm me-3">
       <button class="btn btn-outline-secondary" [class.active-tool]="currentTool === 'pen' && penColor === '#000000'" (click)="setTool('pen', '#000000')">
         <i class="fa fa-pen" style="color: black;"></i> Black
@@ -31,6 +31,12 @@
       </button>
     </div>
     
+    <div class="btn-group btn-group-sm me-3">
+      <button class="btn btn-outline-dark" (click)="undoLastAction()" [disabled]="undoStack.length === 0">
+        <i class="fa fa-undo"></i> Undo
+      </button>
+    </div>
+    
     <div class="btn-group btn-group-sm ms-auto">
       <button class="btn btn-outline-danger" (click)="clearCurrentPage()">
         <i class="fa fa-eraser"></i> Clear Page
@@ -41,7 +47,7 @@
     </div>
   </div>
 
-  <div class="pdf-scroll-area" #scrollContainer>
+  <div class="pdf-scroll-area" #scrollContainer (scroll)="onScroll($event)">
     <div *ngFor="let page of pages; let i = index" class="pdf-page-container" [style.width.px]="page.width" [style.height.px]="page.height">
       <!-- PDF Canvas -->
       <canvas class="pdf-canvas" [id]="'pdf-canvas-' + i" [width]="page.width" [height]="page.height" #pdfCanvas></canvas>
@@ -58,8 +64,11 @@
       <div class="notes-container">
         <div class="note-box" *ngFor="let note of getNotesForPage(i); let noteIndex = index"
              [style.left.px]="note.x * page.width"
-             [style.top.px]="note.y * page.height">
-          <div class="note-header d-flex justify-content-between align-items-center">
+             [style.top.px]="note.y * page.height"
+             cdkDrag 
+             [cdkDragBoundary]="'.pdf-page-container'"
+             (cdkDragEnded)="onNoteDropped($event, i, noteIndex)">
+          <div class="note-header d-flex justify-content-between align-items-center" cdkDragHandle>
             <span class="text-truncate">Note</span>
             <button (click)="removeNote(i, noteIndex)"><i class="fa fa-times"></i></button>
           </div>

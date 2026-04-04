@@ -34,14 +34,17 @@ export class JudgeCourtviewPage {
     this.isLoading = true;
     this.loadError = '';
 
-    this.courtroomService.getDecisionCalendar().subscribe({
+    this.courtroomService.getPendingCases(this.forwardedForDate).subscribe({
       next: (resp) => {
-        // Filter listed cases strictly matching the specific date, since they are formally on the causelist
-        this.listedCases = (resp?.items ?? []).filter((c: any) => c.listing_date && c.listing_date.startsWith(this.forwardedForDate));
+        // Unified API returns cases in 'pending_for_causelist' once published/forwarded
+        this.listedCases = resp?.pending_for_causelist ?? [];
         this.isLoading = false;
+        if (this.listedCases.length === 0) {
+          this.loadError = 'No published hearings found for this date.';
+        }
       },
       error: (err) => {
-        console.warn('Failed to load judge pending cases', err);
+        console.warn('Failed to load judge hearings', err);
         this.loadError = 'Failed to load listed cases.';
         this.isLoading = false;
       },

@@ -148,19 +148,18 @@
       [attr.aria-labelledby]="'benchHeading' + i"
     >
       <div class="accordion-body">
-        <div class="text-muted small mb-2">
-          Select cases to include for
-          <strong>{{ selectedDate | date:'dd MMM, yyyy' }}</strong>.
-        </div>
-
         <div class="table-responsive bench-table-wrap">
           <table class="table table-sm align-middle mb-0">
             <thead>
               <tr>
-                <th class="fw-lighter small" style="width: 105px">#</th>
-                <th class="fw-normal small text-muted">Case Number</th>
-                <th style="width: 110px" class="text-center fw-light small">
-                  Include
+                <th style="width: 80px">Sr No</th>
+                <th>Filing No</th>
+                <th>Case Details</th>
+                <th>IAs (Select to Publish)</th>
+                <th>Petitioner Advocate</th>
+                <th>Respondent Advocate</th>
+                <th style="width: 100px" class="text-center">
+                  <input type="checkbox" class="form-check-input" (change)="toggleAll(state)" [checked]="allIncluded(state)">
                 </th>
               </tr>
             </thead>
@@ -175,19 +174,58 @@
                     [ngModelOptions]="{ standalone: true }"
                   />
                 </td>
+                <td class="text-nowrap small fw-medium">{{ item.e_filing_number || '-' }}</td>
                 <td>
-                  <div class="text-nowrap">{{ item.case_number || '-' }}</div>
-                  <div class="text-muted small" *ngIf="item.judge_listing_date">
-                    Reader preferred date: {{ item.judge_listing_date }}
+                  <div class="small fw-semibold text-truncate" style="max-width: 200px" [title]="item.petitioner_name || item.petitioner_vs_respondent">
+                    {{ item.petitioner_name || item.petitioner_vs_respondent || '—' }}
                   </div>
+                  <div class="text-nowrap small text-muted">{{ item.case_number || '-' }}</div>
                   <div
                     class="alert alert-info py-1 px-2 mt-1 mb-0 small border-0"
                     *ngIf="item.reader_listing_remark"
                   >
                     <i class="fa-solid fa-comment-dots me-1"></i>
-                    <strong>Reader Remark:</strong> {{
-                    item.reader_listing_remark }}
+                    {{ item.reader_listing_remark }}
                   </div>
+                </td>
+                <td>
+                  <div *ngIf="item.available_ias && item.available_ias.length > 0; else noIAs">
+                    <div *ngFor="let ia of item.available_ias" class="d-flex align-items-center mb-1 bg-light p-1 rounded border border-light" style="font-size: 10px;">
+                      <input 
+                        type="checkbox" 
+                        class="form-check-input me-1" 
+                        style="width: 12px; height: 12px; margin-top: 0;"
+                        [checked]="isIaSelected(item, ia)"
+                        (change)="toggleIa(item, ia)"
+                      >
+                      <span class="text-truncate" [title]="ia.ia_text">
+                        <strong>{{ ia.ia_number }}</strong>: {{ ia.ia_text }}
+                      </span>
+                    </div>
+                  </div>
+                  <ng-template #noIAs>
+                    <span class="text-muted small">No IAs found</span>
+                  </ng-template>
+                </td>
+                <td>
+                  <textarea
+                    class="form-control form-control-sm"
+                    rows="2"
+                    placeholder="Petitioner Adv..."
+                    [(ngModel)]="item.petitioner_advocate"
+                    [ngModelOptions]="{ standalone: true }"
+                    style="font-size: 11px; min-width: 140px;"
+                  ></textarea>
+                </td>
+                <td>
+                  <textarea
+                    class="form-control form-control-sm"
+                    rows="2"
+                    placeholder="Respondent Adv..."
+                    [(ngModel)]="item.respondent_advocate"
+                    [ngModelOptions]="{ standalone: true }"
+                    style="font-size: 11px; min-width: 140px;"
+                  ></textarea>
                 </td>
                 <td class="text-center">
                   <input
@@ -200,7 +238,7 @@
               </tr>
 
               <tr *ngIf="state.items.length === 0">
-                <td colspan="3" class="text-muted text-center py-3 small">
+                <td colspan="5" class="text-muted text-center py-3 small">
                   No accepted cases assigned to this bench.
                 </td>
               </tr>
@@ -242,59 +280,6 @@
             {{ state.isPublishing ? 'Publishing...' : (state.pdfUrl ?
             'Re-publish' : 'Publish') }}
           </button>
-        </div>
-
-        <div class="text-muted small mb-2">Select cases to include for <strong>{{ selectedDate }}</strong>.</div>
-
-        <div class="table-responsive bench-table-wrap">
-          <table class="table table-sm align-middle mb-0">
-            <thead>
-              <tr>
-                <th style="width: 95px;">Sr No</th>
-                <th>Filing No</th>
-                <th>Petitioner vs. Respondent</th>
-                <th>Case Number</th>
-                <th style="width: 110px;" class="text-center">Include</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let item of state.items">
-                <td>
-                  <input
-                    type="number"
-                    class="form-control form-control-sm"
-                    [(ngModel)]="item.serial_no"
-                    [disabled]="!item.included"
-                    [ngModelOptions]="{ standalone: true }"
-                  />
-                </td>
-                <td class="text-nowrap small fw-medium">{{ item.e_filing_number || '-' }}</td>
-                <td class="small" style="max-width: 220px">{{ item.petitioner_name || item.petitioner_vs_respondent || '—' }}</td>
-                <td>
-                  <div class="text-nowrap">{{ item.case_number || '-' }}</div>
-                  <div class="text-muted small" *ngIf="item.judge_listing_date">
-                    Reader preferred date: {{ item.judge_listing_date }}
-                  </div>
-                  <div class="alert alert-info py-1 px-2 mt-1 mb-0 small border-0" *ngIf="item.reader_listing_remark">
-                    <i class="fa-solid fa-comment-dots me-1"></i>
-                    <strong>Reader Remark:</strong> {{ item.reader_listing_remark }}
-                  </div>
-                </td>
-                <td class="text-center">
-                  <input
-                    type="checkbox"
-                    class="form-check-input"
-                    [(ngModel)]="item.included"
-                    [ngModelOptions]="{ standalone: true }"
-                  />
-                </td>
-              </tr>
-
-              <tr *ngIf="state.items.length === 0">
-                <td colspan="5" class="text-muted text-center py-3">No accepted cases assigned to this bench.</td>
-              </tr>
-            </tbody>
-          </table>
         </div>
       </div>
     </div>

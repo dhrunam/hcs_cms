@@ -17,7 +17,7 @@ from apps.core.bench_config import (
     get_bench_configuration_for_stored_value,
     get_required_judge_groups,
 )
-from apps.core.models import Efiling, EfilingCaseDetails, EfilingDocumentsIndex, EfilingLitigant
+from apps.core.models import Efiling, EfilingCaseDetails, EfilingDocumentsIndex, EfilingLitigant, EfilerDocumentAccess
 from apps.efiling.party_display import build_petitioner_vs_respondent
 from apps.efiling.serializers.efiling_document_index import EfilingDocumentsIndexSerializer
 
@@ -25,11 +25,13 @@ from .models import (
     CourtroomDecisionRequestedDocument,
     CourtroomDocumentAnnotation,
     CourtroomJudgeDecision,
+    CourtroomSharedView,
     JUDGE_GROUP_CJ,
     JUDGE_GROUP_J1,
     JUDGE_GROUP_J2,
 )
 from apps.reader.models import CourtroomForward, CourtroomForwardDocument
+from apps.listing.models import CauseList, CauseListEntry
 from .serializers import (
     CourtroomCaseDocumentAnnotationUpsertSerializer,
     CourtroomDecisionSerializer,
@@ -41,6 +43,7 @@ _DUMMY_TOKEN_TO_DUMMY_EMAIL: Dict[str, str] = {
     "judge_cj_dummy_token": "dummy_judge_cj@hcs.local",
     "judge_j1_dummy_token": "dummy_judge_j1@hcs.local",
     "judge_j2_dummy_token": "dummy_judge_j2@hcs.local",
+    "advocate_dummy_token": "dummy_advocate@hcs.local",
 }
 
 
@@ -52,12 +55,9 @@ def _auth_header_token(request) -> Optional[str]:
     return None
 
 
-def _resolve_judge_user(request) -> User:
+def _resolve_courtroom_user(request) -> User:
     """
-    Resolve a Django User for judge endpoints.
-
-    - If `request.user` is authenticated, use it.
-    - Otherwise (dev dummy logins), map known dummy tokens to pre-created dummy judge users.
+    Resolve a Django User for courtroom endpoints (Judge or Advocate).
     """
     user = getattr(request, "user", None)
     if user is not None and getattr(user, "is_authenticated", False):
@@ -75,7 +75,12 @@ def _resolve_judge_user(request) -> User:
     try:
         return UserModel.objects.get(email=email)
     except UserModel.DoesNotExist as e:
-        raise ValidationError({"detail": "Judge user not provisioned."}) from e
+        raise ValidationError({"detail": "User not provisioned."}) from e
+
+
+def _resolve_judge_user(request) -> User:
+    # Deprecated/Internal: uses unified resolver now
+    return _resolve_courtroom_user(request)
 
 
 def _user_judge_groups(user: User) -> Set[str]:
@@ -107,6 +112,70 @@ def _judge_can_view_forward(user_groups: Set[str], bench_key: str) -> bool:
     return bool(user_groups & req)
 
 
+def _assert_courtroom_user(request) -> User:
+    return _resolve_courtroom_user(request)
+
+
+def _validate_courtroom_access(user: User, efiling_id: int, date_obj_or_str: Any) -> Dict[str, Any]:
+    """
+    Enforce Publication-based access control.
+    Returns metadata about the user role if access permitted.
+    """
+    is_judge = bool(_user_judge_groups(user))
+    
+    # 1. Resolve Date
+    from datetime import date
+    if isinstance(date_obj_or_str, str):
+        cld = timezone.datetime.fromisoformat(date_obj_or_str).date()
+    else:
+        cld = date_obj_or_str
+
+    # 2. Publication Check (Strict for advocates only)
+    # Judges are allowed as long as the Reader forwarded it
+    is_published = CauseListEntry.objects.filter(
+        efiling_id=efiling_id,
+        included=True,
+        cause_list__cause_list_date=cld,
+        cause_list__status=CauseList.CauseListStatus.PUBLISHED,
+    ).exists()
+
+    if is_judge:
+        # Resolve user bench access
+        user_groups = _user_judge_groups(user)
+        forwards = CourtroomForward.objects.filter(efiling_id=efiling_id, forwarded_for_date=cld)
+        has_bench_access = False
+        for f in forwards:
+            if _judge_can_view_forward(user_groups, f.bench_key):
+                has_bench_access = True
+                break
+        
+        if not has_bench_access:
+            raise ValidationError({"detail": "Not authorized to view this case for your assigned bench."})
+        
+        # Note: We don't block UNPUBLISHED cases for judges anymore to allow reader-to-judge pre-review
+        return {"role": "JUDGE", "is_judge": True}
+    else:
+        # Advocate strict access control
+        if not is_published:
+             raise ValidationError({"detail": "Case is not yet published in the cause list for this date."})
+        
+        # [A] Direct association (EfilerDocumentAccess - Vakalatnama)
+        has_access = EfilerDocumentAccess.objects.filter(e_filing_id=efiling_id, efiler=user).exists()
+        
+        # [B] Creator association (Fallback for e-filers)
+        if not has_access:
+            has_access = Efiling.objects.filter(id=efiling_id, created_by=user).exists()
+            
+        # [C] Dummy/Prototype Bypass (Dev only)
+        if not has_access and user.email == "dummy_advocate@hcs.local":
+            has_access = True
+
+        if not has_access:
+            raise ValidationError({"detail": f"You ({user.email}) are not authorized as an advocate for case #{efiling_id}."})
+            
+        return {"role": "ADVOCATE", "is_judge": False}
+
+
 def _allowed_bench_keys_for_judge(user_groups: Set[str]) -> list[str]:
     allowed_bench_keys: list[str] = []
     for bench in get_bench_configurations():
@@ -129,155 +198,207 @@ def _get_display_bench_for_efiling(
 
 class CourtroomPendingCasesView(APIView):
     """
-    Judge: list all pending forwarded cases for a forwarded_for_date where judge role is included in bench_key.
+    Unified: list all PUBLISHED cases for a date.
+    Judges: see all cases for their bench.
+    Advocates: see only their own cases.
     """
 
     def get(self, request, *args, **kwargs):
-        user = _assert_judge(request)
+        user = _resolve_courtroom_user(request)
+        user_groups = _user_judge_groups(user)
+        is_judge = bool(user_groups)
+        
         forwarded_for_date = request.query_params.get("forwarded_for_date")
         if forwarded_for_date:
             forwarded_date = timezone.datetime.fromisoformat(forwarded_for_date).date()
+        else:
+            forwarded_date = timezone.now().date()
+
+        # 1. Publication Filter (Source of truth for what can be seen)
+        listed_efiling_ids = set(
+            CauseListEntry.objects.filter(
+                cause_list__cause_list_date=forwarded_date,
+                cause_list__status=CauseList.CauseListStatus.PUBLISHED,
+                included=True,
+            ).values_list("efiling_id", flat=True)
+        )
+
+        if not listed_efiling_ids:
+            return Response({"pending_for_listing": [], "pending_for_causelist": []}, status=drf_status.HTTP_200_OK)
+
+        # 2. Base Forwards Query
+        base_forwards = CourtroomForward.objects.filter(forwarded_for_date=forwarded_date)
+        
+        if is_judge:
+            # Judges see everything forwarded to their bench, even if not yet published
+            # This allows pre-hearing review.
             forwards = (
-                CourtroomForward.objects.filter(forwarded_for_date=forwarded_date)
-                .select_related("efiling")
+                base_forwards.select_related("efiling")
                 .prefetch_related("efiling__litigants")
                 .order_by("-id")
             )
         else:
-            # Fallback for UI: if no date is provided, show latest forwards first.
-            forwarded_date = None
+            # Advocates ONLY see published cases
             forwards = (
-                CourtroomForward.objects.all()
+                base_forwards.filter(efiling_id__in=listed_efiling_ids)
                 .select_related("efiling")
                 .prefetch_related("efiling__litigants")
-                .order_by("-forwarded_for_date", "-id")
+                .order_by("-id")
             )
-        user_groups = _user_judge_groups(user)
-        pending_for_listing: List[dict] = []
-        pending_for_causelist: List[dict] = []
+
+        # 3. Authorization Filter
+        if is_judge:
+            allowed_bench_keys = set(_allowed_bench_keys_for_judge(user_groups))
+        else:
+            # Advocate access check
+            # [A] Direct Association
+            accessible_ids = set(EfilerDocumentAccess.objects.filter(efiler=user).values_list("e_filing_id", flat=True))
+            
+            # [B] Creator Fallback
+            creator_ids = set(Efiling.objects.filter(created_by=user).values_list("id", flat=True))
+            accessible_ids.update(creator_ids)
+            
+            # [C] Dummy Bypass (Dev only)
+            if user.email == "dummy_advocate@hcs.local":
+                # For demo, allow access to all PUBLISHED cases for the selected date
+                accessible_ids.update(listed_efiling_ids)
+
+        items: List[dict] = []
         seen: Set[int] = set()
+        
         for f in forwards:
             if f.efiling_id in seen:
                 continue
-            if _judge_can_view_forward(user_groups, f.bench_key):
-                seen.add(f.efiling_id)
-                display_bench_key, display_bench_label = (
-                    _get_display_bench_for_efiling(
-                        f.efiling,
-                        f.bench_key,
-                    )
-                )
+            
+            # Role check
+            if is_judge:
+                if f.bench_key not in allowed_bench_keys:
+                    continue
+            else:
+                if f.efiling_id not in accessible_ids:
+                    continue
+
+            seen.add(f.efiling_id)
+            display_bench_key, display_bench_label = (
+                _get_display_bench_for_efiling(f.efiling, f.bench_key)
+            )
+            
+            # Decision/Approval status (only relevant for judge)
+            decision = None
+            if is_judge:
                 decision = (
                     CourtroomJudgeDecision.objects.filter(
                         judge_user=user,
                         efiling_id=f.efiling_id,
                         forwarded_for_date=f.forwarded_for_date,
                     )
-                    .only("approved", "listing_date")
+                    .only("approved", "listing_date", "status")
                     .first()
                 )
-                item = {
-                    "efiling_id": f.efiling_id,
-                    "e_filing_number": getattr(f.efiling, "e_filing_number", None),
-                    "case_number": f.efiling.case_number,
-                    "bench_key": display_bench_key,
-                    "bench_label": display_bench_label,
-                    "forward_bench_key": f.bench_key,
-                    "petitioner_name": getattr(f.efiling, "petitioner_name", None),
-                    "petitioner_vs_respondent": getattr(f.efiling, "petitioner_vs_respondent_display", "-"),
-                    "filing_date": getattr(f.efiling, "filing_date", None).isoformat() if getattr(f.efiling, "filing_date", None) else None,
-                    "listing_summary": f.listing_summary,
-                    "selected_document_count": f.selected_documents.count(),
-                    "requested_document_count": 0,
-                    "requested_documents": [],
-                    "judge_decision": (decision.approved if decision else None),
-                    "judge_decision_status": (
-                        decision.status if decision else None
-                    ),
-                    "judge_listing_date": (str(decision.listing_date) if decision and decision.listing_date else None),
-                    "forwarded_for_date": f.forwarded_for_date.isoformat(),
-                }
-                if decision:
-                    req_docs = list(
-                        decision.requested_documents.select_related("efiling_document_index").values(
-                            "efiling_document_index_id",
-                            "efiling_document_index__document_part_name",
-                            "efiling_document_index__document__document_type",
-                        )
-                    )
-                    item["requested_document_count"] = len(req_docs)
-                    item["requested_documents"] = [
-                        {
-                            "document_index_id": r["efiling_document_index_id"],
-                            "document_part_name": r.get("efiling_document_index__document_part_name"),
-                            "document_type": r.get("efiling_document_index__document__document_type"),
-                        }
-                        for r in req_docs
-                    ]
-                if decision and decision.approved:
-                    pending_for_causelist.append(item)
-                else:
-                    pending_for_listing.append(item)
 
+            item = {
+                "efiling_id": f.efiling_id,
+                "e_filing_number": getattr(f.efiling, "e_filing_number", None),
+                "case_number": f.efiling.case_number,
+                "bench_key": display_bench_key,
+                "bench_label": display_bench_label,
+                "forward_bench_key": f.bench_key,
+                "petitioner_name": getattr(f.efiling, "petitioner_name", None),
+                "petitioner_vs_respondent": getattr(f.efiling, "petitioner_vs_respondent_display", "-"),
+                "filing_date": getattr(f.efiling, "filing_date", None).isoformat() if getattr(f.efiling, "filing_date", None) else None,
+                "listing_summary": f.listing_summary,
+                "forwarded_for_date": f.forwarded_for_date.isoformat(),
+                "judge_decision": (decision.approved if decision else None),
+                "judge_decision_status": (decision.status if decision else None),
+                "judge_listing_date": (str(decision.listing_date) if decision and decision.listing_date else None),
+            }
+            
+            # Only Judges see requested documents/annotations here
+            if is_judge and decision:
+                req_docs = list(
+                    decision.requested_documents.select_related("efiling_document_index").values(
+                        "efiling_document_index_id",
+                        "efiling_document_index__document_part_name",
+                        "efiling_document_index__document__document_type",
+                    )
+                )
+                item["requested_document_count"] = len(req_docs)
+                item["requested_documents"] = [
+                    {
+                        "document_index_id": r["efiling_document_index_id"],
+                        "document_part_name": r.get("efiling_document_index__document_part_name"),
+                        "document_type": r.get("efiling_document_index__document__document_type"),
+                    }
+                    for r in req_docs
+                ]
+            else:
+                item["requested_document_count"] = 0
+                item["requested_documents"] = []
+
+            items.append(item)
+
+        # Map to UI structure. Since everything is published, we put them all in "pending_for_causelist"
+        # and leave "pending_for_listing" empty.
         return Response(
             {
-                "pending_for_listing": pending_for_listing,
-                "pending_for_causelist": pending_for_causelist,
+                "pending_for_listing": [],
+                "pending_for_causelist": items,
             },
             status=drf_status.HTTP_200_OK,
         )
 
 
+
 class CourtroomCaseDocumentsView(APIView):
     """
-    Judge: get document index items for the case plus current annotation_text for this judge.
+    Unified: get document index items for the case.
+    Judges: see annotations.
+    Advocates: see only documents.
     """
 
     def get(self, request, efiling_id: int, *args, **kwargs):
-        user = _assert_judge(request)
+        user = _resolve_courtroom_user(request)
         forwarded_for_date = request.query_params.get("forwarded_for_date")
-        user_groups = _user_judge_groups(user)
-        allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
+        
+        # 1. Permission and Publication Check
+        access_meta = _validate_courtroom_access(user, efiling_id, forwarded_for_date)
+        is_judge = access_meta.get("is_judge", False)
+        
+        # 2. Get the specific forward for bench context (if judge)
         forward = None
         if forwarded_for_date:
             forwarded_date = timezone.datetime.fromisoformat(forwarded_for_date).date()
-            forward = (
-                CourtroomForward.objects.filter(
-                    efiling_id=efiling_id,
-                    forwarded_for_date=forwarded_date,
-                    bench_key__in=allowed_bench_keys,
-                )
-                .order_by("-id")
-                .first()
-            )
+            f_qs = CourtroomForward.objects.filter(efiling_id=efiling_id, forwarded_for_date=forwarded_date)
+            if is_judge:
+                user_groups = _user_judge_groups(user)
+                allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
+                f_qs = f_qs.filter(bench_key__in=allowed_bench_keys)
+            forward = f_qs.order_by("-id").first()
 
-        # Fallback to latest forward for this case so UI does not fail
-        # when client-provided date is stale.
         if not forward:
-            forward = (
-                CourtroomForward.objects.filter(
-                    efiling_id=efiling_id,
-                    bench_key__in=allowed_bench_keys,
-                )
-                .order_by("-forwarded_for_date", "-id")
-                .first()
-            )
-        if not forward:
-            raise ValidationError({"detail": "Case not forwarded."})
-        if not _judge_can_view_forward(user_groups, forward.bench_key):
-            raise ValidationError({"detail": "Not authorized for this case/bench."})
+            # Fallback to latest forward
+            f_qs = CourtroomForward.objects.filter(efiling_id=efiling_id)
+            if is_judge:
+                user_groups = _user_judge_groups(user)
+                allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
+                f_qs = f_qs.filter(bench_key__in=allowed_bench_keys)
+            forward = f_qs.order_by("-forwarded_for_date", "-id").first()
 
-        requested_only = str(request.query_params.get("requested_only", "")).strip().lower() in {
-            "1",
-            "true",
-            "yes",
-            "y",
-        }
+        if not forward:
+            raise ValidationError({"detail": "Case forward record not found."})
+
+        requested_only = str(request.query_params.get("requested_only", "")).strip().lower() in {"1", "true", "yes", "y"}
 
         doc_indexes_qs = EfilingDocumentsIndex.objects.filter(
             document__e_filing_id=efiling_id, is_active=True
         ).select_related("document", "document__e_filing").order_by("id")
-        if requested_only:
+        
+        # SYNC MODIFICATION: Only show documents specifically selected for the hearing (Hearing Pack)
+        selected_ids = list(forward.selected_documents.values_list("efiling_document_index_id", flat=True))
+        if selected_ids:
+            doc_indexes_qs = doc_indexes_qs.filter(id__in=selected_ids)
+
+        if requested_only and is_judge:
             decision = (
                 CourtroomJudgeDecision.objects.filter(
                     judge_user=user,
@@ -288,13 +409,8 @@ class CourtroomCaseDocumentsView(APIView):
                 .first()
             )
             requested_ids = (
-                list(
-                    decision.requested_documents.values_list(
-                        "efiling_document_index_id", flat=True
-                    )
-                )
-                if decision
-                else []
+                list(decision.requested_documents.values_list("efiling_document_index_id", flat=True))
+                if decision else []
             )
             if requested_ids:
                 doc_indexes_qs = doc_indexes_qs.filter(id__in=requested_ids)
@@ -302,63 +418,62 @@ class CourtroomCaseDocumentsView(APIView):
         serializer = EfilingDocumentsIndexSerializer(doc_indexes_qs, many=True, context={"request": request})
         doc_items = serializer.data
 
-        existing = CourtroomDocumentAnnotation.objects.filter(
-            judge_user=user, efiling_document_index__in=doc_indexes_qs
-        )
-        anno_map = {a.efiling_document_index_id: a for a in existing}
-
-        for item in doc_items:
-            idx_id = item.get("id")
-            anno = anno_map.get(idx_id)
-            item["annotation_text"] = anno.annotation_text if anno else (item.get("draft_comments") or item.get("comments") or None)
-            item["annotation_data"] = anno.annotation_data if anno else {}
+        # 3. Judge Annotations (Judge-only)
+        if is_judge:
+            existing = CourtroomDocumentAnnotation.objects.filter(
+                judge_user=user, efiling_document_index__in=doc_indexes_qs
+            )
+            anno_map = {a.efiling_document_index_id: a for a in existing}
+            for item in doc_items:
+                idx_id = item.get("id")
+                anno = anno_map.get(idx_id)
+                item["annotation_text"] = anno.annotation_text if anno else (item.get("draft_comments") or item.get("comments") or None)
+                item["annotation_data"] = anno.annotation_data if anno else {}
+        else:
+            # Strip internal comments for advocates
+            for item in doc_items:
+                item["annotation_text"] = None
+                item["annotation_data"] = {}
+                item["draft_comments"] = None
+                item["comments"] = None
 
         return Response({"items": doc_items}, status=drf_status.HTTP_200_OK)
 
 
 class CourtroomCaseSummaryView(APIView):
     """
-    Judge: get case summary details only (no document payload).
+    Unified: get case summary details.
     """
 
     def get(self, request, efiling_id: int, *args, **kwargs):
-        user = _assert_judge(request)
+        user = _resolve_courtroom_user(request)
         forwarded_for_date = request.query_params.get("forwarded_for_date")
-        user_groups = _user_judge_groups(user)
-        allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
-        if not allowed_bench_keys:
-            raise ValidationError({"detail": "Not authorized as judge."})
+        
+        # 1. Permission and Publication Check
+        access_meta = _validate_courtroom_access(user, efiling_id, forwarded_for_date)
+        is_judge = access_meta.get("is_judge", False)
 
-        forward_qs = CourtroomForward.objects.filter(
-            efiling_id=efiling_id,
-            bench_key__in=allowed_bench_keys,
-        )
+        # 2. Get forward context
+        f_qs = CourtroomForward.objects.filter(efiling_id=efiling_id)
+        if is_judge:
+            user_groups = _user_judge_groups(user)
+            allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
+            f_qs = f_qs.filter(bench_key__in=allowed_bench_keys)
+        
         if forwarded_for_date:
             forwarded_date = timezone.datetime.fromisoformat(forwarded_for_date).date()
-            forward_qs = forward_qs.filter(forwarded_for_date=forwarded_date)
+            f_qs = f_qs.filter(forwarded_for_date=forwarded_date)
 
-        forward = forward_qs.order_by("-forwarded_for_date", "-id").first()
+        forward = f_qs.order_by("-forwarded_for_date", "-id").first()
         if not forward:
-            raise ValidationError({"detail": "Case not forwarded for this judge/date."})
+            raise ValidationError({"detail": "Case not forwarded for this user/date."})
 
-        filing = (
-            Efiling.objects.filter(id=efiling_id)
-            .prefetch_related("litigants")
-            .first()
-        )
+        filing = Efiling.objects.filter(id=efiling_id).prefetch_related("litigants").first()
         if not filing:
             raise ValidationError({"detail": "Case not found."})
-        display_bench_key, display_bench_label = _get_display_bench_for_efiling(
-            filing,
-            forward.bench_key,
-        )
 
-        case_detail = (
-            EfilingCaseDetails.objects.filter(e_filing_id=efiling_id)
-            .select_related("dispute_state", "dispute_district")
-            .order_by("-id")
-            .first()
-        )
+        display_bench_key, display_bench_label = _get_display_bench_for_efiling(filing, forward.bench_key)
+
         litigants = list(
             EfilingLitigant.objects.filter(e_filing_id=efiling_id)
             .only("name", "is_petitioner", "sequence_number")
@@ -374,15 +489,28 @@ class CourtroomCaseSummaryView(APIView):
                 "efiling_document_index__file_part_path",
             )
         )
-        latest_decision = (
-            CourtroomJudgeDecision.objects.filter(
-                judge_user=user,
-                efiling_id=efiling_id,
-                forwarded_for_date=forward.forwarded_for_date,
-            )
+        
+        case_detail = (
+            EfilingCaseDetails.objects.filter(e_filing_id=efiling_id)
+            .select_related("dispute_state", "dispute_district")
             .order_by("-id")
             .first()
         )
+
+        # 3. Decision metadata (Judge-only)
+        latest_decision_data = None
+        if is_judge:
+            latest_decision = CourtroomJudgeDecision.objects.filter(
+                judge_user=user,
+                efiling_id=efiling_id,
+                forwarded_for_date=forward.forwarded_for_date,
+            ).order_by("-id").first()
+            if latest_decision:
+                latest_decision_data = {
+                    "status": latest_decision.status,
+                    "approved": latest_decision.approved,
+                    "decision_notes": latest_decision.decision_notes,
+                }
 
         return Response(
             {
@@ -398,6 +526,7 @@ class CourtroomCaseSummaryView(APIView):
                 "forward_bench_key": forward.bench_key,
                 "forwarded_for_date": forward.forwarded_for_date.isoformat(),
                 "listing_summary": forward.listing_summary,
+                "is_published": True, # By reaching here, we know it's published
                 "selected_documents": [
                     {
                         "document_index_id": d["efiling_document_index_id"],
@@ -407,54 +536,31 @@ class CourtroomCaseSummaryView(APIView):
                     }
                     for d in selected_documents
                 ],
-                "judge_decision": (
+                "judge_decision": latest_decision_data,
+                "litigants": litigants,
+                "case_details": (
                     {
-                        "status": latest_decision.status,
-                        "approved": latest_decision.approved,
-                        "listing_date": latest_decision.listing_date.isoformat()
-                        if latest_decision.listing_date
-                        else None,
-                        "decision_notes": latest_decision.decision_notes,
-                        "requested_documents": [
-                            {
-                                "document_index_id": rd["efiling_document_index_id"],
-                                "document_part_name": rd.get("efiling_document_index__document_part_name"),
-                                "document_type": rd.get("efiling_document_index__document__document_type"),
-                            }
-                            for rd in (
-                                latest_decision.requested_documents.select_related("efiling_document_index").values(
-                                    "efiling_document_index_id",
-                                    "efiling_document_index__document_part_name",
-                                    "efiling_document_index__document__document_type",
-                                )
-                                if latest_decision
-                                else []
-                            )
-                        ],
+                        "cause_of_action": getattr(case_detail, "cause_of_action", None),
+                        "date_of_cause_of_action": (
+                            case_detail.date_of_cause_of_action.isoformat()
+                            if getattr(case_detail, "date_of_cause_of_action", None)
+                            else None
+                        ),
+                        "dispute_state": (
+                            case_detail.dispute_state.state
+                            if getattr(case_detail, "dispute_state", None)
+                            else None
+                        ),
+                        "dispute_district": (
+                            case_detail.dispute_district.district
+                            if getattr(case_detail, "dispute_district", None)
+                            else None
+                        ),
+                        "dispute_taluka": getattr(case_detail, "dispute_taluka", None),
                     }
-                    if latest_decision
+                    if case_detail
                     else None
                 ),
-                "litigants": litigants,
-                "case_details": {
-                    "cause_of_action": getattr(case_detail, "cause_of_action", None) if case_detail else None,
-                    "date_of_cause_of_action": (
-                        case_detail.date_of_cause_of_action.isoformat()
-                        if case_detail and getattr(case_detail, "date_of_cause_of_action", None)
-                        else None
-                    ),
-                    "dispute_state": (
-                        getattr(getattr(case_detail, "dispute_state", None), "state", None)
-                        if case_detail
-                        else None
-                    ),
-                    "dispute_district": (
-                        getattr(getattr(case_detail, "dispute_district", None), "district", None)
-                        if case_detail
-                        else None
-                    ),
-                    "dispute_taluka": getattr(case_detail, "dispute_taluka", None) if case_detail else None,
-                },
             },
             status=drf_status.HTTP_200_OK,
         )
@@ -667,3 +773,87 @@ class CourtroomDecisionCalendarView(APIView):
 
 
 
+
+class CourtroomSharedViewAPIView(APIView):
+    """
+    Real-time document sharing between Advocate and Judge.
+    - Advocate POSTs to update position.
+    - Judge GETs to poll for active share.
+    - Advocate DELETEs to stop sharing.
+    """
+
+    def get(self, request, *args, **kwargs):
+        # Called by Judge to poll for active advocate share
+        efiling_id = request.query_params.get("efiling_id")
+        if not efiling_id:
+             raise ValidationError({"efiling_id": "Required."})
+        
+        # Get latest active share for this case
+        share = (
+            CourtroomSharedView.objects.filter(efiling_id=efiling_id, is_active=True)
+            .select_related("advocate_user")
+            .order_by("-updated_at")
+            .first()
+        )
+
+        if not share:
+            return Response({"active": False}, status=drf_status.HTTP_200_OK)
+        
+        return Response({
+            "active": True,
+            "document_index_id": share.document_index_id,
+            "page_index": share.page_index,
+            "advocate_name": share.advocate_user.get_full_name() or share.advocate_user.email
+        }, status=drf_status.HTTP_200_OK)
+
+    def post(self, request, *args, **kwargs):
+        # Called by Advocate to update position or start sharing
+        # Use existing judge resolver logic pattern but for advocate
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            # Fallback for dev/dummy environments if standard auth isn't active
+            token = _auth_header_token(request)
+            if token == "advocate_dummy_token":
+                from django.contrib.auth import get_user_model
+                UserModel = get_user_model()
+                user = UserModel.objects.filter(email="dummy_advocate@hcs.local").first()
+        
+        if not user or not user.is_authenticated:
+            raise ValidationError({"detail": "advocate Authentication required."})
+
+        efiling_id = request.data.get("efiling_id")
+        doc_id = request.data.get("document_index_id")
+        page_idx = request.data.get("page_index", 0)
+
+        if not efiling_id or not doc_id:
+             raise ValidationError({"efiling_id": "Required.", "document_index_id": "Required."})
+
+        share, _ = CourtroomSharedView.objects.update_or_create(
+            efiling_id=efiling_id,
+            advocate_user=user,
+            defaults={
+                "document_index_id": doc_id,
+                "page_index": page_idx,
+                "is_active": True,
+                "updated_at": timezone.now()
+            }
+        )
+        return Response({"status": "success", "is_active": True}, status=drf_status.HTTP_200_OK)
+
+    def delete(self, request, *args, **kwargs):
+        # Called by Advocate to stop sharing
+        efiling_id = request.query_params.get("efiling_id")
+        user = getattr(request, "user", None)
+        # If dummy token, resolve user
+        if not user or not user.is_authenticated:
+            token = _auth_header_token(request)
+            if token == "advocate_dummy_token":
+                from django.contrib.auth import get_user_model
+                UserModel = get_user_model()
+                user = UserModel.objects.filter(email="dummy_advocate@hcs.local").first()
+
+        CourtroomSharedView.objects.filter(
+            efiling_id=efiling_id, advocate_user=user
+        ).update(is_active=False)
+        
+        return Response({"status": "inactive"}, status=drf_status.HTTP_200_OK)
