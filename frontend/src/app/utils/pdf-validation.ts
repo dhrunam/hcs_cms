@@ -22,11 +22,21 @@ export function validatePdfSize(file: File): PdfValidationResult {
   return { valid: true };
 }
 
+/** Browsers (notably Safari) may leave `type` empty for PDFs picked from disk. */
+export function isLikelyPdfFile(file: File): boolean {
+  const t = String(file.type || '').toLowerCase().trim();
+  if (t === 'application/pdf' || t === 'application/x-pdf') return true;
+  if (!t || t === 'application/octet-stream') {
+    return /\.pdf$/i.test(String(file.name || ''));
+  }
+  return false;
+}
+
 export function validatePdfFiles(files: File[]): { valid: File[]; errors: string[] } {
   const valid: File[] = [];
   const errors: string[] = [];
   for (const file of files) {
-    if (file.type !== 'application/pdf') {
+    if (!isLikelyPdfFile(file)) {
       errors.push(`"${file.name}" is not a PDF.`);
       continue;
     }
@@ -79,7 +89,7 @@ export async function validatePdfOcr(file: File): Promise<PdfValidationResult> {
 /** Validate all files for OCR. Returns first error or null. */
 export async function validatePdfOcrForFiles(files: File[]): Promise<string | null> {
   for (const file of files) {
-    if (file.type !== 'application/pdf') continue;
+    if (!isLikelyPdfFile(file)) continue;
     const result = await validatePdfOcr(file);
     if (!result.valid && result.error) return result.error;
   }

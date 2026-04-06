@@ -26,6 +26,7 @@ import { firstValueFrom } from "rxjs";
 import { CaseTypeService } from "../../../../../../services/master/case-type.services";
 import { PaymentService } from "../../../../../../services/payment/payment.service";
 import { jsPDF } from "jspdf";
+import { isFrontendManagedAnnexureDocumentIndexName } from "../../../../../../utils/efiling-new-filing-document-index";
 
 @Component({
   selector: "app-edit",
@@ -92,9 +93,30 @@ export class Edit {
     "List of Dates and Events",
     "Writ Petition",
     "Affidavit",
+    "Annexure(s)*",
     "Vakalatnama",
     "Affidavit of Service",
   ];
+
+  /** From GET /efiling/document-index/?case_type=&for_new_filing=true, ordered by sequence_number. */
+  fetchedNewFilingDocumentIndexes: Array<{
+    id: number;
+    name: string;
+    sequence_number: number;
+  }> = [];
+
+  /**
+   * Same API response, sorted by sequence (includes Annexure(s) marker rows).
+   * Used to place the annexure upload row in document-sequence order.
+   */
+  fullNewFilingDocumentIndexesOrdered: Array<{
+    id: number;
+    name: string;
+    sequence_number: number;
+  }> = [];
+
+  /** Raw API included an "Annexure(s)" row that was stripped — still enable annexure UI. */
+  excludedAnnexureSlotFromApi = false;
 
   form!: FormGroup;
   petitionerForm!: FormGroup;
@@ -158,6 +180,12 @@ export class Edit {
         this.caseTypes = Array.isArray(data?.results) ? data.results : data || [];
       },
     });
+    this.initialInputsForm
+      .get("case_type")
+      ?.valueChanges.subscribe(() =>
+        this.loadNewFilingDocumentIndexes(this.selectedCaseTypeId),
+      );
+    this.loadNewFilingDocumentIndexes(this.selectedCaseTypeId);
     this.route.queryParams.subscribe((params) => {
       const idParam =
         params["id"] ??
@@ -245,11 +273,60 @@ export class Edit {
   }
 
   get effectiveDocumentType(): string | null {
+    if (!this.useStructuredDocumentUpload) return null;
     return this.isWPCCaseType ? "Main Petition" : null;
   }
 
   get mandatoryIndexesForCurrentCase(): string[] {
+    if (this.fetchedNewFilingDocumentIndexes.length > 0) {
+      return this.fetchedNewFilingDocumentIndexes.map((x) => x.name);
+    }
     return this.isWPCCaseType ? this.wpMainPetitionMandatoryIndexes : [];
+  }
+
+  /** Structured rows when API (or WP fallback) defines at least one required index. */
+  get useStructuredDocumentUpload(): boolean {
+    return this.mandatoryIndexesForCurrentCase.length > 0;
+  }
+
+  get enableAnnexureFromIndexList(): boolean {
+    return (
+      this.excludedAnnexureSlotFromApi ||
+      this.mandatoryIndexesForCurrentCase.some((n) =>
+        String(n || "")
+          .toLowerCase()
+          .includes("annexure"),
+      )
+    );
+  }
+
+  /**
+   * 0-based index in structured upload rows after which the Annexure(s) table row appears.
+   * `-1` = show annexures before all mandatory rows. Matches API sequence when marker row exists.
+   */
+  get annexureUiInsertAfterRowIndex(): number {
+    const full = this.fullNewFilingDocumentIndexesOrdered;
+    if (this.enableAnnexureFromIndexList && full.length > 0) {
+      const marker = full.find((x) =>
+        isFrontendManagedAnnexureDocumentIndexName(x.name),
+      );
+      if (marker) {
+        const cutoff = marker.sequence_number;
+        const n = this.fetchedNewFilingDocumentIndexes.filter(
+          (x) => x.sequence_number < cutoff,
+        ).length;
+        return n - 1;
+      }
+    }
+    const names = this.mandatoryIndexesForCurrentCase.filter(
+      (n) => !isFrontendManagedAnnexureDocumentIndexName(n),
+    );
+    const v = names.findIndex(
+      (n) => String(n).trim().toLowerCase() === "vakalatnama",
+    );
+    if (v >= 0) return v - 1;
+    if (names.length === 0) return -1;
+    return names.length - 1;
   }
 
   get requiresCourtFeePayment(): boolean {
@@ -729,6 +806,54 @@ export class Edit {
     }
     const parsed = Number(value);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }
+
+  private loadNewFilingDocumentIndexes(caseTypeId: number | null): void {
+    this.fetchedNewFilingDocumentIndexes = [];
+    this.fullNewFilingDocumentIndexesOrdered = [];
+    this.excludedAnnexureSlotFromApi = false;
+    if (!caseTypeId) {
+      return;
+    }
+    this.eFilingService.get_document_index_for_new_filing(caseTypeId).subscribe({
+      next: (res) => {
+        const rows = Array.isArray(res)
+          ? res
+          : Array.isArray(res?.results)
+            ? res.results
+            : [];
+        const mapped = rows
+          .map((item: any) => ({
+            id: Number(item?.id),
+            name: String(item?.name ?? "").trim(),
+            sequence_number: Number(item?.sequence_number ?? 0),
+          }))
+          .filter(
+            (x: { id: number; name: string; sequence_number: number }) =>
+              Number.isFinite(x.id) && !!x.name,
+          );
+        const sorted = [...mapped].sort(
+          (
+            a: { sequence_number: number; id: number },
+            b: { sequence_number: number; id: number },
+          ) => a.sequence_number - b.sequence_number || a.id - b.id,
+        );
+        this.fullNewFilingDocumentIndexesOrdered = sorted;
+        this.excludedAnnexureSlotFromApi = sorted.some(
+          (x: { name: string }) =>
+            isFrontendManagedAnnexureDocumentIndexName(x.name),
+        );
+        this.fetchedNewFilingDocumentIndexes = sorted.filter(
+          (x: { name: string }) =>
+            !isFrontendManagedAnnexureDocumentIndexName(x.name),
+        );
+      },
+      error: () => {
+        this.fetchedNewFilingDocumentIndexes = [];
+        this.fullNewFilingDocumentIndexesOrdered = [];
+        this.excludedAnnexureSlotFromApi = false;
+      },
+    });
   }
 
   actList: any[] = [];
@@ -1390,7 +1515,9 @@ export class Edit {
     );
     if (!hasRequired) return false;
     const hasAnnexure = (mainPetition.document_indexes || []).some((x: any) =>
-      /^annexure a\d+$/i.test(String(x?.document_part_name || "").trim()),
+      /^annexure\s+[arp]\s*\d+$/i.test(
+        String(x?.document_part_name || "").replace(/\s+/g, " ").trim(),
+      ),
     );
     return hasAnnexure;
   }
@@ -1476,6 +1603,7 @@ export class Edit {
         }
         this.step1Saved = true;
         this.initialInputsForm.disable({ emitEvent: false });
+        this.loadNewFilingDocumentIndexes(this.selectedCaseTypeId);
       },
     });
   }
