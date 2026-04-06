@@ -35,7 +35,7 @@
   padding: 1rem 1.25rem;
   margin-bottom: -1px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: color 0.2s ease;
 }
 
 .scrutiny-nav-tabs .nav-link:hover {
