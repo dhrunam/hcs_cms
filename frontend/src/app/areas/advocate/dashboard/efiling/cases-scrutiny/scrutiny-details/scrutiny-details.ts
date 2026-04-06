@@ -223,7 +223,9 @@ export class ScrutinyDetails {
     this.canShowReplaceBtn = Boolean(
       document?.scrutiny_status?.toLowerCase().includes('rejected'),
     );
-    this.updatePreviewUrl(document?.file_url ?? null);
+    this.updatePreviewUrl(
+      (document?.file_url ?? document?.file_part_path ?? null) as string | null,
+    );
 
     if (!document?.id) {
       this.documentHistory = [];
@@ -659,12 +661,13 @@ export class ScrutinyDetails {
       URL.revokeObjectURL(this.selectedIaDocumentBlobUrl);
       this.selectedIaDocumentBlobUrl = null;
     }
-    if (!document?.file_url) {
+    const iaStreamUrl = document?.file_url ?? document?.file_part_path ?? null;
+    if (!iaStreamUrl) {
       this.selectedIaDocumentUrl = null;
       return;
     }
-    this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(document.file_url);
-    this.efilingService.fetch_document_blob(document.file_url).subscribe({
+    this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(iaStreamUrl);
+    this.efilingService.fetch_document_blob(iaStreamUrl).subscribe({
       next: (blob) => {
         this.selectedIaDocumentBlobUrl = URL.createObjectURL(blob);
         this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
@@ -673,7 +676,7 @@ export class ScrutinyDetails {
       },
       error: () => {
         this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
-          document.file_url,
+          iaStreamUrl,
         );
       },
     });
