@@ -16,11 +16,12 @@ import {
   isEfilingDocumentIndexClickable,
   trackByEfilingDocumentIndexRowId,
 } from '../../../../../../utils/efiling-document-index-tree';
+import { EfilingChatComponent } from '../../../../../../shared/efiling-chat/efiling-chat';
 
 @Component({
   selector: 'app-scrutiny-details',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, EfilingChatComponent],
   templateUrl: './scrutiny-details.html',
   styleUrl: './scrutiny-details.css',
 })
@@ -48,7 +49,7 @@ export class ScrutinyDetails {
   notesPopupOpen = false;
   canShowReplaceBtn: boolean = false;
   pendingReplacements: Array<{ documentId: number; document: any; file: File }> = [];
-  activeTab: 'filing' | 'documents' | 'ia' = 'filing';
+  activeTab: 'filing' | 'documents' | 'ia' | 'chat' = 'filing';
   iaList: any[] = [];
   iaDocuments: any[] = [];
   selectedIaDocument: any = null;
@@ -83,7 +84,7 @@ export class ScrutinyDetails {
     this.notesPopupOpen = false;
   }
 
-  setActiveTab(tab: 'filing' | 'documents' | 'ia'): void {
+  setActiveTab(tab: 'filing' | 'documents' | 'ia' | 'chat'): void {
     this.activeTab = tab;
   }
 

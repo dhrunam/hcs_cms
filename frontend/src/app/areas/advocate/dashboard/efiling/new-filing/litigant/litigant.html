@@ -2,7 +2,7 @@
   class="card shadow-sm mb-4 border-0 text-start"
 >
   <div class="card-header bg-dark text-white fw-semibold border-0">
-    Parties Details
+    Parties
   </div>
 
    <div
@@ -80,7 +80,7 @@
             </div>
           </div>
 
-          <div class="text-center mt-2">
+          <div class="text-center mt-2" *ngIf="petitionerLitigants.length > 0">
             <button
               type="button"
               class="litigant-add-btn"
@@ -157,7 +157,7 @@
               </div>
             </div>
           </div>
-          <div class="text-center mt-2">
+          <div class="text-center mt-2" *ngIf="respondentLitigants.length > 0">
             <button
               type="button"
               class="litigant-add-btn"
@@ -185,7 +185,7 @@
    
 
     <div class="form-group-block">
-      <div class="section-title">{{ side === 'petitioner' ? 'Petitioner' : 'Respondent' }} Details</div>
+      <div class="section-title">Details</div>
 
       <div class="row g-3">
         <div class="col-md-12 mt-3">
