@@ -378,7 +378,7 @@ export class Create implements OnInit {
   // }
 
   selectDocumentType(option: any): void {
-    this.selectedDocumentType = option;
+    this.selectedDocumentType = option.name;
     this.documentTypeSearchQuery = "";
     this.isDocumentTypeDropdownOpen = false;
   }
