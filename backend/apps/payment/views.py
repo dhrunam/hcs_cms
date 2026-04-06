@@ -16,6 +16,14 @@ from rest_framework.views import APIView
 from apps.payment.models import PaymentTransaction
 
 
+def _merge_payment_callback_payload(existing, gateway_payload: dict) -> dict:
+    """Keep initiate metadata (e.g. source) when storing the gateway response."""
+    base = dict(existing) if isinstance(existing, dict) else {}
+    if isinstance(gateway_payload, dict):
+        base = {**base, **gateway_payload}
+    return base
+
+
 def generate_payment_reference_no():
     two_digit_year = datetime.datetime.now().year % 100
     month = datetime.datetime.now().month
@@ -296,7 +304,7 @@ class PaymentResponseCallbackView(APIView):
             tx.status = payment_status.get("failed", "failed")
             tx.message = "Checksum verification failed."
             tx.callback_method = callback_method
-            tx.callback_payload = payload
+            tx.callback_payload = _merge_payment_callback_payload(tx.callback_payload, payload)
             tx.save(update_fields=["status", "message", "callback_method", "callback_payload", "updated_at"])
             return HttpResponseRedirect(self._build_redirect_url(tx, "failed", "Checksum verification failed."))
 
@@ -309,7 +317,7 @@ class PaymentResponseCallbackView(APIView):
             tx.amount = str(payload.get("amount") or tx.amount or "")
             tx.txn_id = payload.get("sbs_ref_no") or payload.get("txn_id")
             tx.callback_method = callback_method
-            tx.callback_payload = payload
+            tx.callback_payload = _merge_payment_callback_payload(tx.callback_payload, payload)
             tx.save()
             return HttpResponseRedirect(self._build_redirect_url(tx, "success" if is_success else "failed", tx.message))
 
@@ -321,9 +329,17 @@ class PaymentResponseCallbackView(APIView):
     def _build_redirect_url(self, tx: PaymentTransaction, status: str, message: str | None):
         pg_params = settings.PG_PARAMS
         payment_type = str(tx.payment_type or "").lower()
-        source = str((tx.callback_payload or {}).get("source", "new_filing")).lower()
+        meta = tx.callback_payload if isinstance(tx.callback_payload, dict) else {}
+        source = str(meta.get("source", "new_filing")).lower()
+        application_ref = str(tx.application or "").upper()
+        is_ia_fee = source == "ia_filing" or application_ref.startswith("IA-FEE-")
 
-        if payment_type == "intimation":
+        if is_ia_fee:
+            base_redirect_url = pg_params.get(
+                "redirect_to_front_end_for_ia_court_fee",
+                pg_params.get("redirect_to_front_end_for_application_fee_paymet_status_page", ""),
+            )
+        elif payment_type == "intimation":
             base_redirect_url = pg_params.get("redirect_to_front_end_for_intimation_fee_paymet_status_page", "")
         else:
             base_redirect_url = pg_params.get("redirect_to_front_end_for_application_fee_paymet_status_page", "")

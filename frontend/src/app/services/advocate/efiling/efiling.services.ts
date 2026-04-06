@@ -363,8 +363,18 @@ export class EfilingService {
     ia_text: string;
     status?: string;
   }): Observable<any> {
-    const body = { status: "UNDER_SCRUTINY", ...payload };
+    const body = { ...payload, status: payload.status ?? "DRAFT" };
     return this.http.post<any>(`${app_url}/api/v1/efiling/ias/`, body);
+  }
+
+  patch_ia_filing(
+    iaId: number,
+    body: { status?: string; ia_text?: string },
+  ): Observable<any> {
+    return this.http.patch<any>(
+      `${app_url}/api/v1/efiling/ias/${iaId}/`,
+      body,
+    );
   }
 
   get_ias(): Observable<any> {

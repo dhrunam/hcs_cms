@@ -34,7 +34,7 @@ export class PaymentService {
     application: number | string;
     e_filing_number: string;
     payment_type?: string;
-    source?: "new_filing" | "draft";
+    source?: "new_filing" | "draft" | "ia_filing";
   }): Observable<PaymentInitiateResponse> {
     return this.http.post<PaymentInitiateResponse>(
       `${app_url}/api/payment/initiate/`,
