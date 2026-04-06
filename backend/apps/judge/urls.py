@@ -10,6 +10,7 @@ from apps.judge.views import (
     CourtroomDecisionView,
     CourtroomDocumentAnnotationView,
     CourtroomPendingCasesView,
+    CourtroomSharedViewAPIView,
 )
 
 app_name = "judge"
@@ -50,6 +51,11 @@ urlpatterns = [
         "courtroom/decisions/calendar/",
         CourtroomDecisionCalendarView.as_view(),
         name="courtroom-decisions-calendar",
+    ),
+    path(
+        "courtroom/shares/",
+        CourtroomSharedViewAPIView.as_view(),
+        name="courtroom-shares",
     ),
 
 ]

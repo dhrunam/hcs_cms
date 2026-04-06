@@ -9,4 +9,4 @@ dj-database-url==3.1.2
 gunicorn==23.0.0
 whitenoise==6.9.0
 requests==2.32.5
--e apps/drf_sso_resource
+# -e apps/drf_sso_resource

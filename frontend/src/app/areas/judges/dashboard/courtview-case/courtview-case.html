@@ -1,0 +1,152 @@
+<div class="elegant-dashboard">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <a
+      class="btn btn-sm btn-light border shadow-sm px-3 rounded-pill"
+      [routerLink]="['/judges/dashboard/courtview']"
+      style="font-weight: 500; color: #475569;"
+    >
+      <i class="fa fa-arrow-left me-2"></i> Dashboard
+    </a>
+  </div>
+
+  <div *ngIf="isLoading" class="text-center py-5">
+    <div class="spinner-border text-secondary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+
+  <div *ngIf="loadError" class="alert alert-warning shadow-sm border-0 rounded-3">
+    {{ loadError }}
+  </div>
+
+  <div *ngIf="!isLoading && !loadError && caseSummary" class="animate__animated animate__fadeIn">
+    
+    <!-- Clean Minimal Header -->
+    <div class="elegant-header">
+      <div class="case-title-row">
+        <div>
+          <h2 class="case-h">{{ caseSummary.case_number || 'No Case Number' }}</h2>
+          <div class="case-meta mt-1">Filing Date: {{ caseSummary.filing_date ? (caseSummary.filing_date | date:'dd MMM yyyy') : '-' }}</div>
+        </div>
+        <div class="text-end">
+          <div class="litigants-text">
+            <span>{{ petitionerNamesLabel }}</span>
+            <span class="vs-badge">V/S</span>
+            <span>{{ respondentNamesLabel }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Unified Single Column Layout for Extreme Simplicity -->
+    <div class="row g-4 h-100">
+      
+      <!-- Left Sidebar: Summary + Nav -->
+      <div class="col-xl-3 col-lg-4">
+        
+        <!-- Advocate Shared View Box (ONLY if published) -->
+        <div *ngIf="caseSummary.is_published" class="elegant-panel mb-4 share-panel" [class.share-active]="activeShare">
+          <div class="panel-title d-flex justify-content-between align-items-center">
+            <span>Advocate Live View</span>
+            <span *ngIf="activeShare" class="live-indicator">LIVE</span>
+          </div>
+          
+          <div *ngIf="!activeShare" class="no-share-content">
+            <i class="fa fa-podcast mb-2"></i>
+            <p>Waiting for advocate to share...</p>
+          </div>
+
+          <div *ngIf="activeShare" class="share-info">
+            <div class="advocate-name"><i class="fa fa-user-circle me-1"></i> {{ activeShare.advocate_name }}</div>
+            <div class="current-doc text-truncate" *ngIf="isSyncEnabled"><i class="fa fa-file-text-o me-1"></i> {{ previewDocument?.document_part_name }}</div>
+            <div class="current-page" *ngIf="isSyncEnabled">Page {{ activeShare.page_index + 1 }}</div>
+            
+            <button class="btn btn-sync mt-3 w-100" 
+                    [class.btn-sync-active]="isSyncEnabled"
+                    (click)="toggleSync()">
+              <i class="fa" [class.fa-link]="!isSyncEnabled" [class.fa-unlink]="isSyncEnabled"></i>
+              {{ isSyncEnabled ? 'Following' : 'Follow Advocate' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Pre-Listing Alert (if not published) -->
+        <div *ngIf="!caseSummary.is_published" class="elegant-panel mb-4" style="border-left: 4px solid #f59e0b; background: rgba(251, 191, 36, 0.05);">
+          <div class="panel-title d-flex align-items-center" style="color: #d97706; font-size: 11px;">
+            <i class="fa fa-info-circle me-1"></i> PRE-HEARING REVIEW
+          </div>
+          <p class="small mb-0" style="color: #92400e; line-height: 1.4;">
+            This case is forwarded for your review. Live synchronization will activate once the Listing Officer publishes the cause-list.
+          </p>
+        </div>
+
+        <!-- Documents Box -->
+        <div class="elegant-panel pb-2">
+          <div class="panel-title d-flex justify-content-between align-items-center mb-2">
+            <span>Pleadings</span>
+            <span class="badge bg-light text-secondary border">{{ filteredCaseDocuments.length }}</span>
+          </div>
+          
+          <!-- Modern Search Bar -->
+          <div class="search-wrapper mb-3">
+            <i class="fa fa-search search-icon"></i>
+            <input 
+              type="text" 
+              class="search-input" 
+              placeholder="Search documents..." 
+              [(ngModel)]="documentSearchQuery"
+            >
+            <i *ngIf="documentSearchQuery" class="fa fa-times clear-search" (click)="documentSearchQuery = ''"></i>
+          </div>
+          
+          <div class="doc-list-wrapper">
+            <ul class="doc-list" *ngIf="filteredCaseDocuments.length > 0">
+              <li 
+                *ngFor="let doc of filteredCaseDocuments; let i = index" 
+                class="doc-list-item"
+                [class.active-doc]="previewDocument?.id === doc.id"
+                (click)="selectPreviewDocument(doc)"
+              >
+                <i class="fa fa-file-pdf doc-icon"></i>
+                <div class="text-truncate">
+                  <div style="font-size: 13px; font-weight: 500;">{{ doc.document_part_name || doc.document_type || 'Document' }}</div>
+                  <div style="font-size: 11px; opacity: 0.7; margin-top: 2px;">Index #{{i + 1}}</div>
+                </div>
+              </li>
+            </ul>
+            <div *ngIf="filteredCaseDocuments.length === 0 && allCaseDocuments.length > 0" class="text-muted small text-center py-4">
+              No matching files.
+            </div>
+            <div *ngIf="allCaseDocuments.length === 0" class="text-muted small text-center py-4">
+              No files appended.
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right Main: Minimalist PDF Annotator Surface -->
+      <div class="col-xl-9 col-lg-8">
+        <div class="annotator-container">
+           <app-pdf-annotator
+              *ngIf="previewDocumentBlobUrl; else noDocPreview"
+              [pdfUrl]="previewDocumentBlobUrl"
+              [annotationData]="previewDocument?.annotation_data"
+              [canWrite]="canWrite"
+              (save)="onSaveAnnotations($event)"
+              class="d-block w-100 h-100"
+            ></app-pdf-annotator>
+            
+            <ng-template #noDocPreview>
+              <div class="d-flex flex-column justify-content-center align-items-center h-100 bg-light text-muted">
+                <i class="fa fa-folder-open fs-1 mb-3 opacity-25"></i>
+                <span class="opacity-75">{{ previewLoadError || 'Document viewer ready. Select a file.' }}</span>
+              </div>
+            </ng-template>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>

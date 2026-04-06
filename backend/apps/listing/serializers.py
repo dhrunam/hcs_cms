@@ -5,6 +5,9 @@ class CauseListDraftEntrySerializer(serializers.Serializer):
     efiling_id = serializers.IntegerField()
     serial_no = serializers.IntegerField(required=False, allow_null=True)
     included = serializers.BooleanField(default=True)
+    petitioner_advocate = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    respondent_advocate = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    selected_ias = serializers.ListField(child=serializers.JSONField(), required=False, allow_empty=True)
 
 
 class CauseListDraftSaveSerializer(serializers.Serializer):

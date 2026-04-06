@@ -7,6 +7,7 @@ import Swal from "sweetalert2";
 
 import { CourtroomService } from "../../../../services/judge/courtroom.service";
 import { benchLabel } from "../../../listing-officers/shared/bench-labels";
+import { PdfAnnotatorComponent } from "./pdf-annotator.component";
 
 @Component({
   selector: "app-judge-courtroom",

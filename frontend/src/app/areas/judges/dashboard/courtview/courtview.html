@@ -1,0 +1,92 @@
+<div class="container-fluid py-4 px-4 min-vh-100 bg-light">
+
+  <!-- HERO HEADER -->
+  <div
+    class="judge-header d-flex justify-content-between align-items-center flex-wrap gap-4 mb-5 p-4 rounded-4 shadow-sm bg-white">
+
+    <div>
+      <h3 class="fw-bold text-dark mb-1">Case Hearing</h3>
+      <!-- <p class="text-muted small mb-0">
+        Select a listed case to start your digital courtroom session
+      </p> -->
+    </div>
+
+    <div class="d-flex flex-column">
+      <span class="label text-uppercase fw-semibold text-muted small">Hearing Date</span>
+      <input type="date" class="form-control form-control-sm rounded-3 shadow-sm border-2"
+        [(ngModel)]="forwardedForDate" (change)="onDateChange()" />
+    </div>
+
+  </div>
+
+  <!-- LOADING -->
+  <div *ngIf="isLoading" class="text-center py-5">
+    <div class="spinner-border text-primary"></div>
+    <p class="mt-3 text-muted fw-medium">Loading hearings...</p>
+  </div>
+
+  <!-- ERROR -->
+  <div *ngIf="loadError" class="alert alert-warning shadow-sm rounded-3">
+    <i class="fa fa-circle-exclamation me-2"></i> {{ loadError }}
+  </div>
+
+  <!-- HEARINGS GRID -->
+  <div *ngIf="!isLoading && !loadError" class="row g-4">
+
+    <div *ngFor="let c of listedCases" class="col-xxl-3 col-xl-4 col-md-6">
+
+      <div class="hearing-card card border-0 h-100 shadow-sm rounded-4">
+
+        <div class="card-body p-4 d-flex flex-column">
+
+          <!-- TOP BADGES -->
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <!-- <span class="serial-badge">SL #{{ c.serial_no || '-' }}</span> -->
+            <span class="bench-badge">{{ c.bench_label || c.bench_key }}</span>
+          </div>
+
+          <!-- CASE NUMBER -->
+          <h5 class="case-number d-flex align-items-center mb-2">
+            <i class="fa fa-file-invoice text-primary me-2"></i>
+            {{ c.case_number || '-' }}
+          </h5>
+
+          <!-- PARTY NAMES -->
+          <div class="petitioner-respondent text-muted small mt-2 flex-grow-1">
+            {{ c.petitioner_vs_respondent || '—' }}
+          </div>
+
+          <!-- ACTION -->
+          <div class="d-grid mt-4">
+            <button class="btn btn-start-hearing" (click)="openCourtroom(c.efiling_id, c.forwarded_for_date)">
+              <i class="fa fa-gavel me-2"></i>
+              Start Digital Hearing
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- EMPTY STATE -->
+    <div *ngIf="listedCases.length === 0" class="col-12">
+      <div class="card border-0 shadow-sm text-center p-5 rounded-4 empty-state">
+
+        <div class="mb-4 opacity-25">
+          <i class="fa fa-gavel fa-4x"></i>
+        </div>
+
+        <h5 class="fw-bold mb-2">No Hearings Scheduled</h5>
+
+        <p class="text-muted small mx-auto" style="max-width: 420px;">
+          There are no cases forwarded for hearing or published in the cause-list for the selected date.
+        </p>
+
+      </div>
+    </div>
+
+  </div>
+
+</div>

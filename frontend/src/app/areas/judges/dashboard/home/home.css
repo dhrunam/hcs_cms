@@ -6,10 +6,42 @@
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
-table thead th {
-  font-size: 0.82rem;
-  color: #475569;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+
+.table-row-hover:hover {
+  background-color: #f8f9fa;
+  transition: 0.2s ease;
 }
 
+.card {
+  transition: 0.2s ease;
+}
+
+/* .card:hover {
+  transform: translateY(-2px);
+} */
+
+.badge {
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+.judge-header input {
+  min-width: 180px;
+}
+
+.table th {
+  border-bottom: 1px solid #e9ecef;
+}
+
+.table td {
+  vertical-align: middle;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #4e73df, #224abe);
+  border: none;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #2e59d9, #1b3ea8);
+}
