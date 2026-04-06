@@ -110,7 +110,9 @@ export class Create implements OnInit {
   get_document_index_for_existing_filing(id: number) {
     this.eFilingService.get_document_index_for_existing_filing(id).subscribe({
       next: (data) => {
-        this.documentTypeOptions = data.results;
+        this.documentTypeOptions = data.results.sort(
+          (a: any, b: any) => a.sequence_number - b.sequence_number,
+        );
       },
     });
   }
@@ -373,7 +375,6 @@ export class Create implements OnInit {
 
   selectDocumentType(option: any): void {
     this.selectedDocumentType = option;
-    alert(this.selectedDocumentType);
     this.documentTypeSearchQuery = "";
     this.isDocumentTypeDropdownOpen = false;
   }
