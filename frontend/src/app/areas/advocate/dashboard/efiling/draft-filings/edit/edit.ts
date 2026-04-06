@@ -26,7 +26,12 @@ import { firstValueFrom } from "rxjs";
 import { CaseTypeService } from "../../../../../../services/master/case-type.services";
 import { PaymentService } from "../../../../../../services/payment/payment.service";
 import { jsPDF } from "jspdf";
-import { isFrontendManagedAnnexureDocumentIndexName } from "../../../../../../utils/efiling-new-filing-document-index";
+import {
+  getWpMainPetitionRequiredIndexNames,
+  isFrontendManagedAnnexureDocumentIndexName,
+  isUploadedAnnexurePartName,
+  normalizeDocumentIndexNameForMatch,
+} from "../../../../../../utils/efiling-new-filing-document-index";
 
 @Component({
   selector: "app-edit",
@@ -1533,25 +1538,26 @@ export class Edit {
     );
     if (!mainPetition) return false;
 
-    const names = new Set(
+    const uploadedNorm = new Set(
       (mainPetition.document_indexes || [])
-        .map((x: any) => String(x?.document_part_name || "").trim().toLowerCase())
+        .map((x: any) =>
+          normalizeDocumentIndexNameForMatch(
+            String(x?.document_part_name || ""),
+          ),
+        )
         .filter(Boolean),
     );
-    const requiredWithoutAnnexure = this.wpMainPetitionMandatoryIndexes
-      .filter((name) => name !== "Annexure(s)*")
-      .map((name) => name.trim().toLowerCase());
-
-    const hasRequired = requiredWithoutAnnexure.every((name) =>
-      names.has(name),
+    const requiredRaw = getWpMainPetitionRequiredIndexNames(
+      this.fetchedNewFilingDocumentIndexes,
+      this.wpMainPetitionMandatoryIndexes,
     );
-    if (!hasRequired) return false;
-    const hasAnnexure = (mainPetition.document_indexes || []).some((x: any) =>
-      /^annexure\s+[arp]\s*\d+$/i.test(
-        String(x?.document_part_name || "").replace(/\s+/g, " ").trim(),
-      ),
+    const requiredNorm = requiredRaw.map((n) =>
+      normalizeDocumentIndexNameForMatch(n),
     );
-    return hasAnnexure;
+    if (!requiredNorm.every((r) => uploadedNorm.has(r))) return false;
+    return (mainPetition.document_indexes || []).some((x: any) =>
+      isUploadedAnnexurePartName(String(x?.document_part_name || "")),
+    );
   }
 
   goToPageFromPreview(step: number) {
