@@ -13,8 +13,14 @@ class DocumentIndexListCreateView(generics.ListCreateAPIView):
             qs = qs.filter(is_active=is_active.lower() in ['true', '1'])
         
         case_type = self.request.query_params.get('case_type')
-        if case_type not in (None, '', 'null'):
-            qs = qs.filter(case_type_id=case_type)
+        for_new_filing = self.request.query_params.get('for_new_filing')
+        if case_type not in (None, '', 'null') and for_new_filing not in (None, '', 'null'):
+            qs = qs.filter(
+                case_type_id=case_type,
+                for_new_filing=for_new_filing.lower() in ['true', '1'],
+            ).order_by('sequence_number', 'id')
+        else:
+            qs = qs.order_by('-id')
         return qs
 class DocumentIndexRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     

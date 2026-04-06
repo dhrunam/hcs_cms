@@ -278,6 +278,10 @@ PG_PARAMS = {
         "PG_INTIMATION_REDIRECT_URL",
         "http://localhost:4200/dashboard/payment?application=",
     ),
+    "redirect_to_front_end_for_ia_court_fee": os.getenv(
+        "PG_IA_COURT_FEE_REDIRECT_URL",
+        "http://localhost:4200/advocate/dashboard/efiling/ia-filing/create",
+    ),
     "salt": os.getenv(
         "PG_SALT",
         "31c6163218e5c8233ea9af089785bd3125b210cc995add2da23e36d0779d51d7",

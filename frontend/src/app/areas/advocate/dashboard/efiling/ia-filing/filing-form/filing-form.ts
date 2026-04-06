@@ -2,13 +2,14 @@ import { CommonModule } from '@angular/common';
 import { HttpEventType } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Params, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { forkJoin } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import Swal from 'sweetalert2';
 import { app_url } from '../../../../../../environment';
 import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
+import { PaymentService } from '../../../../../../services/payment/payment.service';
 import {
   getValidationErrorMessage,
   validatePdfFiles,
@@ -29,6 +30,10 @@ import { UploadDocuments } from '../../new-filing/upload-documents/upload-docume
   styleUrl: './filing-form.css',
 })
 export class IaFilingForm implements OnInit {
+  /** Mandatory IA court fee (matches backend `IA_COURT_FEE_AMOUNT`). */
+  readonly iaCourtFeeRupees = 10;
+  readonly iaPaymentType = 'IA Court Fee';
+
   form!: FormGroup;
   uploadFilingDocForm!: FormGroup;
   filings: any[] = [];
@@ -52,10 +57,30 @@ export class IaFilingForm implements OnInit {
   isMergingPdf = false;
   mergeError: string | null = null;
 
+  paymentOutcome: 'success' | 'failed' | null = null;
+  paymentDetails: {
+    txnId?: string;
+    paidAt?: string;
+    referenceNo?: string;
+    amount?: string;
+    paymentMode?: 'online' | 'offline';
+    paymentDate?: string;
+    bankReceipt?: string;
+  } = {};
+  paymentMode: 'online' | 'offline' = 'online';
+  offlineTransactionId = '';
+  offlineCourtFees: number | null = null;
+  offlinePaymentDate = '';
+  offlineBankReceipt: File | null = null;
+  offlineBankReceiptName: string | null = null;
+  isSubmittingOfflinePayment = false;
+
   constructor(
     private fb: FormBuilder,
     private efilingService: EfilingService,
+    private paymentService: PaymentService,
     private router: Router,
+    private route: ActivatedRoute,
     private toastr: ToastrService,
   ) {}
 
@@ -70,7 +95,241 @@ export class IaFilingForm implements OnInit {
       final_document: [null],
     });
 
+    this.route.queryParams.subscribe((params) => {
+      this.applyIaPaymentReturnQueryParams(params);
+    });
+
+    this.offlineCourtFees = this.iaCourtFeeRupees;
     this.loadFilings();
+  }
+
+  iaFeeApplicationRef(): string | null {
+    if (!this.createdIa?.id) return null;
+    return `IA-FEE-${this.createdIa.id}`;
+  }
+
+  get requiresIaCourtFeePayment(): boolean {
+    return !!this.createdIa?.id;
+  }
+
+  get isIaCourtFeePaid(): boolean {
+    return this.paymentOutcome === 'success';
+  }
+
+  private applyIaPaymentReturnQueryParams(params: Params): void {
+    const statusRaw =
+      params['status'] ?? params['payment_status'] ?? params['txn_status'];
+    if (statusRaw === undefined || statusRaw === null || statusRaw === '') {
+      return;
+    }
+    const appParam = params['application'] ?? params['id'];
+    const expected = this.iaFeeApplicationRef();
+    if (expected && appParam !== undefined && String(appParam) !== String(expected)) {
+      return;
+    }
+    const st = String(statusRaw).trim().toLowerCase();
+    if (/(success|paid|complete|ok)/i.test(st)) {
+      this.paymentOutcome = 'success';
+    } else if (/(fail|reject|declin|error|cancel)/i.test(st)) {
+      this.paymentOutcome = 'failed';
+    } else {
+      this.paymentOutcome = 'failed';
+    }
+    this.paymentDetails = {
+      txnId:
+        String(
+          params['txn_id'] ??
+            params['transaction_id'] ??
+            params['sbs_ref_no'] ??
+            '',
+        ) || undefined,
+      paidAt: String(params['payment_datetime'] ?? params['paid_at'] ?? '') || undefined,
+      referenceNo: String(params['reference_no'] ?? '') || undefined,
+      amount: String(params['amount'] ?? '') || undefined,
+      paymentMode: 'online',
+    };
+    this.persistIaPaymentState();
+    const clean: Record<string, string | number> = {};
+    if (this.form.value.e_filing_id) {
+      clean['e_filing_id'] = this.form.value.e_filing_id;
+    }
+    this.router.navigate([], { relativeTo: this.route, queryParams: clean, replaceUrl: true });
+  }
+
+  private persistIaPaymentState(): void {
+    const key = this.iaPaymentStorageKey();
+    if (!key || !this.paymentOutcome) return;
+    try {
+      sessionStorage.setItem(
+        key,
+        JSON.stringify({
+          outcome: this.paymentOutcome,
+          details: this.paymentDetails,
+          at: Date.now(),
+        }),
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private restoreIaPaymentFromStorage(): void {
+    const key = this.iaPaymentStorageKey();
+    if (!key || this.paymentOutcome !== null) return;
+    try {
+      const raw = sessionStorage.getItem(key);
+      if (!raw) return;
+      const j = JSON.parse(raw) as {
+        outcome?: string;
+        details?: {
+          txnId?: string;
+          paidAt?: string;
+          referenceNo?: string;
+          amount?: string;
+          paymentMode?: 'online' | 'offline';
+          paymentDate?: string;
+          bankReceipt?: string;
+        };
+      };
+      if (j.outcome === 'success' || j.outcome === 'failed') {
+        this.paymentOutcome = j.outcome;
+        this.paymentDetails = j.details ?? {};
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private iaPaymentStorageKey(): string | null {
+    const id = this.createdIa?.id;
+    if (!id) return null;
+    return `ia_court_fee_${id}`;
+  }
+
+  async refreshIaPaymentStatusFromApi(): Promise<void> {
+    const ref = this.iaFeeApplicationRef();
+    if (!ref) return;
+    try {
+      const latest = await firstValueFrom(this.paymentService.latest(ref));
+      const st = String(latest?.status ?? '').toLowerCase();
+      if (/(success|paid|complete|ok)/i.test(st)) {
+        this.paymentOutcome = 'success';
+        this.paymentDetails = {
+          txnId: latest.txn_id,
+          referenceNo: latest.reference_no,
+          amount: latest.amount ?? latest.court_fees,
+          paidAt: latest.payment_datetime ?? latest.paid_at,
+          paymentMode:
+            latest.payment_mode === 'offline' ? 'offline' : 'online',
+        };
+        this.persistIaPaymentState();
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  confirmProceedToPayIaCourtFee(): void {
+    const ref = this.iaFeeApplicationRef();
+    const eFilingId = Number(this.form.value.e_filing_id);
+    const selectedF = this.filings.find((f) => f.id === eFilingId);
+    if (!ref || !selectedF?.e_filing_number) {
+      this.toastr.warning('Complete at least one document upload so the IA record exists before paying the fee.');
+      return;
+    }
+    this.paymentService
+      .initiate({
+        amount: this.iaCourtFeeRupees,
+        application: ref,
+        e_filing_number: selectedF.e_filing_number,
+        payment_type: this.iaPaymentType,
+        source: 'ia_filing',
+      })
+      .subscribe({
+        next: (res) => {
+          const form = document.createElement('form');
+          form.method = res.method || 'POST';
+          form.action = res.action;
+          form.style.display = 'none';
+          const fields = res.fields || {};
+          Object.keys(fields).forEach((k) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = k;
+            input.value = fields[k];
+            form.appendChild(input);
+          });
+          document.body.appendChild(form);
+          form.submit();
+        },
+        error: () => {
+          this.toastr.error('Could not start payment. Try again later.');
+        },
+      });
+  }
+
+  onOfflineReceiptChange(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    this.offlineBankReceipt = file;
+    this.offlineBankReceiptName = file ? file.name : null;
+  }
+
+  submitOfflineIaCourtFee(): void {
+    const ref = this.iaFeeApplicationRef();
+    const eFilingId = Number(this.form.value.e_filing_id);
+    const selectedF = this.filings.find((f) => f.id === eFilingId);
+    if (
+      !ref ||
+      !this.offlineTransactionId?.trim() ||
+      !this.offlinePaymentDate ||
+      !this.offlineBankReceipt ||
+      !selectedF?.e_filing_number
+    ) {
+      this.toastr.warning('Fill bank receipt no., payment date, and upload receipt PDF.');
+      return;
+    }
+    this.isSubmittingOfflinePayment = true;
+    this.paymentService
+      .submitOffline({
+        application: ref,
+        txn_id: this.offlineTransactionId.trim(),
+        court_fees: this.iaCourtFeeRupees,
+        payment_date: this.offlinePaymentDate,
+        payment_type: this.iaPaymentType,
+        e_filing_number: selectedF.e_filing_number,
+        bank_receipt: this.offlineBankReceipt,
+      })
+      .subscribe({
+        next: (res) => {
+          this.isSubmittingOfflinePayment = false;
+          this.paymentOutcome = 'success';
+          this.paymentDetails = {
+            txnId: res?.txn_id,
+            referenceNo: res?.reference_no,
+            paymentMode: 'offline',
+            paymentDate: this.offlinePaymentDate,
+            bankReceipt: res?.bank_receipt,
+            amount: String(this.iaCourtFeeRupees),
+          };
+          this.persistIaPaymentState();
+          this.toastr.success('Offline court fee recorded.');
+        },
+        error: (err) => {
+          this.isSubmittingOfflinePayment = false;
+          const msg = err?.error?.detail || err?.message || 'Failed to record offline payment.';
+          this.toastr.error(msg);
+        },
+      });
+  }
+
+  private maxDocumentSequence(indexes: any[] | undefined): number {
+    let max = 0;
+    for (const x of indexes || []) {
+      const s = Number(x?.document_sequence);
+      if (Number.isFinite(s)) max = Math.max(max, s);
+    }
+    return max;
   }
 
   loadFilings(): void {
@@ -149,6 +408,8 @@ export class IaFilingForm implements OnInit {
     this.form.patchValue({ e_filing_id: item.filing.id });
     this.createdIa = null;
     this.docList = [];
+    this.paymentOutcome = null;
+    this.paymentDetails = {};
     this.onFilingSelect();
     this.isDropdownOpen = false;
     this.searchQuery = '';
@@ -219,6 +480,7 @@ export class IaFilingForm implements OnInit {
     try {
       const documentType = String(payload?.document_type || '').trim();
       const uploadItems = Array.isArray(payload?.items) ? payload.items : [];
+      const groupName = String(payload?.parent_group_name ?? '').trim();
       const eFilingId = Number(this.form.value.e_filing_id);
       const selectedF = this.filings.find((f) => f.id === eFilingId);
       const eFilingNumber = selectedF?.e_filing_number ?? '';
@@ -226,6 +488,10 @@ export class IaFilingForm implements OnInit {
 
       if (!documentType || uploadItems.length === 0 || !eFilingId) {
         this.toastr.warning('Please select an E-Filing and add documents with index names.');
+        return;
+      }
+      if (!groupName) {
+        this.toastr.warning('Enter the parent Name (document group header) before uploading.');
         return;
       }
       if (!reliefSought) {
@@ -259,47 +525,91 @@ export class IaFilingForm implements OnInit {
             e_filing: eFilingId,
             e_filing_number: eFilingNumber,
             ia_text: reliefSought,
-            status: 'UNDER_SCRUTINY',
+            status: 'DRAFT',
           }),
         );
         this.createdIa = iaRes;
+        this.restoreIaPaymentFromStorage();
+        void this.refreshIaPaymentStatusFromApi();
       }
 
       const iaNumber = this.createdIa?.ia_number ?? '';
 
-      const documentPayload = new FormData();
-      documentPayload.append('document_type', documentType);
-      documentPayload.append('e_filing', String(eFilingId));
-      documentPayload.append('e_filing_number', eFilingNumber);
-      documentPayload.append('is_ia', 'true');
-      documentPayload.append('ia_number', iaNumber);
-
-      const documentRes = await firstValueFrom(
-        this.efilingService.upload_case_documnets(documentPayload),
+      let documentRes = this.docList.find(
+        (d) => String(d?.document_type || '').trim().toUpperCase() === 'IA',
       );
+      let documentId = documentRes?.id;
 
-      const documentId = documentRes?.id;
-      if (!documentId) throw new Error('Document creation failed');
+      if (!documentId) {
+        const documentPayload = new FormData();
+        documentPayload.append('document_type', documentType);
+        documentPayload.append('e_filing', String(eFilingId));
+        documentPayload.append('e_filing_number', eFilingNumber);
+        documentPayload.append('is_ia', 'true');
+        documentPayload.append('ia_number', iaNumber);
 
+        documentRes = await firstValueFrom(
+          this.efilingService.upload_case_documnets(documentPayload),
+        );
+        documentId = documentRes?.id;
+        if (!documentId) throw new Error('Document creation failed');
+      }
+
+      const existingIndexes = Array.isArray(documentRes?.document_indexes)
+        ? documentRes.document_indexes
+        : [];
+      let nextSeq = this.maxDocumentSequence(existingIndexes);
       const uploadedParts: any[] = [];
+
+      nextSeq += 1;
+      const parentFd = new FormData();
+      parentFd.append('document', String(documentId));
+      parentFd.append('document_part_name', groupName);
+      parentFd.append('document_sequence', String(nextSeq));
+      const parentRes = await firstValueFrom(
+        this.efilingService.createDocumentIndexMetadata(parentFd),
+      );
+      const parentIndexId =
+        parentRes?.id != null ? Number(parentRes.id) : null;
+      if (parentRes) uploadedParts.push(parentRes);
+
       for (let i = 0; i < uploadItems.length; i++) {
         const item = uploadItems[i];
+        nextSeq += 1;
         const indexPayload = new FormData();
         indexPayload.append('document', String(documentId));
         indexPayload.append('document_part_name', String(item.index_name || '').trim());
         indexPayload.append('file_part_path', item.file);
-        indexPayload.append('document_sequence', String(i + 1));
+        indexPayload.append('document_sequence', String(nextSeq));
         if (item.index_id) indexPayload.append('index', String(item.index_id));
+        if (parentIndexId != null) {
+          indexPayload.append('parent_document_index', String(parentIndexId));
+        }
 
         const partRes = await this.uploadIndexWithProgress(indexPayload, i);
         uploadedParts.push(partRes);
       }
 
-      this.docList.push({
+      const mergedIndexes = [...existingIndexes, ...uploadedParts];
+      const firstWithFile = mergedIndexes.find(
+        (p: any) => p?.file_url || p?.file_part_path,
+      );
+      const mergedDoc = {
         ...documentRes,
-        document_indexes: uploadedParts,
-        final_document: uploadedParts[0]?.file_url || documentRes?.final_document,
-      });
+        document_type: documentType,
+        document_indexes: mergedIndexes,
+        final_document:
+          firstWithFile?.file_url ||
+          firstWithFile?.file_part_path ||
+          documentRes?.final_document,
+      };
+
+      const existingIdx = this.docList.findIndex((d) => Number(d?.id) === Number(documentId));
+      if (existingIdx > -1) {
+        this.docList[existingIdx] = mergedDoc;
+      } else {
+        this.docList.push(mergedDoc);
+      }
       this.uploadCompletedToken++;
       this.toastr.success('Documents uploaded successfully.');
     } catch (err) {
@@ -340,45 +650,63 @@ export class IaFilingForm implements OnInit {
     }
     if (this.isSubmitting) return;
 
+    if (!this.createdIa?.id) {
+      this.toastr.warning('Upload at least one document set before final submission.');
+      return;
+    }
+    if (this.docList.length === 0) {
+      this.toastr.warning('Upload documents before submitting.');
+      return;
+    }
+
+    await this.refreshIaPaymentStatusFromApi();
+    if (!this.isIaCourtFeePaid) {
+      this.toastr.error(
+        `Pay the mandatory court fee of Rs. ${this.iaCourtFeeRupees}/- before submitting this IA.`,
+      );
+      return;
+    }
+
     const proceed = await this.promptOtpAndProceed(
       'Submit IA Filing?',
       'Once submitted, this IA filing will be forwarded for scrutiny.',
     );
     if (!proceed) return;
 
-    const eFilingId = Number(this.form.value.e_filing_id);
-    const selectedF = this.filings.find((f) => f.id === eFilingId);
-    const eFilingNumber = selectedF?.e_filing_number ?? '';
     const reliefSought = String(this.form.value.relief_sought || '').trim();
 
     this.isSubmitting = true;
 
-    if (this.createdIa) {
-      this.toastr.success('IA Filing submitted successfully.');
-      this.router.navigate(['/advocate/dashboard/efiling/ia-filing/view']);
-      this.isSubmitting = false;
-      return;
-    }
-
-    this.efilingService
-      .post_ia_filing({
-        e_filing: eFilingId,
-        e_filing_number: eFilingNumber,
-        ia_text: reliefSought,
-        status: 'UNDER_SCRUTINY',
-      })
-      .subscribe({
-        next: () => {
-          this.toastr.success('IA Filing submitted successfully.');
-          this.router.navigate(['/advocate/dashboard/efiling/ia-filing/view']);
-        },
-        error: (err) => {
-          this.isSubmitting = false;
-          console.error('IA filing submit failed', err);
-          const msg = err?.error?.detail || err?.error?.message || err?.message || 'Failed to submit IA filing.';
-          this.toastr.error(msg);
-        },
-      });
+    this.efilingService.patch_ia_filing(this.createdIa.id, {
+      status: 'UNDER_SCRUTINY',
+      ia_text: reliefSought,
+    }).subscribe({
+      next: () => {
+        try {
+          const key = this.iaPaymentStorageKey();
+          if (key) sessionStorage.removeItem(key);
+        } catch {
+          /* ignore */
+        }
+        this.toastr.success('IA Filing submitted successfully.');
+        this.router.navigate(['/advocate/dashboard/efiling/ia-filing/view']);
+        this.isSubmitting = false;
+      },
+      error: (err) => {
+        this.isSubmitting = false;
+        console.error('IA filing submit failed', err);
+        const body = err?.error;
+        let msg: string | null = null;
+        if (body && typeof body === 'object') {
+          const st = (body as any).status;
+          if (Array.isArray(st) && st.length) msg = String(st[0]);
+          else if (typeof st === 'string') msg = st;
+        }
+        if (!msg && body?.detail) msg = String(body.detail);
+        if (!msg) msg = err?.message || 'Failed to submit IA filing.';
+        this.toastr.error(msg ?? 'Failed to submit IA filing.');
+      },
+    });
   }
 
   private async promptOtpAndProceed(title: string, text: string): Promise<boolean> {

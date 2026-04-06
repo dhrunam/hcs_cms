@@ -31,6 +31,14 @@
         />
         <span class="drop-text">Choose PDF files to upload</span>
       </div>
+      <input
+        #flatAnnexureInput
+        type="file"
+        class="d-none"
+        accept=".pdf,application/pdf"
+        multiple
+        (change)="onFlatAnnexureFileChange($event)"
+      />
       <small class="text-danger" *ngIf="isFilesInvalid()"
         >at least one PDF is required</small
       >
@@ -44,7 +52,7 @@
         class="btn btn-outline-secondary"
         *ngIf="enableAnnexureSequence"
         [disabled]="isUploading"
-        (click)="addAnnexure()"
+        (click)="flatAnnexureInput.click()"
       >
         Add Annexures
       </button>
@@ -61,6 +69,14 @@
   </div>
 
   <div class="mb-3 mt-2" *ngIf="!structuredIndexUpload && useTextIndexName">
+    <input
+      #textAnnexureInput
+      type="file"
+      class="d-none"
+      accept=".pdf,application/pdf"
+      multiple
+      (change)="onFlatAnnexureFileChange($event)"
+    />
     <div class="row g-2 mb-3" *ngIf="useParentIndexGroup">
       <div class="col-md-6 text-start">
         <label class="form-label ps-lg-2"
@@ -142,7 +158,13 @@
               </div>
             </td>
           </tr>
-          <tr *ngFor="let annexure of getAnnexureEntries()">
+          <tr
+            *ngFor="
+              let annexure of getAnnexureEntries();
+              let axIdx = index;
+              trackBy: trackByAnnexureEntry
+            "
+          >
             <td>
               <span class="fw-semibold">{{ annexure.index_name }}</span>
             </td>
@@ -163,7 +185,7 @@
                   type="button"
                   class="btn btn-outline-danger btn-sm"
                   [disabled]="isUploading"
-                  (click)="removeEntry(entries.indexOf(annexure))"
+                  (click)="removeAnnexureEntryAt(axIdx)"
                 >
                   Delete
                 </button>
@@ -178,7 +200,7 @@
         type="button"
         class="btn btn-outline-secondary btn-sm"
         [disabled]="isUploading"
-        (click)="addAnnexure()"
+        (click)="textAnnexureInput.click()"
       >
         Add Annexures
       </button>
@@ -208,87 +230,43 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let row of getRowsBeforeAnnexure()">
-            <td class="fw-semibold index-col">{{ row.index_name }}</td>
-            <td>{{ row.file?.name || "-" }}</td>
-            <td>
-              <input
-                #rowFile
-                type="file"
-                class="d-none"
-                accept="application/pdf"
-                (change)="onStructuredFileChange(getStructuredRowIndex(row), $event)"
-              />
-              <button
-                type="button"
-                class="btn btn-sm btn-outline-primary"
-                [disabled]="isUploading"
-                (click)="rowFile.click()"
-              >
-                Choose PDF
-              </button>
-            </td>
-            <td>
-              <div class="d-flex gap-2" *ngIf="row.file">
+          <ng-container *ngIf="showAnnexureSlotBeforeAllRows()">
+            <tr class="structured-annexure-slot-row">
+              <td class="index-col fw-semibold">Annexure(s)</td>
+              <td>
+                <span class="small text-muted" *ngIf="annexureRows.length === 0">No annexures added yet</span>
+                <span class="small" *ngIf="annexureRows.length > 0">{{ annexureRows.length }} file(s)</span>
+              </td>
+              <td>
+                <input
+                  #structuredAnnexurePickerBefore
+                  type="file"
+                  class="d-none"
+                  accept=".pdf,application/pdf"
+                  multiple
+                  (change)="onStructuredAnnexureFilesPicked($event)"
+                />
                 <button
                   type="button"
-                  class="btn btn-sm btn-outline-primary"
-                  (click)="previewLocalFile(row.file)"
-                >
-                  View
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-sm btn-outline-danger"
+                  class="btn btn-sm btn-outline-secondary"
                   [disabled]="isUploading"
-                  (click)="clearStructuredRowFile(getStructuredRowIndex(row))"
+                  (click)="structuredAnnexurePickerBefore.click()"
                 >
-                  Delete
+                  Add Annexures
                 </button>
-              </div>
-            </td>
-          </tr>
-
-          <tr>
-            <td class="index-col">
-              <div class="fw-semibold">Annexure(s)</div>
-              <ul class="mb-0 ps-3" *ngIf="annexureRows.length > 0">
-                <li *ngFor="let a of annexureRows" class="small mb-1">
-                  <strong>{{ a.index_name }}</strong>: {{ a.file?.name }}
-                </li>
-              </ul>
-              <div *ngIf="annexureRows.length === 0" class="small text-muted mt-1">
-                No annexure uploaded yet.
-              </div>
-            </td>
-            <td>
-              {{ annexureRows.length > 0 ? (annexureRows.length + ' file(s)') : '-' }}
-            </td>
-            <td>
-              <input
-                #annexureFile
-                type="file"
-                class="d-none"
-                accept="application/pdf"
-                multiple
-                (change)="onAnnexureFileChange($event)"
-              />
-              <button
-                type="button"
-                class="btn btn-sm btn-outline-secondary"
-                [disabled]="isUploading"
-                (click)="annexureFile.click()"
-              >
-                Add Annexures
-              </button>
-            </td>
-            <td>
-              <div class="d-flex flex-column gap-1" *ngIf="annexureRows.length > 0">
-                <div
-                  class="d-flex gap-2"
-                  *ngFor="let a of annexureRows; let j = index"
-                >
+              </td>
+              <td></td>
+            </tr>
+            <tr
+              *ngFor="let a of annexureRows; let j = index; trackBy: trackByAnnexureRow"
+            >
+              <td class="fw-semibold index-col">{{ a.index_name }}</td>
+              <td>{{ a.file?.name || '-' }}</td>
+              <td>—</td>
+              <td>
+                <div class="d-flex gap-2">
                   <button
+                    *ngIf="a.file"
                     type="button"
                     class="btn btn-sm btn-outline-primary"
                     (click)="previewLocalFile(a.file)"
@@ -304,50 +282,112 @@
                     Delete
                   </button>
                 </div>
-              </div>
-            </td>
-          </tr>
-
-          <tr *ngFor="let row of getRowsAfterAnnexure()">
-            <td class="fw-semibold index-col">{{ row.index_name }}</td>
-            <td>{{ row.file?.name || "-" }}</td>
-            <td>
-              <input
-                #rowFile
-                type="file"
-                class="d-none"
-                accept="application/pdf"
-                (change)="onStructuredFileChange(getStructuredRowIndex(row), $event)"
-              />
-              <button
-                type="button"
-                class="btn btn-sm btn-outline-primary"
-                [disabled]="isUploading"
-                (click)="rowFile.click()"
-              >
-                Choose PDF
-              </button>
-            </td>
-            <td>
-              <div class="d-flex gap-2" *ngIf="row.file">
+              </td>
+            </tr>
+          </ng-container>
+          <ng-container
+            *ngFor="
+              let row of structuredRows;
+              let rowIdx = index;
+              trackBy: trackByStructuredRow
+            "
+          >
+            <tr>
+              <td class="fw-semibold index-col">{{ row.index_name }}</td>
+              <td>{{ row.file?.name || "-" }}</td>
+              <td>
+                <input
+                  #rowFileInput
+                  type="file"
+                  class="d-none"
+                  accept="application/pdf"
+                  (change)="onStructuredFileChange(rowIdx, $event)"
+                />
                 <button
                   type="button"
                   class="btn btn-sm btn-outline-primary"
-                  (click)="previewLocalFile(row.file)"
-                >
-                  View
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-sm btn-outline-danger"
                   [disabled]="isUploading"
-                  (click)="clearStructuredRowFile(getStructuredRowIndex(row))"
+                  (click)="rowFileInput.click()"
                 >
-                  Delete
+                  Choose PDF
                 </button>
-              </div>
-            </td>
-          </tr>
+              </td>
+              <td>
+                <div class="d-flex gap-2" *ngIf="row.file">
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-primary"
+                    (click)="previewLocalFile(row.file)"
+                  >
+                    View
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-danger"
+                    [disabled]="isUploading"
+                    (click)="clearStructuredRowFile(rowIdx)"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <ng-container *ngIf="showAnnexureSlotAfterRow(rowIdx)">
+              <tr class="structured-annexure-slot-row">
+                <td class="index-col fw-semibold">Annexure(s)</td>
+                <td>
+                  <span class="small text-muted" *ngIf="annexureRows.length === 0">No annexures added yet</span>
+                  <span class="small" *ngIf="annexureRows.length > 0">{{ annexureRows.length }} file(s)</span>
+                </td>
+                <td>
+                  <input
+                    #structuredAnnexurePickerAfter
+                    type="file"
+                    class="d-none"
+                    accept=".pdf,application/pdf"
+                    multiple
+                    (change)="onStructuredAnnexureFilesPicked($event)"
+                  />
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-secondary"
+                    [disabled]="isUploading"
+                    (click)="structuredAnnexurePickerAfter.click()"
+                  >
+                    Add Annexures
+                  </button>
+                </td>
+                <td></td>
+              </tr>
+              <tr
+                *ngFor="let a of annexureRows; let j = index; trackBy: trackByAnnexureRow"
+              >
+                <td class="fw-semibold index-col">{{ a.index_name }}</td>
+                <td>{{ a.file?.name || '-' }}</td>
+                <td>—</td>
+                <td>
+                  <div class="d-flex gap-2">
+                    <button
+                      *ngIf="a.file"
+                      type="button"
+                      class="btn btn-sm btn-outline-primary"
+                      (click)="previewLocalFile(a.file)"
+                    >
+                      View
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-danger"
+                      [disabled]="isUploading"
+                      (click)="removeAnnexureRow(j)"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </ng-container>
+          </ng-container>
         </tbody>
       </table>
     </div>
@@ -401,13 +441,97 @@
   </div>
 
   <div
-    *ngIf="entries.length > 0"
+    *ngIf="!structuredIndexUpload && !useTextIndexName && entries.length > 0"
     class="file-list"
     cdkDropList
     [cdkDropListData]="entries"
     [cdkDropListDisabled]="isUploading"
     (cdkDropListDropped)="reorderEntries($event)"
   >
+    <div
+      class="file-row"
+      *ngFor="let entry of entries; let i = index; trackBy: trackByEntry"
+      cdkDrag
+    >
+      <label class="form-label text-start mb-1">Index Name:</label>
+      <input
+        type="text"
+        class="form-control"
+        [value]="entry.index_name"
+        (input)="updateDocumentType(i, $any($event.target).value)"
+        [attr.list]="
+          entry.index_name && entry.index_name.trim()
+            ? 'index-name-suggestions-' + i
+            : null
+        "
+        placeholder="Eg. Synopsis/List of Dates and Events ...."
+        [disabled]="isUploading || isAnnexureEntry(entry)"
+      />
+
+      <datalist
+        *ngIf="entry.index_name && entry.index_name.trim()"
+        [id]="'index-name-suggestions-' + i"
+      >
+        <option
+          *ngFor="let name of getIndexSuggestions(entry.index_name)"
+          [value]="name"
+        ></option>
+      </datalist>
+
+      <div class="file-header mt-2">
+        <div class="file-header-left">
+          <span
+            class="drag-handle"
+            cdkDragHandle
+            title="Drag to reorder"
+            [class.disabled]="isUploading"
+          >
+            <i class="fa-solid fa-grip-vertical"></i>
+          </span>
+          <span class="file-name" [title]="entry.file.name">{{
+            entry.file.name
+          }}</span>
+        </div>
+        <div class="d-flex gap-2 flex-shrink-0">
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-primary"
+            [disabled]="isUploading"
+            (click)="previewLocalFile(entry.file)"
+          >
+            View
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-danger"
+            (click)="removeEntry(i)"
+            [disabled]="isUploading"
+          >
+            Remove
+          </button>
+        </div>
+      </div>
+
+      <div
+        class="upload-progress-wrap"
+        *ngIf="isUploading || getFileProgress(i) > 0"
+      >
+        <div class="upload-progress-label">
+          <span>Upload progress</span>
+          <span>{{ getFileProgress(i) }}%</span>
+        </div>
+        <div class="progress">
+          <div
+            class="progress-bar"
+            role="progressbar"
+            [style.width.%]="getFileProgress(i)"
+            [attr.aria-valuenow]="getFileProgress(i)"
+            aria-valuemin="0"
+            aria-valuemax="100"
+          ></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div *ngIf="enableMemoOfAppeal" class="memo-of-appeal-section card border mt-4 mb-2">
@@ -481,4 +605,5 @@
       </div>
     </div>
   </div>
+
 </form>

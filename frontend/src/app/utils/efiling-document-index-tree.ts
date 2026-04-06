@@ -20,9 +20,15 @@ export function getParentDocumentIndexId(doc: any): number | null {
   return Number.isNaN(n) ? null : n;
 }
 
-/** Only rows with `parent_document_index` / `parent_document_index_id` are selectable (child indices). */
+function hasNonEmptyFilePartPath(doc: any): boolean {
+  const v = doc?.file_part_path;
+  if (v == null) return false;
+  return String(v).trim().length > 0;
+}
+
+/** Rows with a non-empty `file_part_path` open the preview; empty/null path stays non-interactive. */
 export function isEfilingDocumentIndexClickable(doc: any): boolean {
-  return getParentDocumentIndexId(doc) != null;
+  return hasNonEmptyFilePartPath(doc);
 }
 
 type TreeNode = { document: any; children: TreeNode[] };
