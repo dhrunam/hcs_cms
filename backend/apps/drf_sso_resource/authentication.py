@@ -9,8 +9,8 @@ How it works
 2. Calls the OAuth2 introspection endpoint (with retry + connection pooling).
 3. Caches the result for ``SSO_INTROSPECTION_CACHE_TTL`` seconds, keyed by a
    SHA-256 digest of the token — never the raw token.
-4. Falls back to ``/userinfo/`` if introspection lacks ``sub``/ username claims
-   and ``SSO_ENABLE_USERINFO_FALLBACK`` is ``True``.
+4. Falls back to ``/userinfo/`` if introspection lacks identity or group claims
+    and ``SSO_ENABLE_USERINFO_FALLBACK`` is ``True``.
 5. Delegates user creation / update to ``SSO_USER_SYNC_HANDLER`` so each
    project can plug in its own persistence logic without touching this file.
 6. Attaches ``request.sso_claims`` for use in views and permission classes.
@@ -38,6 +38,7 @@ from rest_framework.permissions import SAFE_METHODS
 from urllib3.util.retry import Retry
 
 from .conf import sso_settings
+from .user_sync import extract_claim_groups
 
 logger = logging.getLogger(__name__)
 
@@ -282,8 +283,8 @@ class SSOResourceServerAuthentication(authentication.BaseAuthentication):
 
         sso_id, username, email = self._resolve_identity(claims)
 
-        # If introspection didn't return enough identity info, try userinfo
-        if not (sso_id and username):
+        # If introspection didn't return enough identity or group info, try userinfo.
+        if not (sso_id and username) or not extract_claim_groups(claims):
             userinfo = self._userinfo(token)
             if userinfo:
                 claims = {**claims, **userinfo}

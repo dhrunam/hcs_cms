@@ -14,8 +14,7 @@ Default sync handler
 * Upserts the Django user by username.
 * Creates / updates an ``SSOUserProfile`` (model selected via
   ``SSO_USER_PROFILE_MODEL``) to store the raw claims.
-* Syncs Django group membership from OIDC claim groups/roles.
-* Maps OAuth2 scopes to ``SSO_SCOPE_<SCOPE>`` groups.
+* Syncs Django group membership from authenticated OIDC claim groups/roles.
 
 Override ``SSO_USER_SYNC_HANDLER`` in your project settings to replace this
 with any ``callable(sso_id, username, email, claims) -> User``.
@@ -115,6 +114,16 @@ def sync_groups(user, target_group_names, managed_group_names=None) -> None:
 # Claim extraction helpers
 # ---------------------------------------------------------------------------
 
+def _resolve_claim_path(claims: dict, claim_path: str):
+    value = claims
+    for segment in claim_path.split('.'):
+        if not isinstance(value, dict):
+            return None
+        value = value.get(segment)
+        if value is None:
+            return None
+    return value
+
 def extract_claim_groups(claims: dict, claim_keys=None) -> list:
     """
     Extract group/role names from OIDC claims.
@@ -122,13 +131,23 @@ def extract_claim_groups(claims: dict, claim_keys=None) -> list:
     ``claim_keys`` defaults to ``SSO_CLAIM_GROUP_KEYS`` (``("groups", "roles")``).
     Each key may hold a list of strings or a whitespace-separated string.
     """
+    default_claim_keys = (
+        "groups",
+        "group",
+        "roles",
+        "role",
+        "cognito:groups",
+        "realm_access.roles",
+    )
     if claim_keys is None:
-        claim_keys = sso_settings.SSO_CLAIM_GROUP_KEYS
+        claim_keys = (*sso_settings.SSO_CLAIM_GROUP_KEYS, *default_claim_keys)
+    else:
+        claim_keys = (*claim_keys, *default_claim_keys)
 
     claims = claims or {}
     values: list[str] = []
     for key in claim_keys:
-        raw = claims.get(key)
+        raw = _resolve_claim_path(claims, key)
         if isinstance(raw, list):
             values.extend(str(item) for item in raw if item)
         elif isinstance(raw, str) and raw.strip():
@@ -193,8 +212,7 @@ def map_sso_user(sso_id: str, username: str, email: str | None, claims: dict | N
 
     1. Upserts the Django User.
     2. Creates / updates the SSOUserProfile (if ``SSO_USER_PROFILE_MODEL`` is set).
-    3. Syncs OIDC claim groups.
-    4. Syncs scope-derived groups.
+    3. Syncs authenticated claim groups to Django ``auth_group`` membership.
 
     Returns the User instance.
     """
@@ -231,7 +249,6 @@ def map_sso_user(sso_id: str, username: str, email: str | None, claims: dict | N
         claims_changed = True  # still sync groups even if profile write fails
 
     role_to_group_map = sso_settings.ROLE_TO_GROUP_MAP or {}
-    scope_to_group_map = sso_settings.SCOPE_TO_GROUP_MAP or {}
 
     # ── Claim groups ───────────────────────────────────────────────────── #
     # Re-apply mapping on each authenticated sync call so drifted memberships
@@ -244,26 +261,6 @@ def map_sso_user(sso_id: str, username: str, email: str | None, claims: dict | N
         )
         managed = set(claim_groups) | current_claim_groups
         sync_groups(user, claim_groups, managed_group_names=managed)
-
-    # ── Scope groups ───────────────────────────────────────────────────── #
-    prefix = sso_settings.SSO_SCOPE_GROUP_PREFIX
-    scopes = extract_claim_scopes(claims)
-    target_scope_groups = build_scope_group_names(scopes, prefix=prefix)
-
-    # Optional explicit mapping from scope value -> Django group name.
-    # When configured, these groups are also ensured and synced.
-    mapped_scope_groups = {
-        scope_to_group_map[scope]
-        for scope in scopes
-        if scope in scope_to_group_map
-    }
-    target_scope_groups |= mapped_scope_groups
-
-    current_scope_groups = set(
-        user.groups.filter(name__startswith=prefix).values_list("name", flat=True)
-    )
-    managed_scope_groups = target_scope_groups | current_scope_groups
-    sync_groups(user, target_scope_groups, managed_group_names=managed_scope_groups)
 
     return user
 

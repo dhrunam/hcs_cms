@@ -40,6 +40,15 @@ logger = logging.getLogger(__name__)
 # Scope-based permission classes
 # ---------------------------------------------------------------------------
 
+class IsSSOAuthenticated(permissions.BasePermission):
+    """Grant access only to requests with an authenticated local user."""
+
+    message = "Authentication credentials were not provided or are invalid."
+
+    def has_permission(self, request, view) -> bool:
+        user = getattr(request, "user", None)
+        return bool(user and user.is_authenticated)
+
 class HasScope(permissions.BasePermission):
     """
     Abstract base — subclasses must implement ``_check_scopes``.
