@@ -39,37 +39,39 @@ export class Navbar implements OnInit {
     this.authService.login();
   }
 
-  // async onLogout(event: Event): Promise<void> {
-  //   event.preventDefault();
-  //   const status = await this.authService.logout();
+  async onLogout(event?: Event): Promise<void> {
+    event?.preventDefault();
+    const status = await this.authService.logout();
+    console.log('Logout status:', status);
+    if (status.success) {
+      alert('You have been logged out successfully.');
+      this.authService.login();
+      return;
+    }
 
-  //   if (status.success) {
-  //     this.toastr.success('Logged out from both API and SSO sessions.');
-  //     return;
-  //   }
+    const issues: string[] = [];
+    if (!status.apiSessionLoggedOut) {
+      issues.push('API session');
+    }
+    if (!status.ssoSessionLoggedOut) {
+      issues.push('SSO session');
+    }
+    if (!status.tokensCleared) {
+      issues.push('local tokens');
+    }
 
-  //   const issues: string[] = [];
-  //   if (!status.apiSessionLoggedOut) {
-  //     issues.push('API session');
-  //   }
-  //   if (!status.ssoSessionLoggedOut) {
-  //     issues.push('SSO session');
-  //   }
-  //   if (!status.tokensCleared) {
-  //     issues.push('local tokens');
-  //   }
-
-  //   this.toastr.warning(
-  //     `Logout partially completed. Check: ${issues.join(', ')}.`,
-  //     'Logout Verification',
-  //     { closeButton: true },
-  //   );
-  // }
-
-  onLogout(): void {
-    // simple redirect to root
-    window.location.href = '/user/login';
+    this.toastr.warning(
+      `Logout partially completed. Check: ${issues.join(', ')}.`,
+      'Logout Verification',
+      { closeButton: true },
+    );
+     this.authService.login();
   }
+
+  // onLogout(): void {
+  //   // simple redirect to root
+  //   window.location.href = '/user/login';
+  // }
 
   updateClock() {
     const now = new Date();

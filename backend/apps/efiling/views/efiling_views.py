@@ -37,6 +37,9 @@ class EfilingListCreateView(ListCreateAPIView):
         is_active = parse_bool(self.request.query_params.get('is_active'))
         is_draft = parse_bool(self.request.query_params.get('is_draft'))
         status = self.request.query_params.get('status')
+        print("Login User: ", self.request.user)
+
+        print("User Groups: ", self.request.user.groups.all())
         if is_active is not None:
             qs = qs.filter(is_active=is_active)
         if is_draft is not None:

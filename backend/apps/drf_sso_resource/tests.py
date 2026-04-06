@@ -8,7 +8,7 @@ from rest_framework.test import APIRequestFactory
 
 from drf_sso_resource.authentication import SSOResourceServerAuthentication
 from drf_sso_resource.permissions import AdminEditorOrReadOnly, HasAllScopes, HasAnyScope
-from drf_sso_resource.user_sync import map_sso_user
+from drf_sso_resource.user_sync import extract_claim_groups, map_sso_user
 
 
 class SSOResourceServerAuthenticationTests(TestCase):
@@ -98,6 +98,35 @@ class SSOResourceServerAuthenticationTests(TestCase):
         user, _ = self.auth.authenticate(request)
         self.assertEqual(user.pk, self.user.pk)
         mock_userinfo.assert_called_once_with("valid-token")
+
+    @patch.object(SSOResourceServerAuthentication, "_sync_user")
+    @patch.object(SSOResourceServerAuthentication, "_userinfo")
+    @patch.object(SSOResourceServerAuthentication, "_introspect")
+    def test_authenticate_enriches_group_claims_from_userinfo(self, mock_introspect, mock_userinfo, mock_sync):
+        mock_introspect.return_value = {
+            "active": True,
+            "sub": "u-2",
+            "preferred_username": "group_user",
+            "email": "group@example.com",
+            "scope": "openid profile email",
+        }
+        mock_userinfo.return_value = {
+            "groups": ["API_READERS", "API_WRITERS"],
+        }
+        mock_sync.return_value = self.user
+
+        request = self.factory.get(
+            "/api/cms/events/",
+            HTTP_AUTHORIZATION="Bearer valid-token",
+        )
+        user, _ = self.auth.authenticate(request)
+
+        self.assertEqual(user.pk, self.user.pk)
+        mock_userinfo.assert_called_once_with("valid-token")
+        self.assertEqual(
+            mock_sync.call_args[0][3]["groups"],
+            ["API_READERS", "API_WRITERS"],
+        )
 
     @patch.object(SSOResourceServerAuthentication, "_introspect")
     def test_authenticate_returns_none_for_inactive_token_on_safe_method(self, mock_introspect):
@@ -247,22 +276,30 @@ class AdminEditorOrReadOnlySettingsTests(TestCase):
 
 
 class UserSyncMappingTests(TestCase):
+    def test_extract_claim_groups_supports_nested_and_common_claim_keys(self):
+        claims = {
+            "group": "API_READERS",
+            "realm_access": {
+                "roles": ["API_WRITERS"],
+            },
+        }
+
+        self.assertEqual(
+            extract_claim_groups(claims),
+            ["API_READERS", "API_WRITERS"],
+        )
+
     @override_settings(
         ROLE_TO_GROUP_MAP={
             "admin": "API_ADMINS",
             "editor": "API_WRITERS",
             "viewer": "API_READERS",
         },
-        SCOPE_TO_GROUP_MAP={
-            "api:read": "API_READERS",
-            "api:write": "API_WRITERS",
-        },
-        SSO_SCOPE_GROUP_PREFIX="SSO_SCOPE_",
     )
-    def test_map_sso_user_applies_role_and_scope_group_mappings(self):
+    def test_map_sso_user_applies_claim_groups_to_auth_group_membership(self):
         claims = {
             "roles": ["editor"],
-            "scope": "api:read api:write",
+            "groups": ["API_READERS"],
         }
 
         user = map_sso_user(
@@ -275,10 +312,7 @@ class UserSyncMappingTests(TestCase):
         groups = set(user.groups.values_list("name", flat=True))
         self.assertIn("API_WRITERS", groups)
         self.assertIn("API_READERS", groups)
-
-        # Existing prefixed scope-group behavior remains active.
-        self.assertIn("SSO_SCOPE_API:READ", groups)
-        self.assertIn("SSO_SCOPE_API:WRITE", groups)
+        self.assertEqual(groups, {"API_READERS", "API_WRITERS"})
 
     @override_settings(
         ROLE_TO_GROUP_MAP={"admin": "API_ADMINS"},
