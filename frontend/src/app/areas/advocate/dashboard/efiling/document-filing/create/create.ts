@@ -113,6 +113,10 @@ export class Create implements OnInit {
         this.documentTypeOptions = data.results.sort(
           (a: any, b: any) => a.sequence_number - b.sequence_number,
         );
+        console.log(
+          "After calling get document index by case type api",
+          this.documentTypeOptions,
+        );
       },
     });
   }
