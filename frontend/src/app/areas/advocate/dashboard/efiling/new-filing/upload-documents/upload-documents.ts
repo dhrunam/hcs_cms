@@ -1,8 +1,10 @@
 import { CommonModule } from "@angular/common";
 import {
+  ChangeDetectorRef,
   Component,
   EventEmitter,
   Input,
+  NgZone,
   OnChanges,
   OnInit,
   Output,
@@ -18,6 +20,7 @@ import {
   moveItemInArray,
 } from "@angular/cdk/drag-drop";
 import { docTypes } from "../../../../../../utils/doc-types.const";
+import { isFrontendManagedAnnexureDocumentIndexName } from "../../../../../../utils/efiling-new-filing-document-index";
 
 interface DocumentUploadEntry {
   file: File;
@@ -85,12 +88,22 @@ export class UploadDocuments implements OnInit, OnChanges {
   @Input() eFilingNumber: string | null = null;
   /** Case type id for filtering index name options. */
   @Input() caseTypeId: number | null = null;
+  /**
+   * Rows from GET document-index/?case_type=&for_new_filing=true (ids + names).
+   * When provided, replaces the unfiltered document-index master fetch.
+   */
+  @Input() documentIndexMasterList: Array<{ id: number; name: string }> = [];
   /** Index names already uploaded for this filing (avoid duplicates). */
   @Input() existingIndexNames: string[] = [];
   /** Enforce and auto-sequence mandatory indexes (e.g. WP(C) Main Petition). */
   @Input() mandatoryIndexNames: string[] = [];
-  /** Enables Annexure A1/A2/... support and UI helper button. */
+  /** Enables sequential annexures (Annexure P1, P2, …). */
   @Input() enableAnnexureSequence = false;
+  /**
+   * After which mandatory row (0-based) the Annexure(s) row appears; `-1` = before all.
+   * From API sequence when parent provides it; otherwise the component falls back to Vakalatnama/last row.
+   */
+  @Input() annexureUiInsertAfterRowIndex?: number;
   /** Render fixed index rows with per-row upload controls. */
   @Input() structuredIndexUpload = false;
   /** Use free-text input for index name instead of dropdown. */
@@ -124,6 +137,8 @@ export class UploadDocuments implements OnInit, OnChanges {
   constructor(
     private eFilingService: EfilingService,
     private toastr: ToastrService,
+    private cdr: ChangeDetectorRef,
+    private ngZone: NgZone,
   ) {}
 
   ngOnInit(): void {
@@ -131,28 +146,8 @@ export class UploadDocuments implements OnInit, OnChanges {
     if (initialDocType) {
       this.form?.patchValue({ document_type: initialDocType });
     }
-    this.eFilingService.get_document_index_master().subscribe({
-      next: (res) => {
-        const rows = Array.isArray(res)
-          ? res
-          : Array.isArray(res?.results)
-            ? res.results
-            : [];
-        this.indexMasters = rows
-          .map((item: any) => ({
-            id: Number(item?.id),
-            name: String(item?.name ?? "").trim(),
-          }))
-          .filter(
-            (item: DocumentIndexMaster) =>
-              Number.isFinite(item.id) && !!item.name,
-          );
-      },
-      error: () => {
-        this.indexMasters = [];
-      },
-    });
-    this.initializeStructuredRows();
+    this.syncDocumentIndexMasters();
+    this.ensureIndexMastersForMatching();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -174,37 +169,198 @@ export class UploadDocuments implements OnInit, OnChanges {
       }
       this.entries = [];
       this.annexureCounter = 1;
+      this.annexureRows = [];
       this.memoAppealFile = null;
       this.parentGroupName = "";
       this.initializeStructuredRows();
     }
-    if (changes["mandatoryIndexNames"] || changes["structuredIndexUpload"]) {
-      this.initializeStructuredRows();
+    if (
+      changes["mandatoryIndexNames"] ||
+      changes["structuredIndexUpload"] ||
+      changes["caseTypeId"]
+    ) {
+      const mandatoryNamesReallyChanged =
+        !!changes["mandatoryIndexNames"] &&
+        !changes["mandatoryIndexNames"].firstChange &&
+        !this.sameStringArray(
+          changes["mandatoryIndexNames"].previousValue,
+          changes["mandatoryIndexNames"].currentValue,
+        );
+      if (
+        mandatoryNamesReallyChanged ||
+        (changes["caseTypeId"] && !changes["caseTypeId"].firstChange) ||
+        (changes["structuredIndexUpload"] &&
+          !changes["structuredIndexUpload"].firstChange)
+      ) {
+        this.annexureRows = [];
+      }
+      this.ensureIndexMastersForMatching();
     }
+    if (changes["documentIndexMasterList"]) {
+      this.syncDocumentIndexMasters();
+      this.ensureIndexMastersForMatching();
+    }
+  }
+
+  /**
+   * Prefer parent-provided documentIndexMasterList; if missing but structured
+   * uploads need index_id, fetch filtered API then fall back to full master.
+   */
+  private ensureIndexMastersForMatching(): void {
+    const structuredFinish = () => {
+      this.initializeStructuredRows();
+      this.cdr.markForCheck();
+    };
+
+    if (this.isStructuredMode()) {
+      // Rows must exist before async index masters return (empty array breaks
+      // hasUploadedAllStructuredDocuments because [].every(...) is true).
+      this.initializeStructuredRows();
+      if (this.indexMasters.length > 0) {
+        return;
+      }
+      if (!this.mandatoryIndexNames?.length || !this.caseTypeId) {
+        return;
+      }
+      this.fetchCaseTypeDocumentIndexes(structuredFinish);
+      return;
+    }
+
+    if (this.indexMasters.length > 0) {
+      return;
+    }
+    if (!this.mandatoryIndexNames?.length || !this.caseTypeId) {
+      return;
+    }
+    this.fetchCaseTypeDocumentIndexes(() => this.cdr.markForCheck());
+  }
+
+  private fetchCaseTypeDocumentIndexes(done: () => void): void {
+    if (!this.caseTypeId) {
+      done();
+      return;
+    }
+    this.eFilingService
+      .get_document_index_for_new_filing(this.caseTypeId)
+      .subscribe({
+        next: (res) => {
+          const rows = Array.isArray(res)
+            ? res
+            : Array.isArray(res?.results)
+              ? res.results
+              : [];
+          this.indexMasters = rows
+            .map((item: any) => ({
+              id: Number(item?.id),
+              name: String(item?.name ?? "").trim(),
+            }))
+            .filter(
+              (item: DocumentIndexMaster) =>
+                Number.isFinite(item.id) &&
+                !!item.name &&
+                !isFrontendManagedAnnexureDocumentIndexName(item.name),
+            );
+          if (this.indexMasters.length === 0) {
+            this.loadFullIndexMasterForMatching(done);
+          } else {
+            done();
+          }
+        },
+        error: () => this.loadFullIndexMasterForMatching(done),
+      });
+  }
+
+  private loadFullIndexMasterForMatching(done: () => void): void {
+    this.eFilingService.get_document_index_master().subscribe({
+      next: (r2) => {
+        const all = Array.isArray(r2)
+          ? r2
+          : Array.isArray(r2?.results)
+            ? r2.results
+            : [];
+        this.indexMasters = all
+          .map((item: any) => ({
+            id: Number(item?.id),
+            name: String(item?.name ?? "").trim(),
+          }))
+          .filter(
+            (item: DocumentIndexMaster) =>
+              Number.isFinite(item.id) &&
+              !!item.name &&
+              !isFrontendManagedAnnexureDocumentIndexName(item.name),
+          );
+        done();
+      },
+      error: () => done(),
+    });
+  }
+
+  private syncDocumentIndexMasters(): void {
+    const rows = Array.isArray(this.documentIndexMasterList)
+      ? this.documentIndexMasterList
+      : [];
+    this.indexMasters = rows
+      .map((item: any) => ({
+        id: Number(item?.id),
+        name: String(item?.name ?? "").trim(),
+      }))
+      .filter(
+        (item: DocumentIndexMaster) =>
+          Number.isFinite(item.id) &&
+          !!item.name &&
+          !isFrontendManagedAnnexureDocumentIndexName(item.name),
+      );
   }
 
   private isStructuredMode(): boolean {
     return this.structuredIndexUpload && this.mandatoryIndexNames.length > 0;
   }
 
+  /** Parent may pass a new array reference each CD (e.g. getter + .map()); compare by value. */
+  private sameStringArray(prev: unknown, curr: unknown): boolean {
+    const a = prev as string[] | undefined;
+    const b = curr as string[] | undefined;
+    if (!Array.isArray(a) || !Array.isArray(b)) return false;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i += 1) {
+      if (String(a[i]) !== String(b[i])) return false;
+    }
+    return true;
+  }
+
   private initializeStructuredRows() {
     if (!this.isStructuredMode()) return;
+    const prevByName = new Map<string, StructuredIndexRow>();
+    const prevById = new Map<number, StructuredIndexRow>();
+    for (const r of this.structuredRows) {
+      const nk = String(r.index_name).trim().toLowerCase();
+      if (nk) prevByName.set(nk, r);
+      const rid = r.index_id;
+      if (rid != null && Number.isFinite(Number(rid))) {
+        prevById.set(Number(rid), r);
+      }
+    }
     const baseRows = this.mandatoryIndexNames
-      .filter((name) => name.trim().toLowerCase() !== "annexure(s)*")
+      .filter((name) => !isFrontendManagedAnnexureDocumentIndexName(name))
       .map((name) => {
         const clean = String(name).trim();
+        const key = clean.toLowerCase();
         const matchedMaster = this.indexMasters.find(
-          (item) => item.name.toLowerCase() === clean.toLowerCase(),
+          (item) => item.name.toLowerCase() === key,
         );
+        const mid = matchedMaster?.id;
+        const byId =
+          mid != null && Number.isFinite(mid) ? prevById.get(mid) : undefined;
+        const prev = byId ?? prevByName.get(key);
         return {
           index_name: clean,
-          index_id: matchedMaster ? matchedMaster.id : null,
-          file: null,
+          index_id: mid ?? prev?.index_id ?? null,
+          file: prev?.file ?? null,
         } as StructuredIndexRow;
       });
     this.structuredRows = baseRows;
-    this.annexureRows = [];
-    this.form?.patchValue({ final_document: null });
+    this.syncStructuredFinalDocument();
+    this.cdr.markForCheck();
   }
 
   onTopDocumentTypeInput(value: string) {
@@ -257,6 +413,8 @@ export class UploadDocuments implements OnInit, OnChanges {
     });
 
     input.value = "";
+    this.cdr.markForCheck();
+    this.cdr.detectChanges();
   }
 
   onStagedFileChange(event: Event) {
@@ -271,6 +429,8 @@ export class UploadDocuments implements OnInit, OnChanges {
     }
     this.stagedFile = valid[0] || null;
     input.value = "";
+    this.cdr.markForCheck();
+    this.cdr.detectChanges();
   }
 
   clearStagedFile() {
@@ -287,14 +447,26 @@ export class UploadDocuments implements OnInit, OnChanges {
       input.value = "";
       return;
     }
-    const row = this.structuredRows[rowIndex];
-    if (!row) return;
-    row.file = valid[0];
+    const picked = valid[0];
+    if (!picked || rowIndex < 0 || rowIndex >= this.structuredRows.length) {
+      input.value = "";
+      return;
+    }
+    this.structuredRows = this.structuredRows.map((r, i) =>
+      i === rowIndex ? { ...r, file: picked } : r,
+    );
     this.syncStructuredFinalDocument();
     input.value = "";
+    this.cdr.markForCheck();
+    this.cdr.detectChanges();
   }
 
-  onAnnexureFileChange(event: Event) {
+  /**
+   * "Add Annexures" opens the file dialog; each chosen PDF becomes a row
+   * Annexure P1, P2, … in order.
+   */
+  onStructuredAnnexureFilesPicked(event: Event): void {
+    if (this.isUploading) return;
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
     const files = Array.from(input.files);
@@ -302,28 +474,62 @@ export class UploadDocuments implements OnInit, OnChanges {
     if (errors.length > 0) {
       this.toastr.error(errors.join(" "));
     }
-    valid.forEach((file) => {
-      const name = `Annexure A${this.annexureCounter++}`;
-      this.annexureRows.push({
+    if (valid.length === 0) {
+      input.value = "";
+      return;
+    }
+    let n = this.getNextAnnexureSequenceNumber();
+    const additions: StructuredIndexRow[] = valid.map((file) => {
+      const name = `Annexure P${n++}`;
+      const matchedMaster = this.indexMasters.find(
+        (item) => item.name.toLowerCase() === name.toLowerCase(),
+      );
+      return {
         index_name: name,
-        index_id: null,
+        index_id: matchedMaster ? matchedMaster.id : null,
         file,
-      });
+      };
     });
+    this.annexureRows = [...this.annexureRows, ...additions];
     this.syncStructuredFinalDocument();
     input.value = "";
+    this.cdr.markForCheck();
+    this.cdr.detectChanges();
+  }
+
+  private getNextAnnexureSequenceNumber(): number {
+    const fromNames = this.maxAnnexureNameSuffix(this.annexureRows);
+    return Math.max(fromNames, this.annexureRows.length) + 1;
+  }
+
+  private maxAnnexureNameSuffix(rows: StructuredIndexRow[]): number {
+    let max = 0;
+    const re = /^annexure\s+([arp])\s*(\d+)\s*$/i;
+    for (const r of rows) {
+      const m = String(r.index_name || "").trim().match(re);
+      if (m) {
+        const n = parseInt(m[2], 10);
+        if (Number.isFinite(n)) max = Math.max(max, n);
+      }
+    }
+    return max;
   }
 
   removeAnnexureRow(index: number) {
     this.annexureRows = this.annexureRows.filter((_, i) => i !== index);
     this.syncStructuredFinalDocument();
+    this.cdr.markForCheck();
+    this.cdr.detectChanges();
   }
 
   clearStructuredRowFile(index: number) {
-    const row = this.structuredRows[index];
-    if (!row) return;
-    row.file = null;
+    if (index < 0 || index >= this.structuredRows.length) return;
+    this.structuredRows = this.structuredRows.map((r, i) =>
+      i === index ? { ...r, file: null } : r,
+    );
     this.syncStructuredFinalDocument();
+    this.cdr.markForCheck();
+    this.cdr.detectChanges();
   }
 
   previewLocalFile(file: File | null) {
@@ -359,20 +565,54 @@ export class UploadDocuments implements OnInit, OnChanges {
     );
   }
 
-  getRowsBeforeAnnexure(): StructuredIndexRow[] {
-    const vakalatnamaIndex = this.getVakalatnamaIndex();
-    if (vakalatnamaIndex < 0) return this.structuredRows;
-    return this.structuredRows.slice(0, vakalatnamaIndex);
+  /** Stabilizes *ngFor when `mandatoryIndexNames` / API data refreshes. */
+  trackByStructuredRow(_index: number, row: StructuredIndexRow): string {
+    const id = row.index_id;
+    if (id != null && Number.isFinite(id)) {
+      return `id:${id}`;
+    }
+    return `name:${String(row.index_name || "").toLowerCase()}`;
   }
 
-  getRowsAfterAnnexure(): StructuredIndexRow[] {
-    const vakalatnamaIndex = this.getVakalatnamaIndex();
-    if (vakalatnamaIndex < 0) return [];
-    return this.structuredRows.slice(vakalatnamaIndex);
+  trackByAnnexureRow(index: number, row: StructuredIndexRow): string {
+    const f = row.file;
+    const fp =
+      f != null
+        ? `${f.name}:${f.size}:${f.lastModified}`
+        : "nofile";
+    return `${row.index_name}:${fp}:${index}`;
   }
 
-  getStructuredRowIndex(row: StructuredIndexRow): number {
-    return this.structuredRows.indexOf(row);
+  /** Resolved slot for Annexure(s) row (matches upload order). Clamped so the row always renders. */
+  getResolvedAnnexureInsertAfterIndex(): number {
+    const len = this.structuredRows.length;
+    if (len === 0) {
+      return -1;
+    }
+    const last = len - 1;
+    let raw: number;
+    const passed = this.annexureUiInsertAfterRowIndex;
+    if (typeof passed === "number" && !Number.isNaN(passed)) {
+      raw = passed;
+    } else {
+      const v = this.getVakalatnamaIndex();
+      if (v >= 0) raw = v - 1;
+      else raw = last;
+    }
+    return Math.min(Math.max(raw, -1), last);
+  }
+
+  showAnnexureSlotBeforeAllRows(): boolean {
+    return (
+      this.enableAnnexureSequence && this.getResolvedAnnexureInsertAfterIndex() < 0
+    );
+  }
+
+  showAnnexureSlotAfterRow(rowIdx: number): boolean {
+    return (
+      this.enableAnnexureSequence &&
+      this.getResolvedAnnexureInsertAfterIndex() === rowIdx
+    );
   }
 
   private getCurrentUploadItemCount(): number {
@@ -399,6 +639,7 @@ export class UploadDocuments implements OnInit, OnChanges {
 
   hasUploadedAllStructuredDocuments(): boolean {
     if (!this.isStructuredMode()) return false;
+    if (this.structuredRows.length === 0) return false;
 
     const uploaded = new Set(
       (this.existingIndexNames || [])
@@ -413,8 +654,9 @@ export class UploadDocuments implements OnInit, OnChanges {
     if (!allMandatoryUploaded) return false;
     if (!this.enableAnnexureSequence) return true;
 
-    // Annexure requirement is satisfied when any Annexure A* exists.
-    return Array.from(uploaded).some((name) => name.startsWith("annexure a"));
+    return Array.from(uploaded).some((name) =>
+      /annexure\s+[arp]\s*\d+/i.test(String(name).replace(/\s+/g, " ").trim()),
+    );
   }
 
   shouldShowStructuredUploadTable(): boolean {
@@ -430,40 +672,39 @@ export class UploadDocuments implements OnInit, OnChanges {
     this.form?.patchValue({ final_document: first });
   }
 
-  addAnnexure() {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "application/pdf";
-    input.multiple = true;
-    input.onchange = (ev: Event) => {
-      const target = ev.target as HTMLInputElement;
-      if (!target.files?.length) return;
-      const files = Array.from(target.files);
-      const { valid, errors } = validatePdfFiles(files);
-      if (errors.length > 0) {
-        this.toastr.error(errors.join(" "));
-      }
-      if (valid.length === 0) return;
+  onFlatAnnexureFileChange(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input.files?.length) return;
+    this.appendFlatAnnexureFiles(Array.from(input.files));
+    input.value = "";
+    this.cdr.markForCheck();
+    this.cdr.detectChanges();
+  }
 
-      const annexureEntries: DocumentUploadEntry[] = valid.map((file) => {
-        const idx = `Annexure A${this.annexureCounter++}`;
-        const matchedMaster = this.indexMasters.find(
-          (item) => item.name.toLowerCase() === idx.toLowerCase(),
-        );
-        return {
-          file,
-          index_name: idx,
-          index_id: matchedMaster ? matchedMaster.id : null,
-          is_annexure: true,
-        };
-      });
+  private appendFlatAnnexureFiles(files: File[]) {
+    const { valid, errors } = validatePdfFiles(files);
+    if (errors.length > 0) {
+      this.toastr.error(errors.join(" "));
+    }
+    if (valid.length === 0) return;
 
-      this.entries = [...this.entries, ...annexureEntries];
-      this.form.patchValue({
-        final_document: this.entries.length > 0 ? this.entries[0].file : null,
-      });
-    };
-    input.click();
+    const annexureEntries: DocumentUploadEntry[] = valid.map((file) => {
+      const idx = `Annexure P${this.annexureCounter++}`;
+      const matchedMaster = this.indexMasters.find(
+        (item) => item.name.toLowerCase() === idx.toLowerCase(),
+      );
+      return {
+        file,
+        index_name: idx,
+        index_id: matchedMaster ? matchedMaster.id : null,
+        is_annexure: true,
+      };
+    });
+
+    this.entries = [...this.entries, ...annexureEntries];
+    this.form.patchValue({
+      final_document: this.entries.length > 0 ? this.entries[0].file : null,
+    });
   }
 
   updateDocumentType(index: number, value: string) {
@@ -536,7 +777,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     const base = this.getDocTypeDocuments();
     if (this.mandatoryIndexNames?.length) {
       const annexureItems = this.enableAnnexureSequence
-        ? Array.from({ length: 15 }, (_, i) => `Annexure A${i + 1}`)
+        ? Array.from({ length: 15 }, (_, i) => `Annexure P${i + 1}`)
         : [];
       return [...this.mandatoryIndexNames, ...annexureItems];
     }
@@ -553,7 +794,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     }
 
     if (this.enableAnnexureSequence) {
-      return `Annexure A${this.annexureCounter++}`;
+      return `Annexure P${this.annexureCounter++}`;
     }
     return "";
   }
@@ -572,12 +813,29 @@ export class UploadDocuments implements OnInit, OnChanges {
     return entry.file;
   }
 
+  trackByAnnexureEntry(index: number, entry: DocumentUploadEntry): string {
+    const f = entry.file;
+    return `${entry.index_name}:${f.name}:${f.size}:${f.lastModified}:${index}`;
+  }
+
   removeEntry(index: number) {
     this.entries = this.entries.filter((_, i) => i !== index);
 
     this.form.patchValue({
       final_document: this.entries.length > 0 ? this.entries[0].file : null,
     });
+  }
+
+  /** Delete row by index in `getAnnexureEntries()` (not `entries` index). */
+  removeAnnexureEntryAt(annexureViewIndex: number) {
+    const annexures = this.getAnnexureEntries();
+    const target = annexures[annexureViewIndex];
+    if (!target) return;
+    const global = this.entries.indexOf(target);
+    if (global < 0) return;
+    this.removeEntry(global);
+    this.cdr.markForCheck();
+    this.cdr.detectChanges();
   }
 
   reorderEntries(event: CdkDragDrop<DocumentUploadEntry[]>) {
@@ -611,7 +869,8 @@ export class UploadDocuments implements OnInit, OnChanges {
       const hasAnnexure = !this.enableAnnexureSequence
         ? true
         : this.annexureRows.length > 0;
-      return !this.isUploading && hasAllMandatory && hasAnnexure;
+      const allAnnexuresFilled = this.annexureRows.every((row) => !!row.file);
+      return !this.isUploading && hasAllMandatory && hasAnnexure && allAnnexuresFilled;
     }
     if (this.useTextIndexName) {
       const hasParentName =
@@ -736,11 +995,17 @@ export class UploadDocuments implements OnInit, OnChanges {
   }
 
   private getStructuredItemsInRequiredOrder(): UploadDocumentsPayloadItem[] {
-    const orderedRows = [
-      ...this.getRowsBeforeAnnexure(),
-      ...this.annexureRows,
-      ...this.getRowsAfterAnnexure(),
-    ];
+    const k = this.getResolvedAnnexureInsertAfterIndex();
+    let before: StructuredIndexRow[];
+    let after: StructuredIndexRow[];
+    if (k < 0) {
+      before = [];
+      after = [...this.structuredRows];
+    } else {
+      before = this.structuredRows.slice(0, k + 1);
+      after = this.structuredRows.slice(k + 1);
+    }
+    const orderedRows = [...before, ...this.annexureRows, ...after];
 
     return orderedRows
       .filter((row) => !!row.file)

@@ -1,4 +1,4 @@
-import { HttpClient, HttpEvent } from "@angular/common/http";
+import { HttpClient, HttpEvent, HttpParams } from "@angular/common/http";
 import { Observable, catchError, throwError } from "rxjs";
 import { Injectable } from "@angular/core";
 import { app_url } from "../../../environment";
@@ -84,10 +84,16 @@ export class EfilingService {
     );
   }
 
-  update_filing_petitioner_name(id: number, petitionerName: string): Observable<any> {
+  update_filing_petitioner_name(
+    id: number,
+    petitionerName: string,
+  ): Observable<any> {
     const fd = new FormData();
     fd.append("petitioner_name", petitionerName);
-    return this.http.patch<any>(`${app_url}/api/v1/efiling/efilings/${id}/`, fd);
+    return this.http.patch<any>(
+      `${app_url}/api/v1/efiling/efilings/${id}/`,
+      fd,
+    );
   }
 
   add_case_details_act(fd: FormData) {
@@ -321,6 +327,16 @@ export class EfilingService {
     return this.http.get<any>(`${app_url}/api/v1/efiling/document-index/`);
   }
 
+  /** Master rows for a case type when building the new-filing upload checklist. */
+  get_document_index_for_new_filing(caseTypeId: number): Observable<any> {
+    const params = new HttpParams()
+      .set("case_type", String(caseTypeId))
+      .set("for_new_filing", "true");
+    return this.http.get<any>(`${app_url}/api/v1/efiling/document-index/`, {
+      params,
+    });
+  }
+
   mergePdfs(
     files: File[],
     names?: string[],
@@ -353,8 +369,18 @@ export class EfilingService {
     ia_text: string;
     status?: string;
   }): Observable<any> {
-    const body = { status: "UNDER_SCRUTINY", ...payload };
+    const body = { ...payload, status: payload.status ?? "DRAFT" };
     return this.http.post<any>(`${app_url}/api/v1/efiling/ias/`, body);
+  }
+
+  patch_ia_filing(
+    iaId: number,
+    body: { status?: string; ia_text?: string },
+  ): Observable<any> {
+    return this.http.patch<any>(
+      `${app_url}/api/v1/efiling/ias/${iaId}/`,
+      body,
+    );
   }
 
   get_ias(): Observable<any> {
@@ -384,6 +410,17 @@ export class EfilingService {
   get_notifications(role: "advocate" | "scrutiny_officer"): Observable<any[]> {
     return this.http.get<any[]>(
       `${app_url}/api/v1/efiling/notifications/?role=${role}`,
+    );
+  }
+
+  get_document_index_for_existing_filing(
+    case_type_id: number,
+  ): Observable<any> {
+    console.log(
+      `${app_url}/api/v1/efiling/document-index/?case_type=${case_type_id}&for_new_filing=false`,
+    );
+    return this.http.get<any>(
+      `${app_url}/api/v1/efiling/document-index/?case_type=${case_type_id}&for_new_filing=false`,
     );
   }
 }

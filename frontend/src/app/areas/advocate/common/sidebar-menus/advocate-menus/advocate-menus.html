@@ -6,15 +6,6 @@
   >
     <a class="nav-link"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
   </li>
-
-  <li
-    class="nav-item"
-    routerLink="/advocate/dashboard/cause-list"
-    [routerLinkActive]="'active'"
-  >
-    <a class="nav-link text-primary fw-bold"><i class="fa-solid fa-gavel"></i> Courtroom Mode</a>
-  </li>
-
   <!-- Filing main menu as a dropdown -->
   <li class="nav-item nav-item-has-submenu">
     <a
@@ -104,5 +95,12 @@
         <a class="nav-link">Approved Filings</a>
       </li>
     </ul>
+  </li>
+  <li
+    class="nav-item"
+    routerLink="/advocate/dashboard/cause-list"
+    [routerLinkActive]="'active'"
+  >
+    <a class="nav-link text-primary fw-bold"><i class="fa-solid fa-gavel"></i> Courtroom Mode</a>
   </li>
 </ul>

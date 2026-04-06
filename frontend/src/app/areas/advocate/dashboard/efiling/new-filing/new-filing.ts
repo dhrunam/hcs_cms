@@ -31,6 +31,7 @@ import { firstValueFrom } from "rxjs";
 import { HttpEventType } from "@angular/common/http";
 import { PaymentService } from "../../../../../services/payment/payment.service";
 import { jsPDF } from "jspdf";
+import { isFrontendManagedAnnexureDocumentIndexName } from "../../../../../utils/efiling-new-filing-document-index";
 
 @Component({
   selector: "app-new-filing",
@@ -90,13 +91,13 @@ export class NewFiling {
   } | null = null;
   paymentMode: "online" | "offline" = "online";
   offlineTransactionId = "";
-  offlineCourtFees = "";
+  /** Entered court fee (INR) for this filing; used for both online gateway and offline submission. */
+  manualCourtFeeAmount = "";
   offlineBankReceipt: File | null = null;
   offlineBankReceiptName = "";
   offlinePaymentDate = "";
   isSubmittingOfflinePayment = false;
 
-  private readonly wpCourtFeeRupees = 250;
   private readonly wpMainPetitionMandatoryIndexes = [
     "Synopsis",
     "List of Dates and Events",
@@ -106,6 +107,26 @@ export class NewFiling {
     "Vakalatnama",
     "Affidavit of Service",
   ];
+
+  /** From GET /efiling/document-index/?case_type=&for_new_filing=true, ordered by sequence_number. */
+  fetchedNewFilingDocumentIndexes: Array<{
+    id: number;
+    name: string;
+    sequence_number: number;
+  }> = [];
+
+  /**
+   * Same API response, sorted by sequence (includes Annexure(s) marker rows).
+   * Used to place the annexure upload row in document-sequence order.
+   */
+  fullNewFilingDocumentIndexesOrdered: Array<{
+    id: number;
+    name: string;
+    sequence_number: number;
+  }> = [];
+
+  /** Raw API included an "Annexure(s)" row that was stripped — still enable annexure UI. */
+  excludedAnnexureSlotFromApi = false;
 
   constructor(
     private fb: FormBuilder,
@@ -167,6 +188,12 @@ export class NewFiling {
           : data || [];
       },
     });
+    this.initialInputsForm
+      .get("case_type")
+      ?.valueChanges.subscribe(() =>
+        this.loadNewFilingDocumentIndexes(this.selectedCaseTypeId),
+      );
+    this.loadNewFilingDocumentIndexes(this.selectedCaseTypeId);
     this.route.queryParams.subscribe((params) => {
       const idParam =
         params["id"] ??
@@ -247,20 +274,77 @@ export class NewFiling {
     return label === "WP(C)" || (label.includes("WP") && label.includes("(C)"));
   }
 
+  /** Parsed positive court fee from {@link manualCourtFeeAmount}; 0 if missing or invalid. */
   get paymentFeeRupees(): number {
-    return this.isWPCCaseType ? this.wpCourtFeeRupees : 0;
+    const raw = String(this.manualCourtFeeAmount ?? "")
+      .trim()
+      .replace(/,/g, "");
+    if (!raw) return 0;
+    const n = Number.parseFloat(raw);
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return n;
   }
 
   get effectiveDocumentType(): string | null {
+    if (!this.useStructuredDocumentUpload) return null;
     return this.isWPCCaseType ? "Main Petition" : null;
   }
 
   get mandatoryIndexesForCurrentCase(): string[] {
+    if (this.fetchedNewFilingDocumentIndexes.length > 0) {
+      return this.fetchedNewFilingDocumentIndexes.map((x) => x.name);
+    }
     return this.isWPCCaseType ? this.wpMainPetitionMandatoryIndexes : [];
   }
 
+  /** Structured rows when API (or WP fallback) defines at least one required index. */
+  get useStructuredDocumentUpload(): boolean {
+    return this.mandatoryIndexesForCurrentCase.length > 0;
+  }
+
+  get enableAnnexureFromIndexList(): boolean {
+    return (
+      this.excludedAnnexureSlotFromApi ||
+      this.mandatoryIndexesForCurrentCase.some((n) =>
+        String(n || "")
+          .toLowerCase()
+          .includes("annexure"),
+      )
+    );
+  }
+
+  /**
+   * 0-based index in structured upload rows after which the Annexure(s) table row appears.
+   * `-1` = show annexures before all mandatory rows. Matches API sequence when marker row exists.
+   */
+  get annexureUiInsertAfterRowIndex(): number {
+    const full = this.fullNewFilingDocumentIndexesOrdered;
+    if (this.enableAnnexureFromIndexList && full.length > 0) {
+      const marker = full.find((x) =>
+        isFrontendManagedAnnexureDocumentIndexName(x.name),
+      );
+      if (marker) {
+        const cutoff = marker.sequence_number;
+        const n = this.fetchedNewFilingDocumentIndexes.filter(
+          (x) => x.sequence_number < cutoff,
+        ).length;
+        return n - 1;
+      }
+    }
+    const names = this.mandatoryIndexesForCurrentCase.filter(
+      (n) => !isFrontendManagedAnnexureDocumentIndexName(n),
+    );
+    const v = names.findIndex(
+      (n) => String(n).trim().toLowerCase() === "vakalatnama",
+    );
+    if (v >= 0) return v - 1;
+    if (names.length === 0) return -1;
+    return names.length - 1;
+  }
+
+  /** Court fee step and payment apply for all new filing case types; amount is entered manually. */
   get requiresCourtFeePayment(): boolean {
-    return this.paymentFeeRupees > 0;
+    return true;
   }
 
   get isPaymentSuccessful(): boolean {
@@ -313,7 +397,10 @@ export class NewFiling {
       ["Transaction ID", txnId],
       ["Reference number", referenceNo],
       ["Amount paid (INR)", `Rs. ${amountStr}/-`],
-      ["Court fee (INR)", `Rs. ${this.paymentFeeRupees}/-`],
+      [
+        "Court fee (INR)",
+        `Rs. ${String(pd?.courtFees || pd?.amount || this.paymentFeeRupees)}/-`,
+      ],
       ["Payment mode", "Online"],
       ["Payment date / time", dateTimeLabel],
       ["Payment status", "Successful"],
@@ -425,6 +512,7 @@ export class NewFiling {
 
     // Always open Payment accordion after gateway return.
     this.step = 5;
+    this.hydrateManualCourtFeeFromPaymentDetails();
     this.moveToPreviewIfPaymentComplete();
 
     this.persistPaymentOutcome();
@@ -436,6 +524,14 @@ export class NewFiling {
       queryParams: clean,
       replaceUrl: true,
     });
+  }
+
+  private hydrateManualCourtFeeFromPaymentDetails(): void {
+    if (this.paymentOutcome !== "success") return;
+    const pd = this.paymentDetails;
+    if (!pd) return;
+    const v = String(pd.courtFees ?? pd.amount ?? "").trim();
+    if (v) this.manualCourtFeeAmount = v;
   }
 
   private persistPaymentOutcome() {
@@ -466,6 +562,7 @@ export class NewFiling {
           outcome: j.outcome,
         };
         this.step = 5;
+        this.hydrateManualCourtFeeFromPaymentDetails();
       }
     } catch {
       /* ignore */
@@ -496,7 +593,6 @@ export class NewFiling {
         }
         this.paymentMode = paymentMode;
         this.offlineTransactionId = String(tx.txn_id || "");
-        this.offlineCourtFees = String(tx.court_fees || tx.amount || "");
         this.offlinePaymentDate = String(tx.payment_date || "");
         this.offlineBankReceipt = null;
         this.offlineBankReceiptName = tx.bank_receipt
@@ -513,6 +609,7 @@ export class NewFiling {
           paymentDate: tx.payment_date || undefined,
           outcome: this.paymentOutcome,
         };
+        this.hydrateManualCourtFeeFromPaymentDetails();
         this.moveToPreviewIfPaymentComplete();
       },
     });
@@ -544,9 +641,6 @@ export class NewFiling {
 
   onPaymentModeChange(mode: "online" | "offline") {
     this.paymentMode = mode;
-    if (mode === "offline" && !this.offlineCourtFees) {
-      this.offlineCourtFees = String(this.paymentFeeRupees || "");
-    }
     if (mode === "offline" && !this.offlinePaymentDate) {
       this.offlinePaymentDate = new Date().toISOString().slice(0, 10);
     }
@@ -566,7 +660,11 @@ export class NewFiling {
       return;
     }
     const txnId = String(this.offlineTransactionId || "").trim();
-    const courtFees = String(this.offlineCourtFees || "").trim();
+    const courtFees = String(this.manualCourtFeeAmount || "").trim();
+    if (this.paymentFeeRupees <= 0) {
+      this.toastr.error("Please enter a valid court fee amount greater than zero.");
+      return;
+    }
     const paymentDate = String(this.offlinePaymentDate || "").trim();
     if (!txnId || !courtFees || !paymentDate || !this.offlineBankReceipt) {
       this.toastr.error(
@@ -676,6 +774,14 @@ export class NewFiling {
 
   async confirmProceedToPay() {
     if (!this.requiresCourtFeePayment) return;
+    if (this.paymentFeeRupees <= 0) {
+      this.toastr.error(
+        "Please enter a valid court fee amount greater than zero.",
+        "",
+        { timeOut: 3500, closeButton: true },
+      );
+      return;
+    }
     if (!this.filingId || !this.eFilingNumber) {
       this.toastr.error(
         "Save the filing and ensure an e-filing number exists before paying.",
@@ -855,6 +961,54 @@ export class NewFiling {
     }
     const parsed = Number(value);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }
+
+  private loadNewFilingDocumentIndexes(caseTypeId: number | null): void {
+    this.fetchedNewFilingDocumentIndexes = [];
+    this.fullNewFilingDocumentIndexesOrdered = [];
+    this.excludedAnnexureSlotFromApi = false;
+    if (!caseTypeId) {
+      return;
+    }
+    this.eFilingService.get_document_index_for_new_filing(caseTypeId).subscribe({
+      next: (res) => {
+        const rows = Array.isArray(res)
+          ? res
+          : Array.isArray(res?.results)
+            ? res.results
+            : [];
+        const mapped = rows
+          .map((item: any) => ({
+            id: Number(item?.id),
+            name: String(item?.name ?? "").trim(),
+            sequence_number: Number(item?.sequence_number ?? 0),
+          }))
+          .filter(
+            (x: { id: number; name: string; sequence_number: number }) =>
+              Number.isFinite(x.id) && !!x.name,
+          );
+        const sorted = [...mapped].sort(
+          (
+            a: { sequence_number: number; id: number },
+            b: { sequence_number: number; id: number },
+          ) => a.sequence_number - b.sequence_number || a.id - b.id,
+        );
+        this.fullNewFilingDocumentIndexesOrdered = sorted;
+        this.excludedAnnexureSlotFromApi = sorted.some(
+          (x: { name: string }) =>
+            isFrontendManagedAnnexureDocumentIndexName(x.name),
+        );
+        this.fetchedNewFilingDocumentIndexes = sorted.filter(
+          (x: { name: string }) =>
+            !isFrontendManagedAnnexureDocumentIndexName(x.name),
+        );
+      },
+      error: () => {
+        this.fetchedNewFilingDocumentIndexes = [];
+        this.fullNewFilingDocumentIndexesOrdered = [];
+        this.excludedAnnexureSlotFromApi = false;
+      },
+    });
   }
 
   get mergeFrontPage(): {
@@ -1538,7 +1692,9 @@ export class NewFiling {
     );
     if (!hasRequired) return false;
     const hasAnnexure = (mainPetition.document_indexes || []).some((x: any) =>
-      /^annexure a\d+$/i.test(String(x?.document_part_name || "").trim()),
+      /^annexure\s+[arp]\s*\d+$/i.test(
+        String(x?.document_part_name || "").replace(/\s+/g, " ").trim(),
+      ),
     );
     return hasAnnexure;
   }
@@ -1588,8 +1744,6 @@ export class NewFiling {
 
         this.filingData = record;
 
-        const resolvedCaseTypeId =
-          record.case_type?.id ?? record.case_type_id ?? record.case_type ?? "";
         this.initialInputsForm.patchValue({
           bench: record.bench || "High Court Of Sikkim",
           case_type: record.case_type?.id ?? record.case_type ?? "",
@@ -1602,6 +1756,7 @@ export class NewFiling {
         }
         this.step1Saved = true;
         this.initialInputsForm.disable({ emitEvent: false });
+        this.loadNewFilingDocumentIndexes(this.selectedCaseTypeId);
       },
     });
   }
