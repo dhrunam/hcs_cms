@@ -1,7 +1,10 @@
 <div class="document-filing-create">
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h5 class="mb-0">File Documents</h5>
-    <a [routerLink]="['/advocate/dashboard/efiling']" class="btn btn-outline-dark btn-sm">
+    <a
+      [routerLink]="['/advocate/dashboard/efiling']"
+      class="btn btn-outline-dark btn-sm"
+    >
       <i class="fa-solid fa-arrow-left me-1"></i>
       Back
     </a>
@@ -14,8 +17,13 @@
       Select Case
     </div>
     <div class="card-body">
-      <label class="form-label">Search & select an e-filing to add documents</label>
-      <div class="searchable-select position-relative" [class.open]="isDropdownOpen">
+      <label class="form-label"
+        >Search & select an e-filing to add documents</label
+      >
+      <div
+        class="searchable-select position-relative"
+        [class.open]="isDropdownOpen"
+      >
         <div
           *ngIf="isDropdownOpen"
           class="searchable-select-backdrop"
@@ -27,9 +35,17 @@
           [disabled]="isLoadingFilings"
           (click)="isDropdownOpen = !isDropdownOpen"
         >
-          <span *ngIf="selectedFiling" class="text-dark">{{ getSelectedLabel() }}</span>
-          <span *ngIf="!selectedFiling" class="text-muted">-- Search by E-Filing No, Case Type, Petitioner or Respondent --</span>
-          <i class="fa-solid fa-chevron-down ms-2" [class.rotate-180]="isDropdownOpen"></i>
+          <span *ngIf="selectedFiling" class="text-dark"
+            >{{ getSelectedLabel() }}</span
+          >
+          <span *ngIf="!selectedFiling" class="text-muted"
+            >-- Search by E-Filing No, Case Type, Petitioner or Respondent
+            --</span
+          >
+          <i
+            class="fa-solid fa-chevron-down ms-2"
+            [class.rotate-180]="isDropdownOpen"
+          ></i>
         </button>
         <div *ngIf="isDropdownOpen" class="searchable-select-dropdown">
           <div class="searchable-select-search">
@@ -51,28 +67,52 @@
               [class.selected]="selectedFiling?.id == item.filing.id"
               (click)="selectFiling(item)"
             >
-              <div class="d-flex justify-content-between align-items-start gap-2">
+              <div
+                class="d-flex justify-content-between align-items-start gap-2"
+              >
                 <div>
-                  <span class="fw-semibold text-dark">{{ item.filing.e_filing_number }}</span>
-                  <span class="text-muted small ms-1">({{ item.filing.case_type?.type_name || 'N/A' }})</span>
+                  <span class="fw-semibold text-dark"
+                    >{{ item.filing.e_filing_number }}</span
+                  >
+                  <span class="text-muted small ms-1"
+                    >({{ item.filing.case_type?.type_name || 'N/A' }})</span
+                  >
                 </div>
               </div>
               <div class="text-muted small mt-1 petitioner-vs-respondent">
                 {{ getLitigantLabel(item) }}
               </div>
             </button>
-            <div *ngIf="filteredFilingsWithLitigants.length === 0" class="text-muted small p-3 text-center">
+            <div
+              *ngIf="filteredFilingsWithLitigants.length === 0"
+              class="text-muted small p-3 text-center"
+            >
               No matching e-filing found.
             </div>
           </div>
         </div>
       </div>
-      <div *ngIf="isLoadingFilings" class="text-muted small mt-1">Loading filings...</div>
+      <div *ngIf="isLoadingFilings" class="text-muted small mt-1">
+        Loading filings...
+      </div>
 
       <!-- IA (visible only after e-filing selected) -->
       <div *ngIf="selectedFiling" class="mt-4">
-        <label class="form-label">Search & select IA <span *ngIf="selectedIa" class="text-muted fw-normal">(<a href="#" class="text-decoration-none" (click)="selectIa(null); $event.preventDefault()">Clear</a>)</span></label>
-        <div class="searchable-select position-relative" [class.open]="iaDropdownOpen">
+        <label class="form-label"
+          >Search & select IA
+          <span *ngIf="selectedIa" class="text-muted fw-normal"
+            >(<a
+              href="#"
+              class="text-decoration-none"
+              (click)="selectIa(null); $event.preventDefault()"
+              >Clear</a
+            >)</span
+          ></label
+        >
+        <div
+          class="searchable-select position-relative"
+          [class.open]="iaDropdownOpen"
+        >
           <div
             *ngIf="iaDropdownOpen"
             class="searchable-select-backdrop"
@@ -83,9 +123,16 @@
             class="form-select-selector d-flex align-items-center justify-content-between w-100"
             (click)="iaDropdownOpen = !iaDropdownOpen"
           >
-            <span *ngIf="selectedIa" class="text-dark">{{ getSelectedIaLabel() }}</span>
-            <span *ngIf="!selectedIa" class="text-muted">-- Search by IA number, status or relief sought --</span>
-            <i class="fa-solid fa-chevron-down ms-2" [class.rotate-180]="iaDropdownOpen"></i>
+            <span *ngIf="selectedIa" class="text-dark"
+              >{{ getSelectedIaLabel() }}</span
+            >
+            <span *ngIf="!selectedIa" class="text-muted"
+              >-- Search by IA number, status or relief sought --</span
+            >
+            <i
+              class="fa-solid fa-chevron-down ms-2"
+              [class.rotate-180]="iaDropdownOpen"
+            ></i>
           </button>
           <div *ngIf="iaDropdownOpen" class="searchable-select-dropdown">
             <div class="searchable-select-search">
@@ -107,16 +154,24 @@
                 [class.selected]="selectedIa?.id === ia.id"
                 (click)="selectIa(ia)"
               >
-                <div class="d-flex justify-content-between align-items-start gap-2">
+                <div
+                  class="d-flex justify-content-between align-items-start gap-2"
+                >
                   <div>
-                    <span class="fw-semibold text-dark">{{ ia.ia_number || '-' }}</span>
+                    <span class="fw-semibold text-dark"
+                      >{{ ia.ia_number || '-' }}</span
+                    >
                   </div>
                 </div>
                 <div class="text-muted small mt-1" *ngIf="ia.ia_text">
-                  {{ (ia.ia_text || '').slice(0, 80) }}{{ ia.ia_text?.length > 80 ? '...' : '' }}
+                  {{ (ia.ia_text || '').slice(0, 80) }}{{ ia.ia_text?.length >
+                  80 ? '...' : '' }}
                 </div>
               </button>
-              <div *ngIf="filteredIaList.length === 0" class="text-muted small p-3 text-center">
+              <div
+                *ngIf="filteredIaList.length === 0"
+                class="text-muted small p-3 text-center"
+              >
                 No IAs found for this e-filing.
               </div>
             </div>
@@ -138,15 +193,21 @@
         <div class="row g-3">
           <div class="col-md-4">
             <div class="text-muted small">Case Type</div>
-            <div class="fw-semibold">{{ selectedFiling.case_type?.type_name || '-' }}</div>
+            <div class="fw-semibold">
+              {{ selectedFiling.case_type?.type_name || '-' }}
+            </div>
           </div>
           <div class="col-md-4">
             <div class="text-muted small">E-Filing Number</div>
-            <div class="fw-semibold text-dark">{{ selectedFiling.e_filing_number || '-' }}</div>
+            <div class="fw-semibold text-dark">
+              {{ selectedFiling.e_filing_number || '-' }}
+            </div>
           </div>
           <div class="col-md-4">
             <div class="text-muted small">Petitioner</div>
-            <div class="fw-semibold">{{ selectedFiling.petitioner_name || '-' }}</div>
+            <div class="fw-semibold">
+              {{ selectedFiling.petitioner_name || '-' }}
+            </div>
           </div>
         </div>
       </div>
@@ -156,17 +217,26 @@
       <div class="card-header bg-dark text-white fw-semibold">
         <i class="fa-solid fa-file-pdf me-2"></i>Upload
       </div>
-      <div class="alert alert-danger alert-dismissible py-2 small m-3 mb-0" *ngIf="mergeError">
+      <div
+        class="alert alert-danger alert-dismissible py-2 small m-3 mb-0"
+        *ngIf="mergeError"
+      >
         {{ mergeError }}
-        <button type="button" class="btn-close btn-sm" (click)="mergeError = null" aria-label="Close"></button>
+        <button
+          type="button"
+          class="btn-close btn-sm"
+          (click)="mergeError = null"
+          aria-label="Close"
+        ></button>
       </div>
       <div class="card-body">
-
         <!-- Uploaded in this session (with delete) -->
         <div *ngIf="uploadedDocList.length > 0" class="mb-4">
           <div class="card shadow-sm border-0">
             <div class="list-group list-group-flush">
-              <div class="list-group-item d-flex justify-content-between align-items-center bg-light">
+              <div
+                class="list-group-item d-flex justify-content-between align-items-center bg-light"
+              >
                 <span class="fw-semibold">Document Type</span>
                 <button
                   type="button"
@@ -189,9 +259,13 @@
                 class="list-group-item"
                 *ngFor="let doc of uploadedDocList; let i = index; trackBy: trackByDocId"
               >
-                <div class="d-flex justify-content-between align-items-start gap-2">
+                <div
+                  class="d-flex justify-content-between align-items-start gap-2"
+                >
                   <div class="text-start">
-                    <div class="fw-semibold">{{ i + 1 }}. {{ doc.document_type }}</div>
+                    <div class="fw-semibold">
+                      {{ i + 1 }}. {{ doc.document_type }}
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -208,7 +282,8 @@
                     class="d-flex justify-content-between align-items-center py-1"
                   >
                     <div class="small text-muted text-start">
-                      {{ j + 1 }}. {{ filePart.document_part_name || 'Document Part' }}
+                      {{ j + 1 }}. {{ filePart.document_part_name || 'Document
+                      Part' }}
                     </div>
                     <a
                       [href]="filePart.file_url || filePart.file_part_path"
@@ -219,8 +294,15 @@
                     </a>
                   </div>
                 </div>
-                <div class="mt-2 ps-2" *ngIf="!doc.document_indexes?.length && doc.final_document">
-                  <a [href]="doc.final_document" target="_blank" class="btn btn-sm btn-outline-primary">
+                <div
+                  class="mt-2 ps-2"
+                  *ngIf="!doc.document_indexes?.length && doc.final_document"
+                >
+                  <a
+                    [href]="doc.final_document"
+                    target="_blank"
+                    class="btn btn-sm btn-outline-primary"
+                  >
                     <i class="fa fa-eye"></i> view
                   </a>
                 </div>
@@ -236,7 +318,10 @@
             </div>
             <div class="row g-3">
               <div class="col-md-5">
-                <div class="searchable-select position-relative" [class.open]="isDocumentTypeDropdownOpen">
+                <div
+                  class="searchable-select position-relative"
+                  [class.open]="isDocumentTypeDropdownOpen"
+                >
                   <div
                     *ngIf="isDocumentTypeDropdownOpen"
                     class="searchable-select-backdrop"
@@ -247,11 +332,21 @@
                     class="form-select-selector d-flex align-items-center justify-content-between w-100"
                     (click)="isDocumentTypeDropdownOpen = !isDocumentTypeDropdownOpen"
                   >
-                    <span *ngIf="selectedDocumentType" class="text-dark">{{ getSelectedDocumentTypeLabel() }}</span>
-                    <span *ngIf="!selectedDocumentType" class="text-muted">-- Select document --</span>
-                    <i class="fa-solid fa-chevron-down ms-2" [class.rotate-180]="isDocumentTypeDropdownOpen"></i>
+                    <span *ngIf="selectedDocumentType" class="text-dark"
+                      >{{ getSelectedDocumentTypeLabel() }}</span
+                    >
+                    <span *ngIf="!selectedDocumentType" class="text-muted"
+                      >-- Select document --</span
+                    >
+                    <i
+                      class="fa-solid fa-chevron-down ms-2"
+                      [class.rotate-180]="isDocumentTypeDropdownOpen"
+                    ></i>
                   </button>
-                  <div *ngIf="isDocumentTypeDropdownOpen" class="searchable-select-dropdown">
+                  <div
+                    *ngIf="isDocumentTypeDropdownOpen"
+                    class="searchable-select-dropdown"
+                  >
                     <div class="searchable-select-search">
                       <i class="fa-solid fa-search text-muted"></i>
                       <input
@@ -265,15 +360,18 @@
                     </div>
                     <div class="searchable-select-list">
                       <button
-                        *ngFor="let option of filteredDocumentTypeOptions"
+                        *ngFor="let option of documentTypeOptions"
                         type="button"
                         class="searchable-select-option"
                         [class.selected]="selectedDocumentType === option"
                         (click)="selectDocumentType(option)"
                       >
-                        <span class="text-dark small">{{ option }}</span>
+                        <span class="text-dark small">{{ option.name }}</span>
                       </button>
-                      <div *ngIf="filteredDocumentTypeOptions.length === 0" class="text-muted small p-3 text-center">
+                      <div
+                        *ngIf="documentTypeOptions.length === 0"
+                        class="text-muted small p-3 text-center"
+                      >
                         No matching document type.
                       </div>
                     </div>
@@ -298,7 +396,8 @@
         </div>
         <ng-template #nonWpCDocMessage>
           <div class="alert alert-info mb-0 small">
-            These predefined upload sections are available only for <strong>WP(C)</strong> case type.
+            These predefined upload sections are available only for
+            <strong>WP(C)</strong> case type.
           </div>
         </ng-template>
       </div>
