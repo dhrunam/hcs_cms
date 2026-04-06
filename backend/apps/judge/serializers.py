@@ -7,6 +7,7 @@ from apps.core.models import EfilingDocumentsIndex
 from .models import (
     CourtroomDocumentAnnotation,
     CourtroomJudgeDecision,
+    CourtroomSharedView,
 )
 
 
@@ -20,12 +21,13 @@ class CourtroomPendingCaseSerializer(serializers.Serializer):
 class CourtroomDocumentAnnotationSerializer(serializers.ModelSerializer):
     class Meta:
         model = CourtroomDocumentAnnotation
-        fields = ["efiling_document_index", "annotation_text"]
+        fields = ["efiling_document_index", "annotation_text", "annotation_data"]
 
 
 class CourtroomCaseDocumentAnnotationUpsertSerializer(serializers.Serializer):
     efiling_document_index_id = serializers.IntegerField()
     annotation_text = serializers.CharField(allow_blank=True, required=False, allow_null=True)
+    annotation_data = serializers.JSONField(required=False, allow_null=True)
 
 
 class CourtroomDecisionSerializer(serializers.Serializer):
@@ -51,3 +53,8 @@ class CourtroomDecisionSerializer(serializers.Serializer):
             )
         return attrs
 
+
+class CourtroomSharedViewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CourtroomSharedView
+        fields = ["efiling_id", "document_index_id", "page_index", "is_active"]

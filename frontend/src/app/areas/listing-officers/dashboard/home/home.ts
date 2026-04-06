@@ -184,6 +184,9 @@ export class ListingOfficerHome {
         efiling_id: i.efiling_id,
         serial_no: i.serial_no,
         included: i.included,
+        petitioner_advocate: i.petitioner_advocate,
+        respondent_advocate: i.respondent_advocate,
+        selected_ias: i.selected_ias || [],
       })),
     };
 
@@ -203,9 +206,32 @@ export class ListingOfficerHome {
     return (state.items || []).filter((i) => i.included).length;
   }
 
+  allIncluded(state: BenchState): boolean {
+    return state.items.length > 0 && state.items.every((i) => i.included);
+  }
+
+  toggleAll(state: BenchState): void {
+    const target = !this.allIncluded(state);
+    state.items.forEach((i) => (i.included = target));
+  }
+
   draftPdfUrl(state: BenchState): string | null {
     if (!this.selectedDate) return null;
     return this.causeListService.getDraftPdfUrl(this.selectedDate, state.bench_key);
+  }
+
+  isIaSelected(item: DraftPreviewItem, ia: { ia_number: string }): boolean {
+    return (item.selected_ias || []).some((s) => s.ia_number === ia.ia_number);
+  }
+
+  toggleIa(item: DraftPreviewItem, ia: { ia_number: string; ia_text: string }): void {
+    if (!item.selected_ias) item.selected_ias = [];
+    const idx = item.selected_ias.findIndex((s) => s.ia_number === ia.ia_number);
+    if (idx >= 0) {
+      item.selected_ias.splice(idx, 1);
+    } else {
+      item.selected_ias.push(ia);
+    }
   }
 
   publish(state: BenchState): void {
@@ -218,6 +244,9 @@ export class ListingOfficerHome {
         efiling_id: i.efiling_id,
         serial_no: i.serial_no,
         included: i.included,
+        petitioner_advocate: i.petitioner_advocate,
+        respondent_advocate: i.respondent_advocate,
+        selected_ias: i.selected_ias || [],
       })),
     };
 

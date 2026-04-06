@@ -11,6 +11,10 @@ export type DraftPreviewItem = {
   petitioner_vs_respondent?: string | null;
   included: boolean;
   serial_no: number | null;
+  petitioner_advocate?: string | null;
+  respondent_advocate?: string | null;
+  available_ias?: Array<{ ia_number: string; ia_text: string }>;
+  selected_ias?: Array<{ ia_number: string; ia_text: string }>;
   judge_listing_date?: string | null;
   reader_listing_remark?: string | null;
 };
@@ -88,7 +92,14 @@ export class CauseListService {
   saveDraft(payload: {
     cause_list_date: string;
     bench_key: string;
-    entries: { efiling_id: number; serial_no: number | null; included: boolean }[];
+    entries: {
+      efiling_id: number;
+      serial_no: number | null;
+      included: boolean;
+      petitioner_advocate?: string | null;
+      respondent_advocate?: string | null;
+      selected_ias?: Array<{ ia_number: string; ia_text: string }>;
+    }[];
   }): Observable<{ cause_list_id: number; status: string }> {
     return this.http.post<{ cause_list_id: number; status: string }>(
       `${app_url}/api/v1/listing/cause-lists/draft/save/`,
@@ -106,7 +117,14 @@ export class CauseListService {
   publishCauseListDirect(payload: {
     cause_list_date: string;
     bench_key: string;
-    entries: { efiling_id: number; serial_no: number | null; included: boolean }[];
+    entries: {
+      efiling_id: number;
+      serial_no: number | null;
+      included: boolean;
+      petitioner_advocate?: string | null;
+      respondent_advocate?: string | null;
+      selected_ias?: Array<{ ia_number: string; ia_text: string }>;
+    }[];
   }): Observable<{ id: number; status: string; pdf_url: string | null }> {
     return this.http.post<{ id: number; status: string; pdf_url: string | null }>(
       `${app_url}/api/v1/listing/cause-lists/publish/`,

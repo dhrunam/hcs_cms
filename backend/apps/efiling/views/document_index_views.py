@@ -11,6 +11,10 @@ class DocumentIndexListCreateView(generics.ListCreateAPIView):
         if is_active is not None:
             # treat "true"/"1" as True
             qs = qs.filter(is_active=is_active.lower() in ['true', '1'])
+        
+        case_type = self.request.query_params.get('case_type')
+        if case_type not in (None, '', 'null'):
+            qs = qs.filter(case_type_id=case_type)
         return qs
 class DocumentIndexRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     

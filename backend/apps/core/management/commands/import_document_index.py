@@ -75,8 +75,10 @@ class Command(BaseCommand):
                     normalized_name = self._normalize_name(raw_item['Item'])
                     if not normalized_name:
                         continue
-
-                    dedupe_key = (sequence_number, normalized_name)
+                    normalize_for_new_filing = self._normalize_for_new_filing(raw_item.get('for_new_filing'))
+                    if not normalize_for_new_filing:
+                        normalize_for_new_filing=False
+                    dedupe_key = (sequence_number, normalized_name, normalize_for_new_filing )
                     if dedupe_key in seen_keys:
                         duplicate_entries_ignored += 1
                         continue
@@ -86,6 +88,7 @@ class Command(BaseCommand):
                         case_type=case_type,
                         sequence_number=sequence_number,
                         name=normalized_name,
+                        for_new_filing=normalize_for_new_filing,
                     )
                     if created:
                         created_count += 1
@@ -94,6 +97,7 @@ class Command(BaseCommand):
                             document_index=document_index,
                             name=normalized_name,
                             sequence_number=sequence_number,
+                            for_new_filing=normalize_for_new_filing,
                         )
 
             if dry_run:
@@ -169,6 +173,13 @@ class Command(BaseCommand):
 
     def _normalize_name(self, raw_name: str) -> str:
         return ' '.join(str(raw_name).split()).strip()
+    
+    def _normalize_for_new_filing(self, raw_value) -> bool:
+        if isinstance(raw_value, bool):
+            return raw_value
+        if isinstance(raw_value, str):
+            return raw_value.strip().lower() in ['true', '1', 'yes']
+        return False
 
     def _upsert_document_index(
         self,
@@ -176,10 +187,12 @@ class Command(BaseCommand):
         case_type: CaseTypeT,
         sequence_number: int,
         name: str,
+        for_new_filing: bool,
     ) -> tuple[DocumentIndex, bool]:
         existing = DocumentIndex.objects.filter(
             case_type=case_type,
             sequence_number=sequence_number,
+            
         ).order_by('id').first()
         if existing:
             return existing, False
@@ -195,7 +208,7 @@ class Command(BaseCommand):
             case_type=case_type,
             sequence_number=sequence_number,
             name=name,
-            for_new_filing=True,
+            for_new_filing=for_new_filing,
         ), True
 
     def _update_document_index(
@@ -204,6 +217,7 @@ class Command(BaseCommand):
         document_index: DocumentIndex,
         name: str,
         sequence_number: int,
+        for_new_filing: bool,
     ) -> int:
         update_fields: list[str] = []
 
