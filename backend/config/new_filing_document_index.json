@@ -1,286 +1,1076 @@
 {
-  "11": [
-    { "Sl. No.": "1", "Item": "Index", "for_new_filing": true },
-    { "Sl. No.": "2", "Item": "Synopsis", "for_new_filing": true },
-    { "Sl. No.": "3", "Item": "List of Dates and Events", "for_new_filing": true },
-    { "Sl. No.": "4", "Item": "Writ Petition", "for_new_filing": true },
-    { "Sl. No.": "5", "Item": "Affidavit(s)", "for_new_filing": true },
-    { "Sl. No.": "6", "Item": "Annexure(s)", "for_new_filing": true },
-    { "Sl. No.": "7", "Item": "Vakalatnama", "for_new_filing": true },
-    { "Sl. No.": "8", "Item": "Affidavit of Service", "for_new_filing": true },
-    { "Sl. No.": "9", "Item": "Counter Affidavit with Annexure/Counter Affidavit without Annexure" },
-    { "Sl. No.": "10", "Item": "Rejoinders" },
-    { "Sl. No.": "11", "Item": "Additional Affidavits, if any." },
-    { "Sl. No.": "12", "Item": "Compliance report /affidavit" },
-    { "Sl. No.": "13", "Item": "Interlocutory Application if any" },
-    { "Sl. No.": "14", "Item": "Reply to Additional Affidavit/Interlocutory Application" },
-    { "Sl. No.": "15", "Item": "Compliance Affidavit" },
-    { "Sl. No.": "16", "Item": "Amendend Writ Petition if directed by Court" },
-    { "Sl. No.": "17", "Item": "Better Affidavit" }
-  ],
-  "36": [
-    { "Sl. No.": "1", "Item": "Index", "for_new_filing": true },
-    { "Sl. No.": "2", "Item": "Synopsis", "for_new_filing": true },
-    { "Sl. No.": "3", "Item": "List of Dates and Events", "for_new_filing": true },
-    { "Sl. No.": "4", "Item": "Writ Appeal", "for_new_filing": true },
-    { "Sl. No.": "5", "Item": "Affidavit(s)", "for_new_filing": true },
-    { "Sl. No.": "6", "Item": "Annexure(s)", "for_new_filing": true },
-    { "Sl. No.": "7", "Item": "Vakalatnama", "for_new_filing": true },
-    { "Sl. No.": "8", "Item": "Affidavit of Service" },
-    { "Sl. No.": "9", "Item": "Counter Affidavit with Annexure/Counter Affidavit without Annexure" },
-    { "Sl. No.": "10", "Item": "Rejoinders" },
-    { "Sl. No.": "11", "Item": "Additional Affidavits, if any." },
-    { "Sl. No.": "12", "Item": "Compliance report/affidavit" },
-    { "Sl. No.": "13", "Item": "Interlocutory Application if any" },
-    { "Sl. No.": "14", "Item": "Reply to Additional Affidavit/Interlocutory Application" },
-    { "Sl. No.": "15", "Item": "Compliance Affidavit" },
-    { "Sl. No.": "16", "Item": "Amendment Writ Appeal if directed by Court" },
-    { "Sl. No.": "17", "Item": "Better Affidavit" }
-  ],
-  "26": [
-    { "Sl. No.": "1", "Item": "Index", "for_new_filing": true },
-    { "Sl. No.": "2", "Item": "Synopsis", "for_new_filing": true },
-    { "Sl. No.": "3", "Item": "List of Dates and Events", "for_new_filing": true },
-    { "Sl. No.": "4", "Item": "Writ Petition (PIL)", "for_new_filing": true },
-    { "Sl. No.": "5", "Item": "Affidavit(s)", "for_new_filing": true },
-    { "Sl. No.": "6", "Item": "Annexure(s)", "for_new_filing": true },
-    { "Sl. No.": "7", "Item": "Vakalatnama", "for_new_filing": true },
-    { "Sl. No.": "8", "Item": "Affidavit of Service", "for_new_filing": true },
-    { "Sl. No.": "9", "Item": "Compliance Report / Affidavit" },
-    { "Sl. No.": "10", "Item": "Counter Affidavit with Annexure/Counter Affidavit without Annexure" },
-    { "Sl. No.": "11", "Item": "Counter/Objection Affidavit" },
-    { "Sl. No.": "12", "Item": "Additional Affidavits, if any" },
-    { "Sl. No.": "13", "Item": "Interlocutory Application, if any" },
-    { "Sl. No.": "14", "Item": "Reply to Additional Affidavit/Interlocutory Application" },
-    { "Sl. No.": "15", "Item": "Compliance Affidavit" },
-    { "Sl. No.": "16", "Item": "Amendment Writ Petition (PIL), if directed by Court" },
-    { "Sl. No.": "17", "Item": "Better Affidavit" }
-  ],
-  "16": [
-    { "Sl. No.": "1", "Item": "Index", "for_new_filing": true },
-    { "Sl. No.": "2", "Item": "Synopsis", "for_new_filing": true },
-    { "Sl. No.": "3", "Item": "List of Dates and Events", "for_new_filing": true },
-    { "Sl. No.": "4", "Item": "Arbitration Appeal", "for_new_filing": true },
-    { "Sl. No.": "5", "Item": "Affidavit(s) & Verification", "for_new_filing": true },
-    { "Sl. No.": "6", "Item": "Annexure(s)", "for_new_filing": true },
-    { "Sl. No.": "7", "Item": "Vakalatnama", "for_new_filing": true },
-    { "Sl. No.": "8", "Item": "Affidavit of Service", "for_new_filing": true },
-    { "Sl. No.": "9", "Item": "Compliance report / affidavit" },
-    { "Sl. No.": "10", "Item": "Interlocutory Application, if any" },
-    { "Sl. No.": "11", "Item": "Reply to Interlocutory Application" },
-    { "Sl. No.": "12", "Item": "Better Affidavit" }
-  ],
-  "15": [
-    { "Sl. No.": "1", "Item": "Index", "for_new_filing": true },
-    { "Sl. No.": "2", "Item": "Synopsis", "for_new_filing": true },
-    { "Sl. No.": "3", "Item": "List of Dates and Events", "for_new_filing": true },
-    { "Sl. No.": "4", "Item": "Arbitration Petition", "for_new_filing": true },
-    { "Sl. No.": "5", "Item": "Affidavit(s) & Verification", "for_new_filing": true },
-    { "Sl. No.": "6", "Item": "Annexure(s)", "for_new_filing": true },
-    { "Sl. No.": "7", "Item": "Vakalatnama", "for_new_filing": true },
-    { "Sl. No.": "8", "Item": "Affidavit of Service", "for_new_filing": true },
-    { "Sl. No.": "9", "Item": "Compliance report / affidavit" },
-    { "Sl. No.": "10", "Item": "Interlocutory Application, if any" },
-    { "Sl. No.": "11", "Item": "Reply to Interlocutory Application" },
-    { "Sl. No.": "12", "Item": "Better Affidavit" }
-  ],
   "1": [
-    { "Sl. No.": "1", "Item": "Index", "for_new_filing": true },
-    { "Sl. No.": "2", "Item": "Synopsis", "for_new_filing": true },
-    { "Sl. No.": "3", "Item": "List of Dates and Events", "for_new_filing": true },
-    { "Sl. No.": "4", "Item": "Appeal", "for_new_filing": true },
-    { "Sl. No.": "5", "Item": "Affidavit(s) & Verification", "for_new_filing": true },
-    { "Sl. No.": "6", "Item": "Certificate", "for_new_filing": true },
-    { "Sl. No.": "7", "Item": "Annexure(s)", "for_new_filing": true },
-    { "Sl. No.": "8", "Item": "Vakalatnama", "for_new_filing": true },
-    { "Sl. No.": "9", "Item": "Compliance report / affidavit" },
-    { "Sl. No.": "10", "Item": "Interlocutory Application, if any" },
-    { "Sl. No.": "11", "Item": "Reply to Interlocutory Application" },
-    { "Sl. No.": "12", "Item": "Better Affidavit" }
-  ],
-  "4": [
-    { "Sl. No.": "1", "Item": "Index", "for_new_filing": true },
-    { "Sl. No.": "2", "Item": "Synopsis", "for_new_filing": true },
-    { "Sl. No.": "3", "Item": "List of Dates and Events", "for_new_filing": true },
-    { "Sl. No.": "4", "Item": "Appeal", "for_new_filing": true },
-    { "Sl. No.": "5", "Item": "Affidavit(s) & Verification", "for_new_filing": true },
-    { "Sl. No.": "6", "Item": "Certificate", "for_new_filing": true },
-    { "Sl. No.": "7", "Item": "Annexure(s)", "for_new_filing": true },
-    { "Sl. No.": "8", "Item": "Vakalatnama *", "for_new_filing": true },
-    { "Sl. No.": "9", "Item": "Compliance report / affidavit" },
-    { "Sl. No.": "10", "Item": "Interlocutory Application, if any" },
-    { "Sl. No.": "11", "Item": "Reply to Interlocutory Application" },
-    { "Sl. No.": "12", "Item": "Better Affidavit" }
-  ],
-  "13": [
-    { "Sl. No.": "1", "Item": "Index", "for_new_filing": true },
-    { "Sl. No.": "2", "Item": "Synopsis", "for_new_filing": true },
-    { "Sl. No.": "3", "Item": "List of Dates and Events", "for_new_filing": true },
-    { "Sl. No.": "4", "Item": "Appeal", "for_new_filing": true },
-    { "Sl. No.": "5", "Item": "Affidavit(s) & Verification", "for_new_filing": true },
-    { "Sl. No.": "6", "Item": "Certificate", "for_new_filing": true },
-    { "Sl. No.": "7", "Item": "Annexure(s)", "for_new_filing": true },
-    { "Sl. No.": "8", "Item": "Vakalatnama", "for_new_filing": true },
-    { "Sl. No.": "9", "Item": "Compliance report / affidavit" },
-    { "Sl. No.": "10", "Item": "Interlocutory Application, if any" },
-    { "Sl. No.": "11", "Item": "Reply to Interlocutory Application" },
-    { "Sl. No.": "12", "Item": "Affidavit affirming deposit of prescribed fees of (Rs. 25,000/-)" },
-    { "Sl. No.": "13", "Item": "Better Affidavit" }
-  ],
-  "6": [
-    { "Sl. No.": "1", "Item": "Index", "for_new_filing": true },
-    { "Sl. No.": "2", "Item": "Synopsis", "for_new_filing": true },
-    { "Sl. No.": "3", "Item": "List of Dates and Events", "for_new_filing": true },
-    { "Sl. No.": "4", "Item": "Petition" , "for_new_filing": true},
-    { "Sl. No.": "5", "Item": "Affidavit(s) & Verification", "for_new_filing": true },
-    { "Sl. No.": "6", "Item": "Certificate", "for_new_filing": true },
-    { "Sl. No.": "7", "Item": "Annexure(s)", "for_new_filing": true },
-    { "Sl. No.": "8", "Item": "Vakalatnama", "for_new_filing": true },
-    { "Sl. No.": "9", "Item": "Compliance report / affidavit" },
-    { "Sl. No.": "10", "Item": "Interlocutory Application, if any" },
-    { "Sl. No.": "11", "Item": "Reply to Interlocutory Application" },
-    { "Sl. No.": "12", "Item": "Better Affidavit" }
-  ],
-  "55": [
-    { "Sl. No.": "1", "Item": "Index", "for_new_filing": true },
-    { "Sl. No.": "2", "Item": "Synopsis", "for_new_filing": true },
-    { "Sl. No.": "3", "Item": "List of Dates and Events", "for_new_filing": true },
-    { "Sl. No.": "4", "Item": "Appeal", "for_new_filing": true },
-    { "Sl. No.": "5", "Item": "Affidavit(s) & Verification", "for_new_filing": true },
-    { "Sl. No.": "6", "Item": "Certificate" , "for_new_filing": true},
-    { "Sl. No.": "7", "Item": "Annexure(s)", "for_new_filing": true },
-    { "Sl. No.": "8", "Item": "Vakalatnama", "for_new_filing": true },
-    { "Sl. No.": "9", "Item": "Compliance report / affidavit" },
-    { "Sl. No.": "10", "Item": "Interlocutory Application, if any" },
-    { "Sl. No.": "11", "Item": "Reply to Interlocutory Application" },
-    { "Sl. No.": "12", "Item": "Better Affidavit" }
-  ],
-  "32": [
-    { "Sl. No.": "1", "Item": "Index", "for_new_filing": true   },
-    { "Sl. No.": "2", "Item": "Synopsis", "for_new_filing": true },
-    { "Sl. No.": "3", "Item": "List of Dates and Events", "for_new_filing": true },
-    { "Sl. No.": "4", "Item": "Leave Petition & Appeal", "for_new_filing": true },
-    { "Sl. No.": "5", "Item": "Affidavit(s) & Verification", "for_new_filing": true },
-    { "Sl. No.": "6", "Item": "Certificate", "for_new_filing": true },
-    { "Sl. No.": "7", "Item": "Annexure(s)", "for_new_filing": true },
-    { "Sl. No.": "8", "Item": "Vakalatnama", "for_new_filing": true },
-    { "Sl. No.": "9", "Item": "Compliance report / affidavit" },
-    { "Sl. No.": "10", "Item": "Interlocutory Application, if any" },
-    { "Sl. No.": "11", "Item": "Reply to Interlocutory Application" },
-    { "Sl. No.": "12", "Item": "Better Affidavit" }
-  ],
-  "21": [
-    { "Sl. No.": "1", "Item": "Index", "for_new_filing": true },
-    { "Sl. No.": "2", "Item": "Synopsis", "for_new_filing": true },
-    { "Sl. No.": "3", "Item": "List of Dates and Events", "for_new_filing": true },
-    { "Sl. No.": "4", "Item": "Leave Petition & Appeal", "for_new_filing": true },
-    { "Sl. No.": "5", "Item": "Affidavit(s) & Verification", "for_new_filing": true },
-    { "Sl. No.": "6", "Item": "Certificate", "for_new_filing": true },
-    { "Sl. No.": "7", "Item": "Annexure(s)", "for_new_filing": true },
-    { "Sl. No.": "8", "Item": "Vakalatnama", "for_new_filing": true },
-    { "Sl. No.": "9", "Item": "Compliance report / affidavit" },
-    { "Sl. No.": "10", "Item": "Interlocutory Application, if any" },
-    { "Sl. No.": "11", "Item": "Reply to Interlocutory Application" },
-    { "Sl. No.": "12", "Item": "Better Affidavit" }
-  ],
-  "12": [
-    { "Sl. No.": "1", "Item": "Index", "for_new_filing": true },
-    { "Sl. No.": "2", "Item": "Synopsis", "for_new_filing": true },
-    { "Sl. No.": "3", "Item": "List of Dates and Events", "for_new_filing": true },
-    { "Sl. No.": "4", "Item": "Appeal", "for_new_filing": true },
-    { "Sl. No.": "5", "Item": "Affidavit(s) & Verification", "for_new_filing": true },
-    { "Sl. No.": "6", "Item": "Annexure(s)", "for_new_filing": true },
-    { "Sl. No.": "7", "Item": "Vakalatnama" , "for_new_filing": true},
-    { "Sl. No.": "8", "Item": "Affidavit of Service", "for_new_filing": true },
-    { "Sl. No.": "9", "Item": "Interlocutory Application, if any" },
-    { "Sl. No.": "10", "Item": "Reply to Interlocutory Application" },
-    { "Sl. No.": "11", "Item": "Better Affidavit" }
+    {
+      "Sl. No.": "1",
+      "Item": "Synopsis",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "2",
+      "Item": "List of Dates and Events",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "3",
+      "Item": "Appeal",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "4",
+      "Item": "Affidavit(s) & Verification",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "5",
+      "Item": "Certificate",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "6",
+      "Item": "Annexure(s)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "7",
+      "Item": "Vakalatnama",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "8",
+      "Item": "Compliance report / affidavit"
+    },
+    {
+      "Sl. No.": "9",
+      "Item": "Interlocutory Application, if any"
+    },
+    {
+      "Sl. No.": "10",
+      "Item": "Reply to Interlocutory Application"
+    },
+    {
+      "Sl. No.": "11",
+      "Item": "Better Affidavit"
+    }
   ],
   "2": [
-    { "Sl. No.": "1", "Item": "Index", "for_new_filing": true },
-    { "Sl. No.": "2", "Item": "Synopsis" , "for_new_filing": true},
-    { "Sl. No.": "3", "Item": "List of Dates and Events", "for_new_filing": true },
-    { "Sl. No.": "4", "Item": "Appeal", "for_new_filing": true },
-    { "Sl. No.": "5", "Item": "Affidavit(s) & Verification", "for_new_filing": true },
-    { "Sl. No.": "6", "Item": "Annexure(s)", "for_new_filing": true },
-    { "Sl. No.": "7", "Item": "Vakalatnama", "for_new_filing": true },
-    { "Sl. No.": "8", "Item": "Compliance report / affidavit" },
-    { "Sl. No.": "9", "Item": "Interlocutory Application, if any" },
-    { "Sl. No.": "10", "Item": "Reply to Interlocutory Application" },
-    { "Sl. No.": "11", "Item": "Better Affidavit" }
+    {
+      "Sl. No.": "1",
+      "Item": "Synopsis",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "2",
+      "Item": "List of Dates and Events",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "3",
+      "Item": "Appeal",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "4",
+      "Item": "Affidavit(s) & Verification",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "5",
+      "Item": "Annexure(s)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "6",
+      "Item": "Vakalatnama",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "7",
+      "Item": "Compliance report / affidavit"
+    },
+    {
+      "Sl. No.": "8",
+      "Item": "Interlocutory Application, if any"
+    },
+    {
+      "Sl. No.": "9",
+      "Item": "Reply to Interlocutory Application"
+    },
+    {
+      "Sl. No.": "10",
+      "Item": "Better Affidavit"
+    }
+  ],
+  "4": [
+    {
+      "Sl. No.": "1",
+      "Item": "Synopsis",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "2",
+      "Item": "List of Dates and Events",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "3",
+      "Item": "Appeal",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "4",
+      "Item": "Affidavit(s) & Verification",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "5",
+      "Item": "Certificate",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "6",
+      "Item": "Annexure(s)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "7",
+      "Item": "Vakalatnama *",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "8",
+      "Item": "Compliance report / affidavit"
+    },
+    {
+      "Sl. No.": "9",
+      "Item": "Interlocutory Application, if any"
+    },
+    {
+      "Sl. No.": "10",
+      "Item": "Reply to Interlocutory Application"
+    },
+    {
+      "Sl. No.": "11",
+      "Item": "Better Affidavit"
+    }
   ],
   "5": [
-    { "Sl. No.": "1", "Item": "Index", "for_new_filing": true },
-    { "Sl. No.": "2", "Item": "Synopsis", "for_new_filing": true },
-    { "Sl. No.": "3", "Item": "List of Dates and Events", "for_new_filing": true },
-    { "Sl. No.": "4", "Item": "Appeal", "for_new_filing": true },
-    { "Sl. No.": "5", "Item": "Affidavit(s) & Verification", "for_new_filing": true },
-    { "Sl. No.": "6", "Item": "Annexure(s)", "for_new_filing": true },
-    { "Sl. No.": "7", "Item": "Vakalatnama", "for_new_filing": true },
-    { "Sl. No.": "8", "Item": "Compliance report / affidavit" },
-    { "Sl. No.": "9", "Item": "Interlocutory Application, if any" },
-    { "Sl. No.": "10", "Item": "Reply to Interlocutory Application" },
-    { "Sl. No.": "11", "Item": "Better Affidavit" }
+    {
+      "Sl. No.": "1",
+      "Item": "Synopsis",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "2",
+      "Item": "List of Dates and Events",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "3",
+      "Item": "Appeal",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "4",
+      "Item": "Affidavit(s) & Verification",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "5",
+      "Item": "Annexure(s)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "6",
+      "Item": "Vakalatnama",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "7",
+      "Item": "Compliance report / affidavit"
+    },
+    {
+      "Sl. No.": "8",
+      "Item": "Interlocutory Application, if any"
+    },
+    {
+      "Sl. No.": "9",
+      "Item": "Reply to Interlocutory Application"
+    },
+    {
+      "Sl. No.": "10",
+      "Item": "Better Affidavit"
+    }
   ],
-  "46": [
-    { "Sl. No.": "1", "Item": "Index", "for_new_filing": true },
-    { "Sl. No.": "2", "Item": "Synopsis", "for_new_filing": true },
-    { "Sl. No.": "3", "Item": "List of Dates and Events", "for_new_filing": true },
-    { "Sl. No.": "4", "Item": "Appeal", "for_new_filing": true },
-    { "Sl. No.": "5", "Item": "Affidavit(s) & Verification", "for_new_filing": true },
-    { "Sl. No.": "6", "Item": "Annexure(s)", "for_new_filing": true },
-    { "Sl. No.": "7", "Item": "Vakalatnama", "for_new_filing": true },
-    { "Sl. No.": "8", "Item": "Affidavit of Service", "for_new_filing": true },
-    { "Sl. No.": "9", "Item": "Compliance Affidavit" },
-    { "Sl. No.": "10", "Item": "Reply to Compliance Affidavit, if any" },
-    { "Sl. No.": "11", "Item": "Interlocutory Application, if any" },
-    { "Sl. No.": "12", "Item": "Reply to Interlocutory Application" },
-    { "Sl. No.": "13", "Item": "Better Affidavit" }
+  "6": [
+    {
+      "Sl. No.": "1",
+      "Item": "Synopsis",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "2",
+      "Item": "List of Dates and Events",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "3",
+      "Item": "Petition",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "4",
+      "Item": "Affidavit(s) & Verification",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "5",
+      "Item": "Certificate",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "6",
+      "Item": "Annexure(s)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "7",
+      "Item": "Vakalatnama",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "8",
+      "Item": "Compliance report / affidavit"
+    },
+    {
+      "Sl. No.": "9",
+      "Item": "Interlocutory Application, if any"
+    },
+    {
+      "Sl. No.": "10",
+      "Item": "Reply to Interlocutory Application"
+    },
+    {
+      "Sl. No.": "11",
+      "Item": "Better Affidavit"
+    }
+  ],
+  "11": [
+    {
+      "Sl. No.": "1",
+      "Item": "Synopsis",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "2",
+      "Item": "List of Dates and Events",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "3",
+      "Item": "Writ Petition",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "4",
+      "Item": "Affidavit(s)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "5",
+      "Item": "Annexure(s)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "6",
+      "Item": "Vakalatnama",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "7",
+      "Item": "Affidavit of Service",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "8",
+      "Item": "Counter Affidavit with Annexure/Counter Affidavit without Annexure"
+    },
+    {
+      "Sl. No.": "9",
+      "Item": "Rejoinders"
+    },
+    {
+      "Sl. No.": "10",
+      "Item": "Additional Affidavits, if any."
+    },
+    {
+      "Sl. No.": "11",
+      "Item": "Compliance report /affidavit"
+    },
+    {
+      "Sl. No.": "12",
+      "Item": "Interlocutory Application if any"
+    },
+    {
+      "Sl. No.": "13",
+      "Item": "Reply to Additional Affidavit/Interlocutory Application"
+    },
+    {
+      "Sl. No.": "14",
+      "Item": "Compliance Affidavit"
+    },
+    {
+      "Sl. No.": "15",
+      "Item": "Amendend Writ Petition if directed by Court"
+    },
+    {
+      "Sl. No.": "16",
+      "Item": "Better Affidavit"
+    }
+  ],
+  "12": [
+    {
+      "Sl. No.": "1",
+      "Item": "Synopsis",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "2",
+      "Item": "List of Dates and Events",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "3",
+      "Item": "Appeal",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "4",
+      "Item": "Affidavit(s) & Verification",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "5",
+      "Item": "Annexure(s)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "6",
+      "Item": "Vakalatnama",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "7",
+      "Item": "Affidavit of Service",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "8",
+      "Item": "Interlocutory Application, if any"
+    },
+    {
+      "Sl. No.": "9",
+      "Item": "Reply to Interlocutory Application"
+    },
+    {
+      "Sl. No.": "10",
+      "Item": "Better Affidavit"
+    }
+  ],
+  "13": [
+    {
+      "Sl. No.": "1",
+      "Item": "Synopsis",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "2",
+      "Item": "List of Dates and Events",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "3",
+      "Item": "Appeal",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "4",
+      "Item": "Affidavit(s) & Verification",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "5",
+      "Item": "Certificate",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "6",
+      "Item": "Annexure(s)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "7",
+      "Item": "Vakalatnama",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "8",
+      "Item": "Compliance report / affidavit"
+    },
+    {
+      "Sl. No.": "9",
+      "Item": "Interlocutory Application, if any"
+    },
+    {
+      "Sl. No.": "10",
+      "Item": "Reply to Interlocutory Application"
+    },
+    {
+      "Sl. No.": "11",
+      "Item": "Affidavit affirming deposit of prescribed fees of (Rs. 25,000/-)"
+    },
+    {
+      "Sl. No.": "12",
+      "Item": "Better Affidavit"
+    }
+  ],
+  "15": [
+    {
+      "Sl. No.": "1",
+      "Item": "Synopsis",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "2",
+      "Item": "List of Dates and Events",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "3",
+      "Item": "Arbitration Petition",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "4",
+      "Item": "Affidavit(s) & Verification",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "5",
+      "Item": "Annexure(s)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "6",
+      "Item": "Vakalatnama",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "7",
+      "Item": "Affidavit of Service",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "8",
+      "Item": "Compliance report / affidavit"
+    },
+    {
+      "Sl. No.": "9",
+      "Item": "Interlocutory Application, if any"
+    },
+    {
+      "Sl. No.": "10",
+      "Item": "Reply to Interlocutory Application"
+    },
+    {
+      "Sl. No.": "11",
+      "Item": "Better Affidavit"
+    }
+  ],
+  "16": [
+    {
+      "Sl. No.": "1",
+      "Item": "Synopsis",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "2",
+      "Item": "List of Dates and Events",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "3",
+      "Item": "Arbitration Appeal",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "4",
+      "Item": "Affidavit(s) & Verification",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "5",
+      "Item": "Annexure(s)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "6",
+      "Item": "Vakalatnama",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "7",
+      "Item": "Affidavit of Service",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "8",
+      "Item": "Compliance report / affidavit"
+    },
+    {
+      "Sl. No.": "9",
+      "Item": "Interlocutory Application, if any"
+    },
+    {
+      "Sl. No.": "10",
+      "Item": "Reply to Interlocutory Application"
+    },
+    {
+      "Sl. No.": "11",
+      "Item": "Better Affidavit"
+    }
   ],
   "17": [
-    { "Sl. No.": "1", "Item": "Index", "for_new_filing": true },
-    { "Sl. No.": "2", "Item": "Synopsis", "for_new_filing": true },
-    { "Sl. No.": "3", "Item": "List of Dates and Events", "for_new_filing": true },
-    { "Sl. No.": "4", "Item": "Petition", "for_new_filing": true },
-    { "Sl. No.": "5", "Item": "Affidavit(s)", "for_new_filing": true },
-    { "Sl. No.": "6", "Item": "Annexure(s)", "for_new_filing": true },
-    { "Sl. No.": "7", "Item": "Vakalatnama", "for_new_filing": true },
-    { "Sl. No.": "8", "Item": "Reply with Annexure/Counter Affidavit without Annexure" },
-    { "Sl. No.": "9", "Item": "Rejoinders" },
-    { "Sl. No.": "10", "Item": "Additional Affidavits, if any." },
-    { "Sl. No.": "11", "Item": "Interlocutory Application if any" },
-    { "Sl. No.": "12", "Item": "Reply to Additional Affidavit/Interlocutory Application" },
-    { "Sl. No.": "13", "Item": "Compliance Affidavit" },
-    { "Sl. No.": "14", "Item": "Better Affidavit" }
-  ],
-  "31": [
-    { "Sl. No.": "1", "Item": "Index", "for_new_filing": true },
-    { "Sl. No.": "2", "Item": "Synopsis", "for_new_filing": true },
-    { "Sl. No.": "3", "Item": "List of Dates and Events", "for_new_filing": true },
-    { "Sl. No.": "4", "Item": "Application", "for_new_filing": true },
-    { "Sl. No.": "5", "Item": "Affidavit(s) & Verification", "for_new_filing": true },
-    { "Sl. No.": "6", "Item": "Certificate", "for_new_filing": true },
-    { "Sl. No.": "7", "Item": "Annexure(s)", "for_new_filing": true },
-    { "Sl. No.": "8", "Item": "Vakalatnama", "for_new_filing": true },
-    { "Sl. No.": "9", "Item": "Compliance report / affidavit" },
-    { "Sl. No.": "10", "Item": "Interlocutory Application, if any" },
-    { "Sl. No.": "11", "Item": "Reply to Interlocutory Application" },
-    { "Sl. No.": "12", "Item": "Better Affidavit" }
+    {
+      "Sl. No.": "1",
+      "Item": "Synopsis",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "2",
+      "Item": "List of Dates and Events",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "3",
+      "Item": "Petition",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "4",
+      "Item": "Affidavit(s)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "5",
+      "Item": "Annexure(s)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "6",
+      "Item": "Vakalatnama",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "7",
+      "Item": "Reply with Annexure/Counter Affidavit without Annexure"
+    },
+    {
+      "Sl. No.": "8",
+      "Item": "Rejoinders"
+    },
+    {
+      "Sl. No.": "9",
+      "Item": "Additional Affidavits, if any."
+    },
+    {
+      "Sl. No.": "10",
+      "Item": "Interlocutory Application if any"
+    },
+    {
+      "Sl. No.": "11",
+      "Item": "Reply to Additional Affidavit/Interlocutory Application"
+    },
+    {
+      "Sl. No.": "12",
+      "Item": "Compliance Affidavit"
+    },
+    {
+      "Sl. No.": "13",
+      "Item": "Better Affidavit"
+    }
   ],
   "20": [
-    { "Sl. No.": "1", "Item": "Index", "for_new_filing": true },
-    { "Sl. No.": "2", "Item": "Synopsis", "for_new_filing": true },
-    { "Sl. No.": "3", "Item": "List of Dates and Events", "for_new_filing": true },
-    { "Sl. No.": "4", "Item": "Petition", "for_new_filing": true },
-    { "Sl. No.": "5", "Item": "Affidavit(s) & Verification", "for_new_filing": true },
-    { "Sl. No.": "6", "Item": "Annexure(s)", "for_new_filing": true },
-    { "Sl. No.": "7", "Item": "Vakalatnama", "for_new_filing": true },
-    { "Sl. No.": "8", "Item": "Counter affidavit" },
-    { "Sl. No.": "9", "Item": "Rejoinder" },
-    { "Sl. No.": "10", "Item": "Affidavit of Service" },
-    { "Sl. No.": "11", "Item": "Interlocutory Application, if any" },
-    { "Sl. No.": "12", "Item": "Reply to Interlocutory Application" },
-    { "Sl. No.": "13", "Item": "Compliance report / affidavit" },
-    { "Sl. No.": "14", "Item": "Better Affidavit" }
+    {
+      "Sl. No.": "1",
+      "Item": "Synopsis",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "2",
+      "Item": "List of Dates and Events",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "3",
+      "Item": "Petition",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "4",
+      "Item": "Affidavit(s) & Verification",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "5",
+      "Item": "Annexure(s)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "6",
+      "Item": "Vakalatnama",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "7",
+      "Item": "Counter affidavit"
+    },
+    {
+      "Sl. No.": "8",
+      "Item": "Rejoinder"
+    },
+    {
+      "Sl. No.": "9",
+      "Item": "Affidavit of Service"
+    },
+    {
+      "Sl. No.": "10",
+      "Item": "Interlocutory Application, if any"
+    },
+    {
+      "Sl. No.": "11",
+      "Item": "Reply to Interlocutory Application"
+    },
+    {
+      "Sl. No.": "12",
+      "Item": "Compliance report / affidavit"
+    },
+    {
+      "Sl. No.": "13",
+      "Item": "Better Affidavit"
+    }
+  ],
+  "21": [
+    {
+      "Sl. No.": "1",
+      "Item": "Synopsis",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "2",
+      "Item": "List of Dates and Events",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "3",
+      "Item": "Leave Petition & Appeal",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "4",
+      "Item": "Affidavit(s) & Verification",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "5",
+      "Item": "Certificate",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "6",
+      "Item": "Annexure(s)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "7",
+      "Item": "Vakalatnama",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "8",
+      "Item": "Compliance report / affidavit"
+    },
+    {
+      "Sl. No.": "9",
+      "Item": "Interlocutory Application, if any"
+    },
+    {
+      "Sl. No.": "10",
+      "Item": "Reply to Interlocutory Application"
+    },
+    {
+      "Sl. No.": "11",
+      "Item": "Better Affidavit"
+    }
+  ],
+  "26": [
+    {
+      "Sl. No.": "1",
+      "Item": "Synopsis",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "2",
+      "Item": "List of Dates and Events",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "3",
+      "Item": "Writ Petition (PIL)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "4",
+      "Item": "Affidavit(s)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "5",
+      "Item": "Annexure(s)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "6",
+      "Item": "Vakalatnama",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "7",
+      "Item": "Affidavit of Service",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "8",
+      "Item": "Compliance Report / Affidavit"
+    },
+    {
+      "Sl. No.": "9",
+      "Item": "Counter Affidavit with Annexure/Counter Affidavit without Annexure"
+    },
+    {
+      "Sl. No.": "10",
+      "Item": "Counter/Objection Affidavit"
+    },
+    {
+      "Sl. No.": "11",
+      "Item": "Additional Affidavits, if any"
+    },
+    {
+      "Sl. No.": "12",
+      "Item": "Interlocutory Application, if any"
+    },
+    {
+      "Sl. No.": "13",
+      "Item": "Reply to Additional Affidavit/Interlocutory Application"
+    },
+    {
+      "Sl. No.": "14",
+      "Item": "Compliance Affidavit"
+    },
+    {
+      "Sl. No.": "15",
+      "Item": "Amendment Writ Petition (PIL), if directed by Court"
+    },
+    {
+      "Sl. No.": "16",
+      "Item": "Better Affidavit"
+    }
+  ],
+  "31": [
+    {
+      "Sl. No.": "1",
+      "Item": "Synopsis",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "2",
+      "Item": "List of Dates and Events",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "3",
+      "Item": "Application",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "4",
+      "Item": "Affidavit(s) & Verification",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "5",
+      "Item": "Certificate",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "6",
+      "Item": "Annexure(s)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "7",
+      "Item": "Vakalatnama",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "8",
+      "Item": "Compliance report / affidavit"
+    },
+    {
+      "Sl. No.": "9",
+      "Item": "Interlocutory Application, if any"
+    },
+    {
+      "Sl. No.": "10",
+      "Item": "Reply to Interlocutory Application"
+    },
+    {
+      "Sl. No.": "11",
+      "Item": "Better Affidavit"
+    }
+  ],
+  "32": [
+    {
+      "Sl. No.": "1",
+      "Item": "Synopsis",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "2",
+      "Item": "List of Dates and Events",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "3",
+      "Item": "Leave Petition & Appeal",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "4",
+      "Item": "Affidavit(s) & Verification",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "5",
+      "Item": "Certificate",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "6",
+      "Item": "Annexure(s)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "7",
+      "Item": "Vakalatnama",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "8",
+      "Item": "Compliance report / affidavit"
+    },
+    {
+      "Sl. No.": "9",
+      "Item": "Interlocutory Application, if any"
+    },
+    {
+      "Sl. No.": "10",
+      "Item": "Reply to Interlocutory Application"
+    },
+    {
+      "Sl. No.": "11",
+      "Item": "Better Affidavit"
+    }
+  ],
+  "36": [
+    {
+      "Sl. No.": "1",
+      "Item": "Synopsis",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "2",
+      "Item": "List of Dates and Events",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "3",
+      "Item": "Writ Appeal",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "4",
+      "Item": "Affidavit(s)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "5",
+      "Item": "Annexure(s)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "6",
+      "Item": "Vakalatnama",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "7",
+      "Item": "Affidavit of Service"
+    },
+    {
+      "Sl. No.": "8",
+      "Item": "Counter Affidavit with Annexure/Counter Affidavit without Annexure"
+    },
+    {
+      "Sl. No.": "9",
+      "Item": "Rejoinders"
+    },
+    {
+      "Sl. No.": "10",
+      "Item": "Additional Affidavits, if any."
+    },
+    {
+      "Sl. No.": "11",
+      "Item": "Compliance report/affidavit"
+    },
+    {
+      "Sl. No.": "12",
+      "Item": "Interlocutory Application if any"
+    },
+    {
+      "Sl. No.": "13",
+      "Item": "Reply to Additional Affidavit/Interlocutory Application"
+    },
+    {
+      "Sl. No.": "14",
+      "Item": "Compliance Affidavit"
+    },
+    {
+      "Sl. No.": "15",
+      "Item": "Amendment Writ Appeal if directed by Court"
+    },
+    {
+      "Sl. No.": "16",
+      "Item": "Better Affidavit"
+    }
+  ],
+  "46": [
+    {
+      "Sl. No.": "1",
+      "Item": "Synopsis",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "2",
+      "Item": "List of Dates and Events",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "3",
+      "Item": "Appeal",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "4",
+      "Item": "Affidavit(s) & Verification",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "5",
+      "Item": "Annexure(s)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "6",
+      "Item": "Vakalatnama",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "7",
+      "Item": "Affidavit of Service",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "8",
+      "Item": "Compliance Affidavit"
+    },
+    {
+      "Sl. No.": "9",
+      "Item": "Reply to Compliance Affidavit, if any"
+    },
+    {
+      "Sl. No.": "10",
+      "Item": "Interlocutory Application, if any"
+    },
+    {
+      "Sl. No.": "11",
+      "Item": "Reply to Interlocutory Application"
+    },
+    {
+      "Sl. No.": "12",
+      "Item": "Better Affidavit"
+    }
+  ],
+  "55": [
+    {
+      "Sl. No.": "1",
+      "Item": "Synopsis",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "2",
+      "Item": "List of Dates and Events",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "3",
+      "Item": "Appeal",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "4",
+      "Item": "Affidavit(s) & Verification",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "5",
+      "Item": "Certificate",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "6",
+      "Item": "Annexure(s)",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "7",
+      "Item": "Vakalatnama",
+      "for_new_filing": true
+    },
+    {
+      "Sl. No.": "8",
+      "Item": "Compliance report / affidavit"
+    },
+    {
+      "Sl. No.": "9",
+      "Item": "Interlocutory Application, if any"
+    },
+    {
+      "Sl. No.": "10",
+      "Item": "Reply to Interlocutory Application"
+    },
+    {
+      "Sl. No.": "11",
+      "Item": "Better Affidavit"
+    }
   ]
 }

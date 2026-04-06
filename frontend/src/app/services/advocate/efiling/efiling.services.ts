@@ -1,4 +1,4 @@
-import { HttpClient, HttpEvent } from "@angular/common/http";
+import { HttpClient, HttpEvent, HttpParams } from "@angular/common/http";
 import { Observable, catchError, throwError } from "rxjs";
 import { Injectable } from "@angular/core";
 import { app_url } from "../../../environment";
@@ -319,6 +319,16 @@ export class EfilingService {
 
   get_document_index_master(): Observable<any> {
     return this.http.get<any>(`${app_url}/api/v1/efiling/document-index/`);
+  }
+
+  /** Master rows for a case type when building the new-filing upload checklist. */
+  get_document_index_for_new_filing(caseTypeId: number): Observable<any> {
+    const params = new HttpParams()
+      .set("case_type", String(caseTypeId))
+      .set("for_new_filing", "true");
+    return this.http.get<any>(`${app_url}/api/v1/efiling/document-index/`, {
+      params,
+    });
   }
 
   mergePdfs(

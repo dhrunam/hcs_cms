@@ -5,4 +5,11 @@ class DocumentIndexSerializer(serializers.ModelSerializer):
   
     class Meta:
         model = DocumentIndex
-        fields =('id','name',"case_type", "for_new_filing", "fee_amount")
+        fields = (
+            "id",
+            "name",
+            "case_type",
+            "for_new_filing",
+            "fee_amount",
+            "sequence_number",
+        )
