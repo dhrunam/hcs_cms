@@ -3,10 +3,9 @@ import { AuthConfig, OAuthService } from 'angular-oauth2-oidc';
 export const authConfig: AuthConfig = {
   issuer: 'http://localhost:8000/o',
   // redirectUri: window.location.origin,
-  redirectUri: 'http://localhost:4200/auth/redirect/',
-  clientId: 'UQtobR3X2AECQbx8733PFezSAg2Oblelum8d0QIU',
+  redirectUri: 'http://localhost:4200/',
+  clientId: 'VEd9ZSHfK3m99blkADk5mkeUT99Ly0rpfaiJT987',
   responseType: 'code',
-  // scope: 'openid profile email read write api.read api.write offline_access',
   scope: 'openid profile email',
   showDebugInformation: false,
   strictDiscoveryDocumentValidation: false,

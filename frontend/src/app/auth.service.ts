@@ -11,6 +11,11 @@ export type LogoutStatus = {
   success: boolean;
 };
 
+export type AuthorizationError = {
+  error: string;
+  errorDescription: string;
+};
+
 @Injectable({
   providedIn: 'root',
 })
@@ -116,6 +121,20 @@ export class AuthService {
       !!sessionStorage.getItem('access_token') ||
       !!localStorage.getItem('access_token')
     );
+  }
+
+  public getAuthorizationError(): AuthorizationError | null {
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get('error');
+
+    if (!error) {
+      return null;
+    }
+
+    return {
+      error,
+      errorDescription: params.get('error_description') || 'SSO login could not be completed.',
+    };
   }
 
   private syncSessionFromTokens(): void {
