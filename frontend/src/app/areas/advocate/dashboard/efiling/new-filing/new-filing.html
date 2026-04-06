@@ -205,19 +205,42 @@
           <div class="preview-page rounded-3 p-3 text-start">
             <h5 class="section-title">Court fee</h5>
             <p class="text-muted small mb-3">
-              Fee is based on the case type selected under Case Info. For
-              <strong>WP(C)</strong> the court fee is
-              <strong>₹{{ paymentFeeRupees }}/-</strong> (others:
-              <strong>₹0/-</strong>).
+              Enter the court fee amount that applies to this filing. The same
+              amount is used for
+              <strong>online</strong> (payment gateway) and
+              <strong>offline</strong> (bank receipt) payment, for every case type.
             </p>
+
+            <div
+              class="mb-3"
+              *ngIf="requiresCourtFeePayment && paymentOutcome !== 'success'"
+            >
+              <label class="form-label" for="manualCourtFeeAmount"
+                >Court fee amount (INR)</label
+              >
+              <input
+                id="manualCourtFeeAmount"
+                type="number"
+                class="form-control"
+                min="0.01"
+                step="0.01"
+                [(ngModel)]="manualCourtFeeAmount"
+                [ngModelOptions]="{ standalone: true }"
+                placeholder="e.g. 250"
+                autocomplete="off"
+              />
+            </div>
 
             <div class="card border bg-light mb-3">
               <div class="card-body py-3">
                 <div class="d-flex justify-content-between align-items-center">
                   <span class="text-muted">Amount payable</span>
-                  <span class="fs-5 fw-semibold"
-                    >₹{{ paymentFeeRupees }}/-</span
-                  >
+                  <span class="fs-5 fw-semibold">
+                    <ng-container *ngIf="paymentFeeRupees > 0"
+                      >₹{{ paymentFeeRupees }}/-</ng-container
+                    >
+                    <ng-container *ngIf="paymentFeeRupees <= 0">—</ng-container>
+                  </span>
                 </div>
                 <div class="small text-muted mt-2" *ngIf="eFilingNumber">
                   E-filing no.: {{ eFilingNumber }}
@@ -306,7 +329,11 @@
                   <div class="col-md-6">
                     <div class="text-muted small">Amount</div>
                     <div class="fw-semibold">
-                      ₹{{ paymentFeeRupees }}/-
+                      ₹{{
+                        paymentDetails?.courtFees ||
+                          paymentDetails?.amount ||
+                          paymentFeeRupees
+                      }}/-
                     </div>
                   </div>
                   <div class="col-md-6">
@@ -348,14 +375,6 @@
               Payment rejected, please try again.
             </div>
             <div
-              class="alert alert-info py-2 mb-3"
-              *ngIf="!requiresCourtFeePayment"
-            >
-              No court fee applies for this case type. Continue to
-              <strong>eFile</strong>.
-            </div>
-
-            <div
               class="d-flex flex-wrap gap-2 align-items-center"
               *ngIf="
                 requiresCourtFeePayment &&
@@ -367,7 +386,7 @@
                 type="button"
                 class="btn btn-primary"
                 (click)="confirmProceedToPay()"
-                [disabled]="!filingId || !eFilingNumber"
+                [disabled]="!filingId || !eFilingNumber || paymentFeeRupees <= 0"
               >
                 <i class="fa-solid fa-arrow-up-right-from-square me-2"></i>
                 Proceed to pay fees
@@ -392,17 +411,6 @@
                       [(ngModel)]="offlineTransactionId"
                       [ngModelOptions]="{ standalone: true }"
                       placeholder="Enter Bank Receipt No."
-                    />
-                  </div>
-                  <div class="col-md-4">
-                    <label class="form-label mb-1">Court Fees</label>
-                    <input
-                      type="number"
-                      class="form-control"
-                      [(ngModel)]="offlineCourtFees"
-                      [ngModelOptions]="{ standalone: true }"
-                      placeholder="Enter court fees"
-                      disabled
                     />
                   </div>
                   <div class="col-md-4">
@@ -433,7 +441,7 @@
                       [disabled]="
                         isSubmittingOfflinePayment ||
                         !offlineTransactionId ||
-                        !offlineCourtFees ||
+                        paymentFeeRupees <= 0 ||
                         !offlinePaymentDate ||
                         !offlineBankReceipt
                       "
@@ -459,7 +467,7 @@
               <button
                 class="btn btn-outline-dark"
                 (click)="next()"
-                [disabled]="requiresCourtFeePayment && !isPaymentSuccessful"
+                [disabled]="!isPaymentSuccessful"
               >
                 Next
                 <i class="fa-solid fa-chevron-right ms-2"></i>

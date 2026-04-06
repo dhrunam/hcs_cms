@@ -91,13 +91,13 @@ export class NewFiling {
   } | null = null;
   paymentMode: "online" | "offline" = "online";
   offlineTransactionId = "";
-  offlineCourtFees = "";
+  /** Entered court fee (INR) for this filing; used for both online gateway and offline submission. */
+  manualCourtFeeAmount = "";
   offlineBankReceipt: File | null = null;
   offlineBankReceiptName = "";
   offlinePaymentDate = "";
   isSubmittingOfflinePayment = false;
 
-  private readonly wpCourtFeeRupees = 250;
   private readonly wpMainPetitionMandatoryIndexes = [
     "Synopsis",
     "List of Dates and Events",
@@ -274,8 +274,15 @@ export class NewFiling {
     return label === "WP(C)" || (label.includes("WP") && label.includes("(C)"));
   }
 
+  /** Parsed positive court fee from {@link manualCourtFeeAmount}; 0 if missing or invalid. */
   get paymentFeeRupees(): number {
-    return this.isWPCCaseType ? this.wpCourtFeeRupees : 0;
+    const raw = String(this.manualCourtFeeAmount ?? "")
+      .trim()
+      .replace(/,/g, "");
+    if (!raw) return 0;
+    const n = Number.parseFloat(raw);
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return n;
   }
 
   get effectiveDocumentType(): string | null {
@@ -335,8 +342,9 @@ export class NewFiling {
     return names.length - 1;
   }
 
+  /** Court fee step and payment apply for all new filing case types; amount is entered manually. */
   get requiresCourtFeePayment(): boolean {
-    return this.paymentFeeRupees > 0;
+    return true;
   }
 
   get isPaymentSuccessful(): boolean {
@@ -389,7 +397,10 @@ export class NewFiling {
       ["Transaction ID", txnId],
       ["Reference number", referenceNo],
       ["Amount paid (INR)", `Rs. ${amountStr}/-`],
-      ["Court fee (INR)", `Rs. ${this.paymentFeeRupees}/-`],
+      [
+        "Court fee (INR)",
+        `Rs. ${String(pd?.courtFees || pd?.amount || this.paymentFeeRupees)}/-`,
+      ],
       ["Payment mode", "Online"],
       ["Payment date / time", dateTimeLabel],
       ["Payment status", "Successful"],
@@ -501,6 +512,7 @@ export class NewFiling {
 
     // Always open Payment accordion after gateway return.
     this.step = 5;
+    this.hydrateManualCourtFeeFromPaymentDetails();
     this.moveToPreviewIfPaymentComplete();
 
     this.persistPaymentOutcome();
@@ -512,6 +524,14 @@ export class NewFiling {
       queryParams: clean,
       replaceUrl: true,
     });
+  }
+
+  private hydrateManualCourtFeeFromPaymentDetails(): void {
+    if (this.paymentOutcome !== "success") return;
+    const pd = this.paymentDetails;
+    if (!pd) return;
+    const v = String(pd.courtFees ?? pd.amount ?? "").trim();
+    if (v) this.manualCourtFeeAmount = v;
   }
 
   private persistPaymentOutcome() {
@@ -542,6 +562,7 @@ export class NewFiling {
           outcome: j.outcome,
         };
         this.step = 5;
+        this.hydrateManualCourtFeeFromPaymentDetails();
       }
     } catch {
       /* ignore */
@@ -572,7 +593,6 @@ export class NewFiling {
         }
         this.paymentMode = paymentMode;
         this.offlineTransactionId = String(tx.txn_id || "");
-        this.offlineCourtFees = String(tx.court_fees || tx.amount || "");
         this.offlinePaymentDate = String(tx.payment_date || "");
         this.offlineBankReceipt = null;
         this.offlineBankReceiptName = tx.bank_receipt
@@ -589,6 +609,7 @@ export class NewFiling {
           paymentDate: tx.payment_date || undefined,
           outcome: this.paymentOutcome,
         };
+        this.hydrateManualCourtFeeFromPaymentDetails();
         this.moveToPreviewIfPaymentComplete();
       },
     });
@@ -620,9 +641,6 @@ export class NewFiling {
 
   onPaymentModeChange(mode: "online" | "offline") {
     this.paymentMode = mode;
-    if (mode === "offline" && !this.offlineCourtFees) {
-      this.offlineCourtFees = String(this.paymentFeeRupees || "");
-    }
     if (mode === "offline" && !this.offlinePaymentDate) {
       this.offlinePaymentDate = new Date().toISOString().slice(0, 10);
     }
@@ -642,7 +660,11 @@ export class NewFiling {
       return;
     }
     const txnId = String(this.offlineTransactionId || "").trim();
-    const courtFees = String(this.offlineCourtFees || "").trim();
+    const courtFees = String(this.manualCourtFeeAmount || "").trim();
+    if (this.paymentFeeRupees <= 0) {
+      this.toastr.error("Please enter a valid court fee amount greater than zero.");
+      return;
+    }
     const paymentDate = String(this.offlinePaymentDate || "").trim();
     if (!txnId || !courtFees || !paymentDate || !this.offlineBankReceipt) {
       this.toastr.error(
@@ -752,6 +774,14 @@ export class NewFiling {
 
   async confirmProceedToPay() {
     if (!this.requiresCourtFeePayment) return;
+    if (this.paymentFeeRupees <= 0) {
+      this.toastr.error(
+        "Please enter a valid court fee amount greater than zero.",
+        "",
+        { timeOut: 3500, closeButton: true },
+      );
+      return;
+    }
     if (!this.filingId || !this.eFilingNumber) {
       this.toastr.error(
         "Save the filing and ensure an e-filing number exists before paying.",
