@@ -428,19 +428,22 @@
                 >
                   <div
                     class="document-group bg-white"
-                    *ngFor="let group of groupedDocuments; trackBy: trackByGroupIndex"
+                    *ngFor="let group of groupedDocuments;let i=index; trackBy: trackByGroupIndex"
                   >
-                    <div
-                      class="document-type-header"
-                    >
+                    <div class="document-type-header">
                       <span>
                         {{ group.document_type || 'Main Document' }}
                       </span>
-                      <br>
-                      <span class="text-white small fw-light">
-                        Filed on {{ getDocumentDate(group.rows[0]?.document) | date: 'dd MMM yyyy'
-                        }} at {{ getDocumentDate(group.rows[0]?.document) | date: 'hh:mm a' }}</span
+
+                      <ng-container
+                        *ngIf="i === 0 && getDocumentDate(group.rows[0]?.document) as d0"
                       >
+                        <br />
+                        <span class="text-white small fw-light">
+                          Filed on {{ d0 | date: 'dd MMM yyyy' }} at {{ d0 |
+                          date: 'hh:mm a' }}
+                        </span>
+                      </ng-container>
                     </div>
 
                     <div
@@ -468,6 +471,19 @@
                             <div class="document-title fw-normal">
                               {{ row.document.document_part_name ||
                               getDocumentTitle(row.document) }}
+
+                              <span
+                                class="small text-muted"
+                                *ngIf="getDocumentDate(row.document) as id1"
+                              >
+                                <br />
+                                <ng-container
+                                  *ngIf="row.document.file_part_path==null"
+                                >
+                                  Filed on {{ id1 | date: 'dd MMM yyyy' }} at {{
+                                  id1 | date: 'hh:mm a' }}
+                                </ng-container>
+                              </span>
                             </div>
                             <div
                               class="document-meta"
