@@ -5,93 +5,31 @@
     </div>
 
     <h1 class="title">Sikkim eFiling Module</h1>
-    <p class="subtitle text-muted">
-      <!-- <small>SeM </small> -->
-    </p>
+    <p class="subtitle text-muted">Sign in using the High Court SSO service.</p>
 
-    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-      <div class="form-group">
-        <label class="text-secondary ps-2">Phone number</label>
-        <input
-          [class.is-invalid]="form.get('phone')?.touched && form.get('phone')?.invalid"
-          type="tel"
-          formControlName="phone"
-          placeholder="Enter 10-digit phone number"
-          class="form-control"
-        />
-        <div
-          class="invalid ps-2 small"
-          *ngIf="form.get('phone')?.touched && form.get('phone')?.invalid"
-        >
-          <small *ngIf="form.get('phone')?.errors?.['required']"
-            >Phone is required.</small
-          >
-          <small *ngIf="form.get('phone')?.errors?.['pattern']"
-            >Enter a valid 10-digit phone.</small
-          >
-        </div>
-      </div>
+    <div *ngIf="authErrorMessage" class="alert alert-danger mt-4" role="alert">
+      {{ authErrorMessage }}
+    </div>
 
-      <div class="form-group mt-2">
-        <label class="text-secondary ps-2">Password</label>
-        <input
-          [class.is-invalid]="form.get('password')?.touched && form.get('password')?.invalid"
-          type="password"
-          formControlName="password"
-          class="form-control"
-          placeholder="Password"
-        />
-        <div
-          class="invalid small"
-          *ngIf="form.get('password')?.touched && form.get('password')?.invalid"
-        >
-          <small class="ps-2">Password is required.</small>
-        </div>
-      </div>
-
-      <div
-        class="error text-danger small text-start ps-2 pt-0"
-        *ngIf="authError"
+    <div class="actions text-center mt-5">
+      <button
+        class="btn login-button"
+        style="color: white; background: rgb(37, 37, 129)"
+        type="button"
+        [disabled]="isLoading"
+        (click)="submit()"
       >
-        {{ authError }}
-      </div>
-
-      <div class="actions text-center mt-5">
-        <button
-          class="btn login-button"
-          style="color: white; background: rgb(37, 37, 129)"
-          type="submit"
-          [disabled]="isLoading"
-        >
-          <span *ngIf="!isLoading">Login</span>
-          <span *ngIf="isLoading" class="loading">Loading...</span>
-        </button>
-      </div>
-    </form>
+        <span *ngIf="!isLoading">Continue with SSO</span>
+        <span *ngIf="isLoading" class="loading">Redirecting...</span>
+      </button>
+    </div>
 
     <div class="hint hint-warning" role="status" aria-live="polite">
       <div class="hint-item">
-        <strong>Advocate</strong> 9555417726 / Advocate@123
+        Authentication is handled only by the SSO server at localhost:8000.
       </div>
       <div class="hint-item">
-        <strong>Scrutiny</strong> 8178429427 / Scrutiny@123
-      </div>
-      <div class="hint-item">
-        <strong>Reader</strong> 8111111111 / Reader1@123
-      </div>
-
-      <div class="hint-item">
-        <strong>Judge CJ:</strong> 9000000002 / Judge@123
-      </div>
-      <div class="hint-item">
-        <strong>Judge 1:</strong> 9000000003 / Judge@123
-      </div>
-      <div class="hint-item">
-        <strong>Judge 2:</strong> 9000000004 / Judge@123
-      </div>
-
-      <div class="hint-item">
-        <strong>Listing Officer:</strong> 9000000001 / Listing@123
+        No local fallback credentials are available in this UI.
       </div>
     </div>
   </div>

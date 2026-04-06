@@ -141,9 +141,7 @@ class AdminDashboardView(APIView):
 | `SSO_SIGNAL_AUTO_SYNC` | `True` | Connect `app_authorized` signal handler automatically |
 | `SSO_SUB_CLAIM_KEYS` | `("sub", "id")` | Claim keys searched for the subject identifier |
 | `SSO_USERNAME_CLAIM_KEYS` | `("preferred_username", "username", "email")` | Claim keys searched for the username |
-| `SSO_SCOPE_GROUP_PREFIX` | `"SSO_SCOPE_"` | Prefix for scope-derived Django groups |
 | `SSO_CLAIM_GROUP_KEYS` | `("groups", "roles")` | Claim keys to read group membership from |
-| `SCOPE_TO_GROUP_MAP` | `{}` | Optional explicit map: OAuth2 scope value → Django group name |
 | `SCOPE_TO_PERMISSION_MAP` | built-in defaults | Maps OAuth2 scope → Django permission codenames |
 | `ROLE_TO_GROUP_MAP` | built-in defaults | Maps OIDC role value → Django group name |
 | `SSO_PERMISSION_ALLOW_SAFE_METHODS` | `True` | If `True`, configured safe methods are read-public in `AdminEditorOrReadOnly` |
