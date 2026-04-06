@@ -1,13 +1,17 @@
-import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { ActivatedRoute } from '@angular/router';
-import { catchError, forkJoin, of } from 'rxjs';
-import { ToastrService } from 'ngx-toastr';
-import Swal from 'sweetalert2';
-import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
-import { PaymentService } from '../../../../../../services/payment/payment.service';
-import { getValidationErrorMessage, validatePdfOcr, validatePdfSize } from '../../../../../../utils/pdf-validation';
+import { CommonModule } from "@angular/common";
+import { Component } from "@angular/core";
+import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
+import { ActivatedRoute } from "@angular/router";
+import { catchError, forkJoin, of } from "rxjs";
+import { ToastrService } from "ngx-toastr";
+import Swal from "sweetalert2";
+import { EfilingService } from "../../../../../../services/advocate/efiling/efiling.services";
+import { PaymentService } from "../../../../../../services/payment/payment.service";
+import {
+  getValidationErrorMessage,
+  validatePdfOcr,
+  validatePdfSize,
+} from "../../../../../../utils/pdf-validation";
 import {
   EfilingDocumentIndexGroup,
   firstClickableEfilingDocumentIndexInGrouped,
@@ -15,22 +19,22 @@ import {
   groupEfilingDocumentIndexesByType,
   isEfilingDocumentIndexClickable,
   trackByEfilingDocumentIndexRowId,
-} from '../../../../../../utils/efiling-document-index-tree';
-import { EfilingChatComponent } from '../../../../../../shared/efiling-chat/efiling-chat';
+} from "../../../../../../utils/efiling-document-index-tree";
+import { EfilingChatComponent } from "../../../../../../shared/efiling-chat/efiling-chat";
 
 @Component({
-  selector: 'app-scrutiny-details',
+  selector: "app-scrutiny-details",
   standalone: true,
   imports: [CommonModule, EfilingChatComponent],
-  templateUrl: './scrutiny-details.html',
-  styleUrl: './scrutiny-details.css',
+  templateUrl: "./scrutiny-details.html",
+  styleUrl: "./scrutiny-details.css",
 })
 export class ScrutinyDetails {
   readonly hiddenHistoryComments = new Set([
-    'Document uploaded by advocate.',
-    'Document re-uploaded by advocate.',
-    'Document sent to scrutiny queue.',
-    'Document review item created.',
+    "Document uploaded by advocate.",
+    "Document re-uploaded by advocate.",
+    "Document sent to scrutiny queue.",
+    "Document review item created.",
   ]);
 
   filingId: number | null = null;
@@ -48,25 +52,27 @@ export class ScrutinyDetails {
   isReplacing = false;
   notesPopupOpen = false;
   canShowReplaceBtn: boolean = false;
-  pendingReplacements: Array<{ documentId: number; document: any; file: File }> = [];
-  activeTab: 'filing' | 'documents' | 'ia' | 'chat' = 'filing';
+  pendingReplacements: Array<{
+    documentId: number;
+    document: any;
+    file: File;
+  }> = [];
+  activeTab: "filing" | "documents" | "ia" | "chat" = "filing";
   iaList: any[] = [];
   iaDocuments: any[] = [];
   selectedIaDocument: any = null;
   selectedIaDocumentUrl: SafeResourceUrl | null = null;
   selectedIaDocumentBlobUrl: string | null = null;
-  paymentOutcome: 'success' | 'failed' | null = null;
-  paymentDetails:
-    | {
-        txnId?: string;
-        paidAt?: string;
-        referenceNo?: string;
-        amount?: string;
-        paymentMode?: 'online' | 'offline';
-        bankReceipt?: string;
-        paymentDate?: string;
-      }
-    | null = null;
+  paymentOutcome: "success" | "failed" | null = null;
+  paymentDetails: {
+    txnId?: string;
+    paidAt?: string;
+    referenceNo?: string;
+    amount?: string;
+    paymentMode?: "online" | "offline";
+    bankReceipt?: string;
+    paymentDate?: string;
+  } | null = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -84,13 +90,13 @@ export class ScrutinyDetails {
     this.notesPopupOpen = false;
   }
 
-  setActiveTab(tab: 'filing' | 'documents' | 'ia' | 'chat'): void {
+  setActiveTab(tab: "filing" | "documents" | "ia" | "chat"): void {
     this.activeTab = tab;
   }
 
   ngOnInit(): void {
     this.route.paramMap.subscribe((params) => {
-      const rawId = params.get('id');
+      const rawId = params.get("id");
       const nextId = rawId ? Number(rawId) : null;
       this.filingId = nextId && !Number.isNaN(nextId) ? nextId : null;
       if (this.filingId) {
@@ -103,15 +109,30 @@ export class ScrutinyDetails {
     this.isLoading = true;
     forkJoin({
       filing: this.efilingService.get_filing_by_id(id),
-      documents: this.efilingService.get_document_reviews_by_filing_id(id, false),
-      iaDocuments: this.efilingService.get_document_reviews_by_filing_id(id, true),
+      documents: this.efilingService.get_document_reviews_by_filing_id(
+        id,
+        false,
+      ),
+      iaDocuments: this.efilingService.get_document_reviews_by_filing_id(
+        id,
+        true,
+      ),
       litigants: this.efilingService.get_litigant_list_by_filing_id(id),
       caseDetails: this.efilingService.get_case_details_by_filing_id(id),
       acts: this.efilingService.get_acts_by_filing_id(id),
       ias: this.efilingService.get_ias_by_efiling_id(id),
       payment: this.paymentService.latest(id).pipe(catchError(() => of(null))),
     }).subscribe({
-      next: ({ filing, documents, iaDocuments, litigants, caseDetails, acts, ias, payment }) => {
+      next: ({
+        filing,
+        documents,
+        iaDocuments,
+        litigants,
+        caseDetails,
+        acts,
+        ias,
+        payment,
+      }) => {
         this.filing = filing;
         this.documents = documents?.results ?? [];
         this.groupedDocuments = this.groupDocumentsByType(this.documents);
@@ -119,10 +140,12 @@ export class ScrutinyDetails {
         this.litigantList = litigants?.results ?? [];
         this.caseDetails = caseDetails?.results?.[0] ?? null;
         this.actList = acts?.results ?? [];
-        console.log('Act llist is', this.actList);
+        console.log("Act llist is", this.actList);
         this.iaList = Array.isArray(ias) ? ias : (ias?.results ?? []);
         this.updatePaymentDetails(payment);
-        const firstWithDocs = this.iaWithDocuments.find((i) => i.documents.length > 0);
+        const firstWithDocs = this.iaWithDocuments.find(
+          (i) => i.documents.length > 0,
+        );
         this.selectIaDocument(
           firstWithDocs
             ? this.firstClickableInGroupedDocs(firstWithDocs.groupedDocs)
@@ -140,7 +163,7 @@ export class ScrutinyDetails {
         this.isLoading = false;
       },
       error: (error) => {
-        console.error('Failed to load scrutiny details', error);
+        console.error("Failed to load scrutiny details", error);
         this.isLoading = false;
       },
     });
@@ -152,18 +175,22 @@ export class ScrutinyDetails {
       this.paymentDetails = null;
       return;
     }
-    const statusRaw = String(tx.status || '').toLowerCase();
+    const statusRaw = String(tx.status || "").toLowerCase();
     const paymentMode =
-      String(tx.payment_mode || '').toLowerCase() === 'offline' ? 'offline' : 'online';
+      String(tx.payment_mode || "").toLowerCase() === "offline"
+        ? "offline"
+        : "online";
     if (
       /(success|paid|complete|ok)/i.test(statusRaw) ||
-      (paymentMode === 'offline' &&
+      (paymentMode === "offline" &&
         !!tx.bank_receipt &&
-        /(offline_submitted|submitted|pending|success|paid|complete|ok)/i.test(statusRaw))
+        /(offline_submitted|submitted|pending|success|paid|complete|ok)/i.test(
+          statusRaw,
+        ))
     ) {
-      this.paymentOutcome = 'success';
+      this.paymentOutcome = "success";
     } else if (statusRaw) {
-      this.paymentOutcome = 'failed';
+      this.paymentOutcome = "failed";
     } else {
       this.paymentOutcome = null;
     }
@@ -187,6 +214,7 @@ export class ScrutinyDetails {
   }
 
   advocateDocumentRowClick(doc: any): void {
+    console.log("Advocate clicked document is ", doc);
     if (!this.isDocumentIndexClickable(doc)) return;
     this.selectDocument(doc);
   }
@@ -212,7 +240,9 @@ export class ScrutinyDetails {
     return firstClickableEfilingDocumentIndexInList(docs);
   }
 
-  private firstClickableInGroupedDocs(grouped: EfilingDocumentIndexGroup[]): any | null {
+  private firstClickableInGroupedDocs(
+    grouped: EfilingDocumentIndexGroup[],
+  ): any | null {
     return firstClickableEfilingDocumentIndexInGrouped(grouped);
   }
 
@@ -221,7 +251,7 @@ export class ScrutinyDetails {
   selectDocument(document: any): void {
     this.selectedDocument = document;
     this.canShowReplaceBtn = Boolean(
-      document?.scrutiny_status?.toLowerCase().includes('rejected'),
+      document?.scrutiny_status?.toLowerCase().includes("rejected"),
     );
     this.updatePreviewUrl(
       (document?.file_url ?? document?.file_part_path ?? null) as string | null,
@@ -253,22 +283,25 @@ export class ScrutinyDetails {
       return;
     }
 
-    this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+    this.selectedDocumentUrl =
+      this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
     this.efilingService.fetch_document_blob(fileUrl).subscribe({
       next: (blob) => {
         this.selectedDocumentBlobUrl = URL.createObjectURL(blob);
-        this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
-          this.selectedDocumentBlobUrl,
-        );
+        this.selectedDocumentUrl =
+          this.sanitizer.bypassSecurityTrustResourceUrl(
+            this.selectedDocumentBlobUrl,
+          );
       },
       error: () => {
-        this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+        this.selectedDocumentUrl =
+          this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
       },
     });
   }
 
   triggerReplace(input: HTMLInputElement, document: any): void {
-    input.value = '';
+    input.value = "";
     input.click();
   }
 
@@ -283,7 +316,7 @@ export class ScrutinyDetails {
     event?.stopPropagation();
     this.selectIaDocument(doc);
     (input as any)._replaceDoc = doc;
-    input.value = '';
+    input.value = "";
     input.click();
   }
 
@@ -293,41 +326,49 @@ export class ScrutinyDetails {
     const doc = (input as any)._replaceDoc ?? this.selectedDocument;
 
     if (!file || !doc?.id) {
-      input.value = '';
+      input.value = "";
       return;
     }
 
-    if (file.type !== 'application/pdf') {
-      this.toastr.error('Please select a PDF file.');
-      input.value = '';
+    if (file.type !== "application/pdf") {
+      this.toastr.error("Please select a PDF file.");
+      input.value = "";
       return;
     }
 
     const sizeCheck = validatePdfSize(file);
     if (!sizeCheck.valid && sizeCheck.error) {
       this.toastr.error(sizeCheck.error);
-      input.value = '';
+      input.value = "";
       return;
     }
 
     const ocrCheck = await validatePdfOcr(file);
     if (!ocrCheck.valid && ocrCheck.error) {
       this.toastr.error(ocrCheck.error);
-      input.value = '';
+      input.value = "";
       return;
     }
 
-    const existing = this.pendingReplacements.find((p) => p.documentId === doc.id);
+    const existing = this.pendingReplacements.find(
+      (p) => p.documentId === doc.id,
+    );
     if (existing) {
       existing.file = file;
     } else {
-      this.pendingReplacements.push({ documentId: doc.id, document: doc, file });
+      this.pendingReplacements.push({
+        documentId: doc.id,
+        document: doc,
+        file,
+      });
     }
-    input.value = '';
+    input.value = "";
   }
 
   removePendingReplacement(documentId: number): void {
-    this.pendingReplacements = this.pendingReplacements.filter((p) => p.documentId !== documentId);
+    this.pendingReplacements = this.pendingReplacements.filter(
+      (p) => p.documentId !== documentId,
+    );
   }
 
   hasPendingReplacement(documentId: number): boolean {
@@ -335,15 +376,19 @@ export class ScrutinyDetails {
   }
 
   getPendingFileForDocument(documentId: number): File | null {
-    const p = this.pendingReplacements.find((pr) => pr.documentId === documentId);
+    const p = this.pendingReplacements.find(
+      (pr) => pr.documentId === documentId,
+    );
     return p?.file ?? null;
   }
 
   viewPendingFile(documentId: number): void {
-    const p = this.pendingReplacements.find((pr) => pr.documentId === documentId);
+    const p = this.pendingReplacements.find(
+      (pr) => pr.documentId === documentId,
+    );
     if (!p?.file) return;
     const url = URL.createObjectURL(p.file);
-    window.open(url, '_blank', 'noopener');
+    window.open(url, "_blank", "noopener");
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
 
@@ -352,14 +397,14 @@ export class ScrutinyDetails {
 
     const count = this.pendingReplacements.length;
     const confirmed = await Swal.fire({
-      title: 'Replace All Documents?',
-      text: `You are about to replace ${count} document${count > 1 ? 's' : ''} with new files. This action cannot be undone.`,
-      icon: 'warning',
+      title: "Replace All Documents?",
+      text: `You are about to replace ${count} document${count > 1 ? "s" : ""} with new files. This action cannot be undone.`,
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: '#dc3545',
-      cancelButtonColor: '#6c757d',
-      confirmButtonText: 'Yes, replace all',
-      cancelButtonText: 'Cancel',
+      confirmButtonColor: "#dc3545",
+      cancelButtonColor: "#6c757d",
+      confirmButtonText: "Yes, replace all",
+      cancelButtonText: "Cancel",
     });
 
     if (!confirmed.isConfirmed) return;
@@ -376,9 +421,9 @@ export class ScrutinyDetails {
         this.isReplacing = false;
         this.loadDetails(this.filingId!);
         Swal.fire({
-          title: 'Replaced',
+          title: "Replaced",
           text: `${toReplace.length} document(s) have been replaced successfully.`,
-          icon: 'success',
+          icon: "success",
           timer: 2000,
           showConfirmButton: false,
         });
@@ -386,26 +431,30 @@ export class ScrutinyDetails {
       }
 
       const { documentId, file } = toReplace[index];
-      this.efilingService.replace_document_review_item(documentId, file).subscribe({
-        next: () => replaceNext(index + 1),
-        error: (error) => {
-          console.error('Failed to replace document', error);
-          this.isReplacing = false;
-          this.pendingReplacements = [...toReplace.slice(index)];
-          Swal.fire({
-            title: 'Error',
-            text: getValidationErrorMessage(error) || 'Failed to replace document. Please try again.',
-            icon: 'error',
-          });
-        },
-      });
+      this.efilingService
+        .replace_document_review_item(documentId, file)
+        .subscribe({
+          next: () => replaceNext(index + 1),
+          error: (error) => {
+            console.error("Failed to replace document", error);
+            this.isReplacing = false;
+            this.pendingReplacements = [...toReplace.slice(index)];
+            Swal.fire({
+              title: "Error",
+              text:
+                getValidationErrorMessage(error) ||
+                "Failed to replace document. Please try again.",
+              icon: "error",
+            });
+          },
+        });
     };
 
     replaceNext(0);
   }
 
   private async promptOtpAndProceed(): Promise<boolean> {
-    this.toastr.success('OTP has been sent successfully.', '', {
+    this.toastr.success("OTP has been sent successfully.", "", {
       timeOut: 3000,
       closeButton: true,
     });
@@ -419,25 +468,25 @@ export class ScrutinyDetails {
       };
 
       Swal.fire({
-        title: 'Enter OTP',
+        title: "Enter OTP",
         html:
           '<div style="display:flex;gap:8px;justify-content:center">' +
-          ['otp-1', 'otp-2', 'otp-3', 'otp-4']
+          ["otp-1", "otp-2", "otp-3", "otp-4"]
             .map(
               (id) =>
                 `<input id="${id}" type="text" inputmode="numeric" maxlength="1" style="width:48px;height:48px;text-align:center;font-size:20px;border:1px solid #d1d5db;border-radius:8px;" />`,
             )
-            .join('') +
+            .join("") +
           '<div id="otp-status" style="margin-top:12px;font-size:14px;text-align:center"></div>',
         showCancelButton: true,
         showConfirmButton: false,
         allowOutsideClick: false,
         didOpen: () => {
-          const ids = ['otp-1', 'otp-2', 'otp-3', 'otp-4'];
+          const ids = ["otp-1", "otp-2", "otp-3", "otp-4"];
           const inputs = ids
             .map((id) => document.getElementById(id) as HTMLInputElement | null)
             .filter((el): el is HTMLInputElement => !!el);
-          const statusEl = document.getElementById('otp-status');
+          const statusEl = document.getElementById("otp-status");
 
           const setStatus = (message: string, color: string) => {
             if (!statusEl) return;
@@ -445,31 +494,35 @@ export class ScrutinyDetails {
             statusEl.style.color = color;
           };
 
-          const getOtp = () => inputs.map((el) => el.value || '').join('');
+          const getOtp = () => inputs.map((el) => el.value || "").join("");
 
           const validateOtp = () => {
             const otp = getOtp();
             if (otp.length < 4) {
-              setStatus('', '');
+              setStatus("", "");
               return;
             }
-            if (otp !== '0000') {
-              setStatus('OTP error. Please try again.', '#dc2626');
+            if (otp !== "0000") {
+              setStatus("OTP error. Please try again.", "#dc2626");
               return;
             }
-            setStatus('OTP verified.', '#16a34a');
+            setStatus("OTP verified.", "#16a34a");
             Swal.close();
             finish(true);
           };
 
           inputs.forEach((input, index) => {
-            input.addEventListener('input', () => {
-              input.value = input.value.replace(/\D/g, '').slice(0, 1);
+            input.addEventListener("input", () => {
+              input.value = input.value.replace(/\D/g, "").slice(0, 1);
               if (input.value && inputs[index + 1]) inputs[index + 1].focus();
               validateOtp();
             });
-            input.addEventListener('keydown', (event) => {
-              if (event.key === 'Backspace' && !input.value && inputs[index - 1]) {
+            input.addEventListener("keydown", (event) => {
+              if (
+                event.key === "Backspace" &&
+                !input.value &&
+                inputs[index - 1]
+              ) {
                 inputs[index - 1].focus();
               }
             });
@@ -484,56 +537,79 @@ export class ScrutinyDetails {
 
   openInNewTab(): void {
     if (this.selectedDocument?.file_url) {
-      window.open(this.selectedDocument.file_url, '_blank', 'noopener');
+      window.open(this.selectedDocument.file_url, "_blank", "noopener");
     }
   }
 
   getStatusLabel(status: string | null): string {
-    const s = (status ?? '').trim().toLowerCase();
-    if (!s) return 'Under Scrutiny';
-    if (s === 'accepted' || s.includes('accept')) return 'Accepted';
-    if (s === 'rejected' || s.includes('reject') || s.includes('object') || s.includes('partial')) return 'Rejected';
-    if (s === 'draft') return 'Draft';
-    if (s === 'under_scrutiny' || s === 'under scrutiny' || s.includes('submitted') || s.includes('scrutiny')) return 'Under Scrutiny';
-    return (status ?? 'Under Scrutiny').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    const s = (status ?? "").trim().toLowerCase();
+    if (!s) return "Under Scrutiny";
+    if (s === "accepted" || s.includes("accept")) return "Accepted";
+    if (
+      s === "rejected" ||
+      s.includes("reject") ||
+      s.includes("object") ||
+      s.includes("partial")
+    )
+      return "Rejected";
+    if (s === "draft") return "Draft";
+    if (
+      s === "under_scrutiny" ||
+      s === "under scrutiny" ||
+      s.includes("submitted") ||
+      s.includes("scrutiny")
+    )
+      return "Under Scrutiny";
+    return (status ?? "Under Scrutiny")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
   getIaStatusLabel(status: string | null): string {
-    const s = (status ?? '').trim().toLowerCase();
-    if (!s) return 'Pending';
-    if (s === 'accepted' || s.includes('accept')) return 'Accepted';
-    if (s === 'rejected' || s.includes('reject') || s.includes('partial')) return 'Rejected';
-    if (s === 'draft') return 'Draft';
-    if (s === 'under_scrutiny' || s === 'under scrutiny' || s.includes('submitted')) return 'Under Scrutiny';
-    return (status ?? 'Pending').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    const s = (status ?? "").trim().toLowerCase();
+    if (!s) return "Pending";
+    if (s === "accepted" || s.includes("accept")) return "Accepted";
+    if (s === "rejected" || s.includes("reject") || s.includes("partial"))
+      return "Rejected";
+    if (s === "draft") return "Draft";
+    if (
+      s === "under_scrutiny" ||
+      s === "under scrutiny" ||
+      s.includes("submitted")
+    )
+      return "Under Scrutiny";
+    return (status ?? "Pending")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
   getStatusClass(status: string | null): string {
     const label = this.getStatusLabel(status).toLowerCase();
-    if (label.includes('accept')) {
-      return 'status-badge-success';
+    if (label.includes("accept")) {
+      return "status-badge-success";
     }
-    if (label.includes('reject')) {
-      return 'status-badge-danger';
+    if (label.includes("reject")) {
+      return "status-badge-danger";
     }
-    return 'status-badge-warning';
+    return "status-badge-warning";
   }
 
   getIaStatusBadgeClass(status: string | null): string {
-    const s = (status ?? '').trim().toLowerCase();
-    if (s.includes('accept')) return 'status-badge-success';
-    if (s.includes('reject') || s.includes('partial')) return 'status-badge-danger';
-    return 'status-badge-warning';
+    const s = (status ?? "").trim().toLowerCase();
+    if (s.includes("accept")) return "status-badge-success";
+    if (s.includes("reject") || s.includes("partial"))
+      return "status-badge-danger";
+    return "status-badge-warning";
   }
 
   historyClass(status: string | null): string {
-    if (this.getStatusClass(status) === 'status-badge-success') {
-      return 'history-success';
+    if (this.getStatusClass(status) === "status-badge-success") {
+      return "history-success";
     }
-    if (this.getStatusClass(status) === 'status-badge-danger') {
-      return 'history-danger';
+    if (this.getStatusClass(status) === "status-badge-danger") {
+      return "history-danger";
     }
-    return 'history-warning';
+    return "history-warning";
   }
 
   canReplace(document: any): boolean {
@@ -549,7 +625,7 @@ export class ScrutinyDetails {
   }
 
   trackByGroupIndex(index: number, group: any): string {
-    return `${index}__${group?.document_type ?? 'unknown'}`;
+    return `${index}__${group?.document_type ?? "unknown"}`;
   }
 
   get iaWithDocuments(): Array<{
@@ -558,9 +634,9 @@ export class ScrutinyDetails {
     groupedDocs: EfilingDocumentIndexGroup[];
   }> {
     return this.iaList.map((ia) => {
-      const iaNum = (ia?.ia_number ?? '').trim();
+      const iaNum = (ia?.ia_number ?? "").trim();
       const documents = this.iaDocuments.filter(
-        (doc) => ((doc?.ia_number ?? '').trim() || null) === (iaNum || null),
+        (doc) => ((doc?.ia_number ?? "").trim() || null) === (iaNum || null),
       );
       return {
         ia,
@@ -580,31 +656,31 @@ export class ScrutinyDetails {
   }
 
   private extractFileName(value: string | null | undefined): string {
-    const raw = (value ?? '').trim();
-    if (!raw) return '';
+    const raw = (value ?? "").trim();
+    if (!raw) return "";
 
     // Remove query string if it's a URL.
-    const withoutQuery = raw.split('?')[0];
-    const parts = withoutQuery.split('/');
-    return parts[parts.length - 1] || '';
+    const withoutQuery = raw.split("?")[0];
+    const parts = withoutQuery.split("/");
+    return parts[parts.length - 1] || "";
   }
 
   getDocumentFileLabel(document: any): string {
-    const partName = (document?.document_part_name ?? '').trim();
+    const partName = (document?.document_part_name ?? "").trim();
     if (partName) return partName;
 
     const fileUrl = document?.file_url ?? document?.file_part_path;
     const fileName = this.extractFileName(fileUrl);
-    return fileName || 'Document';
+    return fileName || "Document";
   }
 
   getDocumentTitle(document: any): string {
-    const partName = (document?.document_part_name ?? '').trim();
+    const partName = (document?.document_part_name ?? "").trim();
     if (partName) return partName;
 
     const fileUrl = document?.file_url ?? document?.file_part_path;
     const fileName = this.extractFileName(fileUrl);
-    return fileName || 'Index entry';
+    return fileName || "Index entry";
   }
 
   getDocumentDate(document: any): string | null {
@@ -617,22 +693,24 @@ export class ScrutinyDetails {
   }
 
   getDocumentStatusLabel(document: any): string {
-    const draftStatus = (document?.draft_scrutiny_status ?? '').trim();
+    const draftStatus = (document?.draft_scrutiny_status ?? "").trim();
     if (draftStatus) {
       const baseLabel = this.getStatusLabel(draftStatus);
-      return baseLabel === 'Under Scrutiny' ? baseLabel : `Draft ${baseLabel}`;
+      return baseLabel === "Under Scrutiny" ? baseLabel : `Draft ${baseLabel}`;
     }
     return this.getStatusLabel(document?.scrutiny_status ?? null);
   }
 
   getDocumentStatusClass(document: any): string {
-    const draftStatus = (document?.draft_scrutiny_status ?? '').trim();
-    return this.getStatusClass(draftStatus || document?.scrutiny_status || null);
+    const draftStatus = (document?.draft_scrutiny_status ?? "").trim();
+    return this.getStatusClass(
+      draftStatus || document?.scrutiny_status || null,
+    );
   }
 
   get visibleDocumentHistory(): any[] {
     return this.documentHistory.filter((item) => {
-      const comment = (item?.comments ?? '').trim();
+      const comment = (item?.comments ?? "").trim();
       return Boolean(comment) && !this.hiddenHistoryComments.has(comment);
     });
   }
@@ -652,7 +730,7 @@ export class ScrutinyDetails {
   }
 
   getActName(act: any): string {
-    return act?.act?.actname ?? act?.actname ?? '-';
+    return act?.act?.actname ?? act?.actname ?? "-";
   }
 
   selectIaDocument(document: any): void {
@@ -666,18 +744,19 @@ export class ScrutinyDetails {
       this.selectedIaDocumentUrl = null;
       return;
     }
-    this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(iaStreamUrl);
+    this.selectedIaDocumentUrl =
+      this.sanitizer.bypassSecurityTrustResourceUrl(iaStreamUrl);
     this.efilingService.fetch_document_blob(iaStreamUrl).subscribe({
       next: (blob) => {
         this.selectedIaDocumentBlobUrl = URL.createObjectURL(blob);
-        this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
-          this.selectedIaDocumentBlobUrl,
-        );
+        this.selectedIaDocumentUrl =
+          this.sanitizer.bypassSecurityTrustResourceUrl(
+            this.selectedIaDocumentBlobUrl,
+          );
       },
       error: () => {
-        this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
-          iaStreamUrl,
-        );
+        this.selectedIaDocumentUrl =
+          this.sanitizer.bypassSecurityTrustResourceUrl(iaStreamUrl);
       },
     });
   }
