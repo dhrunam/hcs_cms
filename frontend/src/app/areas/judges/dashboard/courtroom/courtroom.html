@@ -92,6 +92,9 @@
           </div>
           <div class="col-12">
             <div class="small mb-1">Case Documents</div>
+            <div *ngIf="documentsLoadError" class="alert alert-warning py-2 small mb-2">
+              {{ documentsLoadError }}
+            </div>
 
             <div class="row g-3">
               <div class="col-lg-3">

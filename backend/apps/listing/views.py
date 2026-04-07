@@ -41,46 +41,32 @@ from apps.listing.serializers import (
 from django.db.models import Prefetch, Q
 from django.db.models import Count
 
-from apps.core.bench_config import get_required_judge_groups
-
-
-def _judge_approved_efiling_ids(cause_list_date: str, bench_key: str) -> Set[int]:
+def _cause_list_target_efiling_ids(cld_obj: date_type | None, bench_key: str) -> Set[int]:
     """
-    Returns efiling_ids that are approved by ALL required judge groups for this bench_key
-    AND have been assigned the matching listing_date (by the Reader).
+    Cases available for this cause list calendar day: forwarded for that day, or
+    reader listing_date matches that day (same bench), so listing tracks assign-date flow.
     """
-    required_groups = get_required_judge_groups(bench_key)
-    if not required_groups:
+    if not cld_obj:
         return set()
-
-    try:
-        cld = timezone.datetime.fromisoformat(cause_list_date).date()
-    except ValueError:
-        return set()
-
-    # 1. Get all efilings forwarded for this bench
-    forwarded_ids = set(
+    by_forward = set(
         CourtroomForward.objects.filter(
             bench_key=bench_key,
+            forwarded_for_date=cld_obj,
         ).values_list("efiling_id", flat=True)
     )
-    if not forwarded_ids:
-        return set()
-
-    # 2. For each required judge group, ensure there is an approval with matching listing_date.
-    group_to_ids: List[Set[int]] = []
-    for group_name in required_groups:
-        ids = set(
-            CourtroomJudgeDecision.objects.filter(
-                judge_user__groups__name=group_name,
-                efiling_id__in=forwarded_ids,
-                approved=True,
-                listing_date=cld,
-            ).values_list("efiling_id", flat=True)
+    on_bench = set(
+        CourtroomForward.objects.filter(bench_key=bench_key).values_list(
+            "efiling_id", flat=True
         )
-        group_to_ids.append(ids)
-
-    return set.intersection(*group_to_ids) if group_to_ids else set()
+    )
+    by_listing = set(
+        CourtroomJudgeDecision.objects.filter(
+            listing_date=cld_obj,
+            approved=True,
+            efiling_id__in=on_bench,
+        ).values_list("efiling_id", flat=True)
+    )
+    return set(by_forward) | set(by_listing)
 
 
 def _main_parties_for_filing(filing: Efiling) -> str:
@@ -157,14 +143,7 @@ class CauseListDraftPreviewView(APIView):
             except ValueError:
                 cld_obj = None
 
-            target_ids = set()
-            if cld_obj:
-                target_ids = set(
-                    CourtroomForward.objects.filter(
-                        bench_key=bench_key,
-                        forwarded_for_date=cld_obj,
-                    ).values_list("efiling_id", flat=True)
-                )
+            target_ids = _cause_list_target_efiling_ids(cld_obj, bench_key)
 
             # Still pull Judge data (if any) as metadata for the Listing Officer.
             if target_ids:
@@ -303,14 +282,7 @@ class CauseListDraftPdfPreviewView(APIView):
         except ValueError:
             cld_obj = None
 
-        target_ids = set()
-        if cld_obj:
-            target_ids = set(
-                CourtroomForward.objects.filter(
-                    bench_key=bench_key,
-                    forwarded_for_date=cld_obj,
-                ).values_list("efiling_id", flat=True)
-            )
+        target_ids = _cause_list_target_efiling_ids(cld_obj, bench_key)
 
         accepted = (
             Efiling.objects.filter(id__in=target_ids, is_draft=False, status="ACCEPTED")
@@ -507,15 +479,14 @@ class CauseListPublishView(APIView):
             except:
                 raise ValidationError({"detail": "Invalid cause list date."})
 
-            allowed_ids = set(
-                CourtroomForward.objects.filter(
-                    bench_key=cause_list.bench_key,
-                    forwarded_for_date=cld_obj,
-                ).values_list("efiling_id", flat=True)
-            )
+            allowed_ids = _cause_list_target_efiling_ids(cld_obj, cause_list.bench_key)
 
             if not included_ids.issubset(allowed_ids):
-                raise ValidationError({"detail": "Some selected cases have not been forwarded by the Reader for this date/bench."})
+                raise ValidationError(
+                    {
+                        "detail": "Some selected cases are not on reader forward/listing workflow for this cause list date and bench."
+                    }
+                )
             entries.sort(key=lambda e: (e.serial_no is None, e.serial_no or 10**12, e.id))
 
             rows: List[CauseListRow] = []
@@ -657,14 +628,13 @@ class CauseListPublishDirectView(APIView):
                     "efiling_id", flat=True
                 )
             )
-            allowed_ids = set(
-                CourtroomForward.objects.filter(
-                    bench_key=bench_key,
-                    forwarded_for_date=cause_list_date,
-                ).values_list("efiling_id", flat=True)
-            )
+            allowed_ids = _cause_list_target_efiling_ids(cause_list_date, bench_key)
             if not included_ids.issubset(allowed_ids):
-                raise ValidationError({"detail": "Some included cases have not been forwarded by the Reader for this date/bench."})
+                raise ValidationError(
+                    {
+                        "detail": "Some included cases are not on reader forward/listing workflow for this cause list date and bench."
+                    }
+                )
 
             # Safety net: for this date, keep each case in only one bench.
             if incoming_id_set:

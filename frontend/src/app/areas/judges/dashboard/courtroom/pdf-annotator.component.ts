@@ -4,8 +4,9 @@ import { DragDropModule, CdkDragEnd } from '@angular/cdk/drag-drop';
 import { FormsModule } from '@angular/forms';
 import * as pdfjsLib from 'pdfjs-dist';
 
-// pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+// Use classic `pdf.worker.min.js` from /public — the .mjs worker is ESM-only and breaks when
+// pdf.js spawns a non-module Worker ("import.meta outside a module").
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
 interface Point { x: number; y: number; }
 interface DrawPath {

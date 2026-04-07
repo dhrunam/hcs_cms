@@ -5,6 +5,7 @@ import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
 import Swal from "sweetalert2";
 
+import { AuthService } from "../../../../auth.service";
 import { CourtroomService } from "../../../../services/judge/courtroom.service";
 import { benchLabel } from "../../../listing-officers/shared/bench-labels";
 import { PdfAnnotatorComponent } from "./pdf-annotator.component";
@@ -22,6 +23,7 @@ export class JudgeCourtroomPage {
 
   isLoading = false;
   loadError = "";
+  documentsLoadError = "";
 
   caseSummary: any = null;
   decisionNotes = "";
@@ -39,6 +41,7 @@ export class JudgeCourtroomPage {
     private courtroomService: CourtroomService,
     private sanitizer: DomSanitizer,
     private router: Router,
+    private auth: AuthService,
   ) {}
 
   ngOnInit(): void {
@@ -58,18 +61,10 @@ export class JudgeCourtroomPage {
   }
 
   private readCanWrite(): boolean {
-    try {
-      const raw = sessionStorage.getItem("user_groups");
-      const groups = raw ? JSON.parse(raw) : [];
-      return (
-        Array.isArray(groups) &&
-        groups.some((g) =>
-          ["JUDGE_CJ", "JUDGE_J1", "JUDGE_J2"].includes(String(g)),
-        )
-      );
-    } catch {
-      return false;
-    }
+    const groups = this.auth.getUserGroups();
+    return groups.some((g) =>
+      ["API_JUDGE", "JUDGE_CJ", "JUDGE_J1", "JUDGE_J2"].includes(String(g)),
+    );
   }
 
   private loadCaseSummary(): void {
@@ -141,6 +136,7 @@ export class JudgeCourtroomPage {
 
   private loadCaseDocuments(): void {
     if (!this.efilingId || !this.forwardedForDate) return;
+    this.documentsLoadError = "";
     this.courtroomService
       .getCaseDocuments(this.efilingId, this.forwardedForDate, false)
       .subscribe({
@@ -153,6 +149,12 @@ export class JudgeCourtroomPage {
         error: (err) => {
           console.warn("Failed to load case documents", err);
           this.allCaseDocuments = [];
+          const msg =
+            err?.error?.detail ||
+            err?.error?.message ||
+            (typeof err?.error === "string" ? err.error : null);
+          this.documentsLoadError =
+            msg || "Could not load case documents (check login or network).";
         },
       });
   }

@@ -13,6 +13,7 @@ from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
 from apps.accounts.models import User
 from apps.core.bench_config import (
+    JUDGE_GROUP_TO_BENCH_TOKEN,
     get_bench_configurations,
     get_bench_configuration_for_stored_value,
     get_required_judge_groups,
@@ -45,6 +46,15 @@ _DUMMY_TOKEN_TO_DUMMY_EMAIL: Dict[str, str] = {
     "judge_j2_dummy_token": "dummy_judge_j2@hcs.local",
     "advocate_dummy_token": "dummy_advocate@hcs.local",
 }
+
+_COURTROOM_JUDGE_GROUP_NAMES = frozenset(
+    {
+        JUDGE_GROUP_CJ,
+        JUDGE_GROUP_J1,
+        JUDGE_GROUP_J2,
+        *JUDGE_GROUP_TO_BENCH_TOKEN.keys(),
+    }
+)
 
 
 def _auth_header_token(request) -> Optional[str]:
@@ -86,11 +96,7 @@ def _resolve_judge_user(request) -> User:
 def _user_judge_groups(user: User) -> Set[str]:
     if not user:
         return set()
-    return set(
-        user.groups.filter(name__in={JUDGE_GROUP_CJ, JUDGE_GROUP_J1, JUDGE_GROUP_J2}).values_list(
-            "name", flat=True
-        )
-    )
+    return set(user.groups.filter(name__in=_COURTROOM_JUDGE_GROUP_NAMES).values_list("name", flat=True))
 
 
 def _assert_judge(request) -> User:
@@ -108,8 +114,10 @@ def _bench_required_groups(bench_key: str) -> Sequence[str]:
 
 
 def _judge_can_view_forward(user_groups: Set[str], bench_key: str) -> bool:
-    req = set(_bench_required_groups(bench_key))
-    return bool(user_groups & req)
+    if not user_groups or not bench_key:
+        return False
+    allowed = set(_allowed_bench_keys_for_judge(user_groups))
+    return bench_key in allowed
 
 
 def _assert_courtroom_user(request) -> User:
@@ -181,7 +189,12 @@ def _allowed_bench_keys_for_judge(user_groups: Set[str]) -> list[str]:
     for bench in get_bench_configurations():
         if set(bench.judge_groups) & user_groups:
             allowed_bench_keys.append(bench.bench_key)
-    return allowed_bench_keys
+    for token_group, bench_cfg in JUDGE_GROUP_TO_BENCH_TOKEN.items():
+        if token_group in user_groups:
+            allowed_bench_keys.append(bench_cfg.bench_key)
+    if (not allowed_bench_keys) and (user_groups & {JUDGE_GROUP_CJ, JUDGE_GROUP_J1, JUDGE_GROUP_J2}):
+        return [b.bench_key for b in get_bench_configurations()]
+    return sorted(set(allowed_bench_keys))
 
 
 def _get_display_bench_for_efiling(
@@ -198,24 +211,27 @@ def _get_display_bench_for_efiling(
 
 class CourtroomPendingCasesView(APIView):
     """
-    Unified: list all PUBLISHED cases for a date.
-    Judges: see all cases for their bench.
-    Advocates: see only their own cases.
+    Pending courtroom cases for a hearing date (`forwarded_for_date`).
+
+    Judges: all `CourtroomForward` rows for that date on their bench(es) (reader pre-list
+    review), split into pre-publish vs published cause list.
+
+    Advocates: only published, included entries on the cause list for that date, and only
+    cases they are allowed to represent.
     """
 
     def get(self, request, *args, **kwargs):
         user = _resolve_courtroom_user(request)
         user_groups = _user_judge_groups(user)
-        print("user_groups:", user_groups)
         is_judge = bool(user_groups)
-        
+
         forwarded_for_date = request.query_params.get("forwarded_for_date")
         if forwarded_for_date:
             forwarded_date = timezone.datetime.fromisoformat(forwarded_for_date).date()
         else:
             forwarded_date = timezone.now().date()
 
-        # 1. Publication Filter (Source of truth for what can be seen)
+        # Published cause list entries for this date (advocate visibility + judge bucketing)
         listed_efiling_ids = set(
             CauseListEntry.objects.filter(
                 cause_list__cause_list_date=forwarded_date,
@@ -224,22 +240,19 @@ class CourtroomPendingCasesView(APIView):
             ).values_list("efiling_id", flat=True)
         )
 
-        if not listed_efiling_ids:
+        # Advocates have nothing to see until something is on a published list for that date.
+        if not is_judge and not listed_efiling_ids:
             return Response({"pending_for_listing": [], "pending_for_causelist": []}, status=drf_status.HTTP_200_OK)
 
-        # 2. Base Forwards Query
         base_forwards = CourtroomForward.objects.filter(forwarded_for_date=forwarded_date)
-        
+
         if is_judge:
-            # Judges see everything forwarded to their bench, even if not yet published
-            # This allows pre-hearing review.
             forwards = (
                 base_forwards.select_related("efiling")
                 .prefetch_related("efiling__litigants")
                 .order_by("-id")
             )
         else:
-            # Advocates ONLY see published cases
             forwards = (
                 base_forwards.filter(efiling_id__in=listed_efiling_ids)
                 .select_related("efiling")
@@ -247,44 +260,19 @@ class CourtroomPendingCasesView(APIView):
                 .order_by("-id")
             )
 
-        # 3. Authorization Filter
         if is_judge:
             allowed_bench_keys = set(_allowed_bench_keys_for_judge(user_groups))
         else:
-            # Advocate access check
-            # [A] Direct Association
             accessible_ids = set(EfilerDocumentAccess.objects.filter(efiler=user).values_list("e_filing_id", flat=True))
-            
-            # [B] Creator Fallback
             creator_ids = set(Efiling.objects.filter(created_by=user).values_list("id", flat=True))
             accessible_ids.update(creator_ids)
-            
-            # [C] Dummy Bypass (Dev only)
             if user.email == "dummy_advocate@hcs.local":
-                # For demo, allow access to all PUBLISHED cases for the selected date
                 accessible_ids.update(listed_efiling_ids)
 
-        items: List[dict] = []
-        seen: Set[int] = set()
-        
-        for f in forwards:
-            if f.efiling_id in seen:
-                continue
-            
-            # Role check
-            if is_judge:
-                if f.bench_key not in allowed_bench_keys:
-                    continue
-            else:
-                if f.efiling_id not in accessible_ids:
-                    continue
-
-            seen.add(f.efiling_id)
-            display_bench_key, display_bench_label = (
-                _get_display_bench_for_efiling(f.efiling, f.bench_key)
+        def build_item(f: CourtroomForward) -> dict:
+            display_bench_key, display_bench_label = _get_display_bench_for_efiling(
+                f.efiling, f.bench_key
             )
-            
-            # Decision/Approval status (only relevant for judge)
             decision = None
             if is_judge:
                 decision = (
@@ -305,16 +293,23 @@ class CourtroomPendingCasesView(APIView):
                 "bench_label": display_bench_label,
                 "forward_bench_key": f.bench_key,
                 "petitioner_name": getattr(f.efiling, "petitioner_name", None),
-                "petitioner_vs_respondent": getattr(f.efiling, "petitioner_vs_respondent_display", "-"),
-                "filing_date": getattr(f.efiling, "filing_date", None).isoformat() if getattr(f.efiling, "filing_date", None) else None,
+                "petitioner_vs_respondent": getattr(
+                    f.efiling, "petitioner_vs_respondent_display", "-"
+                ),
+                "filing_date": (
+                    getattr(f.efiling, "filing_date", None).isoformat()
+                    if getattr(f.efiling, "filing_date", None)
+                    else None
+                ),
                 "listing_summary": f.listing_summary,
                 "forwarded_for_date": f.forwarded_for_date.isoformat(),
                 "judge_decision": (decision.approved if decision else None),
                 "judge_decision_status": (decision.status if decision else None),
-                "judge_listing_date": (str(decision.listing_date) if decision and decision.listing_date else None),
+                "judge_listing_date": (
+                    str(decision.listing_date) if decision and decision.listing_date else None
+                ),
             }
-            
-            # Only Judges see requested documents/annotations here
+
             if is_judge and decision:
                 req_docs = list(
                     decision.requested_documents.select_related("efiling_document_index").values(
@@ -336,14 +331,44 @@ class CourtroomPendingCasesView(APIView):
                 item["requested_document_count"] = 0
                 item["requested_documents"] = []
 
-            items.append(item)
+            return item
 
-        # Map to UI structure. Since everything is published, we put them all in "pending_for_causelist"
-        # and leave "pending_for_listing" empty.
+        pending_for_listing: List[dict] = []
+        pending_for_causelist: List[dict] = []
+        seen_pre: Set[int] = set()
+        seen_pub: Set[int] = set()
+
+        for f in forwards:
+            if is_judge:
+                if f.bench_key not in allowed_bench_keys:
+                    continue
+            else:
+                if f.efiling_id not in accessible_ids:
+                    continue
+
+            on_published_list = f.efiling_id in listed_efiling_ids
+
+            if is_judge:
+                if on_published_list:
+                    if f.efiling_id in seen_pub:
+                        continue
+                    seen_pub.add(f.efiling_id)
+                    pending_for_causelist.append(build_item(f))
+                else:
+                    if f.efiling_id in seen_pre:
+                        continue
+                    seen_pre.add(f.efiling_id)
+                    pending_for_listing.append(build_item(f))
+            else:
+                if f.efiling_id in seen_pub:
+                    continue
+                seen_pub.add(f.efiling_id)
+                pending_for_causelist.append(build_item(f))
+
         return Response(
             {
-                "pending_for_listing": [],
-                "pending_for_causelist": items,
+                "pending_for_listing": pending_for_listing,
+                "pending_for_causelist": pending_for_causelist,
             },
             status=drf_status.HTTP_200_OK,
         )
