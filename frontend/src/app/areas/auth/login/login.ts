@@ -18,29 +18,7 @@ export class Login {
     private authService: AuthService,
     private route: ActivatedRoute,
     private router: Router,
-  ) {
-    const role = window.sessionStorage.getItem('user_group');
-    switch (role) {
-      case 'API_ADVOCATE':
-        this.router.navigate(['/advocate/dashboard/home']);
-        break;
-      case 'API_SCRUTINY_OFFICER':
-        this.router.navigate(['/scrutiny-officers/dashboard/home']);
-        break;
-      case 'API_COURT_READER':
-        this.router.navigate(['/reader/dashboard/home']);
-        break;
-      case 'API_LISTING_OFFICER':
-        this.router.navigate(['/listing-officers/dashboard/home']);
-        break;
-      case 'API_JUDGE':
-        this.router.navigate(['/judge/dashboard/home']);
-        break;
-      case 'API_STENOGRAPHER':
-        this.router.navigate(['/steno/dashboard/home']);
-        break;
-    }
-  }
+  ) {}
 
   ngOnInit(): void {
     const authError = this.route.snapshot.queryParamMap.get('auth_error');
