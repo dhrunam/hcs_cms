@@ -33,6 +33,6 @@ export class Login {
 
   submit(): void {
     this.isLoading = true;
-    this.authService.login();
+    this.authService.logout();
   }
 }
