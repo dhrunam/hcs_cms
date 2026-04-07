@@ -13,17 +13,19 @@ class BaseModel(models.Model):
     updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='%(class)s_updated')
     is_active = models.BooleanField(default=True)
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._capture_original_audit_state()
-
-    def _capture_original_audit_state(self):
+    def _capture_original_audit_state(self) -> None:
+        """Snapshot audit FK ids for save() logic. Safe for deferred fields."""
         self._original_created_by_id = self.created_by_id
         self._original_updated_by_id = self.updated_by_id
 
     def save(self, *args, **kwargs):
         acting_user = get_current_user()
         is_create = self._state.adding
+
+        # Deferred-field safe: touching created_by_id / updated_by_id in __init__ can recurse
+        # on Django 6+ (descriptor refresh_from_db → from_db → __init__).
+        if not is_create and not hasattr(self, "_original_updated_by_id"):
+            self._capture_original_audit_state()
 
         if acting_user is not None:
             if is_create:

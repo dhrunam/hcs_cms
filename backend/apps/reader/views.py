@@ -28,6 +28,10 @@ from apps.judge.models import (
     CourtroomDecisionRequestedDocument,
     CourtroomJudgeDecision,
 )
+from apps.judge.courtroom_approval import (
+    efiling_ids_with_all_required_approvals,
+    legacy_role_from_user_for_bench,
+)
 from .models import CourtroomForward, CourtroomForwardDocument
 from .serializers import (
     CourtroomForwardSerializer,
@@ -403,24 +407,26 @@ class RegisteredCasesListView(APIView):
         if forward_keys:
             e_ids = sorted({eid for eid, _ in forward_keys})
             f_dates = sorted({fdate for _, fdate in forward_keys})
-            decisions = (
+            forward_heads: dict[tuple[int, date_type], CourtroomForward] = {}
+            for f in (
+                CourtroomForward.objects.filter(
+                    efiling_id__in=e_ids,
+                    forwarded_for_date__in=f_dates,
+                ).order_by("efiling_id", "forwarded_for_date", "-id")
+            ):
+                k = (int(f.efiling_id), f.forwarded_for_date)
+                if k not in forward_heads:
+                    forward_heads[k] = f
+
+            decision_rows = list(
                 CourtroomJudgeDecision.objects.filter(
                     efiling_id__in=e_ids,
                     forwarded_for_date__in=f_dates,
                 )
-                .values(
-                    "id",
-                    "efiling_id",
-                    "forwarded_for_date",
-                    "status",
-                    "approved",
-                    "listing_date",
-                    "decision_notes",
-                    "judge_user__groups__name",
-                )
-                .all()
+                .select_related("judge_user")
+                .order_by("id")
             )
-            decision_ids = [int(d["id"]) for d in decisions]
+            decision_ids = [d.id for d in decision_rows]
             requested_rows = (
                 CourtroomDecisionRequestedDocument.objects.filter(judge_decision_id__in=decision_ids)
                 .select_related("judge_decision", "efiling_document_index")
@@ -440,28 +446,34 @@ class RegisteredCasesListView(APIView):
                     "document_part_name": rr.get("efiling_document_index__document_part_name"),
                     "document_type": rr.get("efiling_document_index__document__document_type"),
                 })
-            
-            for d in decisions:
-                key = (int(d["efiling_id"]), d["forwarded_for_date"])
-                grp = str(d.get("judge_user__groups__name") or "")
+
+            for d in decision_rows:
+                key = (int(d.efiling_id), d.forwarded_for_date)
+                fwd = forward_heads.get(key)
+                req = tuple(get_required_judge_groups(fwd.bench_key)) if fwd else tuple()
+                grp = d.bench_role_group or (
+                    legacy_role_from_user_for_bench(d.judge_user, req) if req else None
+                )
+                if not grp:
+                    continue
                 if key not in decision_map:
                     decision_map[key] = {}
                     decision_status_map[key] = {}
-                if grp:
-                    decision_map[key][grp] = bool(d.get("approved"))
-                    decision_status_map[key][grp] = str(d.get("status") or "")
-                
-                note = (d.get("decision_notes") or "").strip()
+                decision_map[key][grp] = bool(d.approved)
+                decision_status_map[key][grp] = str(d.status or "")
+
+                note = (d.decision_notes or "").strip()
                 if note:
-                    if key not in decision_notes_map: decision_notes_map[key] = []
-                    label = grp.replace("JUDGE_", "Judge ") if grp else "Judge"
+                    if key not in decision_notes_map:
+                        decision_notes_map[key] = []
+                    label = grp.replace("JUDGE_", "Judge ")
                     decision_notes_map[key].append(f"{label}: {note}")
-                
-                lst_date = d.get("listing_date")
+
+                lst_date = d.listing_date
                 if lst_date:
                     decision_listing_date_map.setdefault(key, []).append(str(lst_date))
-                
-                decision_docs = docs_by_decision.get(int(d["id"]), [])
+
+                decision_docs = docs_by_decision.get(int(d.id), [])
                 if decision_docs:
                     existing = requested_docs_map.setdefault(key, [])
                     seen_ids = {x["document_index_id"] for x in existing}
@@ -663,10 +675,9 @@ class ReaderApprovedCasesView(APIView):
             raise ValidationError({"bench_key": "Required.", "forwarded_for_date": "Required."})
 
         fwd_date = timezone.datetime.fromisoformat(forwarded_for_date).date()
-        required_groups = get_required_judge_groups(bench_key)
-        if not required_groups:
+        if not get_required_judge_groups(bench_key):
             raise ValidationError({"bench_key": f"Unknown bench_key={bench_key}."})
-        
+
         bench_config = get_bench_configuration(bench_key)
         forwarded_efiling_ids = Efiling.objects.filter(
             _bench_filter_for_configuration(bench_config),
@@ -681,25 +692,21 @@ class ReaderApprovedCasesView(APIView):
         if allowed_bench_keys is not None:
             if bench_key not in allowed_bench_keys:
                 return Response({"results": []}, status=drf_status.HTTP_200_OK)
-        forwarded_efiling_ids = forwarded_efiling_ids.values_list("id", flat=True)
+        forwarded_efiling_ids_list = list(forwarded_efiling_ids.values_list("id", flat=True))
 
+        fully_approved = efiling_ids_with_all_required_approvals(
+            bench_key=bench_key,
+            efiling_ids=forwarded_efiling_ids_list,
+            forwarded_for_date=fwd_date,
+            listing_date=None,
+        )
         approved_efiling_ids = []
-        for eid in forwarded_efiling_ids:
-            group_approvals = []
-            for g in required_groups:
-                has_approval = CourtroomJudgeDecision.objects.filter(
-                    efiling_id=eid, forwarded_for_date=fwd_date,
-                    judge_user__groups__name=g, approved=True
-                ).exists()
-                group_approvals.append(has_approval)
-            
-            if all(group_approvals):
-                has_date = CourtroomJudgeDecision.objects.filter(
-                    efiling_id=eid, forwarded_for_date=fwd_date,
-                    listing_date__isnull=False
-                ).exists()
-                if not has_date:
-                    approved_efiling_ids.append(eid)
+        for eid in fully_approved:
+            has_date = CourtroomJudgeDecision.objects.filter(
+                efiling_id=eid, forwarded_for_date=fwd_date, listing_date__isnull=False
+            ).exists()
+            if not has_date:
+                approved_efiling_ids.append(eid)
 
         efilings = Efiling.objects.filter(id__in=approved_efiling_ids)
         data = [{

@@ -37,6 +37,9 @@ class CourtroomJudgeDecision(BaseModel):
     approved = models.BooleanField(default=False)
     decision_notes = models.TextField(blank=True, null=True)
     reader_listing_remark = models.TextField(blank=True, null=True)
+    # Canonical role this row satisfies for reader approval flows (JUDGE_CJ, JUDGE_J1, …).
+    # Decouples from judge_user__groups when SSO only exposes API_JUDGE.
+    bench_role_group = models.CharField(max_length=32, blank=True, null=True, db_index=True)
 
     class Meta:
         db_table = "courtroom_judge_decision"
