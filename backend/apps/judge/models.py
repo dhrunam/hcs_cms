@@ -7,9 +7,9 @@ from apps.core.models import BaseModel, Efiling
 from apps.core.models import EfilingDocumentsIndex
 
 
-JUDGE_GROUP_CJ = "JUDGE_CJ"
-JUDGE_GROUP_J1 = "JUDGE_J1"
-JUDGE_GROUP_J2 = "JUDGE_J2"
+JUDGE_GROUP_CJ = "API_JUDGE"
+JUDGE_GROUP_J1 = "API_JUDGE"
+JUDGE_GROUP_J2 = "API_JUDGE"
 
 
 

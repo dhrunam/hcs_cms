@@ -206,6 +206,7 @@ class CourtroomPendingCasesView(APIView):
     def get(self, request, *args, **kwargs):
         user = _resolve_courtroom_user(request)
         user_groups = _user_judge_groups(user)
+        print("user_groups:", user_groups)
         is_judge = bool(user_groups)
         
         forwarded_for_date = request.query_params.get("forwarded_for_date")
