@@ -16,7 +16,7 @@ export class Home implements OnInit {
   pendingFilings = 0;
   approvedFilings = 0;
   objections = 0;
-  advocateName = 'Sagar Pradhan';
+  advocateName: string = '';
   isLoading = true;
   notifications: any[] = [];
   isLoadingNotifications = false;
@@ -26,6 +26,7 @@ export class Home implements OnInit {
   ngOnInit(): void {
     this.loadFilingCounts();
     this.loadNotifications();
+    this.advocateName = JSON.parse(window.sessionStorage.getItem('id_token_claims_obj') || '{}').name;
   }
 
   loadNotifications(): void {
