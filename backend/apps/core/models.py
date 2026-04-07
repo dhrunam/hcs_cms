@@ -3,8 +3,8 @@ from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 
 # Create your models here.
-from django.db import models
 from apps.accounts.models import User
+from apps.core.audit_context import get_current_user
 
 class BaseModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
@@ -12,6 +12,39 @@ class BaseModel(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='%(class)s_created')
     updated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='%(class)s_updated')
     is_active = models.BooleanField(default=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._capture_original_audit_state()
+
+    def _capture_original_audit_state(self):
+        self._original_created_by_id = self.created_by_id
+        self._original_updated_by_id = self.updated_by_id
+
+    def save(self, *args, **kwargs):
+        acting_user = get_current_user()
+        is_create = self._state.adding
+
+        if acting_user is not None:
+            if is_create:
+                if self.created_by_id is None:
+                    self.created_by = acting_user
+                if self.updated_by_id is None:
+                    self.updated_by = acting_user
+            elif self.updated_by_id == getattr(self, "_original_updated_by_id", None):
+                self.updated_by = acting_user
+
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            update_fields = set(update_fields)
+            if not is_create:
+                update_fields.add("updated_at")
+                if acting_user is not None:
+                    update_fields.add("updated_by")
+            kwargs["update_fields"] = update_fields
+
+        super().save(*args, **kwargs)
+        self._capture_original_audit_state()
 
     class Meta:
         abstract = True 
@@ -795,7 +828,8 @@ class JudgeT(BaseModel):
     display = models.TextField()  # This field type is a guess.
     date_of_joining = models.DateField(blank=False, null=False)
     date_of_leaving = models.DateField(blank=True, null=True)
-    
+    def __str__(self):
+        return self.judge_name
     class Meta:
         db_table = 'judge_t'
     

@@ -412,6 +412,7 @@ class CauseListDraftSaveView(APIView):
         entries = payload.validated_data["entries"]
 
         user = request.user if request.user.is_authenticated else None
+        updated_at = timezone.now()
 
         with transaction.atomic():
             cause_list, created = CauseList.objects.get_or_create(
@@ -467,7 +468,7 @@ class CauseListDraftSaveView(APIView):
             (
                 CauseListEntry.objects.filter(cause_list=cause_list)
                 .exclude(efiling_id__in=incoming_id_set)
-                .update(included=False, serial_no=None)
+                .update(included=False, serial_no=None, updated_by=user, updated_at=updated_at)
             )
 
         return Response(
@@ -639,7 +640,12 @@ class CauseListPublishDirectView(APIView):
             (
                 CauseListEntry.objects.filter(cause_list=cause_list)
                 .exclude(efiling_id__in=incoming_id_set)
-                .update(included=False, serial_no=None)
+                .update(
+                    included=False,
+                    serial_no=None,
+                    updated_by=user,
+                    updated_at=timezone.now(),
+                )
             )
 
             included_count = CauseListEntry.objects.filter(cause_list=cause_list, included=True).count()
@@ -672,7 +678,12 @@ class CauseListPublishDirectView(APIView):
                     CauseList.objects.filter(
                         id__in=other_cause_list_ids,
                         status=CauseList.CauseListStatus.PUBLISHED,
-                    ).update(status=CauseList.CauseListStatus.DRAFT, published_at=None)
+                    ).update(
+                        status=CauseList.CauseListStatus.DRAFT,
+                        published_at=None,
+                        updated_by=user,
+                        updated_at=timezone.now(),
+                    )
 
             # Now publish (reuse publish logic inline)
             entries_qs = (
