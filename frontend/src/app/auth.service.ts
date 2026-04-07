@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { OAuthService } from 'angular-oauth2-oidc';
 import { authConfig } from './auth.config';
 import { app_url, sso_url } from './environment';
-
+import { Router } from '@angular/router';
 export type LogoutStatus = {
   apiSessionLoggedOut: boolean;
   ssoSessionLoggedOut: boolean;
@@ -26,6 +26,7 @@ export class AuthService {
   constructor(
     private oauthService: OAuthService,
     private http: HttpClient,
+    private router: Router,
   ) {}
 
   async initAuth(): Promise<void> {
@@ -110,6 +111,94 @@ export class AuthService {
     } catch {
       return [];
     }
+  }
+
+  /**
+   * After SSO login, `user_group` is set from the token in {@link syncSessionFromTokens}.
+   * Navigates to the dashboard for that role; falls back to group-based routing if unknown.
+   */
+  async navigateToDashboardByRole(): Promise<void> {
+    let role = window.sessionStorage.getItem('user_group')?.trim() || null;
+    if (!role) {
+      const groups = this.getUserGroups();
+      role = groups.find((g) => String(g).trim().length > 0)?.trim() ?? null;
+    }
+
+    let route = AuthService.dashboardRouteForRole(role);
+    if (!route) {
+      for (const g of this.getUserGroups()) {
+        route = AuthService.dashboardRouteForRole(String(g).trim() || null);
+        if (route) break;
+      }
+    }
+
+    if (route) {
+      await this.router.navigate(route);
+      return;
+    }
+    await this.navigateToDashboardFromUserGroups();
+  }
+
+  /** Route commands for `router.navigate` — `null` means use {@link navigateToDashboardFromUserGroups}. */
+  static dashboardRouteForRole(primaryRole: string | null): string[] | null {
+    const r = primaryRole?.trim() || '';
+    if (!r) return null;
+    switch (r) {
+      case 'API_ADVOCATE':
+      case 'ADVOCATE':
+        return ['/advocate/dashboard/home'];
+      case 'API_SCRUTINY_OFFICER':
+      case 'SCRUTINY_OFFICER':
+        return ['/scrutiny-officers/dashboard/home'];
+      case 'API_COURT_READER':
+      case 'READER':
+      case 'READER_CJ':
+      case 'READER_J1':
+      case 'READER_J2':
+        return ['/reader/dashboard'];
+      case 'API_LISTING_OFFICER':
+      case 'LISTING_OFFICER':
+        return ['/listing-officers/dashboard/home'];
+      case 'API_JUDGE':
+      case 'JUDGE_CJ':
+      case 'JUDGE_J1':
+      case 'JUDGE_J2':
+        return ['/judges/dashboard/home'];
+      case 'API_STENOGRAPHER':
+        return ['/steno/dashboard/home'];
+      default:
+        return null;
+    }
+  }
+
+  private async navigateToDashboardFromUserGroups(): Promise<void> {
+    const groups = this.getUserGroups();
+
+    if (groups.some((group) => ['JUDGE_CJ', 'JUDGE_J1', 'JUDGE_J2'].includes(group))) {
+      await this.router.navigate(['/judges/dashboard/home']);
+      return;
+    }
+
+    if (
+      groups.some((group) =>
+        ['READER', 'READER_CJ', 'READER_J1', 'READER_J2'].includes(group),
+      )
+    ) {
+      await this.router.navigate(['/reader/dashboard']);
+      return;
+    }
+
+    if (groups.includes('LISTING_OFFICER')) {
+      await this.router.navigate(['/listing-officers/dashboard/home']);
+      return;
+    }
+
+    if (groups.includes('SCRUTINY_OFFICER')) {
+      await this.router.navigate(['/scrutiny-officers/dashboard/home']);
+      return;
+    }
+
+    await this.router.navigate(['/advocate/dashboard/home']);
   }
 
   public isLoggedIn(): boolean {
