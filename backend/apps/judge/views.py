@@ -855,6 +855,6 @@ class CourtroomSharedViewAPIView(APIView):
 
         CourtroomSharedView.objects.filter(
             efiling_id=efiling_id, advocate_user=user
-        ).update(is_active=False)
+        ).update(is_active=False, updated_by=user, updated_at=timezone.now())
         
         return Response({"status": "inactive"}, status=drf_status.HTTP_200_OK)
