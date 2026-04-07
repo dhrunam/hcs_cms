@@ -563,14 +563,18 @@ class AssignBenchesView(APIView):
         ef_by_id = {e.id: e for e in ef_qs}
 
         updated_instances = []
+        updated_at = timezone.now()
+        acting_user = request.user if request.user.is_authenticated else None
         for eid, bench_key in assign_map.items():
             if eid in ef_by_id:
                 e = ef_by_id[eid]
                 bench_config = get_bench_configuration(bench_key)
                 e.bench = bench_config.bench_code or bench_key
+                e.updated_by = acting_user
+                e.updated_at = updated_at
                 updated_instances.append(e)
 
-        Efiling.objects.bulk_update(updated_instances, ["bench"])
+        Efiling.objects.bulk_update(updated_instances, ["bench", "updated_by", "updated_at"])
         return Response({"updated": len(updated_instances)}, status=drf_status.HTTP_200_OK)
 
 
@@ -762,7 +766,12 @@ class ReaderAssignDateView(APIView):
         # have decisions for the same filing/date. We update all of them with the final date.
         updated = CourtroomJudgeDecision.objects.filter(
             efiling_id__in=efiling_ids, forwarded_for_date=fwd_date
-        ).update(listing_date=ldate, reader_listing_remark=lremark)
+        ).update(
+            listing_date=ldate,
+            reader_listing_remark=lremark,
+            updated_by=user,
+            updated_at=timezone.now(),
+        )
 
         return Response({"updated": updated}, status=drf_status.HTTP_200_OK)
 

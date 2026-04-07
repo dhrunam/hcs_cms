@@ -1,7 +1,11 @@
+from unittest.mock import patch
+
 from django.test import SimpleTestCase, TestCase
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
+from apps.accounts.models import User
+from apps.core.audit_context import set_current_user
 from apps.core.models import Efiling, EfilingCaseDetails, EfilingLitigant, EfilingActs
 from apps.efiling.serializers.efiling_acts_serializers import EfilingActsSerializer
 from apps.efiling.serializers.efiling_case_details_serializers import EfilingCaseDetailsSerializer
@@ -74,9 +78,13 @@ class IAViewsTest(SimpleTestCase):
 
 class EfilingCaseDetailsNestedActsPostTest(TestCase):
     def setUp(self):
+        set_current_user(None)
         self.factory = APIRequestFactory()
         self.view = EfilingCaseDetailsListCreateView.as_view()
         self.e_filing = Efiling.objects.create(e_filing_number='ASK20240000001C202400001')
+
+    def tearDown(self):
+        set_current_user(None)
 
     def test_post_creates_case_details_and_multiple_acts(self):
         payload = {
@@ -131,6 +139,7 @@ class EfilingCaseDetailsNestedActsPostTest(TestCase):
 
 class EfilingCaseDetailsNestedActsUpdateTest(TestCase):
     def setUp(self):
+        set_current_user(None)
         self.factory = APIRequestFactory()
         self.detail_view = EfilingCaseDetailsRetrieveUpdateDestroyView.as_view()
         self.e_filing = Efiling.objects.create(e_filing_number='ASK20240000002C202400002')
@@ -151,6 +160,9 @@ class EfilingCaseDetailsNestedActsUpdateTest(TestCase):
             section='Old Section 2',
             description='Old act 2',
         )
+
+    def tearDown(self):
+        set_current_user(None)
 
     def test_put_replaces_all_existing_acts(self):
         payload = {
@@ -247,3 +259,80 @@ class EfilingCaseDetailsNestedActsUpdateTest(TestCase):
         self.case_details.refresh_from_db()
         self.assertEqual(self.case_details.cause_of_action, 'Patch only case details')
         self.assertEqual(EfilingActs.objects.filter(e_filing=self.e_filing).count(), 2)
+
+
+class EfilingAuditIntegrationTest(TestCase):
+    def setUp(self):
+        set_current_user(None)
+        self.factory = APIRequestFactory()
+        self.list_view = EfilingListCreateView.as_view()
+        self.detail_view = EfilingRetrieveUpdateDestroyView.as_view()
+        self.user = User.objects.create_user(
+            username='api-audit-user',
+            email='api-audit@example.com',
+            password='password123',
+        )
+        self.other_user = User.objects.create_user(
+            username='api-other-user',
+            email='api-other@example.com',
+            password='password123',
+        )
+
+    def tearDown(self):
+        set_current_user(None)
+
+    def test_authenticated_create_sets_created_by_and_updated_by(self):
+        payload = {
+            'bench': 'Bench A',
+            'petitioner_name': 'Petitioner',
+            'is_draft': True,
+        }
+
+        request = self.factory.post(
+            '/api/v1/efiling/efilings/',
+            payload,
+            format='json',
+            HTTP_AUTHORIZATION='Bearer test-token',
+        )
+
+        with self._mock_authentication(self.user):
+            response = self.list_view(request)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        filing = Efiling.objects.get(pk=response.data['id'])
+        self.assertEqual(filing.created_by, self.user)
+        self.assertEqual(filing.updated_by, self.user)
+
+    def test_authenticated_patch_updates_updated_by(self):
+        filing = Efiling.objects.create(
+            bench='Bench A',
+            petitioner_name='Petitioner',
+            created_by=self.other_user,
+            updated_by=self.other_user,
+        )
+        payload = {
+            'bench': 'Bench B',
+        }
+
+        request = self.factory.patch(
+            f'/api/v1/efiling/efilings/{filing.pk}/',
+            payload,
+            format='json',
+            HTTP_AUTHORIZATION='Bearer test-token',
+        )
+
+        with self._mock_authentication(self.user):
+            response = self.detail_view(request, pk=filing.pk)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        filing.refresh_from_db()
+        self.assertEqual(filing.created_by, self.other_user)
+        self.assertEqual(filing.updated_by, self.user)
+
+    def _mock_authentication(self, user):
+        return patch.multiple(
+            'apps.core.authentication.AuditAwareSSOResourceServerAuthentication',
+            _introspect=lambda self, token: {'active': True, 'scope': 'cms:write'},
+            _resolve_identity=lambda self, claims: ('sso-user-id', user.username, user.email),
+            _sync_user=lambda self, sso_id, username, email, claims: user,
+        )
