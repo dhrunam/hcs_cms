@@ -30,25 +30,62 @@ from .conf import sso_settings
 
 logger = logging.getLogger(__name__)
 
+_PLACEHOLDER_EMAIL_DOMAIN = "sso-no-email.invalid"
+
+
+def _placeholder_email(username: str, sso_id: str | None) -> str:
+    """Unique synthetic email when SSO omits email (User.email is UNIQUE)."""
+    if sso_id:
+        safe = "".join(
+            c if c.isalnum() or c in "-_" else "_" for c in str(sso_id)
+        )[:120]
+        return f"noreply+{safe or 'sub'}@{_PLACEHOLDER_EMAIL_DOMAIN}"
+    u = (username or "user").strip() or "user"
+    u = u.replace("@", "_at_").replace(" ", "_")[:100]
+    return f"noreply+{u}@{_PLACEHOLDER_EMAIL_DOMAIN}"
+
+
+def _normalize_stored_email(
+    username: str, email: str | None, sso_id: str | None = None
+) -> str:
+    cleaned = (email or "").strip()
+    if cleaned:
+        return cleaned
+    return _placeholder_email(username, sso_id)
+
 
 # ---------------------------------------------------------------------------
 # Low-level user / group helpers (reusable building blocks)
 # ---------------------------------------------------------------------------
 
-def upsert_user_by_username(username: str, email: str | None = None):
+def upsert_user_by_username(
+    username: str,
+    email: str | None = None,
+    sso_id: str | None = None,
+):
     """
-    Get-or-create a User by username; update email if it changed.
+    Get-or-create a User by username; update email when SSO sends a real one.
+
+    When ``email`` is missing, stores a unique placeholder address using the
+    reserved domain ``sso-no-email.invalid`` so the ``User.email`` unique
+    constraint is not violated by multiple empty strings.
 
     Returns ``(user, created)``.
     """
     UserModel = get_user_model()
+    store_email = _normalize_stored_email(username, email, sso_id)
     user, created = UserModel.objects.get_or_create(
         username=username,
-        defaults={"email": email or ""},
+        defaults={"email": store_email},
     )
-    if not created and email and user.email != email:
-        user.email = email
-        user.save(update_fields=["email"])
+    if not created:
+        incoming = (email or "").strip()
+        if incoming and user.email != incoming:
+            user.email = incoming
+            user.save(update_fields=["email"])
+        elif not incoming and not (user.email or "").strip():
+            user.email = store_email
+            user.save(update_fields=["email"])
     return user, created
 
 
@@ -218,7 +255,9 @@ def map_sso_user(sso_id: str, username: str, email: str | None, claims: dict | N
     """
     claims = claims or {}
 
-    user, _ = upsert_user_by_username(username=username, email=email)
+    user, _ = upsert_user_by_username(
+        username=username, email=email, sso_id=sso_id
+    )
 
     # ── Profile ────────────────────────────────────────────────────────── #
     try:
@@ -271,5 +310,7 @@ def map_sso_user_minimal(sso_id: str, username: str, email: str | None, claims: 
     group sync.  Suitable as a starting point for custom handlers or for
     projects that manage groups separately.
     """
-    user, _ = upsert_user_by_username(username=username, email=email)
+    user, _ = upsert_user_by_username(
+        username=username, email=email, sso_id=sso_id
+    )
     return user

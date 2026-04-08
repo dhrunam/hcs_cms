@@ -2137,7 +2137,8 @@ class CivilT(models.Model):
     pet_status = models.IntegerField()
     res_status = models.IntegerField()
     grouped = models.CharField(max_length=1, blank=True, null=True)
-    cino = models.CharField(max_length=16)
+    # Legacy table has no surrogate `id`; CIS uses CINO as the case identifier / PK.
+    cino = models.CharField(max_length=16, primary_key=True)
     subnature_cd1 = models.CharField(max_length=25, blank=True, null=True)
     subnature_cd2 = models.CharField(max_length=25, blank=True, null=True)
     branch_id = models.IntegerField(blank=True, null=True)
