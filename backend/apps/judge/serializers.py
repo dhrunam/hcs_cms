@@ -8,6 +8,7 @@ from .models import (
     CourtroomDocumentAnnotation,
     CourtroomJudgeDecision,
     CourtroomSharedView,
+    JudgeDraftAnnotation,
 )
 
 
@@ -58,3 +59,30 @@ class CourtroomSharedViewSerializer(serializers.ModelSerializer):
     class Meta:
         model = CourtroomSharedView
         fields = ["efiling_id", "document_index_id", "page_index", "is_active"]
+
+
+class JudgeDraftAnnotationUpsertSerializer(serializers.Serializer):
+    workflow_id = serializers.IntegerField()
+    page_number = serializers.IntegerField(required=False, allow_null=True)
+    x = serializers.DecimalField(max_digits=10, decimal_places=3, required=False, allow_null=True)
+    y = serializers.DecimalField(max_digits=10, decimal_places=3, required=False, allow_null=True)
+    width = serializers.DecimalField(max_digits=10, decimal_places=3, required=False, allow_null=True)
+    height = serializers.DecimalField(max_digits=10, decimal_places=3, required=False, allow_null=True)
+    annotation_type = serializers.ChoiceField(
+        choices=JudgeDraftAnnotation.AnnotationType.choices,
+        required=False,
+        default=JudgeDraftAnnotation.AnnotationType.COMMENT,
+    )
+    note_text = serializers.CharField(allow_blank=False)
+
+
+class JudgeWorkflowDecisionSerializer(serializers.Serializer):
+    workflow_id = serializers.IntegerField()
+    judge_approval_status = serializers.ChoiceField(
+        choices=["APPROVED", "REJECTED"],
+    )
+    judge_approval_notes = serializers.CharField(
+        allow_blank=True,
+        allow_null=True,
+        required=False,
+    )

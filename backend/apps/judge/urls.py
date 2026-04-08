@@ -11,6 +11,9 @@ from apps.judge.views import (
     CourtroomDocumentAnnotationView,
     CourtroomPendingCasesView,
     CourtroomSharedViewAPIView,
+    JudgeStenoWorkflowListView,
+    JudgeStenoWorkflowAnnotationView,
+    JudgeStenoWorkflowDecisionView,
 )
 
 app_name = "judge"
@@ -56,6 +59,21 @@ urlpatterns = [
         "courtroom/shares/",
         CourtroomSharedViewAPIView.as_view(),
         name="courtroom-shares",
+    ),
+    path(
+        "steno-workflows/",
+        JudgeStenoWorkflowListView.as_view(),
+        name="judge-steno-workflows",
+    ),
+    path(
+        "steno-workflows/annotations/",
+        JudgeStenoWorkflowAnnotationView.as_view(),
+        name="judge-steno-workflow-annotations",
+    ),
+    path(
+        "steno-workflows/decision/",
+        JudgeStenoWorkflowDecisionView.as_view(),
+        name="judge-steno-workflow-decision",
     ),
 
 ]
