@@ -95,6 +95,8 @@ body {
   color: #991b1b;
 }
 
+
+
 body.fullscreen-mode app-sidebar {
   display: none !important;
 }
