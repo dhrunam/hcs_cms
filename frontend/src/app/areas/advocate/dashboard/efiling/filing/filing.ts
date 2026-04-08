@@ -12,9 +12,9 @@ import { IaFilingForm } from "../ia-filing/filing-form/filing-form";
   styleUrl: "./filing.css",
 })
 export class Filing {
-  activeTab: "new" | "existing" | "ia" = "new";
+  activeTab: "new" | "existing" | "ia" | "vakalatnama" | "caveat" = "new";
 
-  setActive(tab: "new" | "existing" | "ia"): void {
+  setActive(tab: "new" | "existing" | "ia" | "vakalatnama" | "caveat"): void {
     this.activeTab = tab;
   }
 }
