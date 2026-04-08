@@ -1,9 +1,44 @@
 <nav class="navbar navbar-light bg-white shadow-sm pe-2 ps-md-3">
-  <div class="d-flex align-items-center flex-nowrap">
+  <div class="d-flex align-items-center justify-content-between w-100">
     <a class="navbar-brand fw-semibold mb-0 d-flex align-items-center" routerLink="/judges/dashboard/home">
       <i class="fa-solid fa-scale-balanced me-2 fs-3"></i>
       <span class="brand-text text-dark fs-3 fw-lightest">Hon'ble Judge</span>
     </a>
+    <div class="dropdown pe-3">
+      <a
+        class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark"
+        href="#"
+        data-bs-toggle="dropdown"
+      >
+        <i class="fa-solid fa-user-circle fs-5"></i>
+      </a>
+
+      <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+        <!-- <li>
+          <a class="dropdown-item"> <i class="fa-solid fa-user me-2"></i> View Profile </a>
+        </li>
+
+        <li>
+          <a class="dropdown-item"> <i class="fa-solid fa-gear me-2"></i> Settings </a>
+        </li>
+
+        <li><hr class="dropdown-divider" /></li> -->
+
+        <li>
+          <a class="dropdown-item text-danger" href="#" (click)="onLogout($event)">
+            <i class="fa-solid fa-right-from-bracket me-2"></i> Logout
+          </a>
+        </li>
+
+        <!-- <ng-template #loginItem>
+          <li>
+            <a class="dropdown-item text-success" href="#" (click)="onLogin($event)">
+              <i class="fa-solid fa-right-to-bracket me-2"></i> Login
+            </a>
+          </li>
+        </ng-template> -->
+      </ul>
+    </div>
   </div>
 </nav>
 

@@ -5,14 +5,14 @@ import { ToastrService } from 'ngx-toastr';
 import { AuthService } from '../../../../auth.service';
 
 @Component({
-  selector: 'app-navbar',
-  templateUrl: './navbar.html',
-  styleUrl: './navbar.css',
+  selector: "app-navbar",
+  templateUrl: "./navbar.html",
+  styleUrl: "./navbar.css",
   imports: [RouterModule, CommonModule],
 })
 export class Navbar implements OnInit {
-  currentTime: string = '';
-  currentDate: string = '';
+  currentTime: string = "";
+  currentDate: string = "";
 
   constructor(
     private authService: AuthService,
@@ -21,7 +21,7 @@ export class Navbar implements OnInit {
 
   ngOnInit() {
     this.authService.initializeAuth().catch((error) => {
-      console.warn('SSO initialization skipped in local mode.');
+      console.warn("SSO initialization skipped in local mode.");
     });
 
     this.updateClock();
@@ -66,26 +66,50 @@ export class Navbar implements OnInit {
   //   );
   // }
 
-  onLogout(): void {
-    // simple redirect to root
-    window.location.href = '/user/login';
+  async onLogout(event?: Event): Promise<void> {
+    event?.preventDefault();
+    const status = await this.authService.logout();
+    console.log("Logout status:", status);
+    if (status.success) {
+      alert("You have been logged out successfully.");
+      this.authService.login();
+      return;
+    }
+
+    const issues: string[] = [];
+    if (!status.apiSessionLoggedOut) {
+      issues.push("API session");
+    }
+    if (!status.ssoSessionLoggedOut) {
+      issues.push("SSO session");
+    }
+    if (!status.tokensCleared) {
+      issues.push("local tokens");
+    }
+
+    this.toastr.warning(
+      `Logout partially completed. Check: ${issues.join(", ")}.`,
+      "Logout Verification",
+      { closeButton: true },
+    );
+    this.authService.login();
   }
 
   updateClock() {
     const now = new Date();
 
-    this.currentTime = now.toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
+    this.currentTime = now.toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
       hour12: true,
     });
 
-    this.currentDate = now.toLocaleDateString('en-IN', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
+    this.currentDate = now.toLocaleDateString("en-IN", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
     });
   }
 }
