@@ -8,7 +8,8 @@ from rest_framework.test import APIClient
 from apps.accounts.models import User
 from apps.core.models import BenchT, Efiling, JudgeT, ReaderJudgeAssignment
 from apps.judge.models import CourtroomJudgeDecision
-from apps.reader.models import CourtroomForward
+from apps.judge.models import JudgeStenoMapping
+from apps.reader.models import CourtroomForward, ReaderDailyProceeding, StenoOrderWorkflow
 
 
 class ReaderDivisionBenchAuthorityTest(TestCase):
@@ -36,6 +37,11 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
             username="judge_j1",
             group_name="JUDGE_J1",
         )
+        self.steno_user = self._create_user(
+            email="steno@example.com",
+            username="steno_user",
+            group_name="API_STENOGRAPHER",
+        )
 
         self.judge_cj = JudgeT.objects.create(
             user=self.judge_cj_user,
@@ -60,6 +66,12 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
         ReaderJudgeAssignment.objects.create(
             judge=self.judge_j1,
             reader_user=self.reader_j1,
+            effective_from=self.forwarded_for_date,
+        )
+        JudgeStenoMapping.objects.create(
+            judge_user=self.judge_cj_user,
+            steno_user=self.steno_user,
+            bench_key="CJ",
             effective_from=self.forwarded_for_date,
         )
 
@@ -221,3 +233,23 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
             ).count(),
             2,
         )
+
+    def test_reader_daily_proceeding_submit_creates_steno_workflow(self):
+        client = self._auth_client(self.reader_cj)
+        response = client.post(
+            "/api/v1/reader/daily-proceedings/submit/?reader_group=READER_CJ",
+            {
+                "efiling_id": self.filing.id,
+                "hearing_date": self.forwarded_for_date.isoformat(),
+                "next_listing_date": self.listing_date.isoformat(),
+                "proceedings_text": "Matter heard.",
+                "reader_remark": "Send draft order.",
+                "document_type": "ORDER",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        proceeding = ReaderDailyProceeding.objects.get(efiling=self.filing)
+        workflow = StenoOrderWorkflow.objects.get(proceeding=proceeding, document_type="ORDER")
+        self.assertEqual(workflow.assigned_steno_id, self.steno_user.id)
+        self.assertEqual(workflow.workflow_status, StenoOrderWorkflow.WorkflowStatus.PENDING_UPLOAD)

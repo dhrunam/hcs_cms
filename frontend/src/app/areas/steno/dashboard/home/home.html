@@ -1,0 +1,22 @@
+<div class="container-fluid py-3">
+  <h3>Steno Queue</h3>
+  <div *ngIf="isLoading" class="text-muted">Loading...</div>
+  <div *ngIf="!isLoading">
+    <div class="card mb-3" *ngFor="let item of items">
+      <div class="card-body">
+        <div class="fw-bold">{{ item.case_number || '-' }}</div>
+        <div class="small text-muted mb-2">{{ item.document_type }} | {{ item.workflow_status }}</div>
+        <div class="row g-2 align-items-end">
+          <div class="col-md-4">
+            <label class="form-label small">Draft Document Index ID</label>
+            <input class="form-control" type="number" [(ngModel)]="draftDocIds[item.workflow_id]" />
+          </div>
+          <div class="col-md-8 d-flex gap-2">
+            <button class="btn btn-outline-primary btn-sm" (click)="uploadDraft(item)">Save Draft Ref</button>
+            <button class="btn btn-primary btn-sm" (click)="submitToJudge(item)">Send To Judge</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

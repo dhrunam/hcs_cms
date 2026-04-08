@@ -50,4 +50,10 @@ export const routes: Routes = [
     loadChildren: () =>
       import('./areas/reader/reader-routing-module').then((m) => m.ReaderRoutes),
   },
+  {
+    path: 'steno',
+    canMatch: [authGuard],
+    loadChildren: () =>
+      import('./areas/steno/steno-routing-module').then((m) => m.StenoRoutes),
+  },
 ];

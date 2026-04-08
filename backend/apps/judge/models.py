@@ -116,3 +116,84 @@ class CourtroomSharedView(BaseModel):
         db_table = "courtroom_shared_view"
         unique_together = ("efiling", "advocate_user")
         indexes = [models.Index(fields=["efiling", "is_active"])]
+
+
+class JudgeStenoMapping(BaseModel):
+    judge_user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="judge_steno_mappings",
+    )
+    steno_user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="steno_judge_mappings",
+    )
+    bench_key = models.CharField(max_length=50, blank=True, null=True)
+    effective_from = models.DateField()
+    effective_to = models.DateField(blank=True, null=True)
+
+    class Meta:
+        db_table = "judge_steno_mapping"
+        indexes = [
+            models.Index(fields=["judge_user", "is_active"]),
+            models.Index(fields=["steno_user", "is_active"]),
+            models.Index(fields=["bench_key"]),
+            models.Index(fields=["effective_from", "effective_to"]),
+        ]
+
+
+class JudgeDraftAnnotation(BaseModel):
+    class AnnotationType(models.TextChoices):
+        COMMENT = "COMMENT", "Comment"
+        HIGHLIGHT = "HIGHLIGHT", "Highlight"
+        TEXT_REPLACE = "TEXT_REPLACE", "Text Replace"
+        FORMAT = "FORMAT", "Format"
+
+    class AnnotationStatus(models.TextChoices):
+        OPEN = "OPEN", "Open"
+        RESOLVED = "RESOLVED", "Resolved"
+
+    workflow = models.ForeignKey(
+        "reader.StenoOrderWorkflow",
+        on_delete=models.CASCADE,
+        related_name="judge_annotations",
+    )
+    page_number = models.IntegerField(blank=True, null=True)
+    x = models.DecimalField(max_digits=10, decimal_places=3, blank=True, null=True)
+    y = models.DecimalField(max_digits=10, decimal_places=3, blank=True, null=True)
+    width = models.DecimalField(max_digits=10, decimal_places=3, blank=True, null=True)
+    height = models.DecimalField(max_digits=10, decimal_places=3, blank=True, null=True)
+    annotation_type = models.CharField(
+        max_length=20,
+        choices=AnnotationType.choices,
+        default=AnnotationType.COMMENT,
+    )
+    note_text = models.TextField()
+    status = models.CharField(
+        max_length=20,
+        choices=AnnotationStatus.choices,
+        default=AnnotationStatus.OPEN,
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="judge_draft_annotations_created",
+    )
+    resolved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="judge_draft_annotations_resolved",
+    )
+    resolved_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        db_table = "judge_draft_annotation"
+        indexes = [
+            models.Index(fields=["workflow", "status"]),
+            models.Index(fields=["created_by"]),
+        ]

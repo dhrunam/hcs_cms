@@ -30,14 +30,17 @@ from .models import (
     JUDGE_GROUP_CJ,
     JUDGE_GROUP_J1,
     JUDGE_GROUP_J2,
+    JudgeDraftAnnotation,
 )
-from apps.reader.models import CourtroomForward, CourtroomForwardDocument
+from apps.reader.models import CourtroomForward, CourtroomForwardDocument, StenoOrderWorkflow
 from apps.listing.models import CauseList, CauseListEntry
 from .serializers import (
     CourtroomCaseDocumentAnnotationUpsertSerializer,
     CourtroomDecisionSerializer,
     CourtroomDocumentAnnotationSerializer,
     CourtroomPendingCaseSerializer,
+    JudgeDraftAnnotationUpsertSerializer,
+    JudgeWorkflowDecisionSerializer,
 )
 
 _DUMMY_TOKEN_TO_DUMMY_EMAIL: Dict[str, str] = {
@@ -883,3 +886,105 @@ class CourtroomSharedViewAPIView(APIView):
         ).update(is_active=False, updated_by=user, updated_at=timezone.now())
         
         return Response({"status": "inactive"}, status=drf_status.HTTP_200_OK)
+
+
+class JudgeStenoWorkflowListView(APIView):
+    def get(self, request, *args, **kwargs):
+        judge_user = _assert_judge(request)
+        rows = (
+            StenoOrderWorkflow.objects.filter(
+                workflow_status=StenoOrderWorkflow.WorkflowStatus.SENT_FOR_JUDGE_APPROVAL,
+                is_active=True,
+            )
+            .select_related("efiling", "proceeding")
+            .order_by("-updated_at", "-id")
+        )
+        items = []
+        for row in rows:
+            items.append(
+                {
+                    "workflow_id": row.id,
+                    "efiling_id": row.efiling_id,
+                    "case_number": row.efiling.case_number,
+                    "e_filing_number": row.efiling.e_filing_number,
+                    "document_type": row.document_type,
+                    "draft_document_index_id": row.draft_document_index_id,
+                    "workflow_status": row.workflow_status,
+                    "judge_approval_status": row.judge_approval_status,
+                    "proceedings_text": row.proceeding.proceedings_text,
+                    "reader_remark": row.proceeding.reader_remark,
+                    "hearing_date": row.proceeding.hearing_date.isoformat(),
+                    "next_listing_date": row.proceeding.next_listing_date.isoformat(),
+                }
+            )
+        return Response({"items": items}, status=drf_status.HTTP_200_OK)
+
+
+class JudgeStenoWorkflowAnnotationView(APIView):
+    def post(self, request, *args, **kwargs):
+        judge_user = _assert_judge(request)
+        payload = JudgeDraftAnnotationUpsertSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        workflow = StenoOrderWorkflow.objects.filter(
+            id=payload.validated_data["workflow_id"], is_active=True
+        ).first()
+        if not workflow:
+            raise ValidationError({"workflow_id": "Invalid workflow_id."})
+        annotation = JudgeDraftAnnotation.objects.create(
+            workflow=workflow,
+            page_number=payload.validated_data.get("page_number"),
+            x=payload.validated_data.get("x"),
+            y=payload.validated_data.get("y"),
+            width=payload.validated_data.get("width"),
+            height=payload.validated_data.get("height"),
+            annotation_type=payload.validated_data.get("annotation_type"),
+            note_text=payload.validated_data["note_text"],
+            created_by=judge_user,
+            updated_by=judge_user,
+        )
+        return Response(
+            {"annotation_id": annotation.id, "status": annotation.status},
+            status=drf_status.HTTP_200_OK,
+        )
+
+
+class JudgeStenoWorkflowDecisionView(APIView):
+    def post(self, request, *args, **kwargs):
+        judge_user = _assert_judge(request)
+        payload = JudgeWorkflowDecisionSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        workflow = StenoOrderWorkflow.objects.filter(
+            id=payload.validated_data["workflow_id"], is_active=True
+        ).first()
+        if not workflow:
+            raise ValidationError({"workflow_id": "Invalid workflow_id."})
+        status = payload.validated_data["judge_approval_status"]
+        notes = payload.validated_data.get("judge_approval_notes")
+        if status == "APPROVED":
+            workflow.judge_approval_status = StenoOrderWorkflow.JudgeApprovalStatus.APPROVED
+            workflow.workflow_status = StenoOrderWorkflow.WorkflowStatus.JUDGE_APPROVED
+            workflow.judge_approved_by = judge_user
+            workflow.judge_approved_at = timezone.now()
+        else:
+            workflow.judge_approval_status = StenoOrderWorkflow.JudgeApprovalStatus.REJECTED
+            workflow.workflow_status = StenoOrderWorkflow.WorkflowStatus.CHANGES_REQUESTED
+        workflow.judge_approval_notes = notes
+        workflow.updated_by = judge_user
+        workflow.save(
+            update_fields=[
+                "judge_approval_status",
+                "workflow_status",
+                "judge_approved_by",
+                "judge_approved_at",
+                "judge_approval_notes",
+                "updated_by",
+                "updated_at",
+            ]
+        )
+        return Response(
+            {
+                "workflow_status": workflow.workflow_status,
+                "judge_approval_status": workflow.judge_approval_status,
+            },
+            status=drf_status.HTTP_200_OK,
+        )

@@ -37,3 +37,33 @@ class BenchConfigurationSerializer(serializers.Serializer):
     judge_user_ids = serializers.ListField(child=serializers.IntegerField())
     reader_user_ids = serializers.ListField(child=serializers.IntegerField())
     is_accessible_to_reader = serializers.BooleanField()
+
+
+class ReaderDailyProceedingSubmitSerializer(serializers.Serializer):
+    efiling_id = serializers.IntegerField()
+    hearing_date = serializers.DateField()
+    next_listing_date = serializers.DateField()
+    proceedings_text = serializers.CharField(allow_blank=False)
+    reader_remark = serializers.CharField(
+        allow_blank=True,
+        allow_null=True,
+        required=False,
+    )
+    document_type = serializers.ChoiceField(
+        choices=[("ORDER", "Order"), ("JUDGMENT", "Judgment")],
+        required=False,
+        default="ORDER",
+    )
+
+
+class StenoDraftUploadSerializer(serializers.Serializer):
+    workflow_id = serializers.IntegerField()
+    draft_document_index_id = serializers.IntegerField()
+
+
+class StenoSubmitForJudgeSerializer(serializers.Serializer):
+    workflow_id = serializers.IntegerField()
+
+
+class StenoResolveAnnotationSerializer(serializers.Serializer):
+    annotation_id = serializers.IntegerField()
