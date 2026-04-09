@@ -111,7 +111,7 @@
   padding: 0.95rem 1rem;
   text-align: left;
   transition: all 0.2s ease;
-  width: 100%;
+  /* width: 100%; */
 }
 
 .document-item-interactive {
