@@ -35,6 +35,21 @@ export type BenchConfiguration = {
   is_forward_target?: boolean;
 };
 
+export type ReaderDailyProceedingCase = {
+  efiling_id: number;
+  case_number: string | null;
+  e_filing_number?: string | null;
+  petitioner_name: string | null;
+  bench: string | null;
+  bench_key?: string | null;
+  last_hearing_date?: string | null;
+  last_next_listing_date?: string | null;
+  latest_proceedings_text?: string | null;
+  listing_sync_status?: string | null;
+  steno_workflow_status?: string | null;
+  can_assign_listing_date: boolean;
+};
+
 export function resolveBenchConfiguration(
   benchConfigurations: BenchConfiguration[],
   benchValue: string | null | undefined,
@@ -132,5 +147,92 @@ export class ReaderService {
       url += `?reader_group=${userGroup}`;
     }
     return this.http.post<any>(url, { efiling_id: efilingId });
+  }
+
+  getDailyProceedings(params?: { page_size?: number }): Observable<{ total: number; items: ReaderDailyProceedingCase[] }> {
+    const userGroup = sessionStorage.getItem('user_group');
+    let url = `${app_url}/api/v1/reader/daily-proceedings/`;
+    const queryParts: string[] = [];
+    if (params?.page_size != null) {
+      queryParts.push(`page_size=${params.page_size}`);
+    }
+    if (userGroup) {
+      queryParts.push(`reader_group=${encodeURIComponent(userGroup)}`);
+    }
+    if (queryParts.length > 0) {
+      url += '?' + queryParts.join('&');
+    }
+    return this.http.get<{ total: number; items: ReaderDailyProceedingCase[] }>(url);
+  }
+
+  submitDailyProceeding(payload: {
+    efiling_id: number;
+    hearing_date: string;
+    next_listing_date: string;
+    proceedings_text: string;
+    reader_remark?: string | null;
+    document_type?: 'ORDER' | 'JUDGMENT';
+  }): Observable<any> {
+    const userGroup = sessionStorage.getItem('user_group');
+    let url = `${app_url}/api/v1/reader/daily-proceedings/submit/`;
+    if (userGroup) {
+      url += `?reader_group=${encodeURIComponent(userGroup)}`;
+    }
+    return this.http.post<any>(url, payload);
+  }
+
+  getStenoQueue(): Observable<{ items: any[] }> {
+    return this.http.get<{ items: any[] }>(`${app_url}/api/v1/reader/steno/queue/`);
+  }
+
+  uploadStenoDraft(payload: {
+    workflow_id: number;
+    draft_document_index_id: number;
+  }): Observable<any> {
+    return this.http.post<any>(`${app_url}/api/v1/reader/steno/upload-draft/`, payload);
+  }
+
+  /** Multipart PDF upload; creates EfilingDocumentsIndex on the case. */
+  uploadStenoDraftFile(workflowId: number, file: File): Observable<{
+    workflow_status: string;
+    draft_document_index_id: number;
+    draft_preview_url?: string | null;
+  }> {
+    const fd = new FormData();
+    fd.append('workflow_id', String(workflowId));
+    fd.append('file', file, file.name);
+    return this.http.post<any>(`${app_url}/api/v1/reader/steno/upload-draft-file/`, fd);
+  }
+
+  submitStenoToJudge(payload: { workflow_id: number }): Observable<any> {
+    return this.http.post<any>(`${app_url}/api/v1/reader/steno/submit-judge/`, payload);
+  }
+
+  uploadSignedAndPublish(
+    workflowId: number,
+    file: File,
+    signature?: {
+      signature_provider?: string | null;
+      certificate_serial?: string | null;
+      signer_name?: string | null;
+      signature_reason?: string | null;
+      signature_txn_id?: string | null;
+    },
+  ): Observable<{
+    workflow_status: string;
+    signed_document_index_id: number;
+    signed_preview_url?: string | null;
+    digitally_signed_at?: string | null;
+    published_at?: string | null;
+  }> {
+    const fd = new FormData();
+    fd.append('workflow_id', String(workflowId));
+    fd.append('file', file, file.name);
+    if (signature?.signature_provider) fd.append('signature_provider', signature.signature_provider);
+    if (signature?.certificate_serial) fd.append('certificate_serial', signature.certificate_serial);
+    if (signature?.signer_name) fd.append('signer_name', signature.signer_name);
+    if (signature?.signature_reason) fd.append('signature_reason', signature.signature_reason);
+    if (signature?.signature_txn_id) fd.append('signature_txn_id', signature.signature_txn_id);
+    return this.http.post<any>(`${app_url}/api/v1/reader/steno/upload-signed-publish/`, fd);
   }
 }
