@@ -11,6 +11,7 @@ from apps.core.models import BenchT, Efiling, JudgeT, ReaderJudgeAssignment
 from apps.judge.models import CourtroomJudgeDecision
 from apps.judge.models import JudgeStenoMapping
 from apps.core.models import EfilingDocumentsIndex
+from apps.listing.models import CauseList, CauseListEntry
 from apps.reader.models import CourtroomForward, ReaderDailyProceeding, StenoOrderWorkflow
 
 
@@ -256,6 +257,59 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
         workflow = StenoOrderWorkflow.objects.get(proceeding=proceeding, document_type="ORDER")
         self.assertEqual(workflow.assigned_steno_id, self.steno_user.id)
         self.assertEqual(workflow.workflow_status, StenoOrderWorkflow.WorkflowStatus.PENDING_UPLOAD)
+
+    def test_daily_proceedings_list_includes_only_published_cases_for_selected_date(self):
+        cause_list = CauseList.objects.create(
+            cause_list_date=self.listing_date,
+            bench_key="CJ+Judge1",
+            status=CauseList.CauseListStatus.PUBLISHED,
+        )
+        CauseListEntry.objects.create(
+            cause_list=cause_list,
+            efiling=self.filing,
+            included=True,
+            serial_no=1,
+        )
+        client = self._auth_client(self.reader_cj)
+        resp = client.get(
+            "/api/v1/reader/daily-proceedings/"
+            f"?reader_group=READER_CJ&cause_list_date={self.listing_date.isoformat()}"
+        )
+        self.assertEqual(resp.status_code, 200)
+        ids = [row["efiling_id"] for row in resp.data["items"]]
+        self.assertIn(self.filing.id, ids)
+
+    def test_daily_proceedings_list_excludes_non_published_or_other_date(self):
+        draft_cause_list = CauseList.objects.create(
+            cause_list_date=self.listing_date,
+            bench_key="CJ+Judge1",
+            status=CauseList.CauseListStatus.DRAFT,
+        )
+        CauseListEntry.objects.create(
+            cause_list=draft_cause_list,
+            efiling=self.filing,
+            included=True,
+            serial_no=1,
+        )
+        published_other_date = CauseList.objects.create(
+            cause_list_date=self.listing_date + timedelta(days=1),
+            bench_key="CJ+Judge1",
+            status=CauseList.CauseListStatus.PUBLISHED,
+        )
+        CauseListEntry.objects.create(
+            cause_list=published_other_date,
+            efiling=self.filing,
+            included=True,
+            serial_no=1,
+        )
+        client = self._auth_client(self.reader_cj)
+        resp = client.get(
+            "/api/v1/reader/daily-proceedings/"
+            f"?reader_group=READER_CJ&cause_list_date={self.listing_date.isoformat()}"
+        )
+        self.assertEqual(resp.status_code, 200)
+        ids = [row["efiling_id"] for row in resp.data["items"]]
+        self.assertNotIn(self.filing.id, ids)
 
     @override_settings(EFILING_VALIDATE_PDF_UPLOAD=False)
     def test_steno_upload_draft_file_creates_index_and_queue_url(self):

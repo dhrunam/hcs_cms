@@ -149,12 +149,18 @@ export class ReaderService {
     return this.http.post<any>(url, { efiling_id: efilingId });
   }
 
-  getDailyProceedings(params?: { page_size?: number }): Observable<{ total: number; items: ReaderDailyProceedingCase[] }> {
+  getDailyProceedings(params?: {
+    page_size?: number;
+    cause_list_date?: string;
+  }): Observable<{ total: number; items: ReaderDailyProceedingCase[] }> {
     const userGroup = sessionStorage.getItem('user_group');
     let url = `${app_url}/api/v1/reader/daily-proceedings/`;
     const queryParts: string[] = [];
     if (params?.page_size != null) {
       queryParts.push(`page_size=${params.page_size}`);
+    }
+    if (params?.cause_list_date) {
+      queryParts.push(`cause_list_date=${encodeURIComponent(params.cause_list_date)}`);
     }
     if (userGroup) {
       queryParts.push(`reader_group=${encodeURIComponent(userGroup)}`);

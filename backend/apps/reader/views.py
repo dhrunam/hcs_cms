@@ -39,6 +39,7 @@ from apps.judge.courtroom_approval import (
     efiling_ids_with_all_required_approvals,
     legacy_role_from_user_for_bench,
 )
+from apps.listing.models import CauseList, CauseListEntry
 from .models import CourtroomForward, CourtroomForwardDocument, ReaderDailyProceeding, StenoOrderWorkflow
 from .serializers import (
     CourtroomForwardSerializer,
@@ -893,18 +894,29 @@ def _resolve_judge_and_steno_for_reader_submission(
 class ReaderDailyProceedingsListView(APIView):
     def get(self, request, *args, **kwargs):
         reader_group = request.query_params.get("reader_group")
+        cause_list_date_raw = request.query_params.get("cause_list_date")
         page_size_raw = request.query_params.get("page_size")
         page_size = int(page_size_raw) if page_size_raw not in (None, "", "null") else 200
+        if not cause_list_date_raw:
+            raise ValidationError({"cause_list_date": "Required. Use YYYY-MM-DD."})
+        try:
+            cause_list_date = timezone.datetime.fromisoformat(cause_list_date_raw).date()
+        except (TypeError, ValueError):
+            raise ValidationError({"cause_list_date": "Invalid date format. Use YYYY-MM-DD."})
 
         allowed_bench_filter = _get_reader_allowed_efiling_bench_filter(
             request,
             reader_group=reader_group,
         )
-        heard_ids = set(
-            CourtroomJudgeDecision.objects.values_list("efiling_id", flat=True).distinct()
+        published_ids = set(
+            CauseListEntry.objects.filter(
+                cause_list__cause_list_date=cause_list_date,
+                cause_list__status=CauseList.CauseListStatus.PUBLISHED,
+                included=True,
+            ).values_list("efiling_id", flat=True)
         )
         qs = Efiling.objects.filter(
-            id__in=heard_ids,
+            id__in=published_ids,
             is_draft=False,
             status="ACCEPTED",
         ).order_by("-id")

@@ -2,8 +2,23 @@
   <h3 class="mb-0">Daily Proceedings</h3>
 </div>
 
+<div class="row g-2 align-items-end mb-3">
+  <div class="col-md-4">
+    <label class="form-label small">Published Cause List Date</label>
+    <input class="form-control" type="date" [(ngModel)]="selectedCauseListDate" />
+  </div>
+  <div class="col-md-auto">
+    <button class="btn btn-outline-primary" (click)="load()" [disabled]="isLoading">
+      {{ isLoading ? 'Loading...' : 'Load Cases' }}
+    </button>
+  </div>
+</div>
+
 <div *ngIf="isLoading" class="text-muted">Loading...</div>
 <div *ngIf="loadError" class="alert alert-warning">{{ loadError }}</div>
+<div *ngIf="!isLoading && !loadError && items.length === 0" class="alert alert-info">
+  No published cause-list cases found for the selected date.
+</div>
 
 <div *ngIf="!isLoading && !loadError">
   <div *ngFor="let item of items" class="card mb-3">
