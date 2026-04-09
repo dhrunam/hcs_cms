@@ -46,6 +46,7 @@ from .serializers import (
     JudgeStenoAnnotationsSnapshotSerializer,
     JudgeWorkflowDecisionSerializer,
 )
+from .courtroom_approval import legacy_role_from_user_for_bench
 
 
 def _steno_draft_stream_url(request, document_index_id: int | None) -> str | None:
@@ -694,6 +695,24 @@ class CourtroomDecisionView(APIView):
         if not _judge_can_view_forward(user_groups, forward.bench_key):
             raise ValidationError({"detail": "Not authorized for this case/bench."})
 
+        required_groups = tuple(get_required_judge_groups(forward.bench_key))
+        bench_role_group = None
+        if len(required_groups) == 1:
+            # Single bench: deterministic role from bench itself.
+            bench_role_group = required_groups[0]
+        else:
+            # Division/full bench: infer exact slot from user role membership.
+            bench_role_group = legacy_role_from_user_for_bench(user, required_groups)
+        if not bench_role_group:
+            raise ValidationError(
+                {
+                    "detail": (
+                        "Unable to resolve judge role slot for this bench. "
+                        "Configure judge role mapping (CJ/J1/J2)."
+                    )
+                }
+            )
+
         obj, _created = CourtroomJudgeDecision.objects.update_or_create(
             judge_user=user,
             efiling_id=efiling_id,
@@ -702,6 +721,7 @@ class CourtroomDecisionView(APIView):
                 "status": status,
                 "approved": approved,
                 "decision_notes": decision_notes,
+                "bench_role_group": bench_role_group,
             },
         )
         valid_req_doc_ids = set()

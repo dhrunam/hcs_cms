@@ -63,6 +63,8 @@ def _cause_list_target_efiling_ids(cld_obj: date_type | None, bench_key: str) ->
         CourtroomJudgeDecision.objects.filter(
             listing_date=cld_obj,
             efiling_id__in=on_bench,
+            # Reader must have pushed the case to listing flow; prevents judge-only bypass.
+            reader_listing_remark__isnull=False,
         ).values_list("efiling_id", flat=True)
     )
     return set(by_forward) | set(by_listing)
