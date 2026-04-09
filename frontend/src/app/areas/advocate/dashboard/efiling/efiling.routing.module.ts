@@ -10,11 +10,7 @@ export const EfilingRoutes: Routes = [
     loadComponent: () =>
       import("./new-filing/new-filing").then((c) => c.NewFiling),
   },
-  {
-    path: "new-filing-v2",
-    loadComponent: () =>
-      import("./new-filing-v2/new-filing-v2").then((c) => c.NewFilingV2),
-  },
+  
   {
     path: "draft-filings",
     loadChildren: () =>

@@ -469,6 +469,7 @@ export class FiledCaseDetails {
     }
 
     this.isSubmittingApprovedCase = true;
+
     this.efilingService.submit_approved_filing(this.filingId, bench).subscribe({
       next: (filing) => {
         this.isSubmittingApprovedCase = false;
