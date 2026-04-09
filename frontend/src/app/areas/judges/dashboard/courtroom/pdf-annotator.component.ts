@@ -4,9 +4,8 @@ import { DragDropModule, CdkDragEnd } from '@angular/cdk/drag-drop';
 import { FormsModule } from '@angular/forms';
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Use classic `pdf.worker.min.js` from /public — the .mjs worker is ESM-only and breaks when
-// pdf.js spawns a non-module Worker ("import.meta outside a module").
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+// Must match the installed `pdfjs-dist` major version (copied to site root via angular.json assets).
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
 interface Point { x: number; y: number; }
 interface DrawPath {
@@ -73,6 +72,15 @@ export class PdfAnnotatorComponent implements OnChanges, AfterViewInit, OnDestro
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['pdfUrl'] && this.pdfUrl) {
       this.loadPdf();
+      return;
+    }
+    if (
+      changes['annotationData'] &&
+      this.pdfDocument &&
+      this.pages.length &&
+      !this.isLoading
+    ) {
+      this.applyAnnotationDataToPages();
     }
   }
 
@@ -118,6 +126,39 @@ export class PdfAnnotatorComponent implements OnChanges, AfterViewInit, OnDestro
     }
     
     this.renderPdfPages();
+  }
+
+  /** Re-apply annotation payload after PDF is loaded (e.g. server data arrived). */
+  private applyAnnotationDataToPages(): void {
+    let parsedData = this.annotationData;
+    if (typeof parsedData === 'string' && parsedData) {
+      try {
+        parsedData = JSON.parse(parsedData);
+      } catch {
+        parsedData = { pages: [] };
+      }
+    }
+    if (!parsedData || !Array.isArray(parsedData.pages)) {
+      parsedData = { pages: [] };
+    }
+    for (const p of this.pages) {
+      const existing = (parsedData.pages as any[]).find(
+        (x: any) => x.pageIndex === p.pageIndex,
+      ) || { paths: [], notes: [] };
+      p.paths = Array.isArray(existing.paths)
+        ? existing.paths.map((path: any) => ({
+            ...path,
+            points: Array.isArray(path.points)
+              ? path.points.map((pt: any) => ({ ...pt }))
+              : [],
+          }))
+        : [];
+      p.notes = Array.isArray(existing.notes)
+        ? existing.notes.map((n: any) => ({ ...n, text: n.text ?? '' }))
+        : [];
+    }
+    this.undoStack = [];
+    this.redrawAllAnnotations();
   }
 
   setTool(tool: 'pen' | 'highlighter' | 'note', color?: string) {

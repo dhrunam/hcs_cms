@@ -1,0 +1,15 @@
+:host {
+  display: block;
+}
+.proceedings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: 1rem;
+}
+
+.proceeding-card {
+  border: 1px solid #e6e6e6;
+  border-radius: 10px;
+  background: #fff;
+  padding: 1rem;
+}

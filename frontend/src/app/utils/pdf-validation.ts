@@ -60,7 +60,7 @@ export async function validatePdfOcr(file: File): Promise<PdfValidationResult> {
     const pdfjs = await import('pdfjs-dist');
     const p = pdfjs as any;
     if (p.GlobalWorkerOptions && !p.GlobalWorkerOptions.workerSrc) {
-      p.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+      p.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
     }
     const arrayBuffer = await file.arrayBuffer();
     const loadingTask = p.getDocument?.({ data: arrayBuffer });

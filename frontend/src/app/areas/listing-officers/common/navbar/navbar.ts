@@ -31,8 +31,29 @@ export class Navbar implements OnInit {
     this.authService.login();
   }
 
-  onLogout(): void {
-    window.location.href = '/user/login';
+    async onLogout(event?: Event): Promise<void> {
+    event?.preventDefault();
+    const status = await this.authService.logout();
+    console.log("Logout status:", status);
+    if (status.success) {
+      alert("You have been logged out successfully.");
+      this.authService.login();
+      return;
+    }
+
+    const issues: string[] = [];
+    if (!status.apiSessionLoggedOut) {
+      issues.push("API session");
+    }
+    if (!status.ssoSessionLoggedOut) {
+      issues.push("SSO session");
+    }
+    if (!status.tokensCleared) {
+      issues.push("local tokens");
+    }
+
+   
+    this.authService.login();
   }
 
   updateClock() {

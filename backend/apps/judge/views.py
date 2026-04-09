@@ -3,7 +3,10 @@ from __future__ import annotations
 from typing import Dict, Iterable, List, Optional, Sequence, Set
 
 from django.contrib.auth.models import Group, AnonymousUser
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import Prefetch, Q
+
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status as drf_status
 from rest_framework.exceptions import ValidationError
@@ -30,15 +33,30 @@ from .models import (
     JUDGE_GROUP_CJ,
     JUDGE_GROUP_J1,
     JUDGE_GROUP_J2,
+    JudgeDraftAnnotation,
 )
-from apps.reader.models import CourtroomForward, CourtroomForwardDocument
+from apps.reader.models import CourtroomForward, CourtroomForwardDocument, StenoOrderWorkflow
 from apps.listing.models import CauseList, CauseListEntry
 from .serializers import (
     CourtroomCaseDocumentAnnotationUpsertSerializer,
     CourtroomDecisionSerializer,
     CourtroomDocumentAnnotationSerializer,
     CourtroomPendingCaseSerializer,
+    JudgeDraftAnnotationUpsertSerializer,
+    JudgeStenoAnnotationsSnapshotSerializer,
+    JudgeWorkflowDecisionSerializer,
 )
+from .courtroom_approval import legacy_role_from_user_for_bench
+
+
+def _steno_draft_stream_url(request, document_index_id: int | None) -> str | None:
+    if not document_index_id:
+        return None
+    path = reverse(
+        "efiling:efiling-document-index-stream",
+        kwargs={"document_index_id": int(document_index_id)},
+    )
+    return request.build_absolute_uri(path)
 
 _DUMMY_TOKEN_TO_DUMMY_EMAIL: Dict[str, str] = {
     "judge_cj_dummy_token": "dummy_judge_cj@hcs.local",
@@ -677,6 +695,24 @@ class CourtroomDecisionView(APIView):
         if not _judge_can_view_forward(user_groups, forward.bench_key):
             raise ValidationError({"detail": "Not authorized for this case/bench."})
 
+        required_groups = tuple(get_required_judge_groups(forward.bench_key))
+        bench_role_group = None
+        if len(required_groups) == 1:
+            # Single bench: deterministic role from bench itself.
+            bench_role_group = required_groups[0]
+        else:
+            # Division/full bench: infer exact slot from user role membership.
+            bench_role_group = legacy_role_from_user_for_bench(user, required_groups)
+        if not bench_role_group:
+            raise ValidationError(
+                {
+                    "detail": (
+                        "Unable to resolve judge role slot for this bench. "
+                        "Configure judge role mapping (CJ/J1/J2)."
+                    )
+                }
+            )
+
         obj, _created = CourtroomJudgeDecision.objects.update_or_create(
             judge_user=user,
             efiling_id=efiling_id,
@@ -685,6 +721,7 @@ class CourtroomDecisionView(APIView):
                 "status": status,
                 "approved": approved,
                 "decision_notes": decision_notes,
+                "bench_role_group": bench_role_group,
             },
         )
         valid_req_doc_ids = set()
@@ -883,3 +920,171 @@ class CourtroomSharedViewAPIView(APIView):
         ).update(is_active=False, updated_by=user, updated_at=timezone.now())
         
         return Response({"status": "inactive"}, status=drf_status.HTTP_200_OK)
+
+
+class JudgeStenoWorkflowListView(APIView):
+    def get(self, request, *args, **kwargs):
+        _assert_judge(request)
+        ann_qs = JudgeDraftAnnotation.objects.filter(is_active=True).order_by("id")
+        rows = (
+            StenoOrderWorkflow.objects.filter(
+                workflow_status__in=[
+                    StenoOrderWorkflow.WorkflowStatus.SENT_FOR_JUDGE_APPROVAL,
+                    StenoOrderWorkflow.WorkflowStatus.CHANGES_REQUESTED,
+                    StenoOrderWorkflow.WorkflowStatus.JUDGE_APPROVED,
+                    StenoOrderWorkflow.WorkflowStatus.SIGNED_AND_PUBLISHED,
+                ],
+                is_active=True,
+            )
+            .select_related("efiling", "proceeding", "draft_document_index")
+            .prefetch_related(Prefetch("judge_annotations", queryset=ann_qs))
+            .order_by("-updated_at", "-id")
+        )
+        items = []
+        for row in rows:
+            draft_id = row.draft_document_index_id
+            ann_list = [
+                {
+                    "id": a.id,
+                    "note_text": a.note_text,
+                    "page_number": a.page_number,
+                    "status": a.status,
+                    "annotation_type": a.annotation_type,
+                    "x": str(a.x) if a.x is not None else None,
+                    "y": str(a.y) if a.y is not None else None,
+                    "width": str(a.width) if a.width is not None else None,
+                    "height": str(a.height) if a.height is not None else None,
+                    "created_at": a.created_at.isoformat() if a.created_at else None,
+                }
+                for a in row.judge_annotations.all()
+            ]
+            items.append(
+                {
+                    "workflow_id": row.id,
+                    "efiling_id": row.efiling_id,
+                    "case_number": row.efiling.case_number,
+                    "e_filing_number": row.efiling.e_filing_number,
+                    "document_type": row.document_type,
+                    "draft_document_index_id": draft_id,
+                    "draft_preview_url": _steno_draft_stream_url(request, draft_id),
+                    "workflow_status": row.workflow_status,
+                    "judge_approval_status": row.judge_approval_status,
+                    "proceedings_text": row.proceeding.proceedings_text,
+                    "reader_remark": row.proceeding.reader_remark,
+                    "hearing_date": row.proceeding.hearing_date.isoformat(),
+                    "next_listing_date": row.proceeding.next_listing_date.isoformat(),
+                    "judge_annotations": ann_list,
+                }
+            )
+        return Response({"items": items}, status=drf_status.HTTP_200_OK)
+
+
+class JudgeStenoWorkflowAnnotationView(APIView):
+    def post(self, request, *args, **kwargs):
+        judge_user = _assert_judge(request)
+        payload = JudgeDraftAnnotationUpsertSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        workflow = StenoOrderWorkflow.objects.filter(
+            id=payload.validated_data["workflow_id"], is_active=True
+        ).first()
+        if not workflow:
+            raise ValidationError({"workflow_id": "Invalid workflow_id."})
+        annotation = JudgeDraftAnnotation.objects.create(
+            workflow=workflow,
+            page_number=payload.validated_data.get("page_number"),
+            x=payload.validated_data.get("x"),
+            y=payload.validated_data.get("y"),
+            width=payload.validated_data.get("width"),
+            height=payload.validated_data.get("height"),
+            annotation_type=payload.validated_data.get("annotation_type"),
+            note_text=payload.validated_data["note_text"],
+            created_by=judge_user,
+            updated_by=judge_user,
+        )
+        return Response(
+            {"annotation_id": annotation.id, "status": annotation.status},
+            status=drf_status.HTTP_200_OK,
+        )
+
+
+class JudgeStenoWorkflowAnnotationsSnapshotView(APIView):
+    """
+    Replace all *positional* mark-up for a workflow (canvas marks) in one request.
+    Rows with no page and no x/y (quick text-only notes) are kept.
+    """
+
+    def post(self, request, *args, **kwargs):
+        judge_user = _assert_judge(request)
+        payload = JudgeStenoAnnotationsSnapshotSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        workflow = StenoOrderWorkflow.objects.filter(
+            id=payload.validated_data["workflow_id"], is_active=True
+        ).first()
+        if not workflow:
+            raise ValidationError({"workflow_id": "Invalid workflow_id."})
+        positional = (
+            Q(page_number__isnull=False)
+            | Q(x__isnull=False)
+            | Q(y__isnull=False)
+            | Q(width__isnull=False)
+            | Q(height__isnull=False)
+        )
+        rows = payload.validated_data["annotations"]
+        with transaction.atomic():
+            JudgeDraftAnnotation.objects.filter(workflow=workflow).filter(positional).delete()
+            for row in rows:
+                JudgeDraftAnnotation.objects.create(
+                    workflow=workflow,
+                    page_number=row.get("page_number"),
+                    x=row.get("x"),
+                    y=row.get("y"),
+                    width=row.get("width"),
+                    height=row.get("height"),
+                    annotation_type=row.get("annotation_type"),
+                    note_text=row["note_text"],
+                    created_by=judge_user,
+                    updated_by=judge_user,
+                )
+        return Response({"saved": len(rows)}, status=drf_status.HTTP_200_OK)
+
+
+class JudgeStenoWorkflowDecisionView(APIView):
+    def post(self, request, *args, **kwargs):
+        judge_user = _assert_judge(request)
+        payload = JudgeWorkflowDecisionSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        workflow = StenoOrderWorkflow.objects.filter(
+            id=payload.validated_data["workflow_id"], is_active=True
+        ).first()
+        if not workflow:
+            raise ValidationError({"workflow_id": "Invalid workflow_id."})
+        status = payload.validated_data["judge_approval_status"]
+        notes = payload.validated_data.get("judge_approval_notes")
+        if status == "APPROVED":
+            workflow.judge_approval_status = StenoOrderWorkflow.JudgeApprovalStatus.APPROVED
+            workflow.workflow_status = StenoOrderWorkflow.WorkflowStatus.JUDGE_APPROVED
+            workflow.judge_approved_by = judge_user
+            workflow.judge_approved_at = timezone.now()
+        else:
+            workflow.judge_approval_status = StenoOrderWorkflow.JudgeApprovalStatus.REJECTED
+            workflow.workflow_status = StenoOrderWorkflow.WorkflowStatus.CHANGES_REQUESTED
+        workflow.judge_approval_notes = notes
+        workflow.updated_by = judge_user
+        workflow.save(
+            update_fields=[
+                "judge_approval_status",
+                "workflow_status",
+                "judge_approved_by",
+                "judge_approved_at",
+                "judge_approval_notes",
+                "updated_by",
+                "updated_at",
+            ]
+        )
+        return Response(
+            {
+                "workflow_status": workflow.workflow_status,
+                "judge_approval_status": workflow.judge_approval_status,
+            },
+            status=drf_status.HTTP_200_OK,
+        )
