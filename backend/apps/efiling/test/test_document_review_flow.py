@@ -4,27 +4,75 @@ from django.test import TestCase, override_settings
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.core.models import Efiling, EfilingDocuments, EfilingDocumentsIndex
+from apps.accounts.models import User
+from apps.core.models import CaseTypeT, Efiling, EfilingDocuments, EfilingDocumentsIndex
 
 
 @override_settings(EFILING_VALIDATE_PDF_UPLOAD=False)
 class DocumentReviewFlowTest(TestCase):
     def setUp(self):
         self.client = APIClient()
-        self.filing = Efiling.objects.create(
-            petitioner_name="Test Petitioner",
-            petitioner_contact="9876543210",
-            bench="Principal Bench",
+        self.user = User.objects.create_user(
+            username="document-review-user",
+            email="document-review@example.com",
+            password="password123",
         )
+        self.client.force_authenticate(user=self.user)
+        self.case_type = CaseTypeT.objects.create(
+            case_type=1,
+            type_name="WP",
+            type_flag="C",
+            est_code_src="ASK001",
+            reg_no=0,
+            reg_year=0,
+        )
+        self.filing = self.create_filing()
 
-    def upload_document(self, name="petition.pdf", content=b"%PDF-1.4 petition"):
+    def create_filing(self, **overrides):
         payload = {
-            "e_filing": self.filing.id,
-            "e_filing_number": self.filing.e_filing_number,
+            "petitioner_name": "Test Petitioner",
+            "petitioner_contact": "9876543210",
+            "bench": "Principal Bench",
+            "case_type": self.case_type,
+        }
+        payload.update(overrides)
+        return Efiling.objects.create(**payload)
+
+    def upload_document(self, filing=None, name="petition.pdf", content=b"%PDF-1.4 petition"):
+        filing = filing or self.filing
+        payload = {
+            "e_filing": filing.id,
+            "e_filing_number": filing.e_filing_number,
             "document_type": "Main Petition",
             "final_document": SimpleUploadedFile(name, content, content_type="application/pdf"),
         }
         return self.client.post("/api/v1/efiling/efiling-documents/", payload, format="multipart")
+
+    def prepare_filing_for_approval(self, filing=None):
+        filing = filing or self.filing
+        upload_response = self.upload_document(filing=filing)
+        self.assertEqual(upload_response.status_code, status.HTTP_201_CREATED)
+
+        document = EfilingDocuments.objects.filter(e_filing=filing).order_by("-id").first()
+        document_index = EfilingDocumentsIndex.objects.get(document=document)
+
+        submit_response = self.client.patch(
+            f"/api/v1/efiling/efilings/{filing.id}/",
+            {"is_draft": "false"},
+            format="multipart",
+        )
+        self.assertEqual(submit_response.status_code, status.HTTP_200_OK)
+
+        accept_response = self.client.patch(
+            f"/api/v1/efiling/efiling-documents-index/{document_index.id}/",
+            {
+                "scrutiny_status": EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED,
+                "comments": "Accepted for registration.",
+            },
+            format="json",
+        )
+        self.assertEqual(accept_response.status_code, status.HTTP_200_OK)
+        return document, document_index
 
     def test_review_status_changes_are_draft_until_final_submit(self):
         upload_response = self.upload_document()
@@ -116,11 +164,15 @@ class DocumentReviewFlowTest(TestCase):
         self.assertEqual(submit_response.status_code, status.HTTP_200_OK)
         self.filing.refresh_from_db()
         document_index.refresh_from_db()
+        self.case_type.refresh_from_db()
+        current_year = self.filing.accepted_at.year
         self.assertEqual(self.filing.status, "ACCEPTED")
-        self.assertIsNotNone(self.filing.case_number)
+        self.assertEqual(self.filing.case_number, f"WP/1/{current_year}")
         self.assertEqual(document_index.scrutiny_status, EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED)
         self.assertIsNone(document_index.draft_scrutiny_status)
         self.assertGreaterEqual(document_index.scrutiny_history.count(), 4)
+        self.assertEqual(self.case_type.reg_no, 1)
+        self.assertEqual(self.case_type.reg_year, current_year)
 
     def test_document_replace_is_blocked_until_rejected(self):
         self.upload_document()
@@ -383,3 +435,100 @@ class DocumentReviewFlowTest(TestCase):
         self.assertEqual(new_index.scrutiny_status, EfilingDocumentsIndex.ScrutinyStatus.UNDER_SCRUTINY)
         self.assertTrue(new_index.is_new_for_scrutiny)
         self.assertIsNotNone(new_index.last_resubmitted_at)
+
+    def test_submit_approved_increments_registration_within_same_year(self):
+        self.prepare_filing_for_approval(self.filing)
+        first_submit = self.client.post(
+            f"/api/v1/efiling/efilings/{self.filing.id}/submit-approved/",
+            {},
+            format="json",
+        )
+        self.assertEqual(first_submit.status_code, status.HTTP_200_OK)
+
+        second_filing = self.create_filing(petitioner_name="Second Petitioner")
+        self.prepare_filing_for_approval(second_filing)
+        second_submit = self.client.post(
+            f"/api/v1/efiling/efilings/{second_filing.id}/submit-approved/",
+            {},
+            format="json",
+        )
+        self.assertEqual(second_submit.status_code, status.HTTP_200_OK)
+
+        self.filing.refresh_from_db()
+        second_filing.refresh_from_db()
+        self.case_type.refresh_from_db()
+        current_year = self.case_type.reg_year
+
+        self.assertEqual(self.filing.case_number, f"WP/1/{current_year}")
+        self.assertEqual(second_filing.case_number, f"WP/2/{current_year}")
+        self.assertEqual(self.case_type.reg_no, 2)
+
+    def test_submit_approved_resets_registration_when_case_type_year_is_stale(self):
+        current_year = self.filing.created_at.year
+        self.case_type.reg_no = 7
+        self.case_type.reg_year = current_year - 1
+        self.case_type.save(update_fields=["reg_no", "reg_year", "updated_at"])
+
+        self.prepare_filing_for_approval(self.filing)
+        submit_response = self.client.post(
+            f"/api/v1/efiling/efilings/{self.filing.id}/submit-approved/",
+            {},
+            format="json",
+        )
+        self.assertEqual(submit_response.status_code, status.HTTP_200_OK)
+
+        self.filing.refresh_from_db()
+        self.case_type.refresh_from_db()
+        self.assertEqual(self.filing.case_number, f"WP/1/{current_year}")
+        self.assertEqual(self.case_type.reg_no, 1)
+        self.assertEqual(self.case_type.reg_year, current_year)
+
+    def test_submit_approved_is_idempotent_after_registration(self):
+        self.prepare_filing_for_approval(self.filing)
+        first_submit = self.client.post(
+            f"/api/v1/efiling/efilings/{self.filing.id}/submit-approved/",
+            {"bench": "Division Bench"},
+            format="json",
+        )
+        self.assertEqual(first_submit.status_code, status.HTTP_200_OK)
+
+        original_case_number = Efiling.objects.get(pk=self.filing.pk).case_number
+        original_reg_no = CaseTypeT.objects.get(pk=self.case_type.pk).reg_no
+
+        second_submit = self.client.post(
+            f"/api/v1/efiling/efilings/{self.filing.id}/submit-approved/",
+            {"bench": "Full Bench"},
+            format="json",
+        )
+        self.assertEqual(second_submit.status_code, status.HTTP_200_OK)
+
+        self.filing.refresh_from_db()
+        self.case_type.refresh_from_db()
+        self.assertEqual(self.filing.case_number, original_case_number)
+        self.assertEqual(self.case_type.reg_no, original_reg_no)
+        self.assertEqual(self.filing.bench, "Full Bench")
+
+    def test_submit_approved_requires_case_type(self):
+        filing = self.create_filing(case_type=None)
+        self.prepare_filing_for_approval(filing)
+
+        submit_response = self.client.post(
+            f"/api/v1/efiling/efilings/{filing.id}/submit-approved/",
+            {},
+            format="json",
+        )
+        self.assertEqual(submit_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Case type is required", str(submit_response.data))
+
+    def test_submit_approved_requires_case_type_name(self):
+        self.case_type.type_name = ""
+        self.case_type.save(update_fields=["type_name", "updated_at"])
+        self.prepare_filing_for_approval(self.filing)
+
+        submit_response = self.client.post(
+            f"/api/v1/efiling/efilings/{self.filing.id}/submit-approved/",
+            {},
+            format="json",
+        )
+        self.assertEqual(submit_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Case type name is required", str(submit_response.data))
