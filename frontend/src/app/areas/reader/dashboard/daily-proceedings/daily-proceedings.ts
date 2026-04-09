@@ -15,6 +15,7 @@ export class ReaderDailyProceedingsPage {
   items: ReaderDailyProceedingCase[] = [];
   isLoading = false;
   loadError = '';
+  selectedCauseListDate = new Date().toISOString().slice(0, 10);
   saveState: Record<number, boolean> = {};
   formState: Record<number, { hearing_date: string; next_listing_date: string; proceedings_text: string; reader_remark: string }> = {};
 
@@ -27,7 +28,10 @@ export class ReaderDailyProceedingsPage {
   load(): void {
     this.isLoading = true;
     this.loadError = '';
-    this.readerService.getDailyProceedings({ page_size: 200 }).subscribe({
+    this.readerService.getDailyProceedings({
+      page_size: 200,
+      cause_list_date: this.selectedCauseListDate,
+    }).subscribe({
       next: (resp) => {
         this.items = resp?.items ?? [];
         for (const item of this.items) {
@@ -41,7 +45,7 @@ export class ReaderDailyProceedingsPage {
         this.isLoading = false;
       },
       error: () => {
-        this.loadError = 'Failed to load daily proceedings.';
+        this.loadError = 'Failed to load daily proceedings for selected published cause list date.';
         this.isLoading = false;
       },
     });
