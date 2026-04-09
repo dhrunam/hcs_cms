@@ -1,12 +1,23 @@
 import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
+import { OAuthService } from 'angular-oauth2-oidc';
 import { catchError, throwError } from 'rxjs';
+import { devAuthBypassToken, isLocalDevHost } from './environment';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const router = inject(Router);
-  // Get OAuth2 access_token from sessionStorage
-  const token = sessionStorage.getItem('access_token');
+  const oauthService = inject(OAuthService);
+  const fromSession = sessionStorage.getItem('access_token');
+  const fromLocal = localStorage.getItem('access_token');
+  const fromOAuth = oauthService.getAccessToken() || '';
+  let token = fromSession || fromLocal || fromOAuth || null;
+  if (!token?.trim() && devAuthBypassToken?.trim() && isLocalDevHost()) {
+    token = devAuthBypassToken.trim();
+  }
+  if (token && !fromSession) {
+    sessionStorage.setItem('access_token', token);
+  }
 
   if (token) {
     req = req.clone({

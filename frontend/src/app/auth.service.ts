@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { OAuthService } from 'angular-oauth2-oidc';
 import { authConfig } from './auth.config';
-import { app_url, sso_url } from './environment';
+import { app_url, devAuthBypassToken, isLocalDevHost, sso_url } from './environment';
 import { Router } from '@angular/router';
 export type LogoutStatus = {
   apiSessionLoggedOut: boolean;
@@ -38,6 +38,7 @@ export class AuthService {
       console.warn('SSO discovery unavailable, continuing without SSO session.');
     }
     this.syncSessionFromTokens();
+    this.applyDevAuthBypassIfConfigured();
   }
 
   login() {
@@ -224,6 +225,25 @@ export class AuthService {
       error,
       errorDescription: params.get('error_description') || 'SSO login could not be completed.',
     };
+  }
+
+  /**
+   * When `devAuthBypassToken` is set (localhost only), act as logged-in so the guard passes
+   * and the interceptor sends the same Bearer token the backend dev auth accepts.
+   */
+  private applyDevAuthBypassIfConfigured(): void {
+    if (!isLocalDevHost() || !devAuthBypassToken?.trim()) {
+      return;
+    }
+    if (this.oauthService.hasValidAccessToken()) {
+      return;
+    }
+    const trimmed = devAuthBypassToken.trim();
+    sessionStorage.setItem('access_token', trimmed);
+    if (!sessionStorage.getItem('user_group')) {
+      sessionStorage.setItem('user_group', 'ADVOCATE');
+      sessionStorage.setItem('user_groups', JSON.stringify(['ADVOCATE']));
+    }
   }
 
   private syncSessionFromTokens(): void {
