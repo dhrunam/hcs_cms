@@ -77,3 +77,39 @@ class CourtroomApprovalFlowTest(TestCase):
             forwarded_for_date=self.fwd_date,
         )
         self.assertEqual(row.bench_role_group, "JUDGE_CJ")
+
+    def test_decision_view_rejects_duplicate_bench_role_slot(self):
+        from rest_framework.test import APIClient
+
+        other_judge = User.objects.create_user(
+            email="flow.judge2@example.com",
+            username="flow_judge2",
+            password="x",
+        )
+        grp_cj, _ = Group.objects.get_or_create(name="JUDGE_CJ")
+        grp_api, _ = Group.objects.get_or_create(name="API_JUDGE")
+        other_judge.groups.add(grp_cj)
+        other_judge.groups.add(grp_api)
+
+        CourtroomJudgeDecision.objects.create(
+            judge_user=other_judge,
+            efiling=self.filing,
+            forwarded_for_date=self.fwd_date,
+            approved=True,
+            status=CourtroomJudgeDecision.DecisionStatus.APPROVED,
+            bench_role_group="JUDGE_CJ",
+        )
+
+        client = APIClient()
+        client.force_authenticate(user=self.judge)
+        resp = client.post(
+            "/api/v1/judge/courtroom/decisions/",
+            {
+                "efiling_id": self.filing.id,
+                "forwarded_for_date": self.fwd_date.isoformat(),
+                "decision_notes": "approved",
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("already recorded by another judge", str(resp.data.get("detail")))

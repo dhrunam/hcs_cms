@@ -30,7 +30,10 @@ def resolve_bench_role_group_for_forward(user: "AbstractUser", forward_bench_key
     if len(matched) == 1:
         return next(iter(matched))
     if len(matched) > 1:
-        return sorted(matched)[0]
+        raise ValueError(
+            "Ambiguous judge role membership for this bench; assign exactly one "
+            "token group (JUDGE_CJ/JUDGE_J1/JUDGE_J2)."
+        )
 
     api_like = JUDGE_GROUP_CJ in names or "API_JUDGE" in names
     if api_like and len(required) == 1:
