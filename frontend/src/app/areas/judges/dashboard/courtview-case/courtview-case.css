@@ -85,6 +85,19 @@
   padding: 0 10px;
 }
 
+::ng-deep .vs-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #6c757d;
+  padding: 0px 7px;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 22px;
+  font-weight: lighter;
+  margin: 0 4px;
+}
+
 .doc-list {
   list-style: none;
   padding: 0;
