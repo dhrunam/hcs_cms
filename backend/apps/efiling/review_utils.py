@@ -1,8 +1,8 @@
 from django.utils import timezone
-from django.db import models
+from django.db import models, transaction
 from rest_framework.exceptions import ValidationError
 
-from apps.core.models import Efiling, EfilingDocuments, EfilingDocumentsIndex, EfilingDocumentsScrutinyHistory
+from apps.core.models import CaseTypeT, Efiling, EfilingDocuments, EfilingDocumentsIndex, EfilingDocumentsScrutinyHistory
 from apps.efiling.notification_utils import create_notification
 
 
@@ -223,45 +223,62 @@ def derive_filing_status(filing):
 
 
 def finalize_approved_filing(filing, user=None, bench=None):
-    filing = derive_filing_status(filing)
-    active_document_indexes = EfilingDocumentsIndex.objects.filter(
-        document__e_filing=filing,
-        is_active=True,
-    )
-    if not active_document_indexes.exists():
-        active_document_indexes = EfilingDocumentsIndex.objects.filter(document__e_filing=filing)
+    with transaction.atomic():
+        filing = Efiling.objects.select_for_update().get(pk=filing.pk)
+        filing = derive_filing_status(filing)
+        active_document_indexes = EfilingDocumentsIndex.objects.filter(
+            document__e_filing=filing,
+            is_active=True,
+        )
+        if not active_document_indexes.exists():
+            active_document_indexes = EfilingDocumentsIndex.objects.filter(document__e_filing=filing)
 
-    if filing.is_draft:
-        raise ValidationError("Draft filings cannot be submitted as approved cases.")
+        if filing.is_draft:
+            raise ValidationError("Draft filings cannot be submitted as approved cases.")
 
-    if not active_document_indexes.exists():
-        raise ValidationError("At least one active document is required before submitting the case.")
+        if not active_document_indexes.exists():
+            raise ValidationError("At least one active document is required before submitting the case.")
 
-    if active_document_indexes.exclude(
-        scrutiny_status=EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED
-    ).exists():
-        raise ValidationError("All active documents must be approved before submitting the case.")
+        if active_document_indexes.exclude(
+            scrutiny_status=EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED
+        ).exists():
+            raise ValidationError("All active documents must be approved before submitting the case.")
 
-    if filing.case_number:
-        if bench:
-            filing.bench = bench
-            filing.updated_by = user
-            filing.save(update_fields=["bench", "updated_by", "updated_at"])
+        if filing.case_number:
+            if bench:
+                filing.bench = bench
+                filing.updated_by = user
+                filing.save(update_fields=["bench", "updated_by", "updated_at"])
+            return filing
+
+        locked_case_type = None
+        if filing.case_type_id:
+            locked_case_type = CaseTypeT.objects.select_for_update().get(pk=filing.case_type_id)
+            filing.case_type = locked_case_type
+
+        try:
+            filing.case_number, next_reg_no, next_reg_year = filing.build_case_number()
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from exc
+
+        if locked_case_type is not None:
+            locked_case_type.reg_no = next_reg_no
+            locked_case_type.reg_year = next_reg_year
+            locked_case_type.updated_by = user
+            locked_case_type.save(update_fields=["reg_no", "reg_year", "updated_by", "updated_at"])
+
+        filing.status = "ACCEPTED"
+        filing.bench = bench
+        latest_review_time = (
+            active_document_indexes.exclude(last_reviewed_at__isnull=True)
+            .order_by("-last_reviewed_at")
+            .values_list("last_reviewed_at", flat=True)
+            .first()
+        )
+        filing.accepted_at = latest_review_time or timezone.now()
+        filing.updated_by = user
+        filing.save(update_fields=["case_number", "status", "bench", "accepted_at", "updated_by", "updated_at"])
         return filing
-
-    filing.case_number = filing.build_case_number()
-    filing.status = "ACCEPTED"
-    filing.bench = bench  # SET BENCH HERE
-    latest_review_time = (
-        active_document_indexes.exclude(last_reviewed_at__isnull=True)
-        .order_by("-last_reviewed_at")
-        .values_list("last_reviewed_at", flat=True)
-        .first()
-    )
-    filing.accepted_at = latest_review_time or timezone.now()
-    filing.updated_by = user
-    filing.save(update_fields=["case_number", "status", "bench", "accepted_at", "updated_by", "updated_at"])
-    return filing
 
 
 def finalize_scrutiny_submission(filing, user=None, bench=None):
