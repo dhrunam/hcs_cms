@@ -173,6 +173,23 @@ class StenoOrderWorkflow(BaseModel):
         related_name="judge_approved_steno_workflows",
     )
     judge_approved_at = models.DateTimeField(blank=True, null=True)
+    digitally_signed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="steno_digitally_signed_workflows",
+    )
+    digitally_signed_at = models.DateTimeField(blank=True, null=True)
+    digital_signature_provider = models.CharField(max_length=100, blank=True, null=True)
+    digital_signature_certificate_serial = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+    )
+    digital_signature_signer_name = models.CharField(max_length=200, blank=True, null=True)
+    digital_signature_reason = models.TextField(blank=True, null=True)
+    digital_signature_metadata = models.JSONField(blank=True, null=True, default=dict)
     published_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:

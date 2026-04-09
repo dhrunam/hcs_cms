@@ -1,5 +1,7 @@
 from django.contrib import admin
 
+from apps.judge.models import JudgeStenoMapping
+
 from .models import BenchT, JudgeT, ReaderJudgeAssignment
 
 
@@ -39,6 +41,26 @@ class BenchTAdmin(admin.ModelAdmin):
         'judge__judge_code',
     )
     list_filter = ('is_active', 'from_date', 'to_date')
+
+
+@admin.register(JudgeStenoMapping)
+class JudgeStenoMappingAdmin(admin.ModelAdmin):
+    list_display = (
+        "judge",
+        "steno_user",
+        "bench_key",
+        "effective_from",
+        "effective_to",
+        "is_active",
+    )
+    search_fields = (
+        "judge__judge_name",
+        "judge__judge_code",
+        "steno_user__email",
+        "steno_user__first_name",
+        "steno_user__last_name",
+    )
+    list_filter = ("is_active", "bench_key", "effective_from", "effective_to")
 
 
 @admin.register(ReaderJudgeAssignment)

@@ -3,8 +3,7 @@ from __future__ import annotations
 from django.db import models
 
 from apps.accounts.models import User
-from apps.core.models import BaseModel, Efiling
-from apps.core.models import EfilingDocumentsIndex
+from apps.core.models import BaseModel, Efiling, EfilingDocumentsIndex, JudgeT
 
 
 JUDGE_GROUP_CJ = "API_JUDGE"
@@ -119,10 +118,10 @@ class CourtroomSharedView(BaseModel):
 
 
 class JudgeStenoMapping(BaseModel):
-    judge_user = models.ForeignKey(
-        User,
+    judge = models.ForeignKey(
+        JudgeT,
         on_delete=models.CASCADE,
-        related_name="judge_steno_mappings",
+        related_name="steno_mappings",
     )
     steno_user = models.ForeignKey(
         User,
@@ -136,7 +135,7 @@ class JudgeStenoMapping(BaseModel):
     class Meta:
         db_table = "judge_steno_mapping"
         indexes = [
-            models.Index(fields=["judge_user", "is_active"]),
+            models.Index(fields=["judge", "is_active"]),
             models.Index(fields=["steno_user", "is_active"]),
             models.Index(fields=["bench_key"]),
             models.Index(fields=["effective_from", "effective_to"]),

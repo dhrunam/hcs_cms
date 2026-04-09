@@ -10,7 +10,9 @@ from .views import (
     ReaderDailyProceedingsListView,
     ReaderDailyProceedingsSubmitView,
     StenoQueueListView,
+    StenoDraftFileUploadView,
     StenoDraftUploadView,
+    StenoSignedUploadPublishView,
     StenoSubmitForJudgeApprovalView,
 )
 
@@ -27,6 +29,8 @@ urlpatterns = [
     path("daily-proceedings/", ReaderDailyProceedingsListView.as_view(), name="daily-proceedings"),
     path("daily-proceedings/submit/", ReaderDailyProceedingsSubmitView.as_view(), name="daily-proceedings-submit"),
     path("steno/queue/", StenoQueueListView.as_view(), name="steno-queue"),
+    path("steno/upload-draft-file/", StenoDraftFileUploadView.as_view(), name="steno-upload-draft-file"),
     path("steno/upload-draft/", StenoDraftUploadView.as_view(), name="steno-upload-draft"),
+    path("steno/upload-signed-publish/", StenoSignedUploadPublishView.as_view(), name="steno-upload-signed-publish"),
     path("steno/submit-judge/", StenoSubmitForJudgeApprovalView.as_view(), name="steno-submit-judge"),
 ]
