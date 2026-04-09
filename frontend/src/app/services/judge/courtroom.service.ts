@@ -45,20 +45,25 @@ export class CourtroomService {
   getCaseDocuments(
     efiling_id: number,
     forwarded_for_date: string,
+    forward_bench_key?: string | null,
     requested_only: boolean = false,
   ): Observable<{
     items: any[];
   }> {
+    const benchPart = forward_bench_key
+      ? `&forward_bench_key=${encodeURIComponent(String(forward_bench_key))}`
+      : "";
     return this.http.get<{ items: any[] }>(
       `${app_url}/api/v1/judge/courtroom/cases/${efiling_id}/documents/?forwarded_for_date=${encodeURIComponent(
         forwarded_for_date,
-      )}&requested_only=${requested_only ? 'true' : 'false'}`,
+      )}${benchPart}&requested_only=${requested_only ? 'true' : 'false'}`,
     );
   }
 
   getCaseSummary(
     efiling_id: number,
     forwarded_for_date: string,
+    forward_bench_key?: string | null,
   ): Observable<{
     efiling_id: number;
     case_number: string | null;
@@ -91,10 +96,13 @@ export class CourtroomService {
       dispute_taluka: string | null;
     } | null;
   }> {
+    const benchPart = forward_bench_key
+      ? `&forward_bench_key=${encodeURIComponent(String(forward_bench_key))}`
+      : "";
     return this.http.get<any>(
       `${app_url}/api/v1/judge/courtroom/cases/${efiling_id}/summary/?forwarded_for_date=${encodeURIComponent(
         forwarded_for_date,
-      )}`,
+      )}${benchPart}`,
     );
   }
 
@@ -169,6 +177,7 @@ export class CourtroomService {
   saveDecision(payload: {
     efiling_id: number;
     forwarded_for_date: string;
+    forward_bench_key?: string;
     decision_notes?: string | null;
     requested_document_index_ids?: number[];
   }): Observable<any> {
