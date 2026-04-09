@@ -27,10 +27,12 @@
         <div class="text-muted small mb-3">Review case details, add remarks, and submit decision.</div> -->
 
         <div class="row g-3" *ngIf="caseSummary">
-          <div class="col-md-6">
+          <div class="card ">
+            <div class="row">
+          <div class="col-md-6 pt-2">
             <div class="small text-muted">Case Number</div>
             <div class="fw-semibold">{{ caseSummary.case_number || '-' }}</div>
-          </div>
+          </div > 
           <div class="col-md-6">
             <div class="small text-muted">Bench</div>
             <div class="fw-semibold">
@@ -41,25 +43,24 @@
             class="col-md-6"
             *ngIf="(caseSummary.litigants?.length ?? 0) > 0;"
           >
-            <div class="fw-semibold">
-              <span
-                class="fs-5 fw-normal ps-2"
-                style="border-left: 3px solid green; border-radius: 5px"
-              >
-                {{ petitionerNamesLabel }}
-              </span>
-              <span class="mx-2 fw-light litigant-vs-badge">V/S</span>
-              <span
-                class="fs-5 fw-normal pe-2"
-                style="
-                  border-right: 3px solid rgb(195, 178, 21);
-                  border-radius: 5px;
-                "
-              >
-                {{ respondentNamesLabel }}
-              </span>
+           
+          </div>
+
+          <div class="text-center mt-3 text-dark fw-bold col-12"
+            [innerHTML]="formatVs(caseSummary.petitioner_name)">
+        </div>
+
+        <div class="col-12 align-items-center">
+            <div class="small text-muted">Case Summary -</div>
+            <div
+              class="p-2 rounded text-primary-emphasis fs-7"
+              style="color: rgb(8, 5, 99)"
+            >
+              {{ caseSummary.listing_summary || '-' }}
             </div>
           </div>
+          </div>
+        </div>
           <!-- <div class="col-md-6">
             <div class="small text-muted">E-Filing Number</div>
             <div class="fw-semibold">
@@ -81,15 +82,7 @@
               <div class="text-muted small">No litigants available.</div>
             </ng-template>
           </div> -->
-          <div class="col-12 align-items-center">
-            <div class="small text-muted">Case Summary -</div>
-            <div
-              class="p-2 rounded text-primary-emphasis fs-7"
-              style="color: rgb(8, 5, 99)"
-            >
-              {{ caseSummary.listing_summary || '-' }}
-            </div>
-          </div>
+          
           <div class="col-12">
             <div class="small mb-1">Case Documents</div>
             <div *ngIf="documentsLoadError" class="alert alert-warning py-2 small mb-2">

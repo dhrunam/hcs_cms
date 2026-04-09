@@ -55,3 +55,25 @@ class CourtroomApprovalFlowTest(TestCase):
             listing_date=None,
         )
         self.assertEqual(out, {self.filing.id})
+
+    def test_decision_view_persists_bench_role_group_single_bench(self):
+        from rest_framework.test import APIClient
+
+        client = APIClient()
+        client.force_authenticate(user=self.judge)
+        resp = client.post(
+            "/api/v1/judge/courtroom/decisions/",
+            {
+                "efiling_id": self.filing.id,
+                "forwarded_for_date": self.fwd_date.isoformat(),
+                "decision_notes": "approved",
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.data)
+        row = CourtroomJudgeDecision.objects.get(
+            judge_user=self.judge,
+            efiling=self.filing,
+            forwarded_for_date=self.fwd_date,
+        )
+        self.assertEqual(row.bench_role_group, "JUDGE_CJ")

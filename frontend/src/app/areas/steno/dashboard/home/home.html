@@ -1,0 +1,122 @@
+<div class="container-fluid py-3">
+  <h3>Steno Queue</h3>
+  <div *ngIf="isLoading" class="text-muted">Loading...</div>
+  <div *ngIf="!isLoading">
+    <div class="card mb-3" *ngFor="let item of items">
+      <div class="card-body">
+        <div class="fw-bold">{{ item.case_number || '-' }}</div>
+        <div class="small mb-1">{{ item.petitioner_vs_respondent || '-' }}</div>
+        <div class="small text-muted mb-2">
+          {{ item.document_type }} | {{ item.workflow_status }}
+          <span *ngIf="item.judge_approval_status"> | Judge: {{ item.judge_approval_status }}</span>
+        </div>
+
+        <div class="alert alert-light border small mb-3" *ngIf="showJudgeFeedback(item)">
+          <div class="fw-semibold mb-1">Judge feedback</div>
+          <div *ngIf="item.judge_approval_notes" class="mb-2">{{ item.judge_approval_notes }}</div>
+          <ul class="mb-0 ps-3" *ngIf="item.judge_annotations?.length">
+            <li *ngFor="let a of item.judge_annotations">
+              <span class="text-muted" *ngIf="a.page_number != null">p.{{ a.page_number }} — </span>
+              {{ a.note_text }}
+            </li>
+          </ul>
+        </div>
+
+        <div class="mb-2" *ngIf="item.draft_document_index_id && item.draft_preview_url">
+          <button type="button" class="btn btn-outline-secondary btn-sm" (click)="openDraftUrl(item.draft_preview_url)">
+            View draft PDF
+          </button>
+          <span class="small text-muted ms-2">Index #{{ item.draft_document_index_id }}</span>
+        </div>
+
+        <div class="mb-2" *ngIf="item.signed_document_index_id && item.signed_preview_url">
+          <button type="button" class="btn btn-outline-dark btn-sm" (click)="openDraftUrl(item.signed_preview_url)">
+            View signed PDF
+          </button>
+          <span class="small text-muted ms-2">Signed #{{ item.signed_document_index_id }}</span>
+          <div class="small text-muted mt-1" *ngIf="item.digitally_signed_at">
+            Digitally signed: {{ item.digitally_signed_at | date: 'medium' }}
+            <span *ngIf="item.digital_signature_provider"> | {{ item.digital_signature_provider }}</span>
+            <span *ngIf="item.digital_signature_certificate_serial"> | Cert: {{ item.digital_signature_certificate_serial }}</span>
+          </div>
+        </div>
+
+        <div class="row g-2 align-items-end mb-2">
+          <div class="col-md-6">
+            <label class="form-label small">Upload draft PDF</label>
+            <input
+              class="form-control form-control-sm"
+              type="file"
+              accept="application/pdf,.pdf"
+              (change)="onDraftFileSelected(item.workflow_id, $event)"
+            />
+          </div>
+          <div class="col-md-6 d-flex gap-2 flex-wrap">
+            <button class="btn btn-primary btn-sm" type="button" (click)="uploadDraftFile(item)">Upload PDF</button>
+          </div>
+        </div>
+
+        <details class="small mb-2">
+          <summary class="text-muted">Link existing document index ID (optional)</summary>
+          <div class="row g-2 align-items-end mt-2">
+            <div class="col-md-4">
+              <label class="form-label small">Draft Document Index ID</label>
+              <input class="form-control" type="number" [(ngModel)]="draftDocIds[item.workflow_id]" />
+            </div>
+            <div class="col-md-8">
+              <button class="btn btn-outline-primary btn-sm" type="button" (click)="uploadDraftRef(item)">Link draft ref</button>
+            </div>
+          </div>
+        </details>
+
+        <div class="d-flex gap-2">
+          <button class="btn btn-success btn-sm" type="button" (click)="submitToJudge(item)">Send To Judge</button>
+        </div>
+
+        <div class="mt-3 p-2 border rounded bg-light" *ngIf="canPublishSigned(item)">
+          <div class="small fw-semibold mb-2">Judge approved. Upload signed draft to publish.</div>
+          <div class="row g-2 align-items-end">
+            <div class="col-md-6">
+              <input
+                class="form-control form-control-sm"
+                type="file"
+                accept="application/pdf,.pdf"
+                (change)="onSignedFileSelected(item.workflow_id, $event)"
+              />
+            </div>
+            <div class="col-md-6">
+              <input
+                class="form-control form-control-sm mb-2"
+                placeholder="Signature provider (eSign/DSC)"
+                [(ngModel)]="signatureProvider[item.workflow_id]"
+              />
+              <input
+                class="form-control form-control-sm mb-2"
+                placeholder="Certificate serial number"
+                [(ngModel)]="certificateSerial[item.workflow_id]"
+              />
+              <input
+                class="form-control form-control-sm mb-2"
+                placeholder="Signer name"
+                [(ngModel)]="signerName[item.workflow_id]"
+              />
+              <input
+                class="form-control form-control-sm mb-2"
+                placeholder="Signature reason"
+                [(ngModel)]="signatureReason[item.workflow_id]"
+              />
+              <input
+                class="form-control form-control-sm mb-2"
+                placeholder="Signature txn/reference id"
+                [(ngModel)]="signatureTxnId[item.workflow_id]"
+              />
+              <button class="btn btn-dark btn-sm" type="button" (click)="uploadSignedAndPublish(item)">
+                Upload Signed & Publish
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

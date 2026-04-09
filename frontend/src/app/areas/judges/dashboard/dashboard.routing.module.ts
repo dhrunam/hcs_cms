@@ -35,6 +35,12 @@ export const JudgeDashboardRoutes: Routes = [
           import('./courtview-case/courtview-case').then((c) => c.JudgeCourtviewCasePage),
         title: 'Courtview Case | CMS',
       },
+      {
+        path: 'steno-review',
+        loadComponent: () =>
+          import('./steno-review/steno-review').then((c) => c.JudgeStenoReviewPage),
+        title: 'Judge | Steno Review',
+      },
     ],
   },
 ];

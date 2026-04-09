@@ -1,8 +1,12 @@
+from datetime import date
+
 from django.test import TestCase
 from rest_framework.test import APIClient
 
 from apps.core.models import District, Efiling, EfilingCaseDetails, EfilingLitigant, State
+from apps.judge.models import CourtroomJudgeDecision
 from apps.listing.models import CauseList
+from apps.reader.models import CourtroomForward
 
 
 class CauseListFlowTest(TestCase):
@@ -125,4 +129,34 @@ class CauseListFlowTest(TestCase):
         self.assertEqual(preview_resp.status_code, 200)
         preview_items = preview_resp.data["items"]
         self.assertTrue(any(i["efiling_id"] == self.filing.id for i in preview_items))
+
+    def test_listing_preview_needs_reader_handoff_for_judge_listing_data(self):
+        cause_date = date.fromisoformat(self.cause_list_date)
+        # Setup a forwarded case for the day's bench so it appears in preview.
+        CourtroomForward.objects.create(
+            efiling=self.filing,
+            forwarded_for_date=cause_date,
+            bench_key="CJ",
+            listing_summary="Reader forwarded",
+        )
+        # Judge metadata exists, but without reader handoff remark.
+        CourtroomJudgeDecision.objects.create(
+            judge_user=None,
+            efiling=self.filing,
+            forwarded_for_date=cause_date,
+            listing_date=cause_date,
+            approved=True,
+            status=CourtroomJudgeDecision.DecisionStatus.APPROVED,
+            bench_role_group="JUDGE_CJ",
+        )
+
+        preview_resp = self.client.get(
+            f"/api/v1/listing/cause-lists/draft/preview/?cause_list_date={self.cause_list_date}&bench_key=CJ"
+        )
+        self.assertEqual(preview_resp.status_code, 200)
+        preview_items = preview_resp.data["items"]
+        item = next((i for i in preview_items if i["efiling_id"] == self.filing.id), None)
+        self.assertIsNotNone(item)
+        # Judge listing metadata should not be exposed without reader handoff.
+        self.assertIsNone(item.get("judge_listing_date"))
 
