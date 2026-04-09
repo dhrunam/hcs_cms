@@ -76,6 +76,26 @@ class JudgeDraftAnnotationUpsertSerializer(serializers.Serializer):
     note_text = serializers.CharField(allow_blank=False)
 
 
+class JudgeStenoAnnotationSnapshotRowSerializer(serializers.Serializer):
+    """One mark-up row when saving the full PDF annotation snapshot."""
+
+    page_number = serializers.IntegerField(required=False, allow_null=True)
+    note_text = serializers.CharField()
+    annotation_type = serializers.ChoiceField(
+        choices=JudgeDraftAnnotation.AnnotationType.choices,
+        default=JudgeDraftAnnotation.AnnotationType.COMMENT,
+    )
+    x = serializers.DecimalField(max_digits=10, decimal_places=3, required=False, allow_null=True)
+    y = serializers.DecimalField(max_digits=10, decimal_places=3, required=False, allow_null=True)
+    width = serializers.DecimalField(max_digits=10, decimal_places=3, required=False, allow_null=True)
+    height = serializers.DecimalField(max_digits=10, decimal_places=3, required=False, allow_null=True)
+
+
+class JudgeStenoAnnotationsSnapshotSerializer(serializers.Serializer):
+    workflow_id = serializers.IntegerField()
+    annotations = JudgeStenoAnnotationSnapshotRowSerializer(many=True)
+
+
 class JudgeWorkflowDecisionSerializer(serializers.Serializer):
     workflow_id = serializers.IntegerField()
     judge_approval_status = serializers.ChoiceField(

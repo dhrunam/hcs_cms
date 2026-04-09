@@ -3,7 +3,10 @@ from __future__ import annotations
 from typing import Dict, Iterable, List, Optional, Sequence, Set
 
 from django.contrib.auth.models import Group, AnonymousUser
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import Prefetch, Q
+
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status as drf_status
 from rest_framework.exceptions import ValidationError
@@ -40,8 +43,19 @@ from .serializers import (
     CourtroomDocumentAnnotationSerializer,
     CourtroomPendingCaseSerializer,
     JudgeDraftAnnotationUpsertSerializer,
+    JudgeStenoAnnotationsSnapshotSerializer,
     JudgeWorkflowDecisionSerializer,
 )
+
+
+def _steno_draft_stream_url(request, document_index_id: int | None) -> str | None:
+    if not document_index_id:
+        return None
+    path = reverse(
+        "efiling:efiling-document-index-stream",
+        kwargs={"document_index_id": int(document_index_id)},
+    )
+    return request.build_absolute_uri(path)
 
 _DUMMY_TOKEN_TO_DUMMY_EMAIL: Dict[str, str] = {
     "judge_cj_dummy_token": "dummy_judge_cj@hcs.local",
@@ -890,17 +904,40 @@ class CourtroomSharedViewAPIView(APIView):
 
 class JudgeStenoWorkflowListView(APIView):
     def get(self, request, *args, **kwargs):
-        judge_user = _assert_judge(request)
+        _assert_judge(request)
+        ann_qs = JudgeDraftAnnotation.objects.filter(is_active=True).order_by("id")
         rows = (
             StenoOrderWorkflow.objects.filter(
-                workflow_status=StenoOrderWorkflow.WorkflowStatus.SENT_FOR_JUDGE_APPROVAL,
+                workflow_status__in=[
+                    StenoOrderWorkflow.WorkflowStatus.SENT_FOR_JUDGE_APPROVAL,
+                    StenoOrderWorkflow.WorkflowStatus.CHANGES_REQUESTED,
+                    StenoOrderWorkflow.WorkflowStatus.JUDGE_APPROVED,
+                    StenoOrderWorkflow.WorkflowStatus.SIGNED_AND_PUBLISHED,
+                ],
                 is_active=True,
             )
-            .select_related("efiling", "proceeding")
+            .select_related("efiling", "proceeding", "draft_document_index")
+            .prefetch_related(Prefetch("judge_annotations", queryset=ann_qs))
             .order_by("-updated_at", "-id")
         )
         items = []
         for row in rows:
+            draft_id = row.draft_document_index_id
+            ann_list = [
+                {
+                    "id": a.id,
+                    "note_text": a.note_text,
+                    "page_number": a.page_number,
+                    "status": a.status,
+                    "annotation_type": a.annotation_type,
+                    "x": str(a.x) if a.x is not None else None,
+                    "y": str(a.y) if a.y is not None else None,
+                    "width": str(a.width) if a.width is not None else None,
+                    "height": str(a.height) if a.height is not None else None,
+                    "created_at": a.created_at.isoformat() if a.created_at else None,
+                }
+                for a in row.judge_annotations.all()
+            ]
             items.append(
                 {
                     "workflow_id": row.id,
@@ -908,13 +945,15 @@ class JudgeStenoWorkflowListView(APIView):
                     "case_number": row.efiling.case_number,
                     "e_filing_number": row.efiling.e_filing_number,
                     "document_type": row.document_type,
-                    "draft_document_index_id": row.draft_document_index_id,
+                    "draft_document_index_id": draft_id,
+                    "draft_preview_url": _steno_draft_stream_url(request, draft_id),
                     "workflow_status": row.workflow_status,
                     "judge_approval_status": row.judge_approval_status,
                     "proceedings_text": row.proceeding.proceedings_text,
                     "reader_remark": row.proceeding.reader_remark,
                     "hearing_date": row.proceeding.hearing_date.isoformat(),
                     "next_listing_date": row.proceeding.next_listing_date.isoformat(),
+                    "judge_annotations": ann_list,
                 }
             )
         return Response({"items": items}, status=drf_status.HTTP_200_OK)
@@ -946,6 +985,47 @@ class JudgeStenoWorkflowAnnotationView(APIView):
             {"annotation_id": annotation.id, "status": annotation.status},
             status=drf_status.HTTP_200_OK,
         )
+
+
+class JudgeStenoWorkflowAnnotationsSnapshotView(APIView):
+    """
+    Replace all *positional* mark-up for a workflow (canvas marks) in one request.
+    Rows with no page and no x/y (quick text-only notes) are kept.
+    """
+
+    def post(self, request, *args, **kwargs):
+        judge_user = _assert_judge(request)
+        payload = JudgeStenoAnnotationsSnapshotSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        workflow = StenoOrderWorkflow.objects.filter(
+            id=payload.validated_data["workflow_id"], is_active=True
+        ).first()
+        if not workflow:
+            raise ValidationError({"workflow_id": "Invalid workflow_id."})
+        positional = (
+            Q(page_number__isnull=False)
+            | Q(x__isnull=False)
+            | Q(y__isnull=False)
+            | Q(width__isnull=False)
+            | Q(height__isnull=False)
+        )
+        rows = payload.validated_data["annotations"]
+        with transaction.atomic():
+            JudgeDraftAnnotation.objects.filter(workflow=workflow).filter(positional).delete()
+            for row in rows:
+                JudgeDraftAnnotation.objects.create(
+                    workflow=workflow,
+                    page_number=row.get("page_number"),
+                    x=row.get("x"),
+                    y=row.get("y"),
+                    width=row.get("width"),
+                    height=row.get("height"),
+                    annotation_type=row.get("annotation_type"),
+                    note_text=row["note_text"],
+                    created_by=judge_user,
+                    updated_by=judge_user,
+                )
+        return Response({"saved": len(rows)}, status=drf_status.HTTP_200_OK)
 
 
 class JudgeStenoWorkflowDecisionView(APIView):

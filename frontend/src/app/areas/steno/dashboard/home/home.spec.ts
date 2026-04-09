@@ -17,6 +17,7 @@ describe('StenoHomePage', () => {
           useValue: {
             getStenoQueue: () => of({ items: [] }),
             uploadStenoDraft: () => of({}),
+            uploadStenoDraftFile: () => of({}),
             submitStenoToJudge: () => of({}),
           },
         },

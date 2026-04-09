@@ -205,11 +205,34 @@ export class CourtroomService {
     return this.http.get<{ items: any[] }>(`${app_url}/api/v1/judge/steno-workflows/`);
   }
 
+  /** Replace canvas/positional mark-up; preserves text-only notes (no page, no x/y). */
+  saveStenoWorkflowAnnotationsSnapshot(payload: {
+    workflow_id: number;
+    annotations: Array<{
+      page_number?: number | null;
+      note_text: string;
+      annotation_type: 'COMMENT' | 'HIGHLIGHT' | 'TEXT_REPLACE' | 'FORMAT';
+      x?: number | null;
+      y?: number | null;
+      width?: number | null;
+      height?: number | null;
+    }>;
+  }): Observable<{ saved: number }> {
+    return this.http.post<{ saved: number }>(
+      `${app_url}/api/v1/judge/steno-workflows/annotations/snapshot/`,
+      payload,
+    );
+  }
+
   addStenoWorkflowAnnotation(payload: {
     workflow_id: number;
     note_text: string;
     annotation_type?: 'COMMENT' | 'HIGHLIGHT' | 'TEXT_REPLACE' | 'FORMAT';
     page_number?: number | null;
+    x?: number | null;
+    y?: number | null;
+    width?: number | null;
+    height?: number | null;
   }): Observable<any> {
     return this.http.post<any>(`${app_url}/api/v1/judge/steno-workflows/annotations/`, payload);
   }

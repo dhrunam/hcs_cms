@@ -192,7 +192,47 @@ export class ReaderService {
     return this.http.post<any>(`${app_url}/api/v1/reader/steno/upload-draft/`, payload);
   }
 
+  /** Multipart PDF upload; creates EfilingDocumentsIndex on the case. */
+  uploadStenoDraftFile(workflowId: number, file: File): Observable<{
+    workflow_status: string;
+    draft_document_index_id: number;
+    draft_preview_url?: string | null;
+  }> {
+    const fd = new FormData();
+    fd.append('workflow_id', String(workflowId));
+    fd.append('file', file, file.name);
+    return this.http.post<any>(`${app_url}/api/v1/reader/steno/upload-draft-file/`, fd);
+  }
+
   submitStenoToJudge(payload: { workflow_id: number }): Observable<any> {
     return this.http.post<any>(`${app_url}/api/v1/reader/steno/submit-judge/`, payload);
+  }
+
+  uploadSignedAndPublish(
+    workflowId: number,
+    file: File,
+    signature?: {
+      signature_provider?: string | null;
+      certificate_serial?: string | null;
+      signer_name?: string | null;
+      signature_reason?: string | null;
+      signature_txn_id?: string | null;
+    },
+  ): Observable<{
+    workflow_status: string;
+    signed_document_index_id: number;
+    signed_preview_url?: string | null;
+    digitally_signed_at?: string | null;
+    published_at?: string | null;
+  }> {
+    const fd = new FormData();
+    fd.append('workflow_id', String(workflowId));
+    fd.append('file', file, file.name);
+    if (signature?.signature_provider) fd.append('signature_provider', signature.signature_provider);
+    if (signature?.certificate_serial) fd.append('certificate_serial', signature.certificate_serial);
+    if (signature?.signer_name) fd.append('signer_name', signature.signer_name);
+    if (signature?.signature_reason) fd.append('signature_reason', signature.signature_reason);
+    if (signature?.signature_txn_id) fd.append('signature_txn_id', signature.signature_txn_id);
+    return this.http.post<any>(`${app_url}/api/v1/reader/steno/upload-signed-publish/`, fd);
   }
 }
