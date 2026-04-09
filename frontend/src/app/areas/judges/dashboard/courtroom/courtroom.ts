@@ -1,7 +1,7 @@
 import { CommonModule } from "@angular/common";
 import { Component } from "@angular/core";
 import { FormsModule } from "@angular/forms";
-import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
+import { DomSanitizer, SafeResourceUrl, SafeHtml } from "@angular/platform-browser";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
 import Swal from "sweetalert2";
 
@@ -82,6 +82,8 @@ export class JudgeCourtroomPage {
           this.decisionNotes = resp?.judge_decision?.decision_notes ?? "";
           this.loadCaseDocuments();
           this.isLoading = false;
+
+          console.log("Case Summary Is", this.caseSummary);
         },
         error: (err) => {
           console.warn("Failed to load courtroom case summary", err);
@@ -90,6 +92,23 @@ export class JudgeCourtroomPage {
         },
       });
   }
+
+ formatVs(text: string): SafeHtml {
+  if (!text) return '';
+
+  // Step 1: Title case
+  let formatted = text
+    .toLowerCase()
+    .replace(/\b\w/g, c => c.toUpperCase());
+
+  // Step 2: Replace vs
+  formatted = formatted.replace(
+    /\bVs\.?\s*/g,
+    '<span class="vs-circle">vs</span> ',
+  );
+
+  return this.sanitizer.bypassSecurityTrustHtml(formatted);
+}
 
   submitDecision(): void {
     if (!this.canWrite || !this.efilingId || !this.forwardedForDate) return;
