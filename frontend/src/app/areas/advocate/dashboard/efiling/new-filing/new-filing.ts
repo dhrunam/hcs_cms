@@ -103,16 +103,6 @@ export class NewFiling {
   offlinePaymentDate = "";
   isSubmittingOfflinePayment = false;
 
-  private readonly wpMainPetitionMandatoryIndexes = [
-    "Synopsis",
-    "List of Dates and Events",
-    "Writ Petition",
-    "Affidavit",
-    "Annexure(s)*",
-    "Vakalatnama",
-    "Affidavit of Service",
-  ];
-
   /** From GET /efiling/document-index/?case_type=&for_new_filing=true, ordered by sequence_number. */
   fetchedNewFilingDocumentIndexes: Array<{
     id: number;
@@ -296,13 +286,10 @@ export class NewFiling {
   }
 
   get mandatoryIndexesForCurrentCase(): string[] {
-    if (this.fetchedNewFilingDocumentIndexes.length > 0) {
-      return this.fetchedNewFilingDocumentIndexes.map((x) => x.name);
-    }
-    return this.isWPCCaseType ? this.wpMainPetitionMandatoryIndexes : [];
+    return this.fetchedNewFilingDocumentIndexes.map((x) => x.name);
   }
 
-  /** Structured rows when API (or WP fallback) defines at least one required index. */
+  /** Structured rows when document-index API defines at least one required index. */
   get useStructuredDocumentUpload(): boolean {
     return this.mandatoryIndexesForCurrentCase.length > 0;
   }
@@ -1671,6 +1658,9 @@ export class NewFiling {
 
   private hasMandatoryWpCDocuments(): boolean {
     if (!this.isWPCCaseType) return true;
+    if (this.fetchedNewFilingDocumentIndexes.length === 0) {
+      return true;
+    }
     const mainPetition = this.docList.find(
       (d: any) =>
         String(d?.document_type || "")
@@ -1690,7 +1680,6 @@ export class NewFiling {
     );
     const requiredRaw = getWpMainPetitionRequiredIndexNames(
       this.fetchedNewFilingDocumentIndexes,
-      this.wpMainPetitionMandatoryIndexes,
     );
     const requiredNorm = requiredRaw.map((n) =>
       normalizeDocumentIndexNameForMatch(n),

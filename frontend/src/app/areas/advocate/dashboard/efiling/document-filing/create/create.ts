@@ -33,7 +33,7 @@ export type ExistingCaseLitigantType =
   | "RESPONDENT"
   | "APPELLANT";
 
-const EXISTING_CASE_LITIGANT_OPTIONS: ReadonlyArray<{
+export const EXISTING_CASE_LITIGANT_OPTIONS: ReadonlyArray<{
   value: ExistingCaseLitigantType;
   label: string;
 }> = [
@@ -502,6 +502,8 @@ export class Create implements OnInit {
       } else {
         documentPayload.append("is_ia", "false");
       }
+
+      documentPayload.append("filed_by", this.litigantType);
 
       const documentRes = await firstValueFrom(
         this.eFilingService.upload_case_documnets(documentPayload),

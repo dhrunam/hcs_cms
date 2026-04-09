@@ -324,7 +324,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     if (this.indexMasters.length > 0) {
       return;
     }
-    if (!this.mandatoryIndexNames?.length || !this.caseTypeId) {
+    if (!this.caseTypeId) {
       return;
     }
     this.fetchCaseTypeDocumentIndexes(() => this.cdr.markForCheck());
