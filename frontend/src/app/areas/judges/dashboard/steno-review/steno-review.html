@@ -1,0 +1,114 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">Steno Draft Review</h3>
+</div>
+
+<div *ngIf="isLoading" class="text-muted">Loading...</div>
+<div *ngIf="!isLoading">
+  <div class="row g-2 mb-3">
+    <div class="col-md-2 col-6">
+      <div class="card summary-card">
+        <div class="card-body py-2">
+          <div class="small text-muted">Total</div>
+          <div class="h5 mb-0">{{ totalCount }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2 col-6">
+      <div class="card summary-card">
+        <div class="card-body py-2">
+          <div class="small text-muted">Pending</div>
+          <div class="h5 mb-0">{{ pendingCount }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="card summary-card">
+        <div class="card-body py-2">
+          <div class="small text-muted">Changes Requested</div>
+          <div class="h5 mb-0">{{ changesRequestedCount }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2 col-6">
+      <div class="card summary-card">
+        <div class="card-body py-2">
+          <div class="small text-muted">Approved</div>
+          <div class="h5 mb-0">{{ approvedCount }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="card summary-card">
+        <div class="card-body py-2">
+          <div class="small text-muted">Signed & Published</div>
+          <div class="h5 mb-0">{{ publishedCount }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-heading">Pending Judge Action ({{ pendingCount }})</div>
+  <div class="card mb-3" *ngFor="let item of groupedItems('SENT_FOR_JUDGE_APPROVAL')">
+    <div class="card-body">
+      <div class="fw-bold">{{ item.case_number || '-' }}</div>
+      <div class="small text-muted mb-2">{{ item.document_type }} | Draft Doc ID: {{ item.draft_document_index_id || '-' }}</div>
+      <div class="small mb-2">{{ item.proceedings_text }}</div>
+
+      <div class="steno-draft-pdf mb-2" *ngIf="pdfUrlFor(item)">
+        <div class="small text-muted mb-1">
+          Use the toolbar on the draft: pen, highlighter, sticky notes — then <strong>Save Annotations</strong>.
+          Coordinates are stored for the steno.
+        </div>
+        <app-pdf-annotator
+          [pdfUrl]="pdfUrlFor(item)"
+          [annotationData]="annotationPayloadFor(item)"
+          [canWrite]="true"
+          (save)="onAnnotatorSave(item, $event)"
+        ></app-pdf-annotator>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label small">Quick note (no position on PDF)</label>
+        <input class="form-control" [(ngModel)]="annotationText[item.workflow_id]" />
+        <button class="btn btn-outline-secondary btn-sm mt-2" type="button" (click)="addAnnotation(item)">
+          Add text-only note
+        </button>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label small">Decision Notes</label>
+        <textarea class="form-control" rows="2" [(ngModel)]="notes[item.workflow_id]"></textarea>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button class="btn btn-success btn-sm" (click)="decide(item, 'APPROVED')">Approve</button>
+        <button class="btn btn-warning btn-sm" (click)="decide(item, 'REJECTED')">Request Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-heading mt-3">Changes Requested ({{ changesRequestedCount }})</div>
+  <div class="card mb-2 border-warning" *ngFor="let item of groupedItems('CHANGES_REQUESTED')">
+    <div class="card-body py-2">
+      <div class="fw-semibold">{{ item.case_number || '-' }}</div>
+      <div class="small text-muted">{{ item.document_type }} | {{ item.workflow_status }}</div>
+      <div class="small" *ngIf="item.judge_approval_notes">{{ item.judge_approval_notes }}</div>
+    </div>
+  </div>
+
+  <div class="status-heading mt-3">Approved ({{ approvedCount }})</div>
+  <div class="card mb-2 border-success" *ngFor="let item of groupedItems('JUDGE_APPROVED')">
+    <div class="card-body py-2">
+      <div class="fw-semibold">{{ item.case_number || '-' }}</div>
+      <div class="small text-muted">{{ item.document_type }} | {{ item.workflow_status }}</div>
+    </div>
+  </div>
+
+  <div class="status-heading mt-3">Signed & Published ({{ publishedCount }})</div>
+  <div class="card mb-2 border-secondary" *ngFor="let item of groupedItems('SIGNED_AND_PUBLISHED')">
+    <div class="card-body py-2">
+      <div class="fw-semibold">{{ item.case_number || '-' }}</div>
+      <div class="small text-muted">{{ item.document_type }} | {{ item.workflow_status }}</div>
+    </div>
+  </div>
+</div>

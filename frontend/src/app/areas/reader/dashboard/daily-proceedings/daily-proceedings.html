@@ -1,0 +1,50 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">Daily Proceedings</h3>
+</div>
+
+<div *ngIf="isLoading" class="text-muted">Loading...</div>
+<div *ngIf="loadError" class="alert alert-warning">{{ loadError }}</div>
+
+<div *ngIf="!isLoading && !loadError">
+  <div *ngFor="let item of items" class="card mb-3">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div>
+          <div class="fw-bold">{{ item.case_number || '-' }}</div>
+          <div class="small text-muted">{{ item.e_filing_number || '-' }}</div>
+        </div>
+        <div class="small text-muted">{{ item.bench_key || item.bench || '-' }}</div>
+      </div>
+
+      <div class="row g-2">
+        <div class="col-md-3">
+          <label class="form-label small">Hearing Date</label>
+          <input class="form-control" type="date" [(ngModel)]="formState[item.efiling_id].hearing_date" />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">Next Listing Date</label>
+          <input class="form-control" type="date" [(ngModel)]="formState[item.efiling_id].next_listing_date" />
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small">Reader Remark</label>
+          <input class="form-control" [(ngModel)]="formState[item.efiling_id].reader_remark" />
+        </div>
+      </div>
+
+      <div class="mt-2">
+        <label class="form-label small">Proceedings</label>
+        <textarea class="form-control" rows="3" [(ngModel)]="formState[item.efiling_id].proceedings_text"></textarea>
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center mt-3">
+        <div class="small">
+          Listing: <span class="badge text-bg-secondary">{{ item.listing_sync_status || 'PENDING' }}</span>
+          Steno: <span class="badge text-bg-secondary ms-1">{{ item.steno_workflow_status || 'PENDING_UPLOAD' }}</span>
+        </div>
+        <button class="btn btn-primary btn-sm" [disabled]="!!saveState[item.efiling_id] || !item.can_assign_listing_date" (click)="submit(item)">
+          {{ saveState[item.efiling_id] ? 'Saving...' : 'Submit' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

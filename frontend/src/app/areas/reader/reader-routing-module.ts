@@ -40,6 +40,14 @@ export const ReaderRoutes: Routes = [
           ),
         title: 'Reader | Approved Cases',
       },
+      {
+        path: 'daily-proceedings',
+        loadComponent: () =>
+          import('./dashboard/daily-proceedings/daily-proceedings').then(
+            (m) => m.ReaderDailyProceedingsPage,
+          ),
+        title: 'Reader | Daily Proceedings',
+      },
     ],
   },
 ];

@@ -62,7 +62,6 @@ def _cause_list_target_efiling_ids(cld_obj: date_type | None, bench_key: str) ->
     by_listing = set(
         CourtroomJudgeDecision.objects.filter(
             listing_date=cld_obj,
-            approved=True,
             efiling_id__in=on_bench,
         ).values_list("efiling_id", flat=True)
     )
