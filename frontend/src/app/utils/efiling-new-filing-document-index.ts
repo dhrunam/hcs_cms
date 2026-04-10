@@ -14,7 +14,7 @@ export function isFrontendManagedAnnexureDocumentIndexName(name: string): boolea
 
 /**
  * Normalize index labels so API names (e.g. "Affidavit(s)", "Vakalatnama *") match
- * uploads and fallback lists used in WP(C) Main Petition validation.
+ * uploads and API-driven lists used in WP(C) Main Petition validation.
  */
 export function normalizeDocumentIndexNameForMatch(name: string): string {
   let t = String(name ?? "")
@@ -35,20 +35,14 @@ export function isUploadedAnnexurePartName(name: string): boolean {
 }
 
 /**
- * Required Main Petition index labels (excluding annexure master rows).
- * Prefer API-driven names when present so validation matches the upload UI.
+ * Required Main Petition index labels from the document-index API
+ * (excluding annexure master rows). Empty when there is no per-case-type config.
  */
 export function getWpMainPetitionRequiredIndexNames(
   fetchedFromApi: { name: string }[],
-  fallbackWpMandatory: string[],
 ): string[] {
-  if (fetchedFromApi.length > 0) {
-    return fetchedFromApi
-      .map((x) => String(x.name ?? "").trim())
-      .filter(Boolean)
-      .filter((n) => !isFrontendManagedAnnexureDocumentIndexName(n));
-  }
-  return fallbackWpMandatory.filter(
-    (name) => !isFrontendManagedAnnexureDocumentIndexName(name),
-  );
+  return fetchedFromApi
+    .map((x) => String(x.name ?? "").trim())
+    .filter(Boolean)
+    .filter((n) => !isFrontendManagedAnnexureDocumentIndexName(n));
 }

@@ -3,6 +3,8 @@ from rest_framework import serializers
 from apps.core.models import EfilingDocuments, EfilingDocumentsIndex
 from apps.efiling.pdf_validators import validate_pdf_file
 
+_ALLOWED_FILED_BY = frozenset({"PETITIONER", "RESPONDENT", "APPELLANT"})
+
 
 class EfilingDocumentsSerializer(serializers.ModelSerializer):
     """
@@ -65,3 +67,13 @@ class EfilingDocumentsSerializer(serializers.ModelSerializer):
         if value:
             validate_pdf_file(value, "final_document")
         return value
+
+    def validate_filed_by(self, value):
+        if value in (None, ""):
+            return value
+        normalized = str(value).strip().upper()
+        if normalized not in _ALLOWED_FILED_BY:
+            raise serializers.ValidationError(
+                "filed_by must be one of: PETITIONER, RESPONDENT, APPELLANT."
+            )
+        return normalized

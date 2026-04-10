@@ -1,6 +1,23 @@
+import os
+
 from .base import *
 
 DEBUG = True
+
+# Optional: same token as frontend `devAuthBypassToken` (environment.ts).
+# Enables API auth when OIDC introspection (:8000) is down or misconfigured.
+_DEV_BYPASS = (os.getenv("DEV_AUTH_BYPASS_TOKEN") or "").strip()
+DEV_AUTH_BYPASS_TOKEN = _DEV_BYPASS
+DEV_AUTH_BYPASS_USERNAME = (os.getenv("DEV_AUTH_BYPASS_USERNAME") or "admin").strip() or "admin"
+
+if _DEV_BYPASS:
+    REST_FRAMEWORK = {
+        **REST_FRAMEWORK,
+        "DEFAULT_AUTHENTICATION_CLASSES": [
+            "apps.core.development_authentication.DevelopmentBypassAuthentication",
+            *REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"],
+        ],
+    }
 
 # Allow all CORS in development
 CORS_ALLOW_ALL_ORIGINS = True
