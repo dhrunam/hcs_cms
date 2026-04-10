@@ -205,3 +205,63 @@ class StenoOrderWorkflow(BaseModel):
             models.Index(fields=["assigned_steno", "workflow_status"]),
             models.Index(fields=["judge_approval_status"]),
         ]
+
+
+class BenchWorkflowState(BaseModel):
+    """
+    Canonical workflow state for one case + forwarded date + bench slot.
+    Used as a stable source of truth across judge/reader/listing transitions.
+    """
+
+    efiling = models.ForeignKey(
+        Efiling,
+        on_delete=models.CASCADE,
+        related_name="bench_workflow_states",
+    )
+    forwarded_for_date = models.DateField()
+    bench_key = models.CharField(max_length=50)
+
+    # Snapshot of required groups for this bench (e.g. ["JUDGE_CJ", "JUDGE_J1"]).
+    required_role_groups = models.JSONField(default=list, blank=True)
+    # Map role -> {approved, status, decision_notes, judge_user_id, decided_at, ...}
+    decision_by_role = models.JSONField(default=dict, blank=True)
+
+    all_required_approved = models.BooleanField(default=False)
+    reader_visible = models.BooleanField(default=False)
+    assignable_reader_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assignable_bench_workflow_states",
+    )
+
+    listing_date = models.DateField(null=True, blank=True)
+    listing_date_assigned_at = models.DateTimeField(null=True, blank=True)
+    listing_assigned_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="listing_assigned_bench_workflow_states",
+    )
+    listing_remark = models.TextField(blank=True, null=True)
+
+    is_published = models.BooleanField(default=False)
+    published_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "bench_workflow_state"
+        app_label = "reader"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["efiling", "forwarded_for_date", "bench_key"],
+                name="bench_workflow_state_unique_case_date_bench",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["forwarded_for_date", "bench_key"]),
+            models.Index(fields=["is_published", "forwarded_for_date"]),
+            models.Index(fields=["all_required_approved", "bench_key"]),
+            models.Index(fields=["efiling", "forwarded_for_date"]),
+        ]

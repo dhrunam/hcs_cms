@@ -31,7 +31,8 @@ def legacy_role_from_user_for_bench(user, required_groups: tuple[str, ...]) -> s
     if len(token_match) == 1:
         return next(iter(token_match))
     if len(token_match) > 1:
-        return sorted(token_match)[0]
+        # Ambiguous token membership must not collapse to a single slot.
+        return None
     if (JUDGE_GROUP_CJ in names or "API_JUDGE" in names) and len(required_groups) == 1:
         return required_groups[0]
     return None

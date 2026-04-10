@@ -12,7 +12,8 @@ from apps.judge.models import CourtroomJudgeDecision
 from apps.judge.models import JudgeStenoMapping
 from apps.core.models import EfilingDocumentsIndex
 from apps.listing.models import CauseList, CauseListEntry
-from apps.reader.models import CourtroomForward, ReaderDailyProceeding, StenoOrderWorkflow
+from apps.reader.models import BenchWorkflowState, CourtroomForward, ReaderDailyProceeding, StenoOrderWorkflow
+from apps.reader.workflow_state import apply_judge_decision, upsert_state_on_forward
 
 
 class ReaderDivisionBenchAuthorityTest(TestCase):
@@ -136,7 +137,18 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
             approved=True,
             bench_role_group="JUDGE_J1",
         )
-
+        upsert_state_on_forward(
+            efiling_id=self.filing.id,
+            forwarded_for_date=self.forwarded_for_date,
+            bench_key="CJ",
+            forwarded_by=self.reader_cj,
+        )
+        upsert_state_on_forward(
+            efiling_id=self.filing.id,
+            forwarded_for_date=self.forwarded_for_date,
+            bench_key="Judge1",
+            forwarded_by=self.reader_j1,
+        )
     def _create_user(
         self,
         *,
@@ -200,6 +212,26 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
             ).exists()
         )
 
+    def test_only_one_reader_forward_keeps_other_reader_not_forwarded(self):
+        CourtroomForward.objects.filter(
+            efiling=self.filing,
+            forwarded_for_date=self.forwarded_for_date,
+            bench_key="Judge1",
+        ).delete()
+        CourtroomJudgeDecision.objects.filter(
+            efiling=self.filing,
+            forwarded_for_date=self.forwarded_for_date,
+        ).delete()
+
+        cj_client = self._auth_client(self.reader_cj)
+        j1_client = self._auth_client(self.reader_j1)
+        cj_resp = cj_client.get("/api/v1/reader/registered-cases/?page_size=10&reader_group=READER_CJ")
+        j1_resp = j1_client.get("/api/v1/reader/registered-cases/?page_size=10&reader_group=READER_J1")
+        cj_case = next(item for item in cj_resp.data["items"] if item["efiling_id"] == self.filing.id)
+        j1_case = next(item for item in j1_resp.data["items"] if item["efiling_id"] == self.filing.id)
+        self.assertEqual(cj_case["approval_status"], "PENDING")
+        self.assertEqual(j1_case["approval_status"], "NOT_FORWARDED")
+
     def test_higher_priority_reader_can_assign_date_for_division_bench(self):
         client = self._auth_client(self.reader_cj)
 
@@ -238,6 +270,62 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
             2,
         )
 
+    def test_both_readers_see_approved_after_both_judges_approve(self):
+        cj_client = self._auth_client(self.reader_cj)
+        j1_client = self._auth_client(self.reader_j1)
+        cj_resp = cj_client.get("/api/v1/reader/registered-cases/?page_size=10&reader_group=READER_CJ")
+        j1_resp = j1_client.get("/api/v1/reader/registered-cases/?page_size=10&reader_group=READER_J1")
+        cj_case = next(item for item in cj_resp.data["items"] if item["efiling_id"] == self.filing.id)
+        j1_case = next(item for item in j1_resp.data["items"] if item["efiling_id"] == self.filing.id)
+        self.assertEqual(cj_case["approval_status"], "APPROVED")
+        self.assertEqual(j1_case["approval_status"], "APPROVED")
+
+    def test_both_readers_pending_when_only_one_judge_approved(self):
+        CourtroomJudgeDecision.objects.filter(
+            efiling=self.filing,
+            forwarded_for_date=self.forwarded_for_date,
+            judge_user=self.judge_j1_user,
+        ).delete()
+        cj_client = self._auth_client(self.reader_cj)
+        j1_client = self._auth_client(self.reader_j1)
+        cj_resp = cj_client.get("/api/v1/reader/registered-cases/?page_size=10&reader_group=READER_CJ")
+        j1_resp = j1_client.get("/api/v1/reader/registered-cases/?page_size=10&reader_group=READER_J1")
+        cj_case = next(item for item in cj_resp.data["items"] if item["efiling_id"] == self.filing.id)
+        j1_case = next(item for item in j1_resp.data["items"] if item["efiling_id"] == self.filing.id)
+        self.assertEqual(cj_case["approval_status"], "PENDING")
+        self.assertEqual(j1_case["approval_status"], "PENDING")
+
+    def test_division_bench_notes_preserve_distinct_judge_labels(self):
+        CourtroomJudgeDecision.objects.filter(
+            efiling=self.filing,
+            forwarded_for_date=self.forwarded_for_date,
+            judge_user=self.judge_cj_user,
+        ).update(decision_notes="CJ approved")
+        CourtroomJudgeDecision.objects.filter(
+            efiling=self.filing,
+            forwarded_for_date=self.forwarded_for_date,
+            judge_user=self.judge_j1_user,
+        ).update(decision_notes="J1 approved")
+
+        for reader, group in (
+            (self.reader_cj, "READER_CJ"),
+            (self.reader_j1, "READER_J1"),
+        ):
+            client = self._auth_client(reader)
+            list_response = client.get(
+                f"/api/v1/reader/registered-cases/?page_size=10&reader_group={group}"
+            )
+            self.assertEqual(list_response.status_code, 200)
+            case_item = next(
+                item
+                for item in list_response.data["items"]
+                if item["efiling_id"] == self.filing.id
+            )
+            self.assertEqual(case_item["approval_status"], "APPROVED")
+            notes = case_item.get("approval_notes") or []
+            self.assertTrue(any(n.startswith("Judge CJ:") for n in notes))
+            self.assertTrue(any(n.startswith("Judge J1:") for n in notes))
+
     def test_reader_daily_proceeding_submit_creates_steno_workflow(self):
         client = self._auth_client(self.reader_cj)
         response = client.post(
@@ -257,6 +345,61 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
         workflow = StenoOrderWorkflow.objects.get(proceeding=proceeding, document_type="ORDER")
         self.assertEqual(workflow.assigned_steno_id, self.steno_user.id)
         self.assertEqual(workflow.workflow_status, StenoOrderWorkflow.WorkflowStatus.PENDING_UPLOAD)
+
+    def test_forward_creates_bench_workflow_state(self):
+        state = BenchWorkflowState.objects.filter(
+            efiling=self.filing,
+            forwarded_for_date=self.forwarded_for_date,
+            bench_key="CJ",
+        ).first()
+        self.assertIsNotNone(state)
+        self.assertEqual(state.required_role_groups, ["JUDGE_CJ"])
+
+    def test_judge_decisions_dual_write_to_bench_workflow_state(self):
+        cj_decision = CourtroomJudgeDecision.objects.filter(
+            efiling=self.filing,
+            forwarded_for_date=self.forwarded_for_date,
+            bench_role_group="JUDGE_CJ",
+        ).first()
+        j1_decision = CourtroomJudgeDecision.objects.filter(
+            efiling=self.filing,
+            forwarded_for_date=self.forwarded_for_date,
+            bench_role_group="JUDGE_J1",
+        ).first()
+        self.assertIsNotNone(cj_decision)
+        self.assertIsNotNone(j1_decision)
+        apply_judge_decision(
+            efiling_id=self.filing.id,
+            forwarded_for_date=self.forwarded_for_date,
+            bench_key="CJ",
+            bench_role_group="JUDGE_CJ",
+            judge_user_id=self.judge_cj_user.id,
+            status=CourtroomJudgeDecision.DecisionStatus.APPROVED,
+            approved=True,
+            decision_notes=None,
+        )
+        apply_judge_decision(
+            efiling_id=self.filing.id,
+            forwarded_for_date=self.forwarded_for_date,
+            bench_key="Judge1",
+            bench_role_group="JUDGE_J1",
+            judge_user_id=self.judge_j1_user.id,
+            status=CourtroomJudgeDecision.DecisionStatus.APPROVED,
+            approved=True,
+            decision_notes=None,
+        )
+        state_cj = BenchWorkflowState.objects.get(
+            efiling=self.filing,
+            forwarded_for_date=self.forwarded_for_date,
+            bench_key="CJ",
+        )
+        state_j1 = BenchWorkflowState.objects.get(
+            efiling=self.filing,
+            forwarded_for_date=self.forwarded_for_date,
+            bench_key="Judge1",
+        )
+        self.assertTrue((state_cj.decision_by_role or {}).get("JUDGE_CJ", {}).get("approved"))
+        self.assertTrue((state_j1.decision_by_role or {}).get("JUDGE_J1", {}).get("approved"))
 
     def test_daily_proceedings_list_includes_only_published_cases_for_selected_date(self):
         cause_list = CauseList.objects.create(

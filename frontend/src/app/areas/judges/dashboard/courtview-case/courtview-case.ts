@@ -7,6 +7,7 @@ import Swal from "sweetalert2";
 import { CourtroomService } from "../../../../services/judge/courtroom.service";
 import { benchLabel } from "../../../listing-officers/shared/bench-labels";
 import { PdfAnnotatorComponent } from "../courtroom/pdf-annotator.component";
+import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 
 @Component({
   selector: "app-judge-courtview-case",
@@ -44,6 +45,7 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private courtroomService: CourtroomService,
     private router: Router,
+    private sanitizer: DomSanitizer,
   ) {}
 
   ngOnInit(): void {
@@ -147,6 +149,23 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
   concludeHearing() {
     this.router.navigate(["/judges/dashboard/courtview"]);
   }
+
+   formatVs(text: string): SafeHtml {
+  if (!text) return '';
+
+  // Step 1: Title case
+  let formatted = text
+    .toLowerCase()
+    .replace(/\b\w/g, c => c.toUpperCase());
+
+  // Step 2: Replace vs
+  formatted = formatted.replace(
+    /\bVs\.?\s*/g,
+    '<span class="vs-circle">vs</span> ',
+  );
+
+  return this.sanitizer.bypassSecurityTrustHtml(formatted);
+}
 
   private loadCaseSummary(): void {
     if (!this.efilingId || !this.forwardedForDate) return;

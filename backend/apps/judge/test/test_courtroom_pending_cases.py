@@ -1,6 +1,6 @@
 """
-Courtroom pending cases: judges see reader forwards before cause list publish;
-advocates only after publish.
+Courtroom pending cases: judges can see pre-publish forwarded summaries;
+advocates only after publish. Case-open access for judges remains publish-gated.
 """
 
 from django.contrib.auth.models import Group
@@ -96,6 +96,45 @@ class CourtroomPendingCasesViewTest(TestCase):
         self.assertEqual(len(resp.data["pending_for_listing"]), 0)
         self.assertEqual(len(resp.data["pending_for_causelist"]), 1)
         self.assertEqual(resp.data["pending_for_causelist"][0]["efiling_id"], self.filing.id)
+
+    def test_judge_case_summary_allowed_before_publish(self):
+        self.client.force_authenticate(user=self.judge_user)
+        url = (
+            f"/api/v1/judge/courtroom/cases/{self.filing.id}/summary/"
+            f"?forwarded_for_date={self.forwarded_for_date.isoformat()}"
+        )
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+
+    def test_judge_case_documents_allowed_before_publish(self):
+        self.client.force_authenticate(user=self.judge_user)
+        url = (
+            f"/api/v1/judge/courtroom/cases/{self.filing.id}/documents/"
+            f"?forwarded_for_date={self.forwarded_for_date.isoformat()}"
+        )
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+
+    def test_judge_case_summary_allowed_after_publish(self):
+        cause_list = CauseList.objects.create(
+            cause_list_date=self.forwarded_for_date,
+            bench_key="CJ",
+            status=CauseList.CauseListStatus.PUBLISHED,
+            published_at=timezone.now(),
+        )
+        CauseListEntry.objects.create(
+            cause_list=cause_list,
+            efiling=self.filing,
+            included=True,
+            serial_no=1,
+        )
+        self.client.force_authenticate(user=self.judge_user)
+        url = (
+            f"/api/v1/judge/courtroom/cases/{self.filing.id}/summary/"
+            f"?forwarded_for_date={self.forwarded_for_date.isoformat()}"
+        )
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
 
     def test_advocate_sees_case_after_publish(self):
         cause_list = CauseList.objects.create(
