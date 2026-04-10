@@ -3,7 +3,7 @@
   flex-direction: column;
   height: 100%;
   position: relative;
-  border: 1px solid #ccc;
+  /* border: 1px solid #ccc; */
   border-radius: 4px;
   overflow: hidden;
   background-color: #f8f9fa;
