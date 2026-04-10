@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from django.test import SimpleTestCase, TestCase
+from django.contrib.auth.models import Group
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
 
@@ -267,16 +268,20 @@ class EfilingAuditIntegrationTest(TestCase):
         self.factory = APIRequestFactory()
         self.list_view = EfilingListCreateView.as_view()
         self.detail_view = EfilingRetrieveUpdateDestroyView.as_view()
+        self.advocate_group, _ = Group.objects.get_or_create(name='API_ADVOCATE')
+        self.scrutiny_group, _ = Group.objects.get_or_create(name='API_SCRUTINY_OFFICER')
         self.user = User.objects.create_user(
             username='api-audit-user',
             email='api-audit@example.com',
             password='password123',
         )
+        self.user.groups.add(self.advocate_group)
         self.other_user = User.objects.create_user(
             username='api-other-user',
             email='api-other@example.com',
             password='password123',
         )
+        self.other_user.groups.add(self.advocate_group)
 
     def tearDown(self):
         set_current_user(None)
@@ -307,7 +312,7 @@ class EfilingAuditIntegrationTest(TestCase):
         filing = Efiling.objects.create(
             bench='Bench A',
             petitioner_name='Petitioner',
-            created_by=self.other_user,
+            created_by=self.user,
             updated_by=self.other_user,
         )
         payload = {
@@ -326,8 +331,80 @@ class EfilingAuditIntegrationTest(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         filing.refresh_from_db()
-        self.assertEqual(filing.created_by, self.other_user)
+        self.assertEqual(filing.created_by, self.user)
         self.assertEqual(filing.updated_by, self.user)
+
+    def test_normal_user_list_only_includes_owned_filings(self):
+        own_filing = Efiling.objects.create(
+            bench='Bench A',
+            petitioner_name='Own Petitioner',
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        Efiling.objects.create(
+            bench='Bench B',
+            petitioner_name='Other Petitioner',
+            created_by=self.other_user,
+            updated_by=self.other_user,
+        )
+
+        request = self.factory.get(
+            '/api/v1/efiling/efilings/',
+            HTTP_AUTHORIZATION='Bearer test-token',
+        )
+
+        with self._mock_authentication(self.user):
+            response = self.list_view(request)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        returned_ids = {item['id'] for item in response.data.get('results', [])}
+        self.assertEqual(returned_ids, {own_filing.id})
+
+    def test_normal_user_cannot_retrieve_other_users_filing(self):
+        other_filing = Efiling.objects.create(
+            bench='Bench B',
+            petitioner_name='Other Petitioner',
+            created_by=self.other_user,
+            updated_by=self.other_user,
+        )
+
+        request = self.factory.get(
+            f'/api/v1/efiling/efilings/{other_filing.pk}/',
+            HTTP_AUTHORIZATION='Bearer test-token',
+        )
+
+        with self._mock_authentication(self.user):
+            response = self.detail_view(request, pk=other_filing.pk)
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_scrutiny_officer_can_list_all_filings(self):
+        self.user.groups.remove(self.advocate_group)
+        self.user.groups.add(self.scrutiny_group)
+        own_filing = Efiling.objects.create(
+            bench='Bench A',
+            petitioner_name='Own Petitioner',
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        other_filing = Efiling.objects.create(
+            bench='Bench B',
+            petitioner_name='Other Petitioner',
+            created_by=self.other_user,
+            updated_by=self.other_user,
+        )
+
+        request = self.factory.get(
+            '/api/v1/efiling/efilings/',
+            HTTP_AUTHORIZATION='Bearer test-token',
+        )
+
+        with self._mock_authentication(self.user):
+            response = self.list_view(request)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        returned_ids = {item['id'] for item in response.data.get('results', [])}
+        self.assertEqual(returned_ids, {own_filing.id, other_filing.id})
 
     def _mock_authentication(self, user):
         return patch.multiple(
