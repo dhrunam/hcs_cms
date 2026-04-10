@@ -2,6 +2,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
 from apps.core.models import Efiling
 from apps.efiling.serializers.efiling_serializers import EfilingSerializer
 from apps.efiling.review_utils import (
@@ -9,6 +10,12 @@ from apps.efiling.review_utils import (
     finalize_scrutiny_submission,
     submit_documents_for_scrutiny,
 )
+
+
+ADVOCATE_EFILING_GROUPS = {
+    "ADVOCATE",
+    "API_ADVOCATE",
+}
 
 
 def parse_bool(value):
@@ -27,6 +34,40 @@ def parse_bool(value):
         return False
     return None
 
+
+def scope_efiling_queryset_for_user(queryset, user):
+    if not getattr(user, "is_authenticated", False):
+        return queryset.none()
+
+    if user.is_staff or user.is_superuser:
+        return queryset
+
+    user_groups = set(user.groups.values_list("name", flat=True))
+    if user_groups & ADVOCATE_EFILING_GROUPS:
+        return queryset.filter(created_by_id=user.id)
+
+    return queryset
+
+
+def apply_efiling_filters(queryset, request, *, include_is_draft=False):
+    qs = scope_efiling_queryset_for_user(queryset, request.user)
+    is_active = parse_bool(request.query_params.get('is_active'))
+    if is_active is not None:
+        qs = qs.filter(is_active=is_active)
+
+    if include_is_draft:
+        is_draft = parse_bool(request.query_params.get('is_draft'))
+        status = request.query_params.get('status')
+        if is_draft is not None:
+            qs = qs.filter(is_draft=is_draft)
+        if status is not None:
+            if status.strip().upper() == 'NOT_ACCEPTED':
+                qs = qs.exclude(status='ACCEPTED')
+            else:
+                qs = qs.filter(status=status)
+
+    return qs
+
  
 class EfilingListCreateView(ListCreateAPIView):
     queryset = Efiling.objects.all()
@@ -34,26 +75,7 @@ class EfilingListCreateView(ListCreateAPIView):
 
     def get_queryset(self):
         qs = Efiling.objects.all().order_by('-id').prefetch_related('litigants')
-        is_active = parse_bool(self.request.query_params.get('is_active'))
-        is_draft = parse_bool(self.request.query_params.get('is_draft'))
-        status = self.request.query_params.get('status')
-        print("Login User: ", self.request.user)
-
-        print("User Groups: ", self.request.user.groups.all())
-        if is_active is not None:
-            qs = qs.filter(is_active=is_active)
-        if is_draft is not None:
-            qs = qs.filter(is_draft=is_draft)
-        if status is not None:
-            # typo handling: ACCPETED -> ACCEPTED.
-            # if status.strip().upper() == 'ACCEPTED':
-            #     qs = qs.filter(status='ACCEPTED')
-            if status.strip().upper() == 'NOT_ACCEPTED':
-                qs = qs.exclude(status='ACCEPTED')
-            else:
-                # all non-accepted records for any other status value.
-                qs = qs.filter(status=status)
-        return qs
+        return apply_efiling_filters(qs, self.request, include_is_draft=True)
 
 
 
@@ -64,12 +86,10 @@ class EfilingListCreateView(ListCreateAPIView):
 class EfilingRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
     queryset = Efiling.objects.all()
     serializer_class = EfilingSerializer
+
     def get_queryset(self):
         qs = Efiling.objects.all().order_by('-id').prefetch_related('litigants')
-        is_active = parse_bool(self.request.query_params.get('is_active'))
-        if is_active is not None:
-            qs = qs.filter(is_active=is_active)
-        return qs
+        return apply_efiling_filters(qs, self.request)
 
     def partial_update(self, request, *args, **kwargs):
         filing = self.get_object()
