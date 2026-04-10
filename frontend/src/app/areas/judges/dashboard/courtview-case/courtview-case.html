@@ -26,77 +26,101 @@
     *ngIf="!isLoading && !loadError && caseSummary"
     class="animate__animated animate__fadeIn"
   >
+  <div class="d-flex justify-content-between gap-2">
     <!-- Clean Minimal Header -->
-    <div class="elegant-header">
+    <div class="elegant-header w-100">
       <div class="case-title-row">
-        <div>
-          <h5 class="caseh">
-            {{ caseSummary.case_number || 'No Case Number' }}
-          </h5>
+        <!-- <div style="border: 1px solid #e2e8f0;border-radius: 7px;padding: 10px;">
+          
           <div class="case-meta mt-1">
             Filing Date: {{ caseSummary.filing_date ? (caseSummary.filing_date |
             date:'dd MMM yyyy') : '-' }}
           </div>
-        </div>
-        
-        <div class="text-end">
-             <div class="text-center mt-3 text-dark fw-bold col-12"
-            [innerHTML]="formatVs(caseSummary.petitioner_name)">
-  
-          </div>
+          
+       </div> -->
+       <div class="text-end d-flex flex-column justify-content-center align-items-start">
+          <h5 class="caseh font-weight-bold fs-6">
+          <!-- {{ caseSummary.case_number || 'No Case Number' }} -->
+            case no: WP(C) / 1/ 2023
+          </h5>
+        <div class="text-center text-dark fw-bold col-12"
+       [innerHTML]="formatVs(caseSummary.petitioner_name)">
+
         </div>
       </div>
+      <div
+  *ngIf="caseSummary.is_published"
+  class="elegant-panel share-panel d-flex justify-content-between align-items-center flex-wrap gap-2"
+  [class.share-active]="activeShare"
+>
+
+  <!-- Left: Title -->
+  <div class="d-flex align-items-center gap-2">
+    <i class="fa fa-broadcast-tower text-muted"></i>
+    <span class="panel-title mb-0">Live View</span>
+
+    <span *ngIf="activeShare" class="live-indicator">LIVE</span>
+  </div>
+
+  <!-- Middle: Status -->
+  <div class="d-flex align-items-center text-muted small flex-grow-1 justify-content-center text-truncate">
+
+    <ng-container *ngIf="!activeShare">
+      <i class="fa fa-podcast me-1"></i>
+      Waiting...
+    </ng-container>
+
+    <ng-container *ngIf="activeShare">
+      <i class="fa fa-user-circle me-1"></i>
+      <span class="text-truncate">
+        {{ activeShare.advocate_name }}
+      </span>
+
+      <span *ngIf="isSyncEnabled" class="mx-2">•</span>
+
+      <!-- <span *ngIf="isSyncEnabled" class="text-primary d-flex align-items-center">
+        <i class="fa fa-file-text-o me-1"></i>
+        Pg {{ activeShare.page_index + 1 }}
+      </span> -->
+    </ng-container>
+
+  </div>
+
+  <!-- Right: Action -->
+  <div *ngIf="activeShare" class="d-flex align-items-center">
+
+    <button
+      class="btn btn-sm btn-sync d-flex align-items-center gap-1"
+      [class.btn-sync-active]="isSyncEnabled"
+      (click)="toggleSync()"
+    >
+      <i
+        class="fa"
+        [class.fa-link]="!isSyncEnabled"
+        [class.fa-unlink]="isSyncEnabled"
+      ></i>
+
+      {{ isSyncEnabled ? 'Following' : 'Follow' }}
+    </button>
+
+  </div>
+
+</div>
+        
+        
+        
+      </div>
     </div>
+     
+    </div>
+   
 
     <!-- Unified Single Column Layout for Extreme Simplicity -->
     <div class="row g-4 h-100">
       <!-- Left Sidebar: Summary + Nav -->
       <div class="col-xl-3 col-lg-4">
         <!-- Advocate Shared View Box (ONLY if published) -->
-        <div
-          *ngIf="caseSummary.is_published"
-          class="elegant-panel mb-4 share-panel"
-          [class.share-active]="activeShare"
-        >
-          <div
-            class="panel-title d-flex justify-content-between align-items-center"
-          >
-            <span>Advocate Live View</span>
-            <span *ngIf="activeShare" class="live-indicator">LIVE</span>
-          </div>
-
-          <div *ngIf="!activeShare" class="no-share-content">
-            <i class="fa fa-podcast mb-2"></i>
-            <p>Waiting for advocate to share...</p>
-          </div>
-
-          <div *ngIf="activeShare" class="share-info">
-            <div class="advocate-name">
-              <i class="fa fa-user-circle me-1"></i> {{
-              activeShare.advocate_name }}
-            </div>
-            <div class="current-doc text-truncate" *ngIf="isSyncEnabled">
-              <i class="fa fa-file-text-o me-1"></i> {{
-              previewDocument?.document_part_name }}
-            </div>
-            <div class="current-page" *ngIf="isSyncEnabled">
-              Page {{ activeShare.page_index + 1 }}
-            </div>
-
-            <button
-              class="btn btn-sync mt-3 w-100"
-              [class.btn-sync-active]="isSyncEnabled"
-              (click)="toggleSync()"
-            >
-              <i
-                class="fa"
-                [class.fa-link]="!isSyncEnabled"
-                [class.fa-unlink]="isSyncEnabled"
-              ></i>
-              {{ isSyncEnabled ? 'Following' : 'Follow Advocate' }}
-            </button>
-          </div>
-        </div>
+        
 
         <!-- Pre-Listing Alert (if not published) -->
         <div
@@ -184,7 +208,7 @@
 
       <!-- Right Main: Minimalist PDF Annotator Surface -->
       <div class="col-xl-9 col-lg-8">
-        <div class="annotator-container">
+        <div class="annotator-container vh-100">
           <app-pdf-annotator
             *ngIf="previewDocumentBlobUrl; else noDocPreview"
             [pdfUrl]="previewDocumentBlobUrl"
