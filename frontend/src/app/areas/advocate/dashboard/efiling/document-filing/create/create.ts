@@ -28,6 +28,20 @@ import {
 } from "../../../../../../utils/petitioner-vs-respondent";
 import { UploadDocuments } from "../../new-filing/upload-documents/upload-documents";
 
+export type ExistingCaseLitigantType =
+  | "PETITIONER"
+  | "RESPONDENT"
+  | "APPELLANT";
+
+export const EXISTING_CASE_LITIGANT_OPTIONS: ReadonlyArray<{
+  value: ExistingCaseLitigantType;
+  label: string;
+}> = [
+  { value: "PETITIONER", label: "Petitioner" },
+  { value: "RESPONDENT", label: "Respondent" },
+  { value: "APPELLANT", label: "Appellant" },
+];
+
 @Component({
   selector: "app-document-filing-create",
   standalone: true,
@@ -74,6 +88,9 @@ export class Create implements OnInit {
   isDocumentTypeDropdownOpen = false;
   documentTypeSearchQuery = "";
   selectedDocumentType = "";
+
+  readonly litigantTypeOptions = EXISTING_CASE_LITIGANT_OPTIONS;
+  litigantType: ExistingCaseLitigantType = "PETITIONER";
 
   constructor(
     private fb: FormBuilder,
@@ -184,6 +201,22 @@ export class Create implements OnInit {
     );
   }
 
+  litigantTypeLabel(): string {
+    const row = EXISTING_CASE_LITIGANT_OPTIONS.find(
+      (o) => o.value === this.litigantType,
+    );
+    return row?.label ?? "Petitioner";
+  }
+
+  litigantAnnexureLetter(): "P" | "A" | "R" {
+    const map: Record<ExistingCaseLitigantType, "P" | "A" | "R"> = {
+      PETITIONER: "P",
+      APPELLANT: "A",
+      RESPONDENT: "R",
+    };
+    return map[this.litigantType] ?? "P";
+  }
+
   selectFiling(item: { filing: any }): void {
     console.log("Selected item for filing is", item);
     console.log(item.filing.case_type.id);
@@ -195,6 +228,7 @@ export class Create implements OnInit {
     this.isDropdownOpen = false;
     this.searchQuery = "";
     this.selectedIa = null;
+    this.litigantType = "PETITIONER";
     this.uploadedDocList = [];
     this.selectedDocumentType = "";
     this.documentTypeSearchQuery = "";
@@ -447,7 +481,7 @@ export class Create implements OnInit {
         : "the selected e-filing";
       const proceed = await this.promptOtpAndProceed(
         "File Documents?",
-        `Upload these documents to ${targetLabel}.`,
+        `Upload these documents to ${targetLabel}. Filing as ${this.litigantTypeLabel()}.`,
       );
       if (!proceed) return;
 
@@ -468,6 +502,8 @@ export class Create implements OnInit {
       } else {
         documentPayload.append("is_ia", "false");
       }
+
+      documentPayload.append("filed_by", this.litigantType);
 
       const documentRes = await firstValueFrom(
         this.eFilingService.upload_case_documnets(documentPayload),

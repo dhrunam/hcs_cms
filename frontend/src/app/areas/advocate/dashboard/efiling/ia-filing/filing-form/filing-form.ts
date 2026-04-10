@@ -20,6 +20,10 @@ import {
   formatPetitionerVsRespondent,
   getOrderedPartyNames,
 } from '../../../../../../utils/petitioner-vs-respondent';
+import {
+  EXISTING_CASE_LITIGANT_OPTIONS,
+  ExistingCaseLitigantType,
+} from '../../document-filing/create/create';
 import { UploadDocuments } from '../../new-filing/upload-documents/upload-documents';
 
 @Component({
@@ -44,6 +48,8 @@ export class IaFilingForm implements OnInit {
   caseDetails: any = null;
   litigants: any[] = [];
   acts: any[] = [];
+  readonly litigantTypeOptions = EXISTING_CASE_LITIGANT_OPTIONS;
+  litigantType: ExistingCaseLitigantType = 'PETITIONER';
   isLoadingFilings = true;
   isLoadingDetails = false;
   isUploadingDocuments = false;
@@ -404,12 +410,27 @@ export class IaFilingForm implements OnInit {
     );
   }
 
+  litigantTypeLabel(): string {
+    const row = EXISTING_CASE_LITIGANT_OPTIONS.find((o) => o.value === this.litigantType);
+    return row?.label ?? 'Petitioner';
+  }
+
+  litigantAnnexureLetter(): 'P' | 'A' | 'R' {
+    const map: Record<ExistingCaseLitigantType, 'P' | 'A' | 'R'> = {
+      PETITIONER: 'P',
+      APPELLANT: 'A',
+      RESPONDENT: 'R',
+    };
+    return map[this.litigantType] ?? 'P';
+  }
+
   selectFiling(item: { filing: any }): void {
     this.form.patchValue({ e_filing_id: item.filing.id });
     this.createdIa = null;
     this.docList = [];
     this.paymentOutcome = null;
     this.paymentDetails = {};
+    this.litigantType = 'PETITIONER';
     this.onFilingSelect();
     this.isDropdownOpen = false;
     this.searchQuery = '';
@@ -547,6 +568,7 @@ export class IaFilingForm implements OnInit {
         documentPayload.append('e_filing_number', eFilingNumber);
         documentPayload.append('is_ia', 'true');
         documentPayload.append('ia_number', iaNumber);
+        documentPayload.append('filed_by', this.litigantType);
 
         documentRes = await firstValueFrom(
           this.efilingService.upload_case_documnets(documentPayload),

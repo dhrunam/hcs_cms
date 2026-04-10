@@ -96,6 +96,25 @@
         Loading filings...
       </div>
 
+      <div *ngIf="selectedFiling" class="mt-4">
+        <label class="form-label" for="existing-case-litigant-type"
+          >Filing As</label
+        >
+        <select
+          id="existing-case-litigant-type"
+          class="form-select"
+          [(ngModel)]="litigantType"
+          [ngModelOptions]="{ standalone: true }"
+        >
+          <option
+            *ngFor="let opt of litigantTypeOptions"
+            [ngValue]="opt.value"
+          >
+            {{ opt.label }}
+          </option>
+        </select>
+      </div>
+
       <!-- IA (visible only after e-filing selected) -->
       <div *ngIf="selectedFiling" class="mt-4">
         <label class="form-label"
@@ -191,23 +210,27 @@
       </div>
       <div class="card-body">
         <div class="row g-3">
-          <div class="col-md-4">
+          <div class="col-md-3">
             <div class="text-muted small">Case Type</div>
             <div class="fw-semibold">
               {{ selectedFiling.case_type?.type_name || '-' }}
             </div>
           </div>
-          <div class="col-md-4">
+          <div class="col-md-3">
             <div class="text-muted small">E-Filing Number</div>
             <div class="fw-semibold text-dark">
               {{ selectedFiling.e_filing_number || '-' }}
             </div>
           </div>
-          <div class="col-md-4">
+          <div class="col-md-3">
             <div class="text-muted small">Petitioner</div>
             <div class="fw-semibold">
               {{ selectedFiling.petitioner_name || '-' }}
             </div>
+          </div>
+          <div class="col-md-3">
+            <div class="text-muted small">Filing as</div>
+            <div class="fw-semibold">{{ litigantTypeLabel() }}</div>
           </div>
         </div>
       </div>
@@ -388,6 +411,7 @@
                   [useTextIndexName]="true"
                   [useParentIndexGroup]="true"
                   [enableAnnexureSequence]="true"
+                  [annexureSequenceLetter]="litigantAnnexureLetter()"
                   (submitDoc)="handleDocUpload($event)"
                 ></app-upload-documents>
               </div>
