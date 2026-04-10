@@ -30,10 +30,12 @@ export class AuthService {
   ) {}
 
   async initAuth(): Promise<void> {
+    // alert('initAuth');
     this.oauthService.configure(authConfig);
     try {
       await this.oauthService.loadDiscoveryDocumentAndTryLogin();
     } catch (error) {
+      // alert('error in initAuth');
       // In local/dev flows SSO server may be offline; keep app usable.
       console.warn('SSO discovery unavailable, continuing without SSO session.');
     }

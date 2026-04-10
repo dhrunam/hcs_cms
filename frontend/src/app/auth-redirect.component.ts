@@ -13,6 +13,8 @@ export class AuthRedirectComponent implements OnInit {
   ) {}
 
   async ngOnInit(): Promise<void> {
+
+    // alert('AuthRedirectComponent');
     try {
       const authError = this.authService.getAuthorizationError();
       if (authError) {
