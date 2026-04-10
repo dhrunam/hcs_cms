@@ -3,7 +3,7 @@ import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { OAuthService } from 'angular-oauth2-oidc';
 import { catchError, throwError } from 'rxjs';
-import { devAuthBypassToken, isLocalDevHost } from './environment';
+import {  isLocalDevHost } from './environment';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const router = inject(Router);
@@ -12,9 +12,9 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const fromLocal = localStorage.getItem('access_token');
   const fromOAuth = oauthService.getAccessToken() || '';
   let token = fromSession || fromLocal || fromOAuth || null;
-  if (!token?.trim() && devAuthBypassToken?.trim() && isLocalDevHost()) {
-    token = devAuthBypassToken.trim();
-  }
+  // if (!token?.trim() && devAuthBypassToken?.trim() && isLocalDevHost()) {
+  //   token = devAuthBypassToken.trim();
+  // }
   if (token && !fromSession) {
     sessionStorage.setItem('access_token', token);
   }

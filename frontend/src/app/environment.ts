@@ -17,4 +17,4 @@ export function isLocalDevHost(): boolean {
  * Only used on localhost when no valid SSO access token is present.
  * Set to "" to disable and rely on SSO only.
  */
-export const devAuthBypassToken = 'local-hcs-cms-dev-only';
+// export const devAuthBypassToken = 'local-hcs-cms-dev-only';
