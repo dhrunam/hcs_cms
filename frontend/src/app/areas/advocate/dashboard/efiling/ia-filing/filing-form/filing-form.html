@@ -70,6 +70,19 @@
             </div>
             <div *ngIf="isLoadingFilings" class="text-muted small mt-1">Loading filings...</div>
           </div>
+          <div class="col-md-12">
+            <label class="form-label" for="ia-filing-litigant-type">Filing As</label>
+            <select
+              id="ia-filing-litigant-type"
+              class="form-select"
+              [(ngModel)]="litigantType"
+              [ngModelOptions]="{ standalone: true }"
+            >
+              <option *ngFor="let opt of litigantTypeOptions" [ngValue]="opt.value">
+                {{ opt.label }}
+              </option>
+            </select>
+          </div>
         </div>
       </div>
     </div>
@@ -90,6 +103,10 @@
           <div class="col-md-4">
             <label class="text-muted small">Petitioner</label>
             <div class="fw-semibold">{{ selectedFiling.petitioner_name || '-' }}</div>
+          </div>
+          <div class="col-md-4">
+            <label class="text-muted small">Filing as</label>
+            <div class="fw-semibold">{{ litigantTypeLabel() }}</div>
           </div>
           <div class="col-md-4" *ngIf="caseDetails">
             <label class="text-muted small">Cause of Action</label>
@@ -263,6 +280,7 @@
           [useTextIndexName]="true"
           [useParentIndexGroup]="true"
           [enableAnnexureSequence]="true"
+          [annexureSequenceLetter]="litigantAnnexureLetter()"
           (submitDoc)="handleDocUpload($event)"
         ></app-upload-documents>
       </div>
