@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Dict, Iterable, List, Optional, Sequence, Set
+import logging
 
 from django.contrib.auth.models import Group, AnonymousUser
 from django.db import transaction
@@ -36,6 +37,7 @@ from .models import (
     JudgeDraftAnnotation,
 )
 from apps.reader.models import CourtroomForward, CourtroomForwardDocument, StenoOrderWorkflow
+from apps.reader.workflow_state import apply_judge_decision
 from apps.listing.models import CauseList, CauseListEntry
 from .serializers import (
     CourtroomCaseDocumentAnnotationUpsertSerializer,
@@ -46,7 +48,9 @@ from .serializers import (
     JudgeStenoAnnotationsSnapshotSerializer,
     JudgeWorkflowDecisionSerializer,
 )
-from .courtroom_approval import legacy_role_from_user_for_bench
+from .bench_role import resolve_bench_role_group_for_forward
+
+logger = logging.getLogger(__name__)
 
 
 def _steno_draft_stream_url(request, document_index_id: int | None) -> str | None:
@@ -142,7 +146,13 @@ def _assert_courtroom_user(request) -> User:
     return _resolve_courtroom_user(request)
 
 
-def _validate_courtroom_access(user: User, efiling_id: int, date_obj_or_str: Any) -> Dict[str, Any]:
+def _validate_courtroom_access(
+    user: User,
+    efiling_id: int,
+    date_obj_or_str: Any,
+    *,
+    allow_judge_unpublished: bool = False,
+) -> Dict[str, Any]:
     """
     Enforce Publication-based access control.
     Returns metadata about the user role if access permitted.
@@ -177,8 +187,12 @@ def _validate_courtroom_access(user: User, efiling_id: int, date_obj_or_str: Any
         
         if not has_bench_access:
             raise ValidationError({"detail": "Not authorized to view this case for your assigned bench."})
-        
-        # Note: We don't block UNPUBLISHED cases for judges anymore to allow reader-to-judge pre-review
+
+        # Enforce publish gate for judges unless explicitly bypassed
+        # for pre-publish summary review flow.
+        if (not allow_judge_unpublished) and (not is_published):
+            raise ValidationError({"detail": "Case is not yet published in the cause list for this date."})
+
         return {"role": "JUDGE", "is_judge": True}
     else:
         # Advocate strict access control
@@ -231,8 +245,8 @@ class CourtroomPendingCasesView(APIView):
     """
     Pending courtroom cases for a hearing date (`forwarded_for_date`).
 
-    Judges: all `CourtroomForward` rows for that date on their bench(es) (reader pre-list
-    review), split into pre-publish vs published cause list.
+    Judges: can see forwarded summaries pre-publish in dashboard buckets.
+    (Case open/detail access is separately publish-gated.)
 
     Advocates: only published, included entries on the cause list for that date, and only
     cases they are allowed to represent.
@@ -403,9 +417,15 @@ class CourtroomCaseDocumentsView(APIView):
     def get(self, request, efiling_id: int, *args, **kwargs):
         user = _resolve_courtroom_user(request)
         forwarded_for_date = request.query_params.get("forwarded_for_date")
+        forward_bench_key = str(request.query_params.get("forward_bench_key") or "").strip() or None
         
         # 1. Permission and Publication Check
-        access_meta = _validate_courtroom_access(user, efiling_id, forwarded_for_date)
+        access_meta = _validate_courtroom_access(
+            user,
+            efiling_id,
+            forwarded_for_date,
+            allow_judge_unpublished=True,
+        )
         is_judge = access_meta.get("is_judge", False)
         
         # 2. Get the specific forward for bench context (if judge)
@@ -417,6 +437,8 @@ class CourtroomCaseDocumentsView(APIView):
                 user_groups = _user_judge_groups(user)
                 allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
                 f_qs = f_qs.filter(bench_key__in=allowed_bench_keys)
+            if forward_bench_key:
+                f_qs = f_qs.filter(bench_key=forward_bench_key)
             forward = f_qs.order_by("-id").first()
 
         if not forward:
@@ -426,6 +448,8 @@ class CourtroomCaseDocumentsView(APIView):
                 user_groups = _user_judge_groups(user)
                 allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
                 f_qs = f_qs.filter(bench_key__in=allowed_bench_keys)
+            if forward_bench_key:
+                f_qs = f_qs.filter(bench_key=forward_bench_key)
             forward = f_qs.order_by("-forwarded_for_date", "-id").first()
 
         if not forward:
@@ -492,9 +516,15 @@ class CourtroomCaseSummaryView(APIView):
     def get(self, request, efiling_id: int, *args, **kwargs):
         user = _resolve_courtroom_user(request)
         forwarded_for_date = request.query_params.get("forwarded_for_date")
+        forward_bench_key = str(request.query_params.get("forward_bench_key") or "").strip() or None
         
         # 1. Permission and Publication Check
-        access_meta = _validate_courtroom_access(user, efiling_id, forwarded_for_date)
+        access_meta = _validate_courtroom_access(
+            user,
+            efiling_id,
+            forwarded_for_date,
+            allow_judge_unpublished=True,
+        )
         is_judge = access_meta.get("is_judge", False)
 
         # 2. Get forward context
@@ -503,6 +533,8 @@ class CourtroomCaseSummaryView(APIView):
             user_groups = _user_judge_groups(user)
             allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
             f_qs = f_qs.filter(bench_key__in=allowed_bench_keys)
+        if forward_bench_key:
+            f_qs = f_qs.filter(bench_key=forward_bench_key)
         
         if forwarded_for_date:
             forwarded_date = timezone.datetime.fromisoformat(forwarded_for_date).date()
@@ -672,43 +704,82 @@ class CourtroomDecisionView(APIView):
 
         efiling_id = payload.validated_data["efiling_id"]
         forwarded_for_date = payload.validated_data["forwarded_for_date"]
+        forward_bench_key = payload.validated_data.get("forward_bench_key")
         status = CourtroomJudgeDecision.DecisionStatus.APPROVED
         requested_document_index_ids = payload.validated_data.get("requested_document_index_ids") or []
         approved = True
         decision_notes = payload.validated_data.get("decision_notes")
         user_groups = _user_judge_groups(user)
-        allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
-
-        # Ensure there is a forward row and judge is allowed.
-        forward = (
-            CourtroomForward.objects.filter(
-                efiling_id=efiling_id,
-                forwarded_for_date=forwarded_for_date,
-                bench_key__in=allowed_bench_keys,
-            )
-            .order_by("-id")
-            .first()
+        # Ensure there is an authorized forward row and resolve an unambiguous
+        # bench role slot for this decision.
+        fwd_qs = CourtroomForward.objects.filter(
+            efiling_id=efiling_id,
+            forwarded_for_date=forwarded_for_date,
         )
-        if not forward:
+        if forward_bench_key:
+            fwd_qs = fwd_qs.filter(bench_key=forward_bench_key)
+        candidate_forwards = list(fwd_qs.order_by("-id"))
+        if not candidate_forwards:
             raise ValidationError({"detail": "Case not forwarded for this date."})
+        resolved_candidates: list[tuple[CourtroomForward, str]] = []
+        for fwd in candidate_forwards:
+            if not _judge_can_view_forward(user_groups, fwd.bench_key):
+                continue
+            try:
+                role_group = resolve_bench_role_group_for_forward(user, fwd.bench_key)
+            except ValueError:
+                continue
+            resolved_candidates.append((fwd, role_group))
 
-        if not _judge_can_view_forward(user_groups, forward.bench_key):
-            raise ValidationError({"detail": "Not authorized for this case/bench."})
-
-        required_groups = tuple(get_required_judge_groups(forward.bench_key))
-        bench_role_group = None
-        if len(required_groups) == 1:
-            # Single bench: deterministic role from bench itself.
-            bench_role_group = required_groups[0]
-        else:
-            # Division/full bench: infer exact slot from user role membership.
-            bench_role_group = legacy_role_from_user_for_bench(user, required_groups)
-        if not bench_role_group:
+        if not resolved_candidates:
             raise ValidationError(
                 {
                     "detail": (
                         "Unable to resolve judge role slot for this bench. "
                         "Configure judge role mapping (CJ/J1/J2)."
+                    )
+                }
+            )
+        if forward_bench_key:
+            resolved_candidates = [
+                item for item in resolved_candidates if item[0].bench_key == forward_bench_key
+            ]
+            if not resolved_candidates:
+                raise ValidationError({"detail": "Not authorized for the selected bench slot."})
+        distinct_roles = {role for _, role in resolved_candidates}
+        if len(distinct_roles) > 1:
+            # Prefer exact bench-slot forwards (single required group) to avoid cross-slot collisions
+            # when users are API_JUDGE-like in legacy deployments.
+            scoped = []
+            for fwd, role in resolved_candidates:
+                req = tuple(get_required_judge_groups(fwd.bench_key))
+                if len(req) == 1:
+                    scoped.append((fwd, req[0]))
+            if scoped:
+                resolved_candidates = scoped
+                distinct_roles = {role for _, role in resolved_candidates}
+        if len(distinct_roles) > 1:
+            raise ValidationError(
+                {
+                    "detail": (
+                        "Ambiguous judge role for this case/date. "
+                        "Open the case from the specific bench slot and submit again."
+                    )
+                }
+            )
+        _forward, bench_role_group = resolved_candidates[0]
+
+        conflict_exists = CourtroomJudgeDecision.objects.filter(
+            efiling_id=efiling_id,
+            forwarded_for_date=forwarded_for_date,
+            bench_role_group=bench_role_group,
+        ).exclude(judge_user_id=user.id).exists()
+        if conflict_exists:
+            raise ValidationError(
+                {
+                    "detail": (
+                        "This bench role slot is already recorded by another judge "
+                        "for the selected case/date."
                     )
                 }
             )
@@ -724,6 +795,19 @@ class CourtroomDecisionView(APIView):
                 "bench_role_group": bench_role_group,
             },
         )
+        try:
+            apply_judge_decision(
+                efiling_id=int(efiling_id),
+                forwarded_for_date=forwarded_for_date,
+                bench_key=str(_forward.bench_key),
+                bench_role_group=str(bench_role_group),
+                judge_user_id=int(user.id),
+                status=str(status),
+                approved=bool(approved),
+                decision_notes=decision_notes,
+            )
+        except Exception:
+            logger.exception("bench workflow state judge-decision dual-write failed")
         valid_req_doc_ids = set()
         if requested_document_index_ids:
             valid_req_doc_ids = set(

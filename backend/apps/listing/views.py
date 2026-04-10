@@ -26,6 +26,7 @@ from apps.judge.models import (
     CourtroomJudgeDecision,
 )
 from apps.reader.models import CourtroomForward
+from apps.reader.workflow_state import apply_cause_list_published
 from apps.listing.models import CauseList, CauseListEntry
 from apps.listing.pdf_service import CauseListRow, generate_cause_list_pdf_bytes
 from apps.listing.serializers import (
@@ -537,6 +538,7 @@ class CauseListPublishView(APIView):
             cause_list.save(
                 update_fields=["pdf_file", "status", "published_at", "generated_by", "updated_at"]
             )
+            apply_cause_list_published(cause_list)
 
         return Response(
             {
@@ -710,6 +712,7 @@ class CauseListPublishDirectView(APIView):
             if user:
                 cause_list.generated_by = user
             cause_list.save(update_fields=["pdf_file", "status", "published_at", "generated_by", "updated_at"])
+            apply_cause_list_published(cause_list)
 
         return Response(
             {

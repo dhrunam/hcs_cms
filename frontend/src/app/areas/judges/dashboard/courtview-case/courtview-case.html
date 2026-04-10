@@ -30,22 +30,19 @@
     <div class="elegant-header">
       <div class="case-title-row">
         <div>
-          <h2 class="case-h">
+          <h5 class="caseh">
             {{ caseSummary.case_number || 'No Case Number' }}
-          </h2>
+          </h5>
           <div class="case-meta mt-1">
             Filing Date: {{ caseSummary.filing_date ? (caseSummary.filing_date |
             date:'dd MMM yyyy') : '-' }}
           </div>
         </div>
-        <button (click)="concludeHearing()" class="btn btn-success">
-          Conclude Hearing
-        </button>
+        
         <div class="text-end">
-          <div class="litigants-text">
-            <span>{{ petitionerNamesLabel }}</span>
-            <span class="vs-badge">V/S</span>
-            <span>{{ respondentNamesLabel }}</span>
+             <div class="text-center mt-3 text-dark fw-bold col-12"
+            [innerHTML]="formatVs(caseSummary.petitioner_name)">
+  
           </div>
         </div>
       </div>

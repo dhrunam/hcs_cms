@@ -25,6 +25,7 @@ export class JudgePendingCasesPage {
     petitioner_name?: string | null;
     petitioner_vs_respondent?: string | null;
     bench_key: string;
+    forward_bench_key?: string;
     bench_label?: string;
     judge_decision: boolean | null;
     forwarded_for_date?: string;
@@ -36,6 +37,7 @@ export class JudgePendingCasesPage {
     petitioner_name?: string | null;
     petitioner_vs_respondent?: string | null;
     bench_key: string;
+    forward_bench_key?: string;
     bench_label?: string;
     judge_decision: boolean | null;
     forwarded_for_date?: string;
@@ -79,13 +81,15 @@ export class JudgePendingCasesPage {
     });
   }
 
-  openCourtroom(efilingId: number): void {
-    const c =
-      this.pendingForListing.find((x) => x.efiling_id === efilingId) ||
-      this.pendingForCauseList.find((x) => x.efiling_id === efilingId);
+  openCourtroom(c: {
+    efiling_id: number;
+    forwarded_for_date?: string;
+    forward_bench_key?: string;
+  }): void {
     const fdate = c?.forwarded_for_date || this.forwardedForDate;
-    this.router.navigate(['/judges/dashboard/courtroom', efilingId], {
-      queryParams: { forwarded_for_date: fdate },
+    const fbench = c?.forward_bench_key || undefined;
+    this.router.navigate(['/judges/dashboard/courtroom', c.efiling_id], {
+      queryParams: { forwarded_for_date: fdate, forward_bench_key: fbench },
     });
   }
 

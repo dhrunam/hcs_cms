@@ -282,6 +282,7 @@ export class ReaderCaseSummaryPage {
             timer: 1300,
             showConfirmButton: false,
           });
+          this.router.navigate(['/reader/dashboard/registered-cases'])
         },
         error: (err) => {
           console.warn("forwardToJudge failed", err);
