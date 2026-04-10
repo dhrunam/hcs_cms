@@ -5,7 +5,7 @@ import { authGuard } from './auth.guard';
 export const routes: Routes = [
   {
     path: '',
-    component: AuthRedirectComponent,
+    redirectTo: 'auth/redirect',
     pathMatch: 'full',
   },
   {
@@ -49,5 +49,11 @@ export const routes: Routes = [
     canMatch: [authGuard],
     loadChildren: () =>
       import('./areas/reader/reader-routing-module').then((m) => m.ReaderRoutes),
+  },
+  {
+    path: 'steno',
+    canMatch: [authGuard],
+    loadChildren: () =>
+      import('./areas/steno/steno-routing-module').then((m) => m.StenoRoutes),
   },
 ];

@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 from typing import Dict, Iterable, List, Optional, Sequence, Set
+import logging
 
 from django.contrib.auth.models import Group, AnonymousUser
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import Prefetch, Q
+
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status as drf_status
 from rest_framework.exceptions import ValidationError
@@ -30,15 +34,33 @@ from .models import (
     JUDGE_GROUP_CJ,
     JUDGE_GROUP_J1,
     JUDGE_GROUP_J2,
+    JudgeDraftAnnotation,
 )
-from apps.reader.models import CourtroomForward, CourtroomForwardDocument
+from apps.reader.models import CourtroomForward, CourtroomForwardDocument, StenoOrderWorkflow
+from apps.reader.workflow_state import apply_judge_decision
 from apps.listing.models import CauseList, CauseListEntry
 from .serializers import (
     CourtroomCaseDocumentAnnotationUpsertSerializer,
     CourtroomDecisionSerializer,
     CourtroomDocumentAnnotationSerializer,
     CourtroomPendingCaseSerializer,
+    JudgeDraftAnnotationUpsertSerializer,
+    JudgeStenoAnnotationsSnapshotSerializer,
+    JudgeWorkflowDecisionSerializer,
 )
+from .bench_role import resolve_bench_role_group_for_forward
+
+logger = logging.getLogger(__name__)
+
+
+def _steno_draft_stream_url(request, document_index_id: int | None) -> str | None:
+    if not document_index_id:
+        return None
+    path = reverse(
+        "efiling:efiling-document-index-stream",
+        kwargs={"document_index_id": int(document_index_id)},
+    )
+    return request.build_absolute_uri(path)
 
 _DUMMY_TOKEN_TO_DUMMY_EMAIL: Dict[str, str] = {
     "judge_cj_dummy_token": "dummy_judge_cj@hcs.local",
@@ -124,7 +146,13 @@ def _assert_courtroom_user(request) -> User:
     return _resolve_courtroom_user(request)
 
 
-def _validate_courtroom_access(user: User, efiling_id: int, date_obj_or_str: Any) -> Dict[str, Any]:
+def _validate_courtroom_access(
+    user: User,
+    efiling_id: int,
+    date_obj_or_str: Any,
+    *,
+    allow_judge_unpublished: bool = False,
+) -> Dict[str, Any]:
     """
     Enforce Publication-based access control.
     Returns metadata about the user role if access permitted.
@@ -159,8 +187,12 @@ def _validate_courtroom_access(user: User, efiling_id: int, date_obj_or_str: Any
         
         if not has_bench_access:
             raise ValidationError({"detail": "Not authorized to view this case for your assigned bench."})
-        
-        # Note: We don't block UNPUBLISHED cases for judges anymore to allow reader-to-judge pre-review
+
+        # Enforce publish gate for judges unless explicitly bypassed
+        # for pre-publish summary review flow.
+        if (not allow_judge_unpublished) and (not is_published):
+            raise ValidationError({"detail": "Case is not yet published in the cause list for this date."})
+
         return {"role": "JUDGE", "is_judge": True}
     else:
         # Advocate strict access control
@@ -213,8 +245,8 @@ class CourtroomPendingCasesView(APIView):
     """
     Pending courtroom cases for a hearing date (`forwarded_for_date`).
 
-    Judges: all `CourtroomForward` rows for that date on their bench(es) (reader pre-list
-    review), split into pre-publish vs published cause list.
+    Judges: can see forwarded summaries pre-publish in dashboard buckets.
+    (Case open/detail access is separately publish-gated.)
 
     Advocates: only published, included entries on the cause list for that date, and only
     cases they are allowed to represent.
@@ -385,9 +417,15 @@ class CourtroomCaseDocumentsView(APIView):
     def get(self, request, efiling_id: int, *args, **kwargs):
         user = _resolve_courtroom_user(request)
         forwarded_for_date = request.query_params.get("forwarded_for_date")
+        forward_bench_key = str(request.query_params.get("forward_bench_key") or "").strip() or None
         
         # 1. Permission and Publication Check
-        access_meta = _validate_courtroom_access(user, efiling_id, forwarded_for_date)
+        access_meta = _validate_courtroom_access(
+            user,
+            efiling_id,
+            forwarded_for_date,
+            allow_judge_unpublished=True,
+        )
         is_judge = access_meta.get("is_judge", False)
         
         # 2. Get the specific forward for bench context (if judge)
@@ -399,6 +437,8 @@ class CourtroomCaseDocumentsView(APIView):
                 user_groups = _user_judge_groups(user)
                 allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
                 f_qs = f_qs.filter(bench_key__in=allowed_bench_keys)
+            if forward_bench_key:
+                f_qs = f_qs.filter(bench_key=forward_bench_key)
             forward = f_qs.order_by("-id").first()
 
         if not forward:
@@ -408,6 +448,8 @@ class CourtroomCaseDocumentsView(APIView):
                 user_groups = _user_judge_groups(user)
                 allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
                 f_qs = f_qs.filter(bench_key__in=allowed_bench_keys)
+            if forward_bench_key:
+                f_qs = f_qs.filter(bench_key=forward_bench_key)
             forward = f_qs.order_by("-forwarded_for_date", "-id").first()
 
         if not forward:
@@ -474,9 +516,15 @@ class CourtroomCaseSummaryView(APIView):
     def get(self, request, efiling_id: int, *args, **kwargs):
         user = _resolve_courtroom_user(request)
         forwarded_for_date = request.query_params.get("forwarded_for_date")
+        forward_bench_key = str(request.query_params.get("forward_bench_key") or "").strip() or None
         
         # 1. Permission and Publication Check
-        access_meta = _validate_courtroom_access(user, efiling_id, forwarded_for_date)
+        access_meta = _validate_courtroom_access(
+            user,
+            efiling_id,
+            forwarded_for_date,
+            allow_judge_unpublished=True,
+        )
         is_judge = access_meta.get("is_judge", False)
 
         # 2. Get forward context
@@ -485,6 +533,8 @@ class CourtroomCaseSummaryView(APIView):
             user_groups = _user_judge_groups(user)
             allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
             f_qs = f_qs.filter(bench_key__in=allowed_bench_keys)
+        if forward_bench_key:
+            f_qs = f_qs.filter(bench_key=forward_bench_key)
         
         if forwarded_for_date:
             forwarded_date = timezone.datetime.fromisoformat(forwarded_for_date).date()
@@ -654,28 +704,85 @@ class CourtroomDecisionView(APIView):
 
         efiling_id = payload.validated_data["efiling_id"]
         forwarded_for_date = payload.validated_data["forwarded_for_date"]
+        forward_bench_key = payload.validated_data.get("forward_bench_key")
         status = CourtroomJudgeDecision.DecisionStatus.APPROVED
         requested_document_index_ids = payload.validated_data.get("requested_document_index_ids") or []
         approved = True
         decision_notes = payload.validated_data.get("decision_notes")
         user_groups = _user_judge_groups(user)
-        allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
-
-        # Ensure there is a forward row and judge is allowed.
-        forward = (
-            CourtroomForward.objects.filter(
-                efiling_id=efiling_id,
-                forwarded_for_date=forwarded_for_date,
-                bench_key__in=allowed_bench_keys,
-            )
-            .order_by("-id")
-            .first()
+        # Ensure there is an authorized forward row and resolve an unambiguous
+        # bench role slot for this decision.
+        fwd_qs = CourtroomForward.objects.filter(
+            efiling_id=efiling_id,
+            forwarded_for_date=forwarded_for_date,
         )
-        if not forward:
+        if forward_bench_key:
+            fwd_qs = fwd_qs.filter(bench_key=forward_bench_key)
+        candidate_forwards = list(fwd_qs.order_by("-id"))
+        if not candidate_forwards:
             raise ValidationError({"detail": "Case not forwarded for this date."})
+        resolved_candidates: list[tuple[CourtroomForward, str]] = []
+        for fwd in candidate_forwards:
+            if not _judge_can_view_forward(user_groups, fwd.bench_key):
+                continue
+            try:
+                role_group = resolve_bench_role_group_for_forward(user, fwd.bench_key)
+            except ValueError:
+                continue
+            resolved_candidates.append((fwd, role_group))
 
-        if not _judge_can_view_forward(user_groups, forward.bench_key):
-            raise ValidationError({"detail": "Not authorized for this case/bench."})
+        if not resolved_candidates:
+            raise ValidationError(
+                {
+                    "detail": (
+                        "Unable to resolve judge role slot for this bench. "
+                        "Configure judge role mapping (CJ/J1/J2)."
+                    )
+                }
+            )
+        if forward_bench_key:
+            resolved_candidates = [
+                item for item in resolved_candidates if item[0].bench_key == forward_bench_key
+            ]
+            if not resolved_candidates:
+                raise ValidationError({"detail": "Not authorized for the selected bench slot."})
+        distinct_roles = {role for _, role in resolved_candidates}
+        if len(distinct_roles) > 1:
+            # Prefer exact bench-slot forwards (single required group) to avoid cross-slot collisions
+            # when users are API_JUDGE-like in legacy deployments.
+            scoped = []
+            for fwd, role in resolved_candidates:
+                req = tuple(get_required_judge_groups(fwd.bench_key))
+                if len(req) == 1:
+                    scoped.append((fwd, req[0]))
+            if scoped:
+                resolved_candidates = scoped
+                distinct_roles = {role for _, role in resolved_candidates}
+        if len(distinct_roles) > 1:
+            raise ValidationError(
+                {
+                    "detail": (
+                        "Ambiguous judge role for this case/date. "
+                        "Open the case from the specific bench slot and submit again."
+                    )
+                }
+            )
+        _forward, bench_role_group = resolved_candidates[0]
+
+        conflict_exists = CourtroomJudgeDecision.objects.filter(
+            efiling_id=efiling_id,
+            forwarded_for_date=forwarded_for_date,
+            bench_role_group=bench_role_group,
+        ).exclude(judge_user_id=user.id).exists()
+        if conflict_exists:
+            raise ValidationError(
+                {
+                    "detail": (
+                        "This bench role slot is already recorded by another judge "
+                        "for the selected case/date."
+                    )
+                }
+            )
 
         obj, _created = CourtroomJudgeDecision.objects.update_or_create(
             judge_user=user,
@@ -685,8 +792,22 @@ class CourtroomDecisionView(APIView):
                 "status": status,
                 "approved": approved,
                 "decision_notes": decision_notes,
+                "bench_role_group": bench_role_group,
             },
         )
+        try:
+            apply_judge_decision(
+                efiling_id=int(efiling_id),
+                forwarded_for_date=forwarded_for_date,
+                bench_key=str(_forward.bench_key),
+                bench_role_group=str(bench_role_group),
+                judge_user_id=int(user.id),
+                status=str(status),
+                approved=bool(approved),
+                decision_notes=decision_notes,
+            )
+        except Exception:
+            logger.exception("bench workflow state judge-decision dual-write failed")
         valid_req_doc_ids = set()
         if requested_document_index_ids:
             valid_req_doc_ids = set(
@@ -883,3 +1004,171 @@ class CourtroomSharedViewAPIView(APIView):
         ).update(is_active=False, updated_by=user, updated_at=timezone.now())
         
         return Response({"status": "inactive"}, status=drf_status.HTTP_200_OK)
+
+
+class JudgeStenoWorkflowListView(APIView):
+    def get(self, request, *args, **kwargs):
+        _assert_judge(request)
+        ann_qs = JudgeDraftAnnotation.objects.filter(is_active=True).order_by("id")
+        rows = (
+            StenoOrderWorkflow.objects.filter(
+                workflow_status__in=[
+                    StenoOrderWorkflow.WorkflowStatus.SENT_FOR_JUDGE_APPROVAL,
+                    StenoOrderWorkflow.WorkflowStatus.CHANGES_REQUESTED,
+                    StenoOrderWorkflow.WorkflowStatus.JUDGE_APPROVED,
+                    StenoOrderWorkflow.WorkflowStatus.SIGNED_AND_PUBLISHED,
+                ],
+                is_active=True,
+            )
+            .select_related("efiling", "proceeding", "draft_document_index")
+            .prefetch_related(Prefetch("judge_annotations", queryset=ann_qs))
+            .order_by("-updated_at", "-id")
+        )
+        items = []
+        for row in rows:
+            draft_id = row.draft_document_index_id
+            ann_list = [
+                {
+                    "id": a.id,
+                    "note_text": a.note_text,
+                    "page_number": a.page_number,
+                    "status": a.status,
+                    "annotation_type": a.annotation_type,
+                    "x": str(a.x) if a.x is not None else None,
+                    "y": str(a.y) if a.y is not None else None,
+                    "width": str(a.width) if a.width is not None else None,
+                    "height": str(a.height) if a.height is not None else None,
+                    "created_at": a.created_at.isoformat() if a.created_at else None,
+                }
+                for a in row.judge_annotations.all()
+            ]
+            items.append(
+                {
+                    "workflow_id": row.id,
+                    "efiling_id": row.efiling_id,
+                    "case_number": row.efiling.case_number,
+                    "e_filing_number": row.efiling.e_filing_number,
+                    "document_type": row.document_type,
+                    "draft_document_index_id": draft_id,
+                    "draft_preview_url": _steno_draft_stream_url(request, draft_id),
+                    "workflow_status": row.workflow_status,
+                    "judge_approval_status": row.judge_approval_status,
+                    "proceedings_text": row.proceeding.proceedings_text,
+                    "reader_remark": row.proceeding.reader_remark,
+                    "hearing_date": row.proceeding.hearing_date.isoformat(),
+                    "next_listing_date": row.proceeding.next_listing_date.isoformat(),
+                    "judge_annotations": ann_list,
+                }
+            )
+        return Response({"items": items}, status=drf_status.HTTP_200_OK)
+
+
+class JudgeStenoWorkflowAnnotationView(APIView):
+    def post(self, request, *args, **kwargs):
+        judge_user = _assert_judge(request)
+        payload = JudgeDraftAnnotationUpsertSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        workflow = StenoOrderWorkflow.objects.filter(
+            id=payload.validated_data["workflow_id"], is_active=True
+        ).first()
+        if not workflow:
+            raise ValidationError({"workflow_id": "Invalid workflow_id."})
+        annotation = JudgeDraftAnnotation.objects.create(
+            workflow=workflow,
+            page_number=payload.validated_data.get("page_number"),
+            x=payload.validated_data.get("x"),
+            y=payload.validated_data.get("y"),
+            width=payload.validated_data.get("width"),
+            height=payload.validated_data.get("height"),
+            annotation_type=payload.validated_data.get("annotation_type"),
+            note_text=payload.validated_data["note_text"],
+            created_by=judge_user,
+            updated_by=judge_user,
+        )
+        return Response(
+            {"annotation_id": annotation.id, "status": annotation.status},
+            status=drf_status.HTTP_200_OK,
+        )
+
+
+class JudgeStenoWorkflowAnnotationsSnapshotView(APIView):
+    """
+    Replace all *positional* mark-up for a workflow (canvas marks) in one request.
+    Rows with no page and no x/y (quick text-only notes) are kept.
+    """
+
+    def post(self, request, *args, **kwargs):
+        judge_user = _assert_judge(request)
+        payload = JudgeStenoAnnotationsSnapshotSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        workflow = StenoOrderWorkflow.objects.filter(
+            id=payload.validated_data["workflow_id"], is_active=True
+        ).first()
+        if not workflow:
+            raise ValidationError({"workflow_id": "Invalid workflow_id."})
+        positional = (
+            Q(page_number__isnull=False)
+            | Q(x__isnull=False)
+            | Q(y__isnull=False)
+            | Q(width__isnull=False)
+            | Q(height__isnull=False)
+        )
+        rows = payload.validated_data["annotations"]
+        with transaction.atomic():
+            JudgeDraftAnnotation.objects.filter(workflow=workflow).filter(positional).delete()
+            for row in rows:
+                JudgeDraftAnnotation.objects.create(
+                    workflow=workflow,
+                    page_number=row.get("page_number"),
+                    x=row.get("x"),
+                    y=row.get("y"),
+                    width=row.get("width"),
+                    height=row.get("height"),
+                    annotation_type=row.get("annotation_type"),
+                    note_text=row["note_text"],
+                    created_by=judge_user,
+                    updated_by=judge_user,
+                )
+        return Response({"saved": len(rows)}, status=drf_status.HTTP_200_OK)
+
+
+class JudgeStenoWorkflowDecisionView(APIView):
+    def post(self, request, *args, **kwargs):
+        judge_user = _assert_judge(request)
+        payload = JudgeWorkflowDecisionSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        workflow = StenoOrderWorkflow.objects.filter(
+            id=payload.validated_data["workflow_id"], is_active=True
+        ).first()
+        if not workflow:
+            raise ValidationError({"workflow_id": "Invalid workflow_id."})
+        status = payload.validated_data["judge_approval_status"]
+        notes = payload.validated_data.get("judge_approval_notes")
+        if status == "APPROVED":
+            workflow.judge_approval_status = StenoOrderWorkflow.JudgeApprovalStatus.APPROVED
+            workflow.workflow_status = StenoOrderWorkflow.WorkflowStatus.JUDGE_APPROVED
+            workflow.judge_approved_by = judge_user
+            workflow.judge_approved_at = timezone.now()
+        else:
+            workflow.judge_approval_status = StenoOrderWorkflow.JudgeApprovalStatus.REJECTED
+            workflow.workflow_status = StenoOrderWorkflow.WorkflowStatus.CHANGES_REQUESTED
+        workflow.judge_approval_notes = notes
+        workflow.updated_by = judge_user
+        workflow.save(
+            update_fields=[
+                "judge_approval_status",
+                "workflow_status",
+                "judge_approved_by",
+                "judge_approved_at",
+                "judge_approval_notes",
+                "updated_by",
+                "updated_at",
+            ]
+        )
+        return Response(
+            {
+                "workflow_status": workflow.workflow_status,
+                "judge_approval_status": workflow.judge_approval_status,
+            },
+            status=drf_status.HTTP_200_OK,
+        )

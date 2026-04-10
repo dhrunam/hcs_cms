@@ -1,7 +1,9 @@
-<app-navbar></app-navbar>
-<div class="d-flex w-100">
-    <app-sidebar></app-sidebar>
-    <div class="w-100 p-4" style="background: rgb(249, 249, 249);">
+<div class="advocate-dashboard">
+  <app-navbar class="advocate-navbar"></app-navbar>
+  <div class="advocate-body">
+    <app-sidebar class="advocate-sidebar"></app-sidebar>
+    <div class="advocate-content">
       <router-outlet></router-outlet>
     </div>
+  </div>
 </div>

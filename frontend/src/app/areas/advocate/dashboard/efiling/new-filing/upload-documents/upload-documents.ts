@@ -97,8 +97,10 @@ export class UploadDocuments implements OnInit, OnChanges {
   @Input() existingIndexNames: string[] = [];
   /** Enforce and auto-sequence mandatory indexes (e.g. WP(C) Main Petition). */
   @Input() mandatoryIndexNames: string[] = [];
-  /** Enables sequential annexures (Annexure P1, P2, …). */
+  /** Enables sequential annexures (Annexure P1, P2, … by default). */
   @Input() enableAnnexureSequence = false;
+  /** Letter after "Annexure " before the sequence number: P (petitioner), A (appellant), R (respondent). */
+  @Input() annexureSequenceLetter: "P" | "A" | "R" = "P";
   /**
    * After which mandatory row (0-based) the Annexure(s) row appears; `-1` = before all.
    * From API sequence when parent provides it; otherwise the component falls back to Vakalatnama/last row.
@@ -200,6 +202,99 @@ export class UploadDocuments implements OnInit, OnChanges {
       this.syncDocumentIndexMasters();
       this.ensureIndexMastersForMatching();
     }
+    if (
+      changes["annexureSequenceLetter"] &&
+      !changes["annexureSequenceLetter"].firstChange
+    ) {
+      this.renameAnnexuresToCurrentLetter();
+      this.syncAnnexureCounterForCurrentLetter();
+      this.cdr.markForCheck();
+    }
+  }
+
+  /** Annexure P1 / A2 / R3 … auto-generated index names. */
+  private static readonly ANNEXURE_AUTO_NAME_RE =
+    /^annexure\s+([arp])\s*(\d+)\s*$/i;
+
+  private annexureRenamedName(
+    indexName: string,
+    letter: "P" | "A" | "R",
+  ): string | null {
+    const m = String(indexName || "")
+      .trim()
+      .match(UploadDocuments.ANNEXURE_AUTO_NAME_RE);
+    if (!m) return null;
+    return `Annexure ${letter}${m[2]}`;
+  }
+
+  private resolveIndexIdForAnnexureName(name: string): number | null {
+    const matchedMaster = this.indexMasters.find(
+      (item) => item.name.toLowerCase() === String(name || "").toLowerCase(),
+    );
+    return matchedMaster ? matchedMaster.id : null;
+  }
+
+  /**
+   * When litigant type changes, restage annexure labels to the new P/A/R letter
+   * while keeping numeric suffixes.
+   */
+  private renameAnnexuresToCurrentLetter(): void {
+    const letter = this.getAnnexureLetter();
+
+    if (this.annexureRows.length > 0) {
+      this.annexureRows = this.annexureRows.map((row) => {
+        const newName = this.annexureRenamedName(row.index_name, letter);
+        if (!newName) return row;
+        return {
+          ...row,
+          index_name: newName,
+          index_id: this.resolveIndexIdForAnnexureName(newName),
+        };
+      });
+    }
+
+    if (this.entries.some((e) => e.is_annexure)) {
+      this.entries = this.entries.map((entry) => {
+        if (!entry.is_annexure) return entry;
+        const newName = this.annexureRenamedName(entry.index_name, letter);
+        if (!newName) return entry;
+        return {
+          ...entry,
+          index_name: newName,
+          index_id: this.resolveIndexIdForAnnexureName(newName),
+        };
+      });
+    }
+  }
+
+  private getAnnexureLetter(): "P" | "A" | "R" {
+    const c = String(this.annexureSequenceLetter ?? "P")
+      .trim()
+      .toUpperCase();
+    if (c === "A" || c === "R" || c === "P") return c;
+    return "P";
+  }
+
+  /** Next annexure index name for the current letter; flat annexures only. */
+  private maxFlatAnnexureSuffixForLetter(letter: string): number {
+    let max = 0;
+    const L = letter.toUpperCase();
+    const re = /^annexure\s+([arp])\s*(\d+)\s*$/i;
+    for (const e of this.getAnnexureEntries()) {
+      const m = String(e.index_name || "").trim().match(re);
+      if (m && m[1].toUpperCase() === L) {
+        const n = parseInt(m[2], 10);
+        if (Number.isFinite(n)) max = Math.max(max, n);
+      }
+    }
+    return max;
+  }
+
+  private syncAnnexureCounterForCurrentLetter(): void {
+    const L = this.getAnnexureLetter();
+    const flatMax = this.maxFlatAnnexureSuffixForLetter(L);
+    const structMax = this.maxAnnexureNameSuffix(this.annexureRows, L);
+    this.annexureCounter = Math.max(flatMax, structMax) + 1;
   }
 
   /**
@@ -229,7 +324,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     if (this.indexMasters.length > 0) {
       return;
     }
-    if (!this.mandatoryIndexNames?.length || !this.caseTypeId) {
+    if (!this.caseTypeId) {
       return;
     }
     this.fetchCaseTypeDocumentIndexes(() => this.cdr.markForCheck());
@@ -463,7 +558,7 @@ export class UploadDocuments implements OnInit, OnChanges {
 
   /**
    * "Add Annexures" opens the file dialog; each chosen PDF becomes a row
-   * Annexure P1, P2, … in order.
+   * Annexure {P|A|R}1, … in order for the active annexureSequenceLetter.
    */
   onStructuredAnnexureFilesPicked(event: Event): void {
     if (this.isUploading) return;
@@ -478,9 +573,10 @@ export class UploadDocuments implements OnInit, OnChanges {
       input.value = "";
       return;
     }
+    const letter = this.getAnnexureLetter();
     let n = this.getNextAnnexureSequenceNumber();
     const additions: StructuredIndexRow[] = valid.map((file) => {
-      const name = `Annexure P${n++}`;
+      const name = `Annexure ${letter}${n++}`;
       const matchedMaster = this.indexMasters.find(
         (item) => item.name.toLowerCase() === name.toLowerCase(),
       );
@@ -498,16 +594,25 @@ export class UploadDocuments implements OnInit, OnChanges {
   }
 
   private getNextAnnexureSequenceNumber(): number {
-    const fromNames = this.maxAnnexureNameSuffix(this.annexureRows);
-    return Math.max(fromNames, this.annexureRows.length) + 1;
+    const L = this.getAnnexureLetter();
+    const fromNames = this.maxAnnexureNameSuffix(this.annexureRows, L);
+    const countForLetter = this.annexureRows.filter((r) => {
+      const m = String(r.index_name || "").trim().match(/^annexure\s+([arp])\s*\d+\s*$/i);
+      return m && m[1].toUpperCase() === L;
+    }).length;
+    return Math.max(fromNames, countForLetter) + 1;
   }
 
-  private maxAnnexureNameSuffix(rows: StructuredIndexRow[]): number {
+  private maxAnnexureNameSuffix(
+    rows: StructuredIndexRow[],
+    letter: string,
+  ): number {
     let max = 0;
+    const L = letter.toUpperCase();
     const re = /^annexure\s+([arp])\s*(\d+)\s*$/i;
     for (const r of rows) {
       const m = String(r.index_name || "").trim().match(re);
-      if (m) {
+      if (m && m[1].toUpperCase() === L) {
         const n = parseInt(m[2], 10);
         if (Number.isFinite(n)) max = Math.max(max, n);
       }
@@ -688,8 +793,10 @@ export class UploadDocuments implements OnInit, OnChanges {
     }
     if (valid.length === 0) return;
 
+    const letter = this.getAnnexureLetter();
+    let n = this.maxFlatAnnexureSuffixForLetter(letter) + 1;
     const annexureEntries: DocumentUploadEntry[] = valid.map((file) => {
-      const idx = `Annexure P${this.annexureCounter++}`;
+      const idx = `Annexure ${letter}${n++}`;
       const matchedMaster = this.indexMasters.find(
         (item) => item.name.toLowerCase() === idx.toLowerCase(),
       );
@@ -702,6 +809,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     });
 
     this.entries = [...this.entries, ...annexureEntries];
+    this.annexureCounter = n;
     this.form.patchValue({
       final_document: this.entries.length > 0 ? this.entries[0].file : null,
     });
@@ -776,8 +884,9 @@ export class UploadDocuments implements OnInit, OnChanges {
   private getDocumentIndexUniverse(): string[] {
     const base = this.getDocTypeDocuments();
     if (this.mandatoryIndexNames?.length) {
+      const L = this.getAnnexureLetter();
       const annexureItems = this.enableAnnexureSequence
-        ? Array.from({ length: 15 }, (_, i) => `Annexure P${i + 1}`)
+        ? Array.from({ length: 15 }, (_, i) => `Annexure ${L}${i + 1}`)
         : [];
       return [...this.mandatoryIndexNames, ...annexureItems];
     }
@@ -794,7 +903,8 @@ export class UploadDocuments implements OnInit, OnChanges {
     }
 
     if (this.enableAnnexureSequence) {
-      return `Annexure P${this.annexureCounter++}`;
+      const L = this.getAnnexureLetter();
+      return `Annexure ${L}${this.annexureCounter++}`;
     }
     return "";
   }

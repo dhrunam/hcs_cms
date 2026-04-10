@@ -1,7 +1,7 @@
 import { CommonModule } from "@angular/common";
 import { Component } from "@angular/core";
 import { FormsModule } from "@angular/forms";
-import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
+import { DomSanitizer, SafeResourceUrl, SafeHtml } from "@angular/platform-browser";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
 import Swal from "sweetalert2";
 
@@ -20,6 +20,7 @@ export class JudgeCourtroomPage {
   benchLabel = benchLabel;
   efilingId: number | null = null;
   forwardedForDate: string | null = null;
+  forwardBenchKey: string | null = null;
 
   isLoading = false;
   loadError = "";
@@ -52,6 +53,8 @@ export class JudgeCourtroomPage {
 
     this.forwardedForDate =
       this.route.snapshot.queryParamMap.get("forwarded_for_date");
+    this.forwardBenchKey =
+      this.route.snapshot.queryParamMap.get("forward_bench_key");
     if (!this.efilingId || !this.forwardedForDate) {
       this.loadError = "Missing case id or forwarded_for_date.";
       return;
@@ -73,15 +76,19 @@ export class JudgeCourtroomPage {
     this.loadError = "";
 
     this.courtroomService
-      .getCaseSummary(this.efilingId, this.forwardedForDate)
+      .getCaseSummary(this.efilingId, this.forwardedForDate, this.forwardBenchKey)
       .subscribe({
         next: (resp) => {
           this.caseSummary = resp ?? null;
           this.forwardedForDate =
             resp?.forwarded_for_date ?? this.forwardedForDate;
+          this.forwardBenchKey =
+            resp?.forward_bench_key ?? this.forwardBenchKey;
           this.decisionNotes = resp?.judge_decision?.decision_notes ?? "";
           this.loadCaseDocuments();
           this.isLoading = false;
+
+          console.log("Case Summary Is", this.caseSummary);
         },
         error: (err) => {
           console.warn("Failed to load courtroom case summary", err);
@@ -90,6 +97,23 @@ export class JudgeCourtroomPage {
         },
       });
   }
+
+ formatVs(text: string): SafeHtml {
+  if (!text) return '';
+
+  // Step 1: Title case
+  let formatted = text
+    .toLowerCase()
+    .replace(/\b\w/g, c => c.toUpperCase());
+
+  // Step 2: Replace vs
+  formatted = formatted.replace(
+    /\bVs\.?\s*/g,
+    '<span class="vs-circle">vs</span> ',
+  );
+
+  return this.sanitizer.bypassSecurityTrustHtml(formatted);
+}
 
   submitDecision(): void {
     if (!this.canWrite || !this.efilingId || !this.forwardedForDate) return;
@@ -107,6 +131,7 @@ export class JudgeCourtroomPage {
         .saveDecision({
           efiling_id: this.efilingId!,
           forwarded_for_date: this.forwardedForDate!,
+          forward_bench_key: this.caseSummary?.forward_bench_key || undefined,
           decision_notes: this.decisionNotes || null,
         })
         .subscribe({
@@ -138,7 +163,7 @@ export class JudgeCourtroomPage {
     if (!this.efilingId || !this.forwardedForDate) return;
     this.documentsLoadError = "";
     this.courtroomService
-      .getCaseDocuments(this.efilingId, this.forwardedForDate, false)
+      .getCaseDocuments(this.efilingId, this.forwardedForDate, this.forwardBenchKey, false)
       .subscribe({
         next: (resp) => {
           this.allCaseDocuments = resp?.items ?? [];

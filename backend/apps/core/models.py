@@ -314,11 +314,27 @@ class Efiling(BaseModel):
 
         super().save(*args, **kwargs)
 
-    def build_case_number(self) -> str:
-        filing_number = (self.e_filing_number or "").strip()
-        if not filing_number:
-            raise ValueError("E-filing number is required before generating a case number.")
-        return f"{filing_number}"
+    def build_case_number(self) -> tuple[str, int, int]:
+        current_year = timezone.now().year
+        case_type = self.case_type
+
+        if case_type is None:
+            raise ValueError("Case type is required before generating a case number.")
+
+        type_name = (case_type.type_name or "").strip()
+        if not type_name:
+            raise ValueError("Case type name is required before generating a case number.")
+
+        stored_reg_year = int(case_type.reg_year or 0)
+        stored_reg_no = int(case_type.reg_no or 0)
+
+        if stored_reg_year != current_year:
+            next_reg_no = 1
+        else:
+            next_reg_no = stored_reg_no + 1 if stored_reg_no > 0 else 1
+
+        case_number = f"{type_name}/{next_reg_no}/{current_year}"
+        return case_number, next_reg_no, current_year
 
 class DocumentIndex(BaseModel):
     name=models.CharField(max_length=215, null=False, blank=False)
@@ -415,6 +431,7 @@ class EfilingDocuments(BaseModel):
     parent_e_filing_document = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='child_documents')
     final_document = models.FileField(upload_to='media/efile/final_documents/', max_length=512, blank=True, null=True)
     is_ia = models.BooleanField(default=False) 
+    filed_by = models.CharField(max_length=100, blank=True, null=True)
     class Meta:
       
         db_table = 'efiling_documents'

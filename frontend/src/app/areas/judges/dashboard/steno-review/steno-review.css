@@ -1,0 +1,33 @@
+:host {
+  display: block;
+}
+
+.steno-draft-pdf {
+  height: 72vh;
+  min-height: 28rem;
+  max-height: 72vh;
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+
+.summary-card {
+  border: 1px solid var(--bs-border-color, #dee2e6);
+}
+
+.status-heading {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.steno-draft-pdf app-pdf-annotator {
+  display: block;
+  height: 100%;
+}
+
+@media (max-width: 992px) {
+  .steno-draft-pdf {
+    height: 65vh;
+    max-height: 65vh;
+  }
+}

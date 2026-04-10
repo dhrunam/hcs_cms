@@ -26,6 +26,7 @@ from apps.judge.models import (
     CourtroomJudgeDecision,
 )
 from apps.reader.models import CourtroomForward
+from apps.reader.workflow_state import apply_cause_list_published
 from apps.listing.models import CauseList, CauseListEntry
 from apps.listing.pdf_service import CauseListRow, generate_cause_list_pdf_bytes
 from apps.listing.serializers import (
@@ -62,8 +63,9 @@ def _cause_list_target_efiling_ids(cld_obj: date_type | None, bench_key: str) ->
     by_listing = set(
         CourtroomJudgeDecision.objects.filter(
             listing_date=cld_obj,
-            approved=True,
             efiling_id__in=on_bench,
+            # Reader must have pushed the case to listing flow; prevents judge-only bypass.
+            reader_listing_remark__isnull=False,
         ).values_list("efiling_id", flat=True)
     )
     return set(by_forward) | set(by_listing)
@@ -536,6 +538,7 @@ class CauseListPublishView(APIView):
             cause_list.save(
                 update_fields=["pdf_file", "status", "published_at", "generated_by", "updated_at"]
             )
+            apply_cause_list_published(cause_list)
 
         return Response(
             {
@@ -709,6 +712,7 @@ class CauseListPublishDirectView(APIView):
             if user:
                 cause_list.generated_by = user
             cause_list.save(update_fields=["pdf_file", "status", "published_at", "generated_by", "updated_at"])
+            apply_cause_list_published(cause_list)
 
         return Response(
             {

@@ -36,6 +36,24 @@
           />
           <span>IA Filing</span>
         </label>
+        <label class="filing-radio">
+          <input
+            type="radio"
+            name="filingType"
+            [checked]="activeTab === 'vakalatnama'"
+            (change)="setActive('vakalatnama')"
+          />
+          <span>Vakalatnama Filing</span>
+        </label>
+        <label class="filing-radio">
+          <input
+            type="radio"
+            name="filingType"
+            [checked]="activeTab === 'caveat'"
+            (change)="setActive('caveat')"
+          />
+          <span>Caveat Filing</span>
+        </label>
       </div>
     </div>
   </section>
@@ -46,5 +64,19 @@
       *ngIf="activeTab === 'existing'"
     ></app-document-filing-create>
     <app-ia-filing-form *ngIf="activeTab === 'ia'"></app-ia-filing-form>
+    <div *ngIf="activeTab === 'vakalatnama'" class="filing-tab-placeholder">
+      <h3 class="filing-tab-placeholder-title">Vakalatnama filing</h3>
+      <p class="filing-tab-placeholder-text">
+        This filing type will be available here. Use <strong>New Filing</strong>
+        until the vakalatnama workflow is enabled.
+      </p>
+    </div>
+    <div *ngIf="activeTab === 'caveat'" class="filing-tab-placeholder">
+      <h3 class="filing-tab-placeholder-title">Caveat filing</h3>
+      <p class="filing-tab-placeholder-text">
+        This filing type will be available here. Use <strong>New Filing</strong>
+        until the caveat workflow is enabled.
+      </p>
+    </div>
   </section>
 </div>

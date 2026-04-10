@@ -45,20 +45,25 @@ export class CourtroomService {
   getCaseDocuments(
     efiling_id: number,
     forwarded_for_date: string,
+    forward_bench_key?: string | null,
     requested_only: boolean = false,
   ): Observable<{
     items: any[];
   }> {
+    const benchPart = forward_bench_key
+      ? `&forward_bench_key=${encodeURIComponent(String(forward_bench_key))}`
+      : "";
     return this.http.get<{ items: any[] }>(
       `${app_url}/api/v1/judge/courtroom/cases/${efiling_id}/documents/?forwarded_for_date=${encodeURIComponent(
         forwarded_for_date,
-      )}&requested_only=${requested_only ? 'true' : 'false'}`,
+      )}${benchPart}&requested_only=${requested_only ? 'true' : 'false'}`,
     );
   }
 
   getCaseSummary(
     efiling_id: number,
     forwarded_for_date: string,
+    forward_bench_key?: string | null,
   ): Observable<{
     efiling_id: number;
     case_number: string | null;
@@ -91,10 +96,13 @@ export class CourtroomService {
       dispute_taluka: string | null;
     } | null;
   }> {
+    const benchPart = forward_bench_key
+      ? `&forward_bench_key=${encodeURIComponent(String(forward_bench_key))}`
+      : "";
     return this.http.get<any>(
       `${app_url}/api/v1/judge/courtroom/cases/${efiling_id}/summary/?forwarded_for_date=${encodeURIComponent(
         forwarded_for_date,
-      )}`,
+      )}${benchPart}`,
     );
   }
 
@@ -169,6 +177,7 @@ export class CourtroomService {
   saveDecision(payload: {
     efiling_id: number;
     forwarded_for_date: string;
+    forward_bench_key?: string;
     decision_notes?: string | null;
     requested_document_index_ids?: number[];
   }): Observable<any> {
@@ -199,6 +208,50 @@ export class CourtroomService {
 
   getActiveSharedView(efiling_id: number): Observable<any> {
     return this.http.get(`${app_url}/api/v1/judge/courtroom/shares/?efiling_id=${efiling_id}`);
+  }
+
+  getStenoWorkflows(): Observable<{ items: any[] }> {
+    return this.http.get<{ items: any[] }>(`${app_url}/api/v1/judge/steno-workflows/`);
+  }
+
+  /** Replace canvas/positional mark-up; preserves text-only notes (no page, no x/y). */
+  saveStenoWorkflowAnnotationsSnapshot(payload: {
+    workflow_id: number;
+    annotations: Array<{
+      page_number?: number | null;
+      note_text: string;
+      annotation_type: 'COMMENT' | 'HIGHLIGHT' | 'TEXT_REPLACE' | 'FORMAT';
+      x?: number | null;
+      y?: number | null;
+      width?: number | null;
+      height?: number | null;
+    }>;
+  }): Observable<{ saved: number }> {
+    return this.http.post<{ saved: number }>(
+      `${app_url}/api/v1/judge/steno-workflows/annotations/snapshot/`,
+      payload,
+    );
+  }
+
+  addStenoWorkflowAnnotation(payload: {
+    workflow_id: number;
+    note_text: string;
+    annotation_type?: 'COMMENT' | 'HIGHLIGHT' | 'TEXT_REPLACE' | 'FORMAT';
+    page_number?: number | null;
+    x?: number | null;
+    y?: number | null;
+    width?: number | null;
+    height?: number | null;
+  }): Observable<any> {
+    return this.http.post<any>(`${app_url}/api/v1/judge/steno-workflows/annotations/`, payload);
+  }
+
+  decideStenoWorkflow(payload: {
+    workflow_id: number;
+    judge_approval_status: 'APPROVED' | 'REJECTED';
+    judge_approval_notes?: string | null;
+  }): Observable<any> {
+    return this.http.post<any>(`${app_url}/api/v1/judge/steno-workflows/decision/`, payload);
   }
 }
 

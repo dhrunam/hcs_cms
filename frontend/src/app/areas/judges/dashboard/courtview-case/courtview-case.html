@@ -1,9 +1,9 @@
-<div class="elegant-dashboard">
+<div class="elegant-dashboard p-0">
   <div class="d-flex justify-content-between align-items-center mb-4">
     <a
-      class="btn btn-sm btn-light border shadow-sm px-3 rounded-pill"
+      class="btn btn-sm btn-info border shadow-sm px-3 rounded-pill"
       [routerLink]="['/judges/dashboard/courtview']"
-      style="font-weight: 500; color: #475569"
+      style="font-weight: 500; "
     >
       <i class="fa fa-arrow-left me-2"></i> Dashboard
     </a>
@@ -24,82 +24,103 @@
 
   <div
     *ngIf="!isLoading && !loadError && caseSummary"
-    class="animate__animated animate__fadeIn"
+    class="animate__animated animate__fadeIn courtview-shell"
   >
+  <div class="d-flex justify-content-between gap-2">
     <!-- Clean Minimal Header -->
-    <div class="elegant-header">
+    <div class="elegant-header w-100">
       <div class="case-title-row">
-        <div>
-          <h2 class="case-h">
-            {{ caseSummary.case_number || 'No Case Number' }}
-          </h2>
+        <!-- <div style="border: 1px solid #e2e8f0;border-radius: 7px;padding: 10px;">
+          
           <div class="case-meta mt-1">
             Filing Date: {{ caseSummary.filing_date ? (caseSummary.filing_date |
             date:'dd MMM yyyy') : '-' }}
           </div>
-        </div>
-        <button (click)="concludeHearing()" class="btn btn-success">
-          Conclude Hearing
-        </button>
-        <div class="text-end">
-          <div class="litigants-text">
-            <span>{{ petitionerNamesLabel }}</span>
-            <span class="vs-badge">V/S</span>
-            <span>{{ respondentNamesLabel }}</span>
-          </div>
+          
+       </div> -->
+       <div class="text-end d-flex flex-column justify-content-center align-items-start">
+          <h5 class="caseh font-weight-bold fs-6">
+          <!-- {{ caseSummary.case_number || 'No Case Number' }} -->
+            case no: WP(C) / 1/ 2023
+          </h5>
+        <div class="text-center text-dark fw-bold col-12"
+       [innerHTML]="formatVs(caseSummary.petitioner_name)">
+
         </div>
       </div>
+      <div
+  *ngIf="caseSummary.is_published"
+  class="elegant-panel share-panel d-flex justify-content-between align-items-center flex-wrap gap-2"
+  [class.share-active]="activeShare"
+>
+
+  <!-- Left: Title -->
+  <div class="d-flex align-items-center gap-2">
+    <i class="fa fa-broadcast-tower text-muted"></i>
+    <span class="panel-title mb-0">Live View</span>
+
+    <span *ngIf="activeShare" class="live-indicator">LIVE</span>
+  </div>
+
+  <!-- Middle: Status -->
+  <div class="d-flex align-items-center text-muted small flex-grow-1 justify-content-center text-truncate">
+
+    <ng-container *ngIf="!activeShare">
+      <i class="fa fa-podcast me-1"></i>
+      Waiting...
+    </ng-container>
+
+    <ng-container *ngIf="activeShare">
+      <i class="fa fa-user-circle me-1"></i>
+      <span class="text-truncate">
+        {{ activeShare.advocate_name }}
+      </span>
+
+      <span *ngIf="isSyncEnabled" class="mx-2">•</span>
+
+      <!-- <span *ngIf="isSyncEnabled" class="text-primary d-flex align-items-center">
+        <i class="fa fa-file-text-o me-1"></i>
+        Pg {{ activeShare.page_index + 1 }}
+      </span> -->
+    </ng-container>
+
+  </div>
+
+  <!-- Right: Action -->
+  <div *ngIf="activeShare" class="d-flex align-items-center">
+
+    <button
+      class="btn btn-sm btn-sync d-flex align-items-center gap-1"
+      [class.btn-sync-active]="isSyncEnabled"
+      (click)="toggleSync()"
+    >
+      <i
+        class="fa"
+        [class.fa-link]="!isSyncEnabled"
+        [class.fa-unlink]="isSyncEnabled"
+      ></i>
+
+      {{ isSyncEnabled ? 'Following' : 'Follow' }}
+    </button>
+
+  </div>
+
+</div>
+        
+        
+        
+      </div>
     </div>
+     
+    </div>
+   
 
     <!-- Unified Single Column Layout for Extreme Simplicity -->
-    <div class="row g-4 h-100">
+    <div class="row g-4 h-100 courtview-main">
       <!-- Left Sidebar: Summary + Nav -->
-      <div class="col-xl-3 col-lg-4">
+      <div class="col-xl-2 col-lg-2 courtview-sidebar">
         <!-- Advocate Shared View Box (ONLY if published) -->
-        <div
-          *ngIf="caseSummary.is_published"
-          class="elegant-panel mb-4 share-panel"
-          [class.share-active]="activeShare"
-        >
-          <div
-            class="panel-title d-flex justify-content-between align-items-center"
-          >
-            <span>Advocate Live View</span>
-            <span *ngIf="activeShare" class="live-indicator">LIVE</span>
-          </div>
-
-          <div *ngIf="!activeShare" class="no-share-content">
-            <i class="fa fa-podcast mb-2"></i>
-            <p>Waiting for advocate to share...</p>
-          </div>
-
-          <div *ngIf="activeShare" class="share-info">
-            <div class="advocate-name">
-              <i class="fa fa-user-circle me-1"></i> {{
-              activeShare.advocate_name }}
-            </div>
-            <div class="current-doc text-truncate" *ngIf="isSyncEnabled">
-              <i class="fa fa-file-text-o me-1"></i> {{
-              previewDocument?.document_part_name }}
-            </div>
-            <div class="current-page" *ngIf="isSyncEnabled">
-              Page {{ activeShare.page_index + 1 }}
-            </div>
-
-            <button
-              class="btn btn-sync mt-3 w-100"
-              [class.btn-sync-active]="isSyncEnabled"
-              (click)="toggleSync()"
-            >
-              <i
-                class="fa"
-                [class.fa-link]="!isSyncEnabled"
-                [class.fa-unlink]="isSyncEnabled"
-              ></i>
-              {{ isSyncEnabled ? 'Following' : 'Follow Advocate' }}
-            </button>
-          </div>
-        </div>
+        
 
         <!-- Pre-Listing Alert (if not published) -->
         <div
@@ -123,7 +144,7 @@
         </div>
 
         <!-- Documents Box -->
-        <div class="elegant-panel pb-2">
+        <div class="elegant-panel pb-2 pleadings-panel">
           <div
             class="panel-title d-flex justify-content-between align-items-center mb-2"
           >
@@ -186,7 +207,7 @@
       </div>
 
       <!-- Right Main: Minimalist PDF Annotator Surface -->
-      <div class="col-xl-9 col-lg-8">
+      <div class="col-xl-10 col-lg-10 courtview-viewer">
         <div class="annotator-container">
           <app-pdf-annotator
             *ngIf="previewDocumentBlobUrl; else noDocPreview"

@@ -81,6 +81,23 @@
   border: 1px solid var(--border);
 }
 
+.filing-tab-placeholder {
+  padding: 12px 4px 8px;
+}
+
+.filing-tab-placeholder-title {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.filing-tab-placeholder-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
 @media (max-width: 768px) {
   .filing-radio {
     width: 100%;

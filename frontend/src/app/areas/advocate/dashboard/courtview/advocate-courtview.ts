@@ -83,7 +83,7 @@ export class AdvocateCourtviewPage implements OnInit, OnDestroy {
 
   private loadCaseDocuments(): void {
     if (!this.efilingId || !this.forwardedForDate) return;
-    this.courtroomService.getCaseDocuments(this.efilingId, this.forwardedForDate, false).subscribe({
+    this.courtroomService.getCaseDocuments(this.efilingId, this.forwardedForDate, null ,false).subscribe({
       next: (resp) => {
         this.allCaseDocuments = resp?.items ?? [];
         if (this.allCaseDocuments.length && !this.previewDocument) {

@@ -2,17 +2,23 @@ from __future__ import annotations
 
 from typing import List
 from datetime import date as date_type
+import logging
 
+from django.db import transaction
 from django.db.models import Prefetch
 from django.db.models import Q
+from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status as drf_status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.models import Efiling, EfilingCaseDetails, EfilingDocumentsIndex
+from apps.core.models import Efiling, EfilingCaseDetails, EfilingDocuments, EfilingDocumentsIndex
+from apps.core.models import ReaderJudgeAssignment, JudgeT
 from apps.core.bench_config import (
+    BENCH_TOKEN_TO_JUDGE_GROUP,
+    LEGACY_READER_GROUP_TO_TOKENS,
     get_accessible_bench_codes_for_reader,
     get_accessible_bench_keys_for_reader,
     get_bench_configuration,
@@ -24,19 +30,68 @@ from apps.core.bench_config import (
     is_reader_allowed_for_bench,
 )
 from apps.efiling.party_display import build_petitioner_vs_respondent
+from apps.efiling.pdf_validators import validate_pdf_file
+from apps.efiling.review_utils import create_scrutiny_history
 from apps.judge.models import (
     CourtroomDecisionRequestedDocument,
     CourtroomJudgeDecision,
+    JudgeDraftAnnotation,
+    JudgeStenoMapping,
 )
 from apps.judge.courtroom_approval import (
     efiling_ids_with_all_required_approvals,
     legacy_role_from_user_for_bench,
 )
-from .models import CourtroomForward, CourtroomForwardDocument
+from apps.listing.models import CauseList, CauseListEntry
+from .models import (
+    BenchWorkflowState,
+    CourtroomForward,
+    CourtroomForwardDocument,
+    ReaderDailyProceeding,
+    StenoOrderWorkflow,
+)
+from .workflow_state import (
+    apply_reader_assign_date,
+    upsert_state_on_forward,
+)
 from .serializers import (
     CourtroomForwardSerializer,
     AssignBenchesSerializer,
+    ReaderDailyProceedingSubmitSerializer,
+    StenoDraftUploadSerializer,
+    StenoSubmitForJudgeSerializer,
+    StenoResolveAnnotationSerializer,
 )
+
+
+def _steno_draft_preview_url(request, document_index_id: int | None) -> str | None:
+    if not document_index_id:
+        return None
+    path = reverse(
+        "efiling:efiling-document-index-stream",
+        kwargs={"document_index_id": int(document_index_id)},
+    )
+    return request.build_absolute_uri(path)
+
+
+def _steno_signed_preview_url(request, document_index_id: int | None) -> str | None:
+    if not document_index_id:
+        return None
+    path = reverse(
+        "efiling:efiling-document-index-stream",
+        kwargs={"document_index_id": int(document_index_id)},
+    )
+    return request.build_absolute_uri(path)
+
+
+_STENO_UPLOAD_ALLOWED = frozenset(
+    {
+        StenoOrderWorkflow.WorkflowStatus.PENDING_UPLOAD,
+        StenoOrderWorkflow.WorkflowStatus.UPLOADED_BY_STENO,
+        StenoOrderWorkflow.WorkflowStatus.CHANGES_REQUESTED,
+    }
+)
+logger = logging.getLogger(__name__)
 
 
 def _get_reader_allowed_bench_keys(
@@ -109,7 +164,11 @@ def _bench_filter_for_configuration(bench_config) -> Q:
 def _is_forward_relevant_to_bench(
     forward: CourtroomForward,
     bench_config,
+    reader_slot_group: str | None = None,
 ) -> bool:
+    if reader_slot_group:
+        forward_groups = tuple(get_required_judge_groups(forward.bench_key))
+        return len(forward_groups) == 1 and forward_groups[0] == reader_slot_group
     forward_groups = set(get_required_judge_groups(forward.bench_key))
     bench_groups = set(bench_config.judge_groups)
     return bool(forward_groups) and forward_groups.issubset(bench_groups)
@@ -118,12 +177,41 @@ def _is_forward_relevant_to_bench(
 def _get_relevant_forwards_for_bench(
     forwards: list[CourtroomForward],
     bench_config,
+    reader_slot_group: str | None = None,
 ) -> list[CourtroomForward]:
     return [
         forward
         for forward in forwards
-        if _is_forward_relevant_to_bench(forward, bench_config)
+        if _is_forward_relevant_to_bench(
+            forward,
+            bench_config,
+            reader_slot_group=reader_slot_group,
+        )
     ]
+
+
+def _resolve_reader_slot_group_for_bench(
+    *,
+    request,
+    bench_config,
+    reader_group: str | None = None,
+) -> str | None:
+    if not bench_config:
+        return None
+    user = request.user if getattr(request.user, "is_authenticated", False) else None
+    if user:
+        mapping = dict(bench_config.reader_user_ids_by_group or ())
+        for group_name, reader_user_id in mapping.items():
+            if int(reader_user_id) == int(user.id):
+                return str(group_name)
+    if reader_group:
+        for token in LEGACY_READER_GROUP_TO_TOKENS.get(reader_group, set()):
+            group_name = BENCH_TOKEN_TO_JUDGE_GROUP.get(token)
+            if group_name and group_name in set(bench_config.judge_groups):
+                return str(group_name)
+    if len(tuple(bench_config.judge_groups or ())) == 1:
+        return str(tuple(bench_config.judge_groups)[0])
+    return None
 
 
 def _resolve_reader_approval_state(
@@ -387,6 +475,10 @@ class RegisteredCasesListView(APIView):
 
         efilings = list(qs[:page_size])
         efiling_ids = [e.id for e in efilings]
+        bench_groups_by_efiling: dict[int, tuple[str, ...]] = {}
+        for e in efilings:
+            cfg = get_bench_configuration_for_stored_value(e.bench)
+            bench_groups_by_efiling[e.id] = tuple(cfg.judge_groups) if cfg else tuple()
 
         forwards_by_efiling: dict[int, list[CourtroomForward]] = {}
         forwards = (
@@ -417,6 +509,29 @@ class RegisteredCasesListView(APIView):
                 k = (int(f.efiling_id), f.forwarded_for_date)
                 if k not in forward_heads:
                     forward_heads[k] = f
+
+            # Phase-A cutover: hydrate maps from canonical state table first.
+            state_rows = BenchWorkflowState.objects.filter(
+                efiling_id__in=e_ids,
+                forwarded_for_date__in=f_dates,
+            ).all()
+            for st in state_rows:
+                key = (int(st.efiling_id), st.forwarded_for_date)
+                role_map = dict(st.decision_by_role or {})
+                if role_map:
+                    decision_map.setdefault(key, {})
+                    decision_status_map.setdefault(key, {})
+                for grp, payload in role_map.items():
+                    if not grp:
+                        continue
+                    decision_map[key][str(grp)] = bool((payload or {}).get("approved"))
+                    decision_status_map[key][str(grp)] = str((payload or {}).get("status") or "")
+                    note_text = (payload or {}).get("decision_notes")
+                    if note_text:
+                        label = str(grp).replace("JUDGE_", "Judge ")
+                        decision_notes_map.setdefault(key, []).append(f"{label}: {note_text}")
+                if st.listing_date:
+                    decision_listing_date_map.setdefault(key, []).append(str(st.listing_date))
 
             decision_rows = list(
                 CourtroomJudgeDecision.objects.filter(
@@ -450,17 +565,24 @@ class RegisteredCasesListView(APIView):
             for d in decision_rows:
                 key = (int(d.efiling_id), d.forwarded_for_date)
                 fwd = forward_heads.get(key)
-                req = tuple(get_required_judge_groups(fwd.bench_key)) if fwd else tuple()
-                grp = d.bench_role_group or (
-                    legacy_role_from_user_for_bench(d.judge_user, req) if req else None
-                )
+                req = bench_groups_by_efiling.get(int(d.efiling_id), tuple())
+                if not req and fwd:
+                    req = tuple(get_required_judge_groups(fwd.bench_key))
+                grp = d.bench_role_group
+                if (not grp) and req:
+                    # Legacy fallback for old rows only. Ambiguous roles return None.
+                    grp = legacy_role_from_user_for_bench(d.judge_user, req)
                 if not grp:
+                    continue
+                if req and grp not in req:
                     continue
                 if key not in decision_map:
                     decision_map[key] = {}
                     decision_status_map[key] = {}
-                decision_map[key][grp] = bool(d.approved)
-                decision_status_map[key][grp] = str(d.status or "")
+                existing_approved = decision_map[key].get(grp)
+                decision_map[key][grp] = bool(d.approved) if existing_approved is None else bool(existing_approved or d.approved)
+                if grp not in decision_status_map[key]:
+                    decision_status_map[key][grp] = str(d.status or "")
 
                 note = (d.decision_notes or "").strip()
                 if note:
@@ -496,10 +618,23 @@ class RegisteredCasesListView(APIView):
             
             assigned_bench = get_bench_configuration_for_stored_value(e.bench)
             relevant_forwards = []
+            reader_slot_forwards = []
             if assigned_bench:
+                reader_slot_group = _resolve_reader_slot_group_for_bench(
+                    request=request,
+                    bench_config=assigned_bench,
+                    reader_group=reader_group,
+                )
+                # Full bench-relevant forwards are used for final approval aggregation.
                 relevant_forwards = _get_relevant_forwards_for_bench(
                     forwards_by_efiling.get(e.id, []),
                     assigned_bench,
+                )
+                # Reader-slot forwards are used to determine if this reader has forwarded yet.
+                reader_slot_forwards = _get_relevant_forwards_for_bench(
+                    forwards_by_efiling.get(e.id, []),
+                    assigned_bench,
+                    reader_slot_group=reader_slot_group,
                 )
                 can_assign_listing_date = _can_reader_assign_listing_date(
                     request,
@@ -525,6 +660,13 @@ class RegisteredCasesListView(APIView):
             approval_forwarded_for_date = approval_state[
                 "approval_forwarded_for_date"
             ]
+            if assigned_bench and not reader_slot_forwards and approval_status != "NOT_FORWARDED":
+                # Enforce per-reader forward scope in dashboard status progression.
+                approval_status = "NOT_FORWARDED"
+                approval_notes = []
+                approval_listing_date = None
+                requested_documents = []
+                approval_forwarded_for_date = None
 
             items.append({
                 "efiling_id": e.id,
@@ -646,6 +788,12 @@ class CourtroomForwardView(APIView):
                 },
             )
             updated += 1
+            upsert_state_on_forward(
+                efiling_id=int(eid),
+                forwarded_for_date=effective_forwarded_for_date,
+                bench_key=bench_key,
+                forwarded_by=user,
+            )
             if document_index_ids:
                 valid_doc_ids = set(EfilingDocumentsIndex.objects.filter(
                     id__in=document_index_ids, document__e_filing_id=eid
@@ -779,6 +927,16 @@ class ReaderAssignDateView(APIView):
             updated_by=user,
             updated_at=timezone.now(),
         )
+        try:
+            apply_reader_assign_date(
+                efiling_ids=[int(x) for x in efiling_ids],
+                forwarded_for_date=timezone.datetime.fromisoformat(str(fwd_date)).date(),
+                listing_date=timezone.datetime.fromisoformat(str(ldate)).date(),
+                listing_remark=lremark,
+                assigned_by=user,
+            )
+        except Exception:
+            logger.exception("bench workflow state assign-date dual-write failed")
 
         return Response({"updated": updated}, status=drf_status.HTTP_200_OK)
 
@@ -804,3 +962,596 @@ class ReaderResetBenchView(APIView):
         efiling.save(update_fields=["bench"])
         
         return Response({"detail": "Bench reset successful. Case returned to Scrutiny pool."}, status=drf_status.HTTP_200_OK)
+
+
+def _resolve_judge_and_steno_for_reader_submission(
+    *,
+    request,
+    efiling: Efiling,
+    reader_group: str | None,
+):
+    acting_user = request.user if getattr(request.user, "is_authenticated", False) else None
+    if not acting_user:
+        return (None, None)
+    assigned_bench = get_bench_configuration_for_stored_value(efiling.bench)
+    bench_key = assigned_bench.bench_key if assigned_bench else None
+
+    judge_t: JudgeT | None = None
+    if assigned_bench and assigned_bench.judge_user_ids:
+        for uid in assigned_bench.judge_user_ids:
+            judge_t = JudgeT.objects.filter(user_id=uid).first()
+            if judge_t:
+                break
+    if not judge_t:
+        assignment = (
+            ReaderJudgeAssignment.objects.filter(
+                reader_user=acting_user,
+                effective_to__isnull=True,
+            )
+            .select_related("judge")
+            .first()
+        )
+        if assignment:
+            judge_t = assignment.judge
+
+    if not judge_t:
+        return (None, None)
+
+    mapping_qs = JudgeStenoMapping.objects.filter(
+        judge_id=judge_t.id,
+        is_active=True,
+    )
+    if bench_key:
+        mapping_qs = mapping_qs.filter(Q(bench_key=bench_key) | Q(bench_key__isnull=True))
+    steno_mapping = mapping_qs.order_by("-effective_from", "-id").first()
+    judge_user_id = judge_t.user_id
+    return (judge_user_id, steno_mapping.steno_user_id if steno_mapping else None)
+
+
+class ReaderDailyProceedingsListView(APIView):
+    def get(self, request, *args, **kwargs):
+        reader_group = request.query_params.get("reader_group")
+        cause_list_date_raw = request.query_params.get("cause_list_date")
+        page_size_raw = request.query_params.get("page_size")
+        page_size = int(page_size_raw) if page_size_raw not in (None, "", "null") else 200
+        if not cause_list_date_raw:
+            raise ValidationError({"cause_list_date": "Required. Use YYYY-MM-DD."})
+        try:
+            cause_list_date = timezone.datetime.fromisoformat(cause_list_date_raw).date()
+        except (TypeError, ValueError):
+            raise ValidationError({"cause_list_date": "Invalid date format. Use YYYY-MM-DD."})
+
+        allowed_bench_filter = _get_reader_allowed_efiling_bench_filter(
+            request,
+            reader_group=reader_group,
+        )
+        state_published_ids = set(
+            BenchWorkflowState.objects.filter(
+                forwarded_for_date=cause_list_date,
+                is_published=True,
+            ).values_list("efiling_id", flat=True)
+        )
+        legacy_published_ids = set(
+            CauseListEntry.objects.filter(
+                cause_list__cause_list_date=cause_list_date,
+                cause_list__status=CauseList.CauseListStatus.PUBLISHED,
+                included=True,
+            ).values_list("efiling_id", flat=True)
+        )
+        if legacy_published_ids != state_published_ids:
+            logger.warning(
+                "bench workflow state mismatch daily proceedings date=%s state=%s legacy=%s",
+                cause_list_date.isoformat(),
+                len(state_published_ids),
+                len(legacy_published_ids),
+            )
+        published_ids = state_published_ids or legacy_published_ids
+        qs = Efiling.objects.filter(
+            id__in=published_ids,
+            is_draft=False,
+            status="ACCEPTED",
+        ).order_by("-id")
+        if allowed_bench_filter is not None:
+            qs = qs.filter(allowed_bench_filter)
+        total = qs.count()
+        efilings = list(qs[:page_size])
+        ids = [x.id for x in efilings]
+
+        latest_proceedings = {}
+        for row in ReaderDailyProceeding.objects.filter(efiling_id__in=ids).order_by(
+            "efiling_id", "-hearing_date", "-id"
+        ):
+            latest_proceedings.setdefault(row.efiling_id, row)
+
+        items = []
+        for e in efilings:
+            bench = get_bench_configuration_for_stored_value(e.bench)
+            can_assign = _can_reader_assign_listing_date(
+                request,
+                bench,
+                reader_group=reader_group,
+            )
+            proceeding = latest_proceedings.get(e.id)
+            workflow = (
+                proceeding.steno_workflows.order_by("-id").first()
+                if proceeding
+                else None
+            )
+            items.append(
+                {
+                    "efiling_id": e.id,
+                    "case_number": e.case_number,
+                    "e_filing_number": e.e_filing_number,
+                    "petitioner_name": e.petitioner_name,
+                    "bench": e.bench,
+                    "bench_key": bench.bench_key if bench else None,
+                    "last_hearing_date": (
+                        proceeding.hearing_date.isoformat() if proceeding else None
+                    ),
+                    "last_next_listing_date": (
+                        proceeding.next_listing_date.isoformat() if proceeding else None
+                    ),
+                    "latest_proceedings_text": (
+                        proceeding.proceedings_text if proceeding else None
+                    ),
+                    "listing_sync_status": (
+                        proceeding.listing_sync_status if proceeding else None
+                    ),
+                    "steno_workflow_status": (
+                        workflow.workflow_status if workflow else None
+                    ),
+                    "can_assign_listing_date": can_assign,
+                }
+            )
+        return Response({"total": total, "items": items}, status=drf_status.HTTP_200_OK)
+
+
+class ReaderDailyProceedingsSubmitView(APIView):
+    def post(self, request, *args, **kwargs):
+        payload = ReaderDailyProceedingSubmitSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        reader_group = request.query_params.get("reader_group")
+        user = request.user if getattr(request.user, "is_authenticated", False) else None
+        efiling_id = payload.validated_data["efiling_id"]
+        hearing_date = payload.validated_data["hearing_date"]
+        next_listing_date = payload.validated_data["next_listing_date"]
+        proceedings_text = payload.validated_data["proceedings_text"]
+        reader_remark = payload.validated_data.get("reader_remark")
+        document_type = payload.validated_data.get("document_type") or "ORDER"
+
+        efiling = Efiling.objects.filter(
+            id=efiling_id,
+            is_draft=False,
+            status="ACCEPTED",
+        ).first()
+        if not efiling:
+            raise ValidationError({"efiling_id": "Invalid case."})
+        assigned_bench = get_bench_configuration_for_stored_value(efiling.bench)
+        if not _can_reader_assign_listing_date(
+            request,
+            assigned_bench,
+            reader_group=reader_group,
+        ):
+            raise ValidationError({"detail": "Not authorized to submit proceedings for this case."})
+
+        proceeding, _ = ReaderDailyProceeding.objects.update_or_create(
+            efiling=efiling,
+            hearing_date=hearing_date,
+            bench_key=assigned_bench.bench_key if assigned_bench else str(efiling.bench),
+            defaults={
+                "next_listing_date": next_listing_date,
+                "proceedings_text": proceedings_text,
+                "reader_remark": reader_remark,
+                "listing_sync_status": ReaderDailyProceeding.ListingSyncStatus.SYNCED,
+                "submitted_by": user,
+                "updated_by": user,
+            },
+        )
+
+        CourtroomJudgeDecision.objects.filter(
+            efiling_id=efiling_id,
+            forwarded_for_date=hearing_date,
+        ).update(
+            listing_date=next_listing_date,
+            reader_listing_remark=reader_remark or proceedings_text,
+            updated_by=user,
+            updated_at=timezone.now(),
+        )
+        try:
+            apply_reader_assign_date(
+                efiling_ids=[int(efiling_id)],
+                forwarded_for_date=hearing_date,
+                listing_date=next_listing_date,
+                listing_remark=reader_remark or proceedings_text,
+                assigned_by=user,
+            )
+        except Exception:
+            logger.exception("bench workflow state submit-proceeding dual-write failed")
+
+        _judge_user_id, steno_user_id = _resolve_judge_and_steno_for_reader_submission(
+            request=request,
+            efiling=efiling,
+            reader_group=reader_group,
+        )
+        workflow, _ = StenoOrderWorkflow.objects.update_or_create(
+            proceeding=proceeding,
+            document_type=document_type,
+            defaults={
+                "efiling": efiling,
+                "assigned_steno_id": steno_user_id,
+                "workflow_status": StenoOrderWorkflow.WorkflowStatus.PENDING_UPLOAD,
+                "judge_approval_status": StenoOrderWorkflow.JudgeApprovalStatus.PENDING,
+                "updated_by": user,
+            },
+        )
+        return Response(
+            {
+                "proceeding_id": proceeding.id,
+                "workflow_id": workflow.id,
+                "listing_sync_status": proceeding.listing_sync_status,
+                "steno_workflow_status": workflow.workflow_status,
+            },
+            status=drf_status.HTTP_200_OK,
+        )
+
+
+class StenoQueueListView(APIView):
+    def get(self, request, *args, **kwargs):
+        user = request.user if getattr(request.user, "is_authenticated", False) else None
+        if not user:
+            raise ValidationError({"detail": "Authentication required."})
+        ann_qs = JudgeDraftAnnotation.objects.filter(is_active=True).order_by("id")
+        rows = (
+            StenoOrderWorkflow.objects.filter(
+                assigned_steno=user,
+                is_active=True,
+            )
+            .select_related("efiling", "proceeding", "draft_document_index")
+            .prefetch_related(
+                Prefetch("judge_annotations", queryset=ann_qs),
+                Prefetch("efiling__litigants"),
+            )
+            .order_by("-updated_at", "-id")
+        )
+        items = []
+        for row in rows:
+            draft_id = row.draft_document_index_id
+            signed_id = row.signed_document_index_id
+            ann_list = [
+                {
+                    "id": a.id,
+                    "note_text": a.note_text,
+                    "page_number": a.page_number,
+                    "status": a.status,
+                    "annotation_type": a.annotation_type,
+                    "created_at": a.created_at.isoformat() if a.created_at else None,
+                }
+                for a in row.judge_annotations.all()
+            ]
+            petitioner_vs_respondent = (
+                (row.efiling.petitioner_name or "").strip()
+                or build_petitioner_vs_respondent(
+                    row.efiling,
+                    fallback_petitioner_name=row.efiling.petitioner_name or "",
+                )
+            )
+            items.append(
+                {
+                    "workflow_id": row.id,
+                    "efiling_id": row.efiling_id,
+                    "case_number": row.efiling.case_number,
+                    "e_filing_number": row.efiling.e_filing_number,
+                    "petitioner_vs_respondent": petitioner_vs_respondent,
+                    "document_type": row.document_type,
+                    "workflow_status": row.workflow_status,
+                    "judge_approval_status": row.judge_approval_status,
+                    "judge_approval_notes": row.judge_approval_notes,
+                    "draft_document_index_id": draft_id,
+                    "draft_preview_url": _steno_draft_preview_url(request, draft_id),
+                    "signed_document_index_id": signed_id,
+                    "signed_preview_url": _steno_signed_preview_url(request, signed_id),
+                    "digitally_signed_at": (
+                        row.digitally_signed_at.isoformat()
+                        if row.digitally_signed_at
+                        else None
+                    ),
+                    "digital_signature_provider": row.digital_signature_provider,
+                    "digital_signature_certificate_serial": row.digital_signature_certificate_serial,
+                    "digital_signature_signer_name": row.digital_signature_signer_name,
+                    "digital_signature_reason": row.digital_signature_reason,
+                    "judge_approved_at": (
+                        row.judge_approved_at.isoformat() if row.judge_approved_at else None
+                    ),
+                    "judge_annotations": ann_list,
+                    "hearing_date": row.proceeding.hearing_date.isoformat(),
+                    "next_listing_date": row.proceeding.next_listing_date.isoformat(),
+                    "proceedings_text": row.proceeding.proceedings_text,
+                }
+            )
+        return Response({"items": items}, status=drf_status.HTTP_200_OK)
+
+
+class StenoDraftFileUploadView(APIView):
+    """Multipart PDF upload: creates EfilingDocumentsIndex on the case and links workflow."""
+
+    def post(self, request, *args, **kwargs):
+        user = request.user if getattr(request.user, "is_authenticated", False) else None
+        if not user:
+            raise ValidationError({"detail": "Authentication required."})
+        raw_wid = request.data.get("workflow_id")
+        try:
+            workflow_id = int(raw_wid)
+        except (TypeError, ValueError):
+            raise ValidationError({"workflow_id": "Invalid workflow_id."})
+        upload = request.FILES.get("file")
+        if not upload:
+            raise ValidationError({"file": "PDF file is required."})
+
+        workflow = (
+            StenoOrderWorkflow.objects.select_related("efiling")
+            .filter(id=workflow_id, is_active=True)
+            .first()
+        )
+        if not workflow:
+            raise ValidationError({"workflow_id": "Invalid workflow_id."})
+        if workflow.assigned_steno_id != getattr(user, "id", None):
+            raise ValidationError({"detail": "Not authorized for this workflow."})
+        if workflow.workflow_status not in _STENO_UPLOAD_ALLOWED:
+            raise ValidationError(
+                {"detail": "Cannot upload a draft in the current workflow state."}
+            )
+
+        validate_pdf_file(upload, "file")
+        if hasattr(upload, "seek"):
+            upload.seek(0)
+        signature_provider = str(request.data.get("signature_provider") or "").strip() or None
+        signature_serial = str(request.data.get("certificate_serial") or "").strip() or None
+        signature_signer = str(request.data.get("signer_name") or "").strip() or None
+        signature_reason = str(request.data.get("signature_reason") or "").strip() or None
+        signature_txn = str(request.data.get("signature_txn_id") or "").strip() or None
+
+        efiling = workflow.efiling
+        had_changes_requested = (
+            workflow.workflow_status == StenoOrderWorkflow.WorkflowStatus.CHANGES_REQUESTED
+        )
+
+        with transaction.atomic():
+            doc_parent, _ = EfilingDocuments.objects.get_or_create(
+                e_filing=efiling,
+                document_type=f"STENO_WF_{workflow.id}",
+                defaults={
+                    "e_filing_number": efiling.e_filing_number,
+                    "is_ia": False,
+                },
+            )
+            last_sequence = (
+                EfilingDocumentsIndex.objects.filter(document__e_filing=efiling)
+                .exclude(document_sequence__isnull=True)
+                .order_by("-document_sequence")
+                .values_list("document_sequence", flat=True)
+                .first()
+            )
+            next_sequence = (last_sequence or 0) + 1
+            index = EfilingDocumentsIndex.objects.create(
+                document=doc_parent,
+                document_part_name=f"Steno draft wf{workflow.id} seq{next_sequence}",
+                file_part_path=upload,
+                document_sequence=next_sequence,
+                scrutiny_status=EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED,
+                is_new_for_scrutiny=False,
+                created_by=user,
+                updated_by=user,
+                comments="Steno draft",
+            )
+            create_scrutiny_history(
+                index,
+                comments="Steno draft uploaded.",
+                user=user,
+                scrutiny_status=EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED,
+            )
+
+            workflow.draft_document_index = index
+            workflow.workflow_status = StenoOrderWorkflow.WorkflowStatus.UPLOADED_BY_STENO
+            workflow.updated_by = user
+            update_fields = [
+                "draft_document_index",
+                "workflow_status",
+                "updated_by",
+                "updated_at",
+            ]
+            if had_changes_requested:
+                workflow.judge_approval_status = StenoOrderWorkflow.JudgeApprovalStatus.PENDING
+                update_fields.append("judge_approval_status")
+            workflow.save(update_fields=update_fields)
+
+        return Response(
+            {
+                "workflow_status": workflow.workflow_status,
+                "draft_document_index_id": index.id,
+                "draft_preview_url": _steno_draft_preview_url(request, index.id),
+            },
+            status=drf_status.HTTP_200_OK,
+        )
+
+
+class StenoDraftUploadView(APIView):
+    def post(self, request, *args, **kwargs):
+        payload = StenoDraftUploadSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        user = request.user if getattr(request.user, "is_authenticated", False) else None
+        workflow = StenoOrderWorkflow.objects.filter(
+            id=payload.validated_data["workflow_id"],
+            is_active=True,
+        ).first()
+        if not workflow:
+            raise ValidationError({"workflow_id": "Invalid workflow_id."})
+        if workflow.assigned_steno_id != getattr(user, "id", None):
+            raise ValidationError({"detail": "Not authorized for this workflow."})
+        if workflow.workflow_status not in _STENO_UPLOAD_ALLOWED:
+            raise ValidationError(
+                {"detail": "Cannot link a draft in the current workflow state."}
+            )
+        draft_id = payload.validated_data["draft_document_index_id"]
+        if not EfilingDocumentsIndex.objects.filter(
+            id=draft_id, document__e_filing_id=workflow.efiling_id
+        ).exists():
+            raise ValidationError({"draft_document_index_id": "Invalid draft document for case."})
+        had_changes_requested = (
+            workflow.workflow_status == StenoOrderWorkflow.WorkflowStatus.CHANGES_REQUESTED
+        )
+        workflow.draft_document_index_id = draft_id
+        workflow.workflow_status = StenoOrderWorkflow.WorkflowStatus.UPLOADED_BY_STENO
+        workflow.updated_by = user
+        save_fields = ["draft_document_index", "workflow_status", "updated_by", "updated_at"]
+        if had_changes_requested:
+            workflow.judge_approval_status = StenoOrderWorkflow.JudgeApprovalStatus.PENDING
+            save_fields.append("judge_approval_status")
+        workflow.save(update_fields=save_fields)
+        return Response({"workflow_status": workflow.workflow_status}, status=drf_status.HTTP_200_OK)
+
+
+class StenoSignedUploadPublishView(APIView):
+    """
+    Upload signed PDF after judge approval and mark workflow as published.
+    """
+
+    def post(self, request, *args, **kwargs):
+        user = request.user if getattr(request.user, "is_authenticated", False) else None
+        if not user:
+            raise ValidationError({"detail": "Authentication required."})
+        raw_wid = request.data.get("workflow_id")
+        try:
+            workflow_id = int(raw_wid)
+        except (TypeError, ValueError):
+            raise ValidationError({"workflow_id": "Invalid workflow_id."})
+        upload = request.FILES.get("file")
+        if not upload:
+            raise ValidationError({"file": "Signed PDF file is required."})
+
+        workflow = (
+            StenoOrderWorkflow.objects.select_related("efiling")
+            .filter(id=workflow_id, is_active=True)
+            .first()
+        )
+        if not workflow:
+            raise ValidationError({"workflow_id": "Invalid workflow_id."})
+        if workflow.assigned_steno_id != getattr(user, "id", None):
+            raise ValidationError({"detail": "Not authorized for this workflow."})
+        if workflow.workflow_status != StenoOrderWorkflow.WorkflowStatus.JUDGE_APPROVED:
+            raise ValidationError(
+                {"detail": "Signed publish is allowed only after judge approval."}
+            )
+        if workflow.judge_approval_status != StenoOrderWorkflow.JudgeApprovalStatus.APPROVED:
+            raise ValidationError({"detail": "Judge approval is required before publish."})
+        if not workflow.draft_document_index_id:
+            raise ValidationError({"detail": "Draft document missing for this workflow."})
+
+        validate_pdf_file(upload, "file")
+        if hasattr(upload, "seek"):
+            upload.seek(0)
+        signature_provider = str(request.data.get("signature_provider") or "").strip() or None
+        signature_serial = str(request.data.get("certificate_serial") or "").strip() or None
+        signature_signer = str(request.data.get("signer_name") or "").strip() or None
+        signature_reason = str(request.data.get("signature_reason") or "").strip() or None
+        signature_txn = str(request.data.get("signature_txn_id") or "").strip() or None
+
+        efiling = workflow.efiling
+        with transaction.atomic():
+            doc_parent, _ = EfilingDocuments.objects.get_or_create(
+                e_filing=efiling,
+                document_type=f"STENO_SIGNED_WF_{workflow.id}",
+                defaults={
+                    "e_filing_number": efiling.e_filing_number,
+                    "is_ia": False,
+                },
+            )
+            last_sequence = (
+                EfilingDocumentsIndex.objects.filter(document__e_filing=efiling)
+                .exclude(document_sequence__isnull=True)
+                .order_by("-document_sequence")
+                .values_list("document_sequence", flat=True)
+                .first()
+            )
+            next_sequence = (last_sequence or 0) + 1
+            index = EfilingDocumentsIndex.objects.create(
+                document=doc_parent,
+                document_part_name=f"Steno signed wf{workflow.id} seq{next_sequence}",
+                file_part_path=upload,
+                document_sequence=next_sequence,
+                scrutiny_status=EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED,
+                is_new_for_scrutiny=False,
+                created_by=user,
+                updated_by=user,
+                comments="Steno signed order",
+            )
+            create_scrutiny_history(
+                index,
+                comments="Steno uploaded signed order and published.",
+                user=user,
+                scrutiny_status=EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED,
+            )
+            workflow.signed_document_index = index
+            workflow.workflow_status = StenoOrderWorkflow.WorkflowStatus.SIGNED_AND_PUBLISHED
+            workflow.digitally_signed_by = user
+            workflow.digitally_signed_at = timezone.now()
+            workflow.digital_signature_provider = signature_provider
+            workflow.digital_signature_certificate_serial = signature_serial
+            workflow.digital_signature_signer_name = signature_signer
+            workflow.digital_signature_reason = signature_reason
+            workflow.digital_signature_metadata = {
+                "signature_txn_id": signature_txn,
+                "captured_at": timezone.now().isoformat(),
+            }
+            workflow.published_at = timezone.now()
+            workflow.updated_by = user
+            workflow.save(
+                update_fields=[
+                    "signed_document_index",
+                    "workflow_status",
+                    "digitally_signed_by",
+                    "digitally_signed_at",
+                    "digital_signature_provider",
+                    "digital_signature_certificate_serial",
+                    "digital_signature_signer_name",
+                    "digital_signature_reason",
+                    "digital_signature_metadata",
+                    "published_at",
+                    "updated_by",
+                    "updated_at",
+                ]
+            )
+        return Response(
+            {
+                "workflow_status": workflow.workflow_status,
+                "signed_document_index_id": index.id,
+                "signed_preview_url": _steno_signed_preview_url(request, index.id),
+                "digitally_signed_at": workflow.digitally_signed_at.isoformat()
+                if workflow.digitally_signed_at
+                else None,
+                "published_at": workflow.published_at.isoformat()
+                if workflow.published_at
+                else None,
+            },
+            status=drf_status.HTTP_200_OK,
+        )
+
+
+class StenoSubmitForJudgeApprovalView(APIView):
+    def post(self, request, *args, **kwargs):
+        payload = StenoSubmitForJudgeSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        user = request.user if getattr(request.user, "is_authenticated", False) else None
+        workflow = StenoOrderWorkflow.objects.filter(
+            id=payload.validated_data["workflow_id"],
+            is_active=True,
+        ).first()
+        if not workflow:
+            raise ValidationError({"workflow_id": "Invalid workflow_id."})
+        if workflow.assigned_steno_id != getattr(user, "id", None):
+            raise ValidationError({"detail": "Not authorized for this workflow."})
+        if not workflow.draft_document_index_id:
+            raise ValidationError({"detail": "Upload draft document before sending to judge."})
+        workflow.workflow_status = StenoOrderWorkflow.WorkflowStatus.SENT_FOR_JUDGE_APPROVAL
+        workflow.updated_by = user
+        workflow.save(update_fields=["workflow_status", "updated_by", "updated_at"])
+        return Response({"workflow_status": workflow.workflow_status}, status=drf_status.HTTP_200_OK)

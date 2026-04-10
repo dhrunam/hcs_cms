@@ -1,17 +1,18 @@
 import { AuthConfig, OAuthService } from 'angular-oauth2-oidc';
 
 export const authConfig: AuthConfig = {
-  issuer: 'http://localhost:8000/o',
+  issuer: "http://localhost:8000/o",
   // redirectUri: window.location.origin,
   redirectUri: 'http://localhost:4200/',
-  clientId: 'VEd9ZSHfK3m99blkADk5mkeUT99Ly0rpfaiJT987',
+  // clientId: '3BaGLodbo7AdK5qjIjK1I0Isf1l5zLnGqiOC6Oov',
+  clientId: '4T0KMegeS4cY55z21J4pKP9RCHyuX5KpNUWDdiP7',
   responseType: 'code',
   scope: 'openid profile email',
   showDebugInformation: false,
   strictDiscoveryDocumentValidation: false,
   requireHttps: false, // set true in production
   oidc: true,
-  silentRefreshRedirectUri: window.location.origin + '/silent-refresh.html',
+  silentRefreshRedirectUri: window.location.origin + "/silent-refresh.html",
   useSilentRefresh: true,
   disablePKCE: false,
 };
