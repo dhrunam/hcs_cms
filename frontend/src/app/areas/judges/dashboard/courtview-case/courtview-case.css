@@ -118,9 +118,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background-color: #6c757d;
+  /* background-color: #a8a9ab; */
+  border: 1px solid grey;
   padding: 0px 7px;
-  color: #fff;
+  color: #404040;
   border-radius: 50%;
   font-size: 22px;
   font-weight: lighter;

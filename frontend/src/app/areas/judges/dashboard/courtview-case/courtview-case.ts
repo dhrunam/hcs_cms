@@ -208,9 +208,9 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
 
   // Step 2: Replace vs
   formatted = formatted.replace(
-    /\bVs\.?\s*/g,
-    '<span class="vs-circle">vs</span> ',
-  );
+  /\bVs\.?\s*/g,
+  '<span class="vs-circle">V/s</span> ',
+);
 
   return this.sanitizer.bypassSecurityTrustHtml(formatted);
 }
