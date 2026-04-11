@@ -63,6 +63,39 @@ export function resolveBenchConfiguration(
   );
 }
 
+/**
+ * Picks a stable `reader_group` query value for reader APIs. Prefer slot-specific
+ * groups (READER_CJ/J1/J2) so the backend legacy bench-token map applies even when
+ * `user_group` (first token group) is e.g. API_COURT_READER.
+ */
+export function readerGroupForApiQuery(): string | null {
+  const raw = sessionStorage.getItem('user_groups');
+  let groups: string[] = [];
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (Array.isArray(parsed)) {
+        groups = parsed.filter((g): g is string => typeof g === 'string' && g.trim().length > 0);
+      }
+    } catch {
+      groups = [];
+    }
+  }
+  const set = new Set(groups.map((g) => g.trim()));
+  for (const g of ['READER_CJ', 'READER_J1', 'READER_J2'] as const) {
+    if (set.has(g)) {
+      return g;
+    }
+  }
+  for (const g of ['READER', 'API_COURT_READER'] as const) {
+    if (set.has(g)) {
+      return g;
+    }
+  }
+  const fallback = sessionStorage.getItem('user_group')?.trim();
+  return fallback || null;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -70,14 +103,14 @@ export class ReaderService {
   constructor(private http: HttpClient) {}
 
   getBenchConfigurations(params?: { accessible_only?: boolean }): Observable<{ items: BenchConfiguration[] }> {
-    const userGroup = sessionStorage.getItem('user_group');
+    const readerGroup = readerGroupForApiQuery();
     let url = `${app_url}/api/v1/reader/bench-configurations/`;
     const queryParts: string[] = [];
     if (params?.accessible_only) {
       queryParts.push('accessible_only=true');
     }
-    if (userGroup) {
-      queryParts.push(`reader_group=${encodeURIComponent(userGroup)}`);
+    if (readerGroup) {
+      queryParts.push(`reader_group=${encodeURIComponent(readerGroup)}`);
     }
     if (queryParts.length > 0) {
       url += '?' + queryParts.join('&');
@@ -86,14 +119,14 @@ export class ReaderService {
   }
 
   getRegisteredCases(params?: { page_size?: number }): Observable<{ total: number; items: RegisteredCase[] }> {
-    const userGroup = sessionStorage.getItem('user_group');
+    const readerGroup = readerGroupForApiQuery();
     let url = `${app_url}/api/v1/reader/registered-cases/`;
     const queryParts: string[] = [];
     if (params?.page_size != null) {
       queryParts.push(`page_size=${params.page_size}`);
     }
-    if (userGroup) {
-      queryParts.push(`reader_group=${userGroup}`);
+    if (readerGroup) {
+      queryParts.push(`reader_group=${encodeURIComponent(readerGroup)}`);
     }
     if (queryParts.length > 0) {
       url += '?' + queryParts.join('&');
@@ -114,37 +147,37 @@ export class ReaderService {
     document_index_ids?: number[];
     efiling_ids: number[];
   }): Observable<{ updated: number }> {
-    const userGroup = sessionStorage.getItem('user_group');
+    const readerGroup = readerGroupForApiQuery();
     let url = `${app_url}/api/v1/reader/forward/`;
-    if (userGroup) {
-      url += `?reader_group=${encodeURIComponent(userGroup)}`;
+    if (readerGroup) {
+      url += `?reader_group=${encodeURIComponent(readerGroup)}`;
     }
     return this.http.post<{ updated: number }>(url, payload);
   }
 
   getApprovedCases(params: { bench_key: string; forwarded_for_date: string }): Observable<{ results: any[] }> {
-    const userGroup = sessionStorage.getItem('user_group');
+    const readerGroup = readerGroupForApiQuery();
     let url = `${app_url}/api/v1/reader/approved-cases/?bench_key=${encodeURIComponent(params.bench_key)}&forwarded_for_date=${encodeURIComponent(params.forwarded_for_date)}`;
-    if (userGroup) {
-      url += `&reader_group=${userGroup}`;
+    if (readerGroup) {
+      url += `&reader_group=${encodeURIComponent(readerGroup)}`;
     }
     return this.http.get<any>(url);
   }
 
   assignDate(payload: { efiling_ids: number[]; listing_date: string; forwarded_for_date: string; listing_remark?: string }): Observable<{ updated: number }> {
-    const userGroup = sessionStorage.getItem('user_group');
+    const readerGroup = readerGroupForApiQuery();
     let url = `${app_url}/api/v1/reader/assign-date/`;
-    if (userGroup) {
-      url += `?reader_group=${encodeURIComponent(userGroup)}`;
+    if (readerGroup) {
+      url += `?reader_group=${encodeURIComponent(readerGroup)}`;
     }
     return this.http.post<{ updated: number }>(url, payload);
   }
 
   resetBench(efilingId: number): Observable<any> {
-    const userGroup = sessionStorage.getItem('user_group');
+    const readerGroup = readerGroupForApiQuery();
     let url = `${app_url}/api/v1/reader/reset-bench/`;
-    if (userGroup) {
-      url += `?reader_group=${userGroup}`;
+    if (readerGroup) {
+      url += `?reader_group=${encodeURIComponent(readerGroup)}`;
     }
     return this.http.post<any>(url, { efiling_id: efilingId });
   }
@@ -153,7 +186,7 @@ export class ReaderService {
     page_size?: number;
     cause_list_date?: string;
   }): Observable<{ total: number; items: ReaderDailyProceedingCase[] }> {
-    const userGroup = sessionStorage.getItem('user_group');
+    const readerGroup = readerGroupForApiQuery();
     let url = `${app_url}/api/v1/reader/daily-proceedings/`;
     const queryParts: string[] = [];
     if (params?.page_size != null) {
@@ -162,8 +195,8 @@ export class ReaderService {
     if (params?.cause_list_date) {
       queryParts.push(`cause_list_date=${encodeURIComponent(params.cause_list_date)}`);
     }
-    if (userGroup) {
-      queryParts.push(`reader_group=${encodeURIComponent(userGroup)}`);
+    if (readerGroup) {
+      queryParts.push(`reader_group=${encodeURIComponent(readerGroup)}`);
     }
     if (queryParts.length > 0) {
       url += '?' + queryParts.join('&');
@@ -179,10 +212,10 @@ export class ReaderService {
     reader_remark?: string | null;
     document_type?: 'ORDER' | 'JUDGMENT';
   }): Observable<any> {
-    const userGroup = sessionStorage.getItem('user_group');
+    const readerGroup = readerGroupForApiQuery();
     let url = `${app_url}/api/v1/reader/daily-proceedings/submit/`;
-    if (userGroup) {
-      url += `?reader_group=${encodeURIComponent(userGroup)}`;
+    if (readerGroup) {
+      url += `?reader_group=${encodeURIComponent(readerGroup)}`;
     }
     return this.http.post<any>(url, payload);
   }

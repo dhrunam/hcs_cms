@@ -42,6 +42,8 @@ export class PdfAnnotatorComponent implements OnChanges, AfterViewInit, OnDestro
   @Input() canWrite: boolean = false;
   @Output() save = new EventEmitter<any>();
   @Output() pageChange = new EventEmitter<number>();
+  /** Emitted once after the PDF is parsed, canvases rendered, and `pages` is ready (use for follow-sync). */
+  @Output() pdfReady = new EventEmitter<void>();
 
   @ViewChild('scrollContainer') scrollContainer!: ElementRef<HTMLDivElement>;
   @ViewChildren('pdfCanvas') pdfCanvases!: QueryList<ElementRef<HTMLCanvasElement>>;
@@ -219,7 +221,12 @@ export class PdfAnnotatorComponent implements OnChanges, AfterViewInit, OnDestro
       }
       
       this.isLoading = false;
-      setTimeout(() => this.renderPdfPages(), 100);
+      this.currentPageIndex = 0;
+      await new Promise<void>((resolve) => setTimeout(resolve, 100));
+      await this.renderPdfPages();
+      this.ngZone.run(() => {
+        this.pdfReady.emit();
+      });
     } catch (error) {
       console.error('Error loading PDF', error);
       this.isLoading = false;
@@ -367,6 +374,12 @@ export class PdfAnnotatorComponent implements OnChanges, AfterViewInit, OnDestro
     container.scrollTo({
       top: index * pageHeight,
       behavior: 'smooth'
+    });
+    this.ngZone.run(() => {
+      if (this.currentPageIndex !== index) {
+        this.currentPageIndex = index;
+        this.pageChange.emit(index);
+      }
     });
   }
 

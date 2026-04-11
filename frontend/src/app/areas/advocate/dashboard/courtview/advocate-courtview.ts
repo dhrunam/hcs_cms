@@ -99,10 +99,20 @@ export class AdvocateCourtviewPage implements OnInit, OnDestroy {
   }
 
   selectPreviewDocument(doc: any): void {
+    const newId = Number(doc?.id);
+    const prevId = Number(this.previewDocument?.id);
+    if (newId !== prevId) {
+      this.currentPageIndex = 0;
+    }
     this.previewDocument = doc;
     this.updatePreviewUrl(doc ?? null);
+  }
+
+  /** After PDF renders in the annotator; broadcast so judge follow gets correct doc + page 1. */
+  onPdfReady(): void {
+    this.currentPageIndex = 0;
     if (this.isSharing) {
-       this.broadcastPosition();
+      this.broadcastPosition();
     }
   }
 

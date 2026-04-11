@@ -215,7 +215,12 @@
             [annotationData]="previewDocument?.annotation_data"
             [canWrite]="canWrite"
             (save)="onSaveAnnotations($event)"
+<<<<<<< HEAD
             class="d-block w-100 vh-100"
+=======
+            (pdfReady)="onAnnotatorPdfReady()"
+            class="d-block w-100 h-100"
+>>>>>>> 98dc10a4c3828a5bb96b4f81f586850fe5ce4941
           ></app-pdf-annotator>
 
           <ng-template #noDocPreview>
