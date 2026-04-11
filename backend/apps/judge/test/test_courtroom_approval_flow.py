@@ -7,7 +7,7 @@ from django.utils import timezone
 from apps.accounts.models import User
 from apps.core.models import Efiling
 from apps.judge.courtroom_approval import efiling_ids_with_all_required_approvals
-from apps.judge.models import CourtroomJudgeDecision
+from apps.judge.models import CourtroomJudgeDecision, JUDGE_GROUP_CJ
 from apps.reader.models import CourtroomForward
 
 
@@ -35,6 +35,7 @@ class CourtroomApprovalFlowTest(TestCase):
             efiling=self.filing,
             forwarded_for_date=self.fwd_date,
             bench_key="CJ",
+            reader_slot_group=JUDGE_GROUP_CJ,
             listing_summary="Summary",
             forwarded_by=self.judge,
         )

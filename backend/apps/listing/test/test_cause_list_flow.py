@@ -1,5 +1,6 @@
 from datetime import date
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIClient
 
@@ -137,11 +138,18 @@ class CauseListFlowTest(TestCase):
             efiling=self.filing,
             forwarded_for_date=cause_date,
             bench_key="CJ",
+            reader_slot_group="JUDGE_CJ",
             listing_summary="Reader forwarded",
         )
         # Judge metadata exists, but without reader handoff remark.
+        User = get_user_model()
+        placeholder_judge = User.objects.create_user(
+            email="listing.preview.judge@example.com",
+            username="listing_preview_judge",
+            password="x",
+        )
         CourtroomJudgeDecision.objects.create(
-            judge_user=None,
+            judge_user=placeholder_judge,
             efiling=self.filing,
             forwarded_for_date=cause_date,
             listing_date=cause_date,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, Iterable, List, Optional, Sequence, Set
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Set
 import logging
 
 from django.contrib.auth.models import Group, AnonymousUser
@@ -71,6 +71,7 @@ _DUMMY_TOKEN_TO_DUMMY_EMAIL: Dict[str, str] = {
 
 _COURTROOM_JUDGE_GROUP_NAMES = frozenset(
     {
+        "API_JUDGE",
         JUDGE_GROUP_CJ,
         JUDGE_GROUP_J1,
         JUDGE_GROUP_J2,
@@ -135,10 +136,14 @@ def _bench_required_groups(bench_key: str) -> Sequence[str]:
     return req
 
 
-def _judge_can_view_forward(user_groups: Set[str], bench_key: str) -> bool:
+def _judge_can_view_forward(
+    user_groups: Set[str],
+    bench_key: str,
+    user: User | None = None,
+) -> bool:
     if not user_groups or not bench_key:
         return False
-    allowed = set(_allowed_bench_keys_for_judge(user_groups))
+    allowed = set(_allowed_bench_keys_for_judge(user_groups, user=user))
     return bench_key in allowed
 
 
@@ -181,7 +186,9 @@ def _validate_courtroom_access(
         forwards = CourtroomForward.objects.filter(efiling_id=efiling_id, forwarded_for_date=cld)
         has_bench_access = False
         for f in forwards:
-            if _judge_can_view_forward(user_groups, f.bench_key):
+            if _judge_can_view_forward(user_groups, f.bench_key, user=user) and _judge_sees_forward(
+                user, f
+            ):
                 has_bench_access = True
                 break
         
@@ -216,17 +223,114 @@ def _validate_courtroom_access(
         return {"role": "ADVOCATE", "is_judge": False}
 
 
-def _allowed_bench_keys_for_judge(user_groups: Set[str]) -> list[str]:
+def _allowed_bench_keys_for_judge(user_groups: Set[str], user: User | None = None) -> list[str]:
     allowed_bench_keys: list[str] = []
     for bench in get_bench_configurations():
         if set(bench.judge_groups) & user_groups:
             allowed_bench_keys.append(bench.bench_key)
-    for token_group, bench_cfg in JUDGE_GROUP_TO_BENCH_TOKEN.items():
+        if user is not None and bench.judge_user_ids and user.id in bench.judge_user_ids:
+            allowed_bench_keys.append(bench.bench_key)
+    for token_group, legacy_key in JUDGE_GROUP_TO_BENCH_TOKEN.items():
         if token_group in user_groups:
-            allowed_bench_keys.append(bench_cfg.bench_key)
-    if (not allowed_bench_keys) and (user_groups & {JUDGE_GROUP_CJ, JUDGE_GROUP_J1, JUDGE_GROUP_J2}):
-        return [b.bench_key for b in get_bench_configurations()]
-    return sorted(set(allowed_bench_keys))
+            allowed_bench_keys.append(legacy_key)
+    if not allowed_bench_keys and user_groups & {
+        JUDGE_GROUP_CJ,
+        JUDGE_GROUP_J1,
+        JUDGE_GROUP_J2,
+        "API_JUDGE",
+    }:
+        if user is not None:
+            for bench in get_bench_configurations():
+                if bench.judge_user_ids and user.id in bench.judge_user_ids:
+                    allowed_bench_keys.append(bench.bench_key)
+        if not allowed_bench_keys:
+            for bench in get_bench_configurations():
+                if len(bench.judge_groups) == 1:
+                    allowed_bench_keys.append(bench.bench_key)
+    keys: Set[str] = set(allowed_bench_keys)
+    for bk in list(keys):
+        if "+" in bk:
+            for part in bk.split("+"):
+                p = part.strip()
+                if p:
+                    keys.add(p)
+    return sorted(keys)
+
+
+def _judge_should_see_forward_slot(user: User, forward: CourtroomForward) -> bool:
+    """Division: each judge only sees the row for their slot (reader_slot_group)."""
+    req = tuple(get_required_judge_groups(forward.bench_key))
+    slot = (getattr(forward, "reader_slot_group", None) or "").strip()
+    if not req:
+        return False
+    try:
+        role = resolve_bench_role_group_for_forward(user, forward.bench_key)
+    except ValueError:
+        return False
+    if slot:
+        return slot == role
+    if len(req) <= 1:
+        return True
+    return False
+
+
+def _judge_sees_forward(user: User, forward: CourtroomForward) -> bool:
+    return _judge_should_see_forward_slot(user, forward)
+
+
+def _pick_courtroom_forward_from_candidates(
+    user: User,
+    candidates: list[CourtroomForward],
+) -> CourtroomForward | None:
+    """First matching forward for judge (bench + slot); advocates use first candidate."""
+    if not candidates:
+        return None
+    if not _user_judge_groups(user):
+        return candidates[0]
+    user_groups = _user_judge_groups(user)
+    allowed = set(_allowed_bench_keys_for_judge(user_groups, user=user))
+    for f in candidates:
+        if f.bench_key not in allowed:
+            continue
+        if not _judge_sees_forward(user, f):
+            continue
+        return f
+    return None
+
+
+def _resolve_courtroom_forward_for_case_view(
+    user: User,
+    efiling_id: int,
+    *,
+    forwarded_for_date: str | None,
+    forward_bench_key: str | None,
+    reader_slot_group: str | None,
+) -> CourtroomForward | None:
+    slot_q = (reader_slot_group or "").strip() or None
+    bench_q = (forward_bench_key or "").strip() or None
+
+    def base_qs(for_date: bool) -> Any:
+        qs = CourtroomForward.objects.filter(efiling_id=efiling_id)
+        if for_date and forwarded_for_date:
+            qs = qs.filter(
+                forwarded_for_date=timezone.datetime.fromisoformat(forwarded_for_date).date()
+            )
+        if bench_q:
+            qs = qs.filter(bench_key=bench_q)
+        if slot_q:
+            qs = qs.filter(reader_slot_group=slot_q)
+        return qs.order_by("-forwarded_for_date", "-id")
+
+    forward = None
+    if forwarded_for_date:
+        forward = _pick_courtroom_forward_from_candidates(
+            user, list(base_qs(for_date=True))
+        )
+    if not forward:
+        forward = _pick_courtroom_forward_from_candidates(
+            user, list(base_qs(for_date=False))
+        )
+    return forward
 
 
 def _get_display_bench_for_efiling(
@@ -293,7 +397,7 @@ class CourtroomPendingCasesView(APIView):
             )
 
         if is_judge:
-            allowed_bench_keys = set(_allowed_bench_keys_for_judge(user_groups))
+            allowed_bench_keys = set(_allowed_bench_keys_for_judge(user_groups, user=user))
         else:
             accessible_ids = set(EfilerDocumentAccess.objects.filter(efiler=user).values_list("e_filing_id", flat=True))
             creator_ids = set(Efiling.objects.filter(created_by=user).values_list("id", flat=True))
@@ -324,6 +428,7 @@ class CourtroomPendingCasesView(APIView):
                 "bench_key": display_bench_key,
                 "bench_label": display_bench_label,
                 "forward_bench_key": f.bench_key,
+                "reader_slot_group": getattr(f, "reader_slot_group", None) or "",
                 "petitioner_name": getattr(f.efiling, "petitioner_name", None),
                 "petitioner_vs_respondent": getattr(
                     f.efiling, "petitioner_vs_respondent_display", "-"
@@ -367,34 +472,40 @@ class CourtroomPendingCasesView(APIView):
 
         pending_for_listing: List[dict] = []
         pending_for_causelist: List[dict] = []
-        seen_pre: Set[int] = set()
-        seen_pub: Set[int] = set()
+        seen_pre: Set[tuple[int, str, str]] = set()
+        seen_pub: Set[tuple[int, str, str]] = set()
+
+        def _row_key(f: CourtroomForward) -> tuple[int, str, str]:
+            return (f.efiling_id, f.bench_key, getattr(f, "reader_slot_group", None) or "")
 
         for f in forwards:
             if is_judge:
                 if f.bench_key not in allowed_bench_keys:
+                    continue
+                if not _judge_sees_forward(user, f):
                     continue
             else:
                 if f.efiling_id not in accessible_ids:
                     continue
 
             on_published_list = f.efiling_id in listed_efiling_ids
+            rk = _row_key(f)
 
             if is_judge:
                 if on_published_list:
-                    if f.efiling_id in seen_pub:
+                    if rk in seen_pub:
                         continue
-                    seen_pub.add(f.efiling_id)
+                    seen_pub.add(rk)
                     pending_for_causelist.append(build_item(f))
                 else:
-                    if f.efiling_id in seen_pre:
+                    if rk in seen_pre:
                         continue
-                    seen_pre.add(f.efiling_id)
+                    seen_pre.add(rk)
                     pending_for_listing.append(build_item(f))
             else:
-                if f.efiling_id in seen_pub:
+                if rk in seen_pub:
                     continue
-                seen_pub.add(f.efiling_id)
+                seen_pub.add(rk)
                 pending_for_causelist.append(build_item(f))
 
         return Response(
@@ -418,7 +529,8 @@ class CourtroomCaseDocumentsView(APIView):
         user = _resolve_courtroom_user(request)
         forwarded_for_date = request.query_params.get("forwarded_for_date")
         forward_bench_key = str(request.query_params.get("forward_bench_key") or "").strip() or None
-        
+        reader_slot_group = str(request.query_params.get("reader_slot_group") or "").strip() or None
+
         # 1. Permission and Publication Check
         access_meta = _validate_courtroom_access(
             user,
@@ -427,30 +539,15 @@ class CourtroomCaseDocumentsView(APIView):
             allow_judge_unpublished=True,
         )
         is_judge = access_meta.get("is_judge", False)
-        
-        # 2. Get the specific forward for bench context (if judge)
-        forward = None
-        if forwarded_for_date:
-            forwarded_date = timezone.datetime.fromisoformat(forwarded_for_date).date()
-            f_qs = CourtroomForward.objects.filter(efiling_id=efiling_id, forwarded_for_date=forwarded_date)
-            if is_judge:
-                user_groups = _user_judge_groups(user)
-                allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
-                f_qs = f_qs.filter(bench_key__in=allowed_bench_keys)
-            if forward_bench_key:
-                f_qs = f_qs.filter(bench_key=forward_bench_key)
-            forward = f_qs.order_by("-id").first()
 
-        if not forward:
-            # Fallback to latest forward
-            f_qs = CourtroomForward.objects.filter(efiling_id=efiling_id)
-            if is_judge:
-                user_groups = _user_judge_groups(user)
-                allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
-                f_qs = f_qs.filter(bench_key__in=allowed_bench_keys)
-            if forward_bench_key:
-                f_qs = f_qs.filter(bench_key=forward_bench_key)
-            forward = f_qs.order_by("-forwarded_for_date", "-id").first()
+        # 2. Forward row (division: disambiguate with reader_slot_group)
+        forward = _resolve_courtroom_forward_for_case_view(
+            user,
+            efiling_id,
+            forwarded_for_date=forwarded_for_date,
+            forward_bench_key=forward_bench_key,
+            reader_slot_group=reader_slot_group or None,
+        )
 
         if not forward:
             raise ValidationError({"detail": "Case forward record not found."})
@@ -517,7 +614,8 @@ class CourtroomCaseSummaryView(APIView):
         user = _resolve_courtroom_user(request)
         forwarded_for_date = request.query_params.get("forwarded_for_date")
         forward_bench_key = str(request.query_params.get("forward_bench_key") or "").strip() or None
-        
+        reader_slot_group = str(request.query_params.get("reader_slot_group") or "").strip() or None
+
         # 1. Permission and Publication Check
         access_meta = _validate_courtroom_access(
             user,
@@ -527,20 +625,13 @@ class CourtroomCaseSummaryView(APIView):
         )
         is_judge = access_meta.get("is_judge", False)
 
-        # 2. Get forward context
-        f_qs = CourtroomForward.objects.filter(efiling_id=efiling_id)
-        if is_judge:
-            user_groups = _user_judge_groups(user)
-            allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
-            f_qs = f_qs.filter(bench_key__in=allowed_bench_keys)
-        if forward_bench_key:
-            f_qs = f_qs.filter(bench_key=forward_bench_key)
-        
-        if forwarded_for_date:
-            forwarded_date = timezone.datetime.fromisoformat(forwarded_for_date).date()
-            f_qs = f_qs.filter(forwarded_for_date=forwarded_date)
-
-        forward = f_qs.order_by("-forwarded_for_date", "-id").first()
+        forward = _resolve_courtroom_forward_for_case_view(
+            user,
+            efiling_id,
+            forwarded_for_date=forwarded_for_date,
+            forward_bench_key=forward_bench_key,
+            reader_slot_group=reader_slot_group or None,
+        )
         if not forward:
             raise ValidationError({"detail": "Case not forwarded for this user/date."})
 
@@ -600,6 +691,7 @@ class CourtroomCaseSummaryView(APIView):
                 "bench_key": display_bench_key,
                 "bench_label": display_bench_label,
                 "forward_bench_key": forward.bench_key,
+                "reader_slot_group": getattr(forward, "reader_slot_group", None) or "",
                 "forwarded_for_date": forward.forwarded_for_date.isoformat(),
                 "listing_summary": forward.listing_summary,
                 "is_published": True, # By reaching here, we know it's published
@@ -667,11 +759,11 @@ class CourtroomDocumentAnnotationView(APIView):
             raise ValidationError({"efiling_document_index_id": "Invalid document index."})
 
         user_groups = _user_judge_groups(user)
-        allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
-        if not CourtroomForward.objects.filter(
-            efiling_id=doc_index.document.e_filing_id,
-            bench_key__in=allowed_bench_keys,
-        ).exists():
+        allowed_bench_keys = set(_allowed_bench_keys_for_judge(user_groups, user=user))
+        if not any(
+            f.bench_key in allowed_bench_keys and _judge_sees_forward(user, f)
+            for f in CourtroomForward.objects.filter(efiling_id=doc_index.document.e_filing_id)
+        ):
             raise ValidationError({"detail": "Not authorized to annotate this document."})
 
         ann, _ = CourtroomDocumentAnnotation.objects.update_or_create(
@@ -705,6 +797,7 @@ class CourtroomDecisionView(APIView):
         efiling_id = payload.validated_data["efiling_id"]
         forwarded_for_date = payload.validated_data["forwarded_for_date"]
         forward_bench_key = payload.validated_data.get("forward_bench_key")
+        reader_slot_group = (payload.validated_data.get("reader_slot_group") or "").strip() or None
         status = CourtroomJudgeDecision.DecisionStatus.APPROVED
         requested_document_index_ids = payload.validated_data.get("requested_document_index_ids") or []
         approved = True
@@ -718,12 +811,16 @@ class CourtroomDecisionView(APIView):
         )
         if forward_bench_key:
             fwd_qs = fwd_qs.filter(bench_key=forward_bench_key)
+        if reader_slot_group:
+            fwd_qs = fwd_qs.filter(reader_slot_group=reader_slot_group)
         candidate_forwards = list(fwd_qs.order_by("-id"))
         if not candidate_forwards:
             raise ValidationError({"detail": "Case not forwarded for this date."})
         resolved_candidates: list[tuple[CourtroomForward, str]] = []
         for fwd in candidate_forwards:
-            if not _judge_can_view_forward(user_groups, fwd.bench_key):
+            if not _judge_can_view_forward(user_groups, fwd.bench_key, user=user):
+                continue
+            if not _judge_sees_forward(user, fwd):
                 continue
             try:
                 role_group = resolve_bench_role_group_for_forward(user, fwd.bench_key)

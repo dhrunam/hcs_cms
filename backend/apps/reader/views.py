@@ -28,6 +28,7 @@ from apps.core.bench_config import (
     get_required_judge_groups,
     is_reader_date_authority_for_bench,
     is_reader_allowed_for_bench,
+    resolve_reader_slot_group_for_user,
 )
 from apps.efiling.party_display import build_petitioner_vs_respondent
 from apps.efiling.pdf_validators import validate_pdf_file
@@ -751,7 +752,29 @@ class CourtroomForwardView(APIView):
         _assert_known_bench_key(bench_key)
         if not is_reader_allowed_for_bench(bench_key, user, reader_group=reader_group):
             raise ValidationError({"bench_key": "You do not have permission to forward to this bench."})
-        
+
+        explicit_slot = (payload.validated_data.get("reader_slot_group") or "").strip() or None
+        req_groups = tuple(get_required_judge_groups(bench_key))
+        if explicit_slot:
+            if explicit_slot not in req_groups:
+                raise ValidationError(
+                    {
+                        "reader_slot_group": (
+                            f"Must be one of this bench's slots: {', '.join(req_groups)}."
+                        )
+                    }
+                )
+            reader_slot_group = explicit_slot
+        else:
+            try:
+                reader_slot_group = resolve_reader_slot_group_for_user(
+                    user,
+                    bench_key,
+                    reader_group=reader_group,
+                )
+            except ValueError as exc:
+                raise ValidationError({"reader_slot": str(exc)}) from exc
+
         # Security: check if user can forward these efilings
         allowed_bench_filter = _get_reader_allowed_efiling_bench_filter(
             request,
@@ -782,6 +805,7 @@ class CourtroomForwardView(APIView):
                 efiling_id=eid,
                 forwarded_for_date=effective_forwarded_for_date,
                 bench_key=bench_key,
+                reader_slot_group=reader_slot_group,
                 defaults={
                     "forwarded_by": user,
                     "listing_summary": listing_summary,

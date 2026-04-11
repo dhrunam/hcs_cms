@@ -49,6 +49,7 @@ class CourtroomPendingCasesViewTest(TestCase):
             efiling=self.filing,
             forwarded_for_date=self.forwarded_for_date,
             bench_key="CJ",
+            reader_slot_group=JUDGE_GROUP_CJ,
             listing_summary="Reader summary text",
             forwarded_by=self.judge_user,
         )

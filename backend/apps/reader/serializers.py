@@ -17,6 +17,13 @@ class CourtroomForwardSerializer(serializers.Serializer):
         allow_empty=True,
     )
     efiling_ids = serializers.ListField(child=serializers.IntegerField(), allow_empty=False)
+    # Optional: JUDGE_CJ / JUDGE_J1 / JUDGE_J2 — use on division benches when auto-resolution is ambiguous.
+    reader_slot_group = serializers.CharField(
+        max_length=32,
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+    )
 
 
 class AssignBenchEntrySerializer(serializers.Serializer):

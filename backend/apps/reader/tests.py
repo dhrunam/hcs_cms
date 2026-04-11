@@ -110,6 +110,7 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
             efiling=self.filing,
             forwarded_for_date=self.forwarded_for_date,
             bench_key="CJ",
+            reader_slot_group="JUDGE_CJ",
             listing_summary="Division bench summary",
             forwarded_by=self.reader_cj,
         )
@@ -117,6 +118,7 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
             efiling=self.filing,
             forwarded_for_date=self.forwarded_for_date,
             bench_key="Judge1",
+            reader_slot_group="JUDGE_J1",
             listing_summary="Division bench summary",
             forwarded_by=self.reader_j1,
         )
@@ -552,3 +554,40 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
             (workflow.digital_signature_metadata or {}).get("signature_txn_id"),
             "TXN-001",
         )
+
+
+class CourtroomForwardExplicitReaderSlotTest(TestCase):
+    def test_invalid_explicit_reader_slot_group_rejected(self):
+        forwarded_for_date = timezone.localdate()
+        reader = User.objects.create_user(
+            email="reader.slot@example.com",
+            username="reader_slot_explicit",
+            password="password123",
+        )
+        grp, _ = Group.objects.get_or_create(name="READER_CJ")
+        reader.groups.add(grp)
+
+        ef = Efiling.objects.create(
+            case_number="SLOT-001",
+            e_filing_number="ASK20260000001C202600301",
+            bench="CJ+Judge1",
+            petitioner_name="Petitioner",
+            petitioner_contact="1",
+            is_draft=False,
+            status="ACCEPTED",
+        )
+        client = APIClient()
+        client.force_authenticate(user=reader)
+        resp = client.post(
+            "/api/v1/reader/forward/",
+            {
+                "forwarded_for_date": forwarded_for_date.isoformat(),
+                "bench_key": "CJ+Judge1",
+                "efiling_ids": [ef.id],
+                "listing_summary": "Summary text",
+                "reader_slot_group": "JUDGE_J2",
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("reader_slot_group", resp.data)

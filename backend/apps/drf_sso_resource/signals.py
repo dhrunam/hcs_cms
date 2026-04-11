@@ -93,7 +93,5 @@ if _auto_sync:
                 )
 
     except ImportError:
-        logger.debug(
-            "django-oauth-toolkit not installed; "
-            "SSO app_authorized signal not connected."
-        )
+        # django-oauth-toolkit is optional when this API is only a resource server.
+        pass

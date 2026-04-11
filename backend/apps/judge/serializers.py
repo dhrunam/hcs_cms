@@ -35,6 +35,7 @@ class CourtroomDecisionSerializer(serializers.Serializer):
     efiling_id = serializers.IntegerField()
     forwarded_for_date = serializers.DateField()
     forward_bench_key = serializers.CharField(required=False, allow_blank=False)
+    reader_slot_group = serializers.CharField(required=False, allow_blank=True)
     status = serializers.ChoiceField(
         choices=CourtroomJudgeDecision.DecisionStatus.choices,
         required=False,

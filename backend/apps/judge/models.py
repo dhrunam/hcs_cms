@@ -6,9 +6,10 @@ from apps.accounts.models import User
 from apps.core.models import BaseModel, Efiling, EfilingDocumentsIndex, JudgeT
 
 
-JUDGE_GROUP_CJ = "API_JUDGE"
-JUDGE_GROUP_J1 = "API_JUDGE"
-JUDGE_GROUP_J2 = "API_JUDGE"
+# Canonical Django group names for courtroom roles (distinct strings; do not alias all to API_JUDGE).
+JUDGE_GROUP_CJ = "JUDGE_CJ"
+JUDGE_GROUP_J1 = "JUDGE_J1"
+JUDGE_GROUP_J2 = "JUDGE_J2"
 
 
 

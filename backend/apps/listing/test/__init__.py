@@ -1,1 +1,1 @@
-
+"""Listing app tests."""

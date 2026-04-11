@@ -329,6 +329,46 @@ def get_required_judge_groups(
     return bench.judge_groups
 
 
+def resolve_reader_slot_group_for_user(
+    user: User | None,
+    bench_key: str,
+    *,
+    reader_group: str | None = None,
+    as_of_date=None,
+) -> str:
+    """
+    Resolve CourtroomForward.reader_slot_group (canonical judge group, e.g. JUDGE_CJ).
+
+    Uses per-bench reader→slot mapping when present, else legacy READER_* query param,
+    else the sole slot on single-judge benches. Division benches require an explicit
+    mapping or reader_slot_group in the API payload.
+    """
+    bench_config = get_bench_configuration(bench_key, as_of_date=as_of_date)
+    if not bench_config:
+        raise ValueError(f'Unknown bench_key={bench_key!r}.')
+
+    if user and getattr(user, 'is_authenticated', False):
+        mapping = dict(bench_config.reader_user_ids_by_group or ())
+        for group_name, reader_user_id in mapping.items():
+            if int(reader_user_id) == int(user.id):
+                return str(group_name)
+
+    if reader_group:
+        for token in LEGACY_READER_GROUP_TO_TOKENS.get(reader_group, set()):
+            group_name = BENCH_TOKEN_TO_JUDGE_GROUP.get(token)
+            if group_name and group_name in set(bench_config.judge_groups):
+                return str(group_name)
+
+    required = tuple(bench_config.judge_groups or ())
+    if len(required) == 1:
+        return str(required[0])
+
+    raise ValueError(
+        'Cannot infer reader slot for this division bench; send reader_slot_group in the '
+        'request body or map this reader user to a judge slot in bench configuration.'
+    )
+
+
 def _legacy_reader_tokens(
     user: User | None,
     reader_group: str | None = None,

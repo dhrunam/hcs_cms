@@ -196,6 +196,8 @@ USE_TZ = True
 # ---------------------------------------------------------------------------
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+# WhiteNoise warns if this path is missing; tests/dev often skip collectstatic.
+STATIC_ROOT.mkdir(parents=True, exist_ok=True)
 
 STORAGES = {
     "default": {
@@ -208,6 +210,7 @@ STORAGES = {
 
 MEDIA_ROOT = BASE_DIR / "media"
 MEDIA_URL = "/media/"
+MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------------------------
 # Default primary key

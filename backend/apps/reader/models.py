@@ -10,11 +10,14 @@ class CourtroomForward(BaseModel):
     """
     Reader forwards an accepted case to judge(s) for a courtroom session.
     The case is tied to the forwarded_for_date and the bench_key at forwarding time.
+    On division benches, one row per judge slot (reader_slot_group) so summaries do not overwrite.
     """
 
     forwarded_for_date = models.DateField()
     efiling = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name="courtroom_forwards")
     bench_key = models.CharField(max_length=50)
+    # JUDGE_CJ / JUDGE_J1 / JUDGE_J2 — which judge slot this reader submission targets.
+    reader_slot_group = models.CharField(max_length=32)
     listing_summary = models.TextField(blank=True, null=True)
     forwarded_by = models.ForeignKey(
         User,
@@ -27,7 +30,16 @@ class CourtroomForward(BaseModel):
     class Meta:
         db_table = "courtroom_forward"
         app_label = "reader"
-        indexes = [models.Index(fields=["forwarded_for_date", "bench_key"])]
+        indexes = [
+            models.Index(fields=["forwarded_for_date", "bench_key"]),
+            models.Index(fields=["forwarded_for_date", "bench_key", "reader_slot_group"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["efiling", "forwarded_for_date", "bench_key", "reader_slot_group"],
+                name="courtroom_forward_unique_efiling_date_bench_slot",
+            ),
+        ]
 
 
 class CourtroomForwardDocument(BaseModel):
