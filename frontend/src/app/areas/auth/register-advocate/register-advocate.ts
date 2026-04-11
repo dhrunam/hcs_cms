@@ -36,17 +36,10 @@ export class RegisterAdvocate {
   date_of_birth = '';
   address = '';
   gender: 'M' | 'F' | 'O' | 'U' = 'U';
-  photo: File | null = null;
   bar_id = '';
   bar_id_file: File | null = null;
 
   submitted = false;
-
-  onPhotoChange(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const f = input.files?.[0];
-    this.photo = f ?? null;
-  }
 
   onBarFileChange(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -89,9 +82,6 @@ export class RegisterAdvocate {
     fd.append('gender', this.gender);
     fd.append('bar_id', this.bar_id.trim());
     fd.append('bar_id_file', this.bar_id_file!, this.bar_id_file!.name);
-    if (this.photo) {
-      fd.append('photo', this.photo, this.photo.name);
-    }
 
     this.isLoading = true;
     this.registration.registerAdvocate(fd).subscribe({

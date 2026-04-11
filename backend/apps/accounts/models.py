@@ -1,8 +1,39 @@
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.db.models import Q
 
-from apps.accounts.roles import REGISTRATION_TYPE_CHOICES
+from apps.accounts.roles import REG_ADVOCATE, REG_PARTY, REGISTRATION_TYPE_CHOICES
+
+_PHONE_SET = Q(phone_number__gt="")
+
+
+def _registration_profile_user_pk(instance: "RegistrationProfile") -> int | str:
+    """User primary key for per-advocate / per-party media folders (set at registration)."""
+    uid = instance.user_id
+    if uid is not None:
+        return uid
+    user = getattr(instance, "user", None)
+    if user is not None and user.pk:
+        return user.pk
+    return "unsaved"
+
+
+def registration_profile_photo_upload_to(instance: "RegistrationProfile", filename: str) -> str:
+    """Store photos under persona-specific paths; advocate/party folders use the user's PK."""
+    reg = getattr(instance.user, "registration_type", "") or ""
+    pk = _registration_profile_user_pk(instance)
+    if reg == REG_ADVOCATE:
+        return f"advocate/{pk}/{filename}"
+    if reg == REG_PARTY:
+        return f"party_in_person/{pk}/{filename}"
+    return f"profiles/registration/{filename}"
+
+
+def registration_profile_bar_id_upload_to(instance: "RegistrationProfile", filename: str) -> str:
+    # /media/advocate/<advocate_user_pk>/<filename> — advocate_id is the registered user's id (PK).
+    pk = _registration_profile_user_pk(instance)
+    return f"advocate/{pk}/{filename}"
 
 
 class User(AbstractUser):
@@ -43,6 +74,13 @@ class User(AbstractUser):
         verbose_name = "User"
         verbose_name_plural = "Users"
         ordering = ["email"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["phone_number"],
+                condition=_PHONE_SET,
+                name="accounts_user_phone_unique_when_set",
+            ),
+        ]
 
     def __str__(self) -> str:
         full_name = self.get_full_name().strip()
@@ -81,11 +119,11 @@ class RegistrationProfile(models.Model):
     address = models.TextField()
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
     photo = models.FileField(
-        upload_to="profiles/registration/", blank=True, null=True
+        upload_to=registration_profile_photo_upload_to, blank=True, null=True
     )
     bar_id = models.CharField(max_length=128, blank=True, default="")
     bar_id_file = models.FileField(
-        upload_to="advocate/bar_id/", blank=True, null=True
+        upload_to=registration_profile_bar_id_upload_to, blank=True, null=True
     )
     verification_status = models.CharField(
         max_length=16,

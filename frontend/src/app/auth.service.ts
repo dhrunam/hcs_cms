@@ -40,11 +40,14 @@ export class AuthService {
     void this.router.navigate(['/user/login']);
   }
 
-  /** JWT login against the CMS API; stores access/refresh in sessionStorage. */
-  async loginWithPassword(email: string, password: string): Promise<void> {
+  /**
+   * JWT login against the CMS API; stores access/refresh in sessionStorage.
+   * @param identifier Registered email or phone number (`User.phone_number`); sent as JSON `email`.
+   */
+  async loginWithPassword(identifier: string, password: string): Promise<void> {
     const res = await firstValueFrom(
       this.http.post<{ access: string; refresh: string }>(this.tokenUrl, {
-        email,
+        email: identifier.trim(),
         password,
       }),
     );

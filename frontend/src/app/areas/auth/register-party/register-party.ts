@@ -36,15 +36,8 @@ export class RegisterParty {
   date_of_birth = '';
   address = '';
   gender: 'M' | 'F' | 'O' | 'U' = 'U';
-  photo: File | null = null;
 
   submitted = false;
-
-  onPhotoChange(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const f = input.files?.[0];
-    this.photo = f ?? null;
-  }
 
   private clientErrors(): string | null {
     if (!this.email.trim()) return 'Email is required.';
@@ -77,9 +70,6 @@ export class RegisterParty {
     fd.append('date_of_birth', this.date_of_birth);
     fd.append('address', this.address.trim());
     fd.append('gender', this.gender);
-    if (this.photo) {
-      fd.append('photo', this.photo, this.photo.name);
-    }
 
     this.isLoading = true;
     this.registration.registerParty(fd).subscribe({

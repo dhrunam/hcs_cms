@@ -22,19 +22,25 @@ class PartyRegistrationSerializer(serializers.Serializer):
     date_of_birth = serializers.DateField()
     address = serializers.CharField()
     gender = serializers.ChoiceField(choices=RegistrationProfile.GENDER_CHOICES)
-    photo = serializers.FileField(required=False, allow_null=True)
 
     def validate_email(self, value: str) -> str:
         if User.objects.filter(email__iexact=value.strip()).exists():
             raise serializers.ValidationError("A user with this email already exists.")
         return value.strip()
 
+    def validate_phone_number(self, value: str) -> str:
+        v = (value or "").strip()
+        if User.objects.filter(phone_number__iexact=v).exists():
+            raise serializers.ValidationError(
+                "A user with this phone number already exists."
+            )
+        return v
+
     def validate(self, attrs):
         validate_password(attrs["password"])
         return attrs
 
     def create(self, validated_data):
-        photo = validated_data.pop("photo", None)
         password = validated_data.pop("password")
         require_verify = getattr(
             settings, "REGISTRATION_REQUIRE_EMAIL_VERIFICATION", False
@@ -59,7 +65,6 @@ class PartyRegistrationSerializer(serializers.Serializer):
             date_of_birth=validated_data["date_of_birth"],
             address=validated_data["address"],
             gender=validated_data["gender"],
-            photo=photo,
             bar_id="",
             bar_id_file=None,
             verification_status="",
@@ -81,7 +86,6 @@ class AdvocateRegistrationSerializer(serializers.Serializer):
     date_of_birth = serializers.DateField()
     address = serializers.CharField()
     gender = serializers.ChoiceField(choices=RegistrationProfile.GENDER_CHOICES)
-    photo = serializers.FileField(required=False, allow_null=True)
     bar_id = serializers.CharField(max_length=128)
     bar_id_file = serializers.FileField()
 
@@ -90,12 +94,19 @@ class AdvocateRegistrationSerializer(serializers.Serializer):
             raise serializers.ValidationError("A user with this email already exists.")
         return value.strip()
 
+    def validate_phone_number(self, value: str) -> str:
+        v = (value or "").strip()
+        if User.objects.filter(phone_number__iexact=v).exists():
+            raise serializers.ValidationError(
+                "A user with this phone number already exists."
+            )
+        return v
+
     def validate(self, attrs):
         validate_password(attrs["password"])
         return attrs
 
     def create(self, validated_data):
-        photo = validated_data.pop("photo", None)
         bar_id_file = validated_data.pop("bar_id_file")
         bar_id = validated_data.pop("bar_id")
         password = validated_data.pop("password")
@@ -122,7 +133,6 @@ class AdvocateRegistrationSerializer(serializers.Serializer):
             date_of_birth=validated_data["date_of_birth"],
             address=validated_data["address"],
             gender=validated_data["gender"],
-            photo=photo,
             bar_id=bar_id,
             bar_id_file=bar_id_file,
             verification_status=RegistrationProfile.VERIFICATION_PENDING,

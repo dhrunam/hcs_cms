@@ -7,6 +7,19 @@ import { ToastrService } from 'ngx-toastr';
 import { AuthService } from '../../../auth.service';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Loose match for phone-style sign-in (backend matches User.phone_number). */
+const PHONE_RE = /^[\d\s\-+()]{8,24}$/;
+
+function isValidLoginIdentifier(raw: string): boolean {
+  const t = raw.trim();
+  if (!t) return false;
+  if (EMAIL_RE.test(t)) return true;
+  if (PHONE_RE.test(t)) {
+    const digits = t.replace(/\D/g, '');
+    return digits.length >= 8;
+  }
+  return false;
+}
 
 @Component({
   selector: 'app-login',
@@ -28,6 +41,7 @@ export class Login implements OnInit {
   authErrorMessage = '';
   submitted = false;
 
+  /** Value may be email or phone; API still expects JSON key `email`. */
   email = '';
   password = '';
   showPassword = false;
@@ -47,19 +61,20 @@ export class Login implements OnInit {
     }
 
     if (this.route.snapshot.queryParamMap.get('registered') === '1') {
-      this.toastr.success('Account created. Sign in with your email and password.');
+      this.toastr.success('Account created. Sign in with your email or phone number and password.');
     }
   }
 
-  get emailInvalid(): boolean {
-    return this.submitted && (!this.email.trim() || !EMAIL_RE.test(this.email.trim()));
+  get identifierInvalid(): boolean {
+    return this.submitted && !isValidLoginIdentifier(this.email);
   }
 
   async submit(): Promise<void> {
     this.submitted = true;
     this.authErrorMessage = '';
-    if (!this.email.trim() || !EMAIL_RE.test(this.email.trim())) {
-      this.authErrorMessage = 'Enter a valid email address.';
+    const id = this.email.trim();
+    if (!isValidLoginIdentifier(id)) {
+      this.authErrorMessage = 'Enter a valid email address or phone number.';
       return;
     }
     if (!this.password) {
@@ -69,7 +84,7 @@ export class Login implements OnInit {
 
     this.isLoading = true;
     try {
-      await this.authService.loginWithPassword(this.email.trim(), this.password);
+      await this.authService.loginWithPassword(id, this.password);
       await this.authService.navigateToDashboardByRole();
     } catch (err: unknown) {
       const body =
@@ -77,7 +92,7 @@ export class Login implements OnInit {
       const detail =
         body && typeof body === 'object' && body !== null && 'detail' in body
           ? String((body as { detail?: unknown }).detail)
-          : 'Login failed. Check your email and password.';
+          : 'Login failed. Check your email or phone number and password.';
       this.authErrorMessage = detail;
       this.toastr.error(detail, 'Sign in failed');
     } finally {

@@ -2,25 +2,20 @@
   <div class="auth-page-inner">
     <div class="auth-split">
       <aside class="auth-brand d-none d-lg-block" aria-hidden="false">
-        <div class="auth-brand-badge">Secure access</div>
+        <!-- <div class="auth-brand-badge">Secure access</div> -->
         <h1>Sikkim High Court eFiling</h1>
         <p>
-          Sign in to file cases, manage documents, and follow your matters in one place. Your session uses
-          encrypted authentication with the court management system.
+          Sign in to file cases, manage documents, and follow your matters in one place.
         </p>
       </aside>
 
       <div class="login-form-column">
-        <div class="auth-brand d-lg-none text-center mb-3">
-          <div class="auth-brand-badge mx-auto">Secure access</div>
-          <h1 class="h4 text-white mt-2 mb-1">Sikkim High Court eFiling</h1>
-        </div>
 
         <div class="auth-card" [@fadeInCard]>
           <div class="text-center mb-3">
             <img class="auth-logo mx-auto d-block" src="/assets/icons/hcs_logo.jpeg" alt="High Court of Sikkim" />
             <h2 class="auth-title">Sign in</h2>
-            <p class="auth-subtitle mb-0">Use your registered email and password.</p>
+            <!-- <p class="auth-subtitle mb-0">Use your registered email and password.</p> -->
           </div>
 
           <div
@@ -34,21 +29,23 @@
 
           <form (ngSubmit)="submit()" novalidate>
             <div class="mb-3">
-              <label class="auth-label" for="login-email">Email</label>
+              <label class="auth-label" for="login-identifier">Email or phone number</label>
               <input
-                id="login-email"
+                id="login-identifier"
                 class="auth-input"
-                [class.is-invalid]="emailInvalid"
-                type="email"
+                [class.is-invalid]="identifierInvalid"
+                type="text"
                 name="email"
                 [(ngModel)]="email"
                 autocomplete="username"
+                inputmode="text"
                 required
-                [attr.aria-invalid]="emailInvalid"
-                [attr.aria-describedby]="emailInvalid ? 'login-email-err' : null"
+                [attr.aria-invalid]="identifierInvalid"
+                [attr.aria-describedby]="identifierInvalid ? 'login-id-err' : null"
+                placeholder="Email or phone number"
               />
-              <small *ngIf="emailInvalid" id="login-email-err" class="text-danger d-block mt-1">
-                Enter a valid email address.
+              <small *ngIf="identifierInvalid" id="login-id-err" class="text-danger d-block mt-1">
+                Enter a valid email address or phone number (digits, spaces, +, -).
               </small>
             </div>
 
@@ -92,20 +89,8 @@
           <p class="text-center mt-3 mb-2">
             <a routerLink="/user/register" class="auth-link">Create an account</a>
           </p>
-          <p class="text-center small text-muted mb-0">
-            <span class="login-forgot-placeholder text-muted">Forgot password?</span>
-            Contact court support — self-service reset is not available yet.
-          </p>
         </div>
       </div>
     </div>
   </div>
-
-  <footer class="auth-footer">
-    <a routerLink="/user/register">Register</a>
-    ·
-    <a href="/">Home</a>
-    ·
-    <span>Help</span>
-  </footer>
 </div>
