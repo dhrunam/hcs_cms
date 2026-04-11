@@ -14,7 +14,7 @@
       <div>
         <label class="form-label mb-1 fw-semibold">Forwarded To</label>
         <div class="form-control form-control-sm bg-light">
-          {{ forwardBenchConfiguration?.judge_names?.join(', ') || 'No mapped judge available' }}
+          {{ (forwardBenchConfiguration?.mapped_judge_names?.length ? forwardBenchConfiguration?.mapped_judge_names : forwardBenchConfiguration?.judge_names)?.join(', ') || 'No mapped judge available' }}
         </div>
         
       </div>

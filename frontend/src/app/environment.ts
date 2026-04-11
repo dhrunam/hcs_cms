@@ -17,3 +17,11 @@ export function isLocalDevHost(): boolean {
  * Set to "" to disable.
  */
 export const devAuthBypassToken = '';
+
+/**
+ * Passphrase for AES-GCM encryption of the user profile blob in sessionStorage (`user_session_enc`).
+ * Replace with a long random value per deployment; empty string disables encryption (cache only).
+ * This does not stop a determined attacker with the built JS—only casual DevTools inspection.
+ */
+export const sessionProfileKey =
+  'hcs_cms_dev_session_profile_key_replace_with_random_in_production_min32';

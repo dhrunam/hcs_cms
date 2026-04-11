@@ -66,7 +66,7 @@ export class JudgeCourtroomPage {
   private readCanWrite(): boolean {
     const groups = this.auth.getUserGroups();
     return groups.some((g) =>
-      ["API_JUDGE", "JUDGE_CJ", "JUDGE_J1", "JUDGE_J2"].includes(String(g)),
+      ["JUDGE", "JUDGE_CJ", "JUDGE_J1", "JUDGE_J2"].includes(String(g)),
     );
   }
 

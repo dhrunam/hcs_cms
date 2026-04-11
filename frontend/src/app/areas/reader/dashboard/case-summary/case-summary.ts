@@ -244,7 +244,6 @@ export class ReaderCaseSummaryPage {
   }
 
   get forwardBenchConfiguration(): BenchConfiguration | undefined {
-    console.log(this.benchConfigurations.find((item) => item.is_forward_target));
     return this.benchConfigurations.find((item) => item.is_forward_target);
   }
 

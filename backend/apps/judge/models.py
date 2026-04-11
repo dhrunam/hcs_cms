@@ -6,9 +6,11 @@ from apps.accounts.models import User
 from apps.core.models import BaseModel, Efiling, EfilingDocumentsIndex, JudgeT
 
 
-JUDGE_GROUP_CJ = "API_JUDGE"
-JUDGE_GROUP_J1 = "API_JUDGE"
-JUDGE_GROUP_J2 = "API_JUDGE"
+# Generic Django group for all judges (courtroom + legacy checks use these names).
+GENERIC_JUDGE_GROUP = "JUDGE"
+JUDGE_GROUP_CJ = GENERIC_JUDGE_GROUP
+JUDGE_GROUP_J1 = GENERIC_JUDGE_GROUP
+JUDGE_GROUP_J2 = GENERIC_JUDGE_GROUP
 
 
 
@@ -37,7 +39,7 @@ class CourtroomJudgeDecision(BaseModel):
     decision_notes = models.TextField(blank=True, null=True)
     reader_listing_remark = models.TextField(blank=True, null=True)
     # Canonical role this row satisfies for reader approval flows (JUDGE_CJ, JUDGE_J1, …).
-    # Decouples from judge_user__groups when SSO only exposes API_JUDGE.
+    # Decouples from judge_user__groups when only generic JUDGE is exposed.
     bench_role_group = models.CharField(max_length=32, blank=True, null=True, db_index=True)
 
     class Meta:

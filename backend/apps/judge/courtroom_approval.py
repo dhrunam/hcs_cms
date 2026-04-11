@@ -24,7 +24,6 @@ def legacy_role_from_user_for_bench(user, required_groups: tuple[str, ...]) -> s
     """Infer role for old rows without bench_role_group."""
     if not required_groups:
         return None
-    from apps.judge.models import JUDGE_GROUP_CJ
 
     names = set(user.groups.values_list("name", flat=True))
     token_match = names & set(required_groups)
@@ -33,7 +32,7 @@ def legacy_role_from_user_for_bench(user, required_groups: tuple[str, ...]) -> s
     if len(token_match) > 1:
         # Ambiguous token membership must not collapse to a single slot.
         return None
-    if (JUDGE_GROUP_CJ in names or "API_JUDGE" in names) and len(required_groups) == 1:
+    if "JUDGE" in names and len(required_groups) == 1:
         return required_groups[0]
     return None
 

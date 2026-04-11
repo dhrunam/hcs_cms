@@ -71,6 +71,7 @@ _DUMMY_TOKEN_TO_DUMMY_EMAIL: Dict[str, str] = {
 
 _COURTROOM_JUDGE_GROUP_NAMES = frozenset(
     {
+        "JUDGE",
         JUDGE_GROUP_CJ,
         JUDGE_GROUP_J1,
         JUDGE_GROUP_J2,
@@ -749,7 +750,7 @@ class CourtroomDecisionView(APIView):
         distinct_roles = {role for _, role in resolved_candidates}
         if len(distinct_roles) > 1:
             # Prefer exact bench-slot forwards (single required group) to avoid cross-slot collisions
-            # when users are API_JUDGE-like in legacy deployments.
+            # when users only have the generic JUDGE group.
             scoped = []
             for fwd, role in resolved_candidates:
                 req = tuple(get_required_judge_groups(fwd.bench_key))
