@@ -1,4 +1,4 @@
-<div class="elegant-dashboard p-0">
+<div class="elegant-dashboard p-0 pt-3">
   <div class="d-flex justify-content-between align-items-center mb-4">
     <a
       class="btn btn-sm btn-info border shadow-sm px-3 rounded-pill"
@@ -7,6 +7,8 @@
     >
       <i class="fa fa-arrow-left me-2"></i> Dashboard
     </a>
+
+    
   </div>
 
   <div *ngIf="isLoading" class="text-center py-5">
@@ -38,12 +40,13 @@
           </div>
           
        </div> -->
+       <h3  class="caseh font-weight-bolder fs-4 text-dark border-1 border-black">
+          {{ caseSummary.case_number || 'No Case Number' }}
+            <!-- case no: WP(C) / 1/ 2023 -->
+        </h3>
        <div class="text-end d-flex flex-column justify-content-center align-items-start">
-          <h5 class="caseh font-weight-bold fs-6">
-          <!-- {{ caseSummary.case_number || 'No Case Number' }} -->
-            case no: WP(C) / 1/ 2023
-          </h5>
-        <div class="text-center text-dark fw-bold col-12"
+          
+        <div class="text-center text-muted fw-semibold col-12 fs-6"
        [innerHTML]="formatVs(caseSummary.petitioner_name)">
 
         </div>
