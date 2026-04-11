@@ -5,7 +5,7 @@ export const authConfig: AuthConfig = {
   // redirectUri: window.location.origin,
   redirectUri: 'http://localhost:4200/',
   // clientId: '3BaGLodbo7AdK5qjIjK1I0Isf1l5zLnGqiOC6Oov',
-  clientId: '4T0KMegeS4cY55z21J4pKP9RCHyuX5KpNUWDdiP7',
+  clientId: 'OWZfeEPGPx94aLmiYKQaFA7eThLKuqGxCrJrZvZH',
   responseType: 'code',
   scope: 'openid profile email',
   showDebugInformation: false,

@@ -19,6 +19,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     sessionStorage.setItem('access_token', token);
   }
 
+  // alert(`Interceptor token: ${token}`);
+
   if (token) {
     req = req.clone({
       setHeaders: {
