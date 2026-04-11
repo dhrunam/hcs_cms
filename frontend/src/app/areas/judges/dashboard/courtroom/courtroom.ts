@@ -21,6 +21,7 @@ export class JudgeCourtroomPage {
   efilingId: number | null = null;
   forwardedForDate: string | null = null;
   forwardBenchKey: string | null = null;
+  readerSlotGroup: string | null = null;
 
   isLoading = false;
   loadError = "";
@@ -55,6 +56,8 @@ export class JudgeCourtroomPage {
       this.route.snapshot.queryParamMap.get("forwarded_for_date");
     this.forwardBenchKey =
       this.route.snapshot.queryParamMap.get("forward_bench_key");
+    this.readerSlotGroup =
+      this.route.snapshot.queryParamMap.get("reader_slot_group");
     if (!this.efilingId || !this.forwardedForDate) {
       this.loadError = "Missing case id or forwarded_for_date.";
       return;
@@ -76,7 +79,12 @@ export class JudgeCourtroomPage {
     this.loadError = "";
 
     this.courtroomService
-      .getCaseSummary(this.efilingId, this.forwardedForDate, this.forwardBenchKey)
+      .getCaseSummary(
+        this.efilingId,
+        this.forwardedForDate,
+        this.forwardBenchKey,
+        this.readerSlotGroup,
+      )
       .subscribe({
         next: (resp) => {
           this.caseSummary = resp ?? null;
@@ -84,6 +92,8 @@ export class JudgeCourtroomPage {
             resp?.forwarded_for_date ?? this.forwardedForDate;
           this.forwardBenchKey =
             resp?.forward_bench_key ?? this.forwardBenchKey;
+          this.readerSlotGroup =
+            resp?.reader_slot_group ?? this.readerSlotGroup;
           this.decisionNotes = resp?.judge_decision?.decision_notes ?? "";
           this.loadCaseDocuments();
           this.isLoading = false;
@@ -163,7 +173,13 @@ export class JudgeCourtroomPage {
     if (!this.efilingId || !this.forwardedForDate) return;
     this.documentsLoadError = "";
     this.courtroomService
-      .getCaseDocuments(this.efilingId, this.forwardedForDate, this.forwardBenchKey, false)
+      .getCaseDocuments(
+        this.efilingId,
+        this.forwardedForDate,
+        this.forwardBenchKey,
+        this.readerSlotGroup,
+        false,
+      )
       .subscribe({
         next: (resp) => {
           this.allCaseDocuments = resp?.items ?? [];

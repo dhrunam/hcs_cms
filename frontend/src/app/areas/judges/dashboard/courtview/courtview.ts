@@ -55,13 +55,19 @@ export class JudgeCourtviewPage {
     });
   }
 
-  openCourtroom(
-    efilingId: number,
-    forwardedDate: string | null | undefined,
-  ): void {
-    const fdate = forwardedDate || this.forwardedForDate;
-    this.router.navigate(["/judges/dashboard/courtview/case", efilingId], {
-      queryParams: { forwarded_for_date: fdate },
+  openCourtroom(c: {
+    efiling_id: number;
+    forwarded_for_date?: string;
+    forward_bench_key?: string;
+    reader_slot_group?: string;
+  }): void {
+    const fdate = c.forwarded_for_date || this.forwardedForDate;
+    this.router.navigate(["/judges/dashboard/courtview/case", c.efiling_id], {
+      queryParams: {
+        forwarded_for_date: fdate,
+        forward_bench_key: c.forward_bench_key || undefined,
+        reader_slot_group: c.reader_slot_group || undefined,
+      },
     });
   }
 }

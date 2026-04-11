@@ -21,6 +21,8 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
   benchLabel = benchLabel;
   efilingId: number | null = null;
   forwardedForDate: string | null = null;
+  forwardBenchKey: string | null = null;
+  readerSlotGroup: string | null = null;
 
   isLoading = false;
   loadError = "";
@@ -57,6 +59,10 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
     this.efilingId = idRaw ? Number(idRaw) : null;
     this.forwardedForDate =
       this.route.snapshot.queryParamMap.get("forwarded_for_date");
+    this.forwardBenchKey =
+      this.route.snapshot.queryParamMap.get("forward_bench_key");
+    this.readerSlotGroup =
+      this.route.snapshot.queryParamMap.get("reader_slot_group");
 
     if (!this.efilingId || !this.forwardedForDate) {
       this.loadError = "Missing case id or forwarded_for_date.";
@@ -173,12 +179,21 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
     this.loadError = "";
 
     this.courtroomService
-      .getCaseSummary(this.efilingId, this.forwardedForDate)
+      .getCaseSummary(
+        this.efilingId,
+        this.forwardedForDate,
+        this.forwardBenchKey,
+        this.readerSlotGroup,
+      )
       .subscribe({
         next: (resp) => {
           this.caseSummary = resp ?? null;
           this.forwardedForDate =
             resp?.forwarded_for_date ?? this.forwardedForDate;
+          this.forwardBenchKey =
+            resp?.forward_bench_key ?? this.forwardBenchKey;
+          this.readerSlotGroup =
+            resp?.reader_slot_group ?? this.readerSlotGroup;
           this.loadCaseDocuments();
           this.isLoading = false;
         },
@@ -193,7 +208,13 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
   private loadCaseDocuments(): void {
     if (!this.efilingId || !this.forwardedForDate) return;
     this.courtroomService
-      .getCaseDocuments(this.efilingId, this.forwardedForDate, null ,false)
+      .getCaseDocuments(
+        this.efilingId,
+        this.forwardedForDate,
+        this.forwardBenchKey,
+        this.readerSlotGroup,
+        false,
+      )
       .subscribe({
         next: (resp) => {
           this.allCaseDocuments = resp?.items ?? [];

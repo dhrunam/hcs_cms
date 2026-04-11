@@ -14,6 +14,7 @@ export class CourtroomService {
       bench_key: string;
       bench_label?: string;
       forward_bench_key?: string;
+      reader_slot_group?: string;
       listing_summary?: string | null;
       judge_decision: boolean | null;
       judge_decision_status?: 'APPROVED' | 'DECLINED' | 'REQUESTED_DOCS' | null;
@@ -28,6 +29,7 @@ export class CourtroomService {
       bench_key: string;
       bench_label?: string;
       forward_bench_key?: string;
+      reader_slot_group?: string;
       listing_summary?: string | null;
       judge_decision: boolean | null;
       judge_decision_status?: 'APPROVED' | 'DECLINED' | 'REQUESTED_DOCS' | null;
@@ -46,6 +48,7 @@ export class CourtroomService {
     efiling_id: number,
     forwarded_for_date: string,
     forward_bench_key?: string | null,
+    reader_slot_group?: string | null,
     requested_only: boolean = false,
   ): Observable<{
     items: any[];
@@ -53,10 +56,13 @@ export class CourtroomService {
     const benchPart = forward_bench_key
       ? `&forward_bench_key=${encodeURIComponent(String(forward_bench_key))}`
       : "";
+    const slotPart = reader_slot_group
+      ? `&reader_slot_group=${encodeURIComponent(String(reader_slot_group))}`
+      : "";
     return this.http.get<{ items: any[] }>(
       `${app_url}/api/v1/judge/courtroom/cases/${efiling_id}/documents/?forwarded_for_date=${encodeURIComponent(
         forwarded_for_date,
-      )}${benchPart}&requested_only=${requested_only ? 'true' : 'false'}`,
+      )}${benchPart}${slotPart}&requested_only=${requested_only ? 'true' : 'false'}`,
     );
   }
 
@@ -64,6 +70,7 @@ export class CourtroomService {
     efiling_id: number,
     forwarded_for_date: string,
     forward_bench_key?: string | null,
+    reader_slot_group?: string | null,
   ): Observable<{
     efiling_id: number;
     case_number: string | null;
@@ -73,6 +80,7 @@ export class CourtroomService {
     bench_key: string;
     bench_label?: string;
     forward_bench_key?: string;
+    reader_slot_group?: string;
     forwarded_for_date: string;
     listing_summary?: string | null;
     selected_documents?: {
@@ -99,10 +107,13 @@ export class CourtroomService {
     const benchPart = forward_bench_key
       ? `&forward_bench_key=${encodeURIComponent(String(forward_bench_key))}`
       : "";
+    const slotPart = reader_slot_group
+      ? `&reader_slot_group=${encodeURIComponent(String(reader_slot_group))}`
+      : "";
     return this.http.get<any>(
       `${app_url}/api/v1/judge/courtroom/cases/${efiling_id}/summary/?forwarded_for_date=${encodeURIComponent(
         forwarded_for_date,
-      )}${benchPart}`,
+      )}${benchPart}${slotPart}`,
     );
   }
 

@@ -26,6 +26,7 @@ export class JudgePendingCasesPage {
     petitioner_vs_respondent?: string | null;
     bench_key: string;
     forward_bench_key?: string;
+    reader_slot_group?: string;
     bench_label?: string;
     judge_decision: boolean | null;
     forwarded_for_date?: string;
@@ -38,6 +39,7 @@ export class JudgePendingCasesPage {
     petitioner_vs_respondent?: string | null;
     bench_key: string;
     forward_bench_key?: string;
+    reader_slot_group?: string;
     bench_label?: string;
     judge_decision: boolean | null;
     forwarded_for_date?: string;
@@ -85,11 +87,17 @@ export class JudgePendingCasesPage {
     efiling_id: number;
     forwarded_for_date?: string;
     forward_bench_key?: string;
+    reader_slot_group?: string;
   }): void {
     const fdate = c?.forwarded_for_date || this.forwardedForDate;
     const fbench = c?.forward_bench_key || undefined;
+    const fslot = c?.reader_slot_group || undefined;
     this.router.navigate(['/judges/dashboard/courtroom', c.efiling_id], {
-      queryParams: { forwarded_for_date: fdate, forward_bench_key: fbench },
+      queryParams: {
+        forwarded_for_date: fdate,
+        forward_bench_key: fbench,
+        reader_slot_group: fslot,
+      },
     });
   }
 
