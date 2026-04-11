@@ -40,6 +40,10 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
   isSyncEnabled = false;
   private pollingInterval: any = null;
   private originalState: { doc: any; pageIndex: number } | null = null;
+  /** Skip redundant follow updates when advocate position unchanged. */
+  private lastAppliedSyncKey: string | null = null;
+  /** Target page index until the PDF viewer has pages and can scroll. */
+  private pendingSyncPage: number | null = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -77,8 +81,11 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
         this.courtroomService.getActiveSharedView(this.efilingId).subscribe({
           next: (share: any) => {
             this.activeShare = share.active ? share : null;
+            if (!this.activeShare) {
+              this.lastAppliedSyncKey = null;
+            }
             if (this.isSyncEnabled && this.activeShare) {
-              this.applySync();
+              this.applySync(false);
             }
           },
         });
@@ -111,8 +118,10 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
         doc: this.previewDocument,
         pageIndex: this.annotator?.currentPageIndex || 0,
       };
-      this.applySync();
+      this.applySync(true);
     } else {
+      this.lastAppliedSyncKey = null;
+      this.pendingSyncPage = null;
       // Restore original state
       if (this.originalState) {
         this.selectPreviewDocument(this.originalState.doc);
@@ -125,25 +134,58 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
     }
   }
 
-  private applySync() {
+  private applySync(force: boolean) {
     if (!this.activeShare) return;
 
-    // Switch document if needed
-    if (this.previewDocument?.id !== this.activeShare.document_index_id) {
-      const targetDoc = this.allCaseDocuments.find(
-        (d) => d.id === this.activeShare.document_index_id,
-      );
-      if (targetDoc) {
-        this.selectPreviewDocument(targetDoc, true);
-      }
+    const docId = Number(this.activeShare.document_index_id);
+    const pageIdx = Math.max(0, Number(this.activeShare.page_index) || 0);
+    const key = `${docId}:${pageIdx}`;
+    if (!force && key === this.lastAppliedSyncKey) {
+      return;
     }
 
-    // Scroll to page
-    setTimeout(() => {
-      if (this.annotator) {
-        this.annotator.scrollToPage(this.activeShare.page_index);
+    if (Number(this.previewDocument?.id) !== docId) {
+      const targetDoc = this.allCaseDocuments.find(
+        (d) => Number(d.id) === docId,
+      );
+      if (targetDoc) {
+        this.pendingSyncPage = pageIdx;
+        this.selectPreviewDocument(targetDoc, true);
       }
-    }, 500);
+      return;
+    }
+
+    this.pendingSyncPage = pageIdx;
+    this.flushPendingSyncScroll(key);
+  }
+
+  /** Called when the PDF annotator finishes loading (e.g. after switching pleadings). */
+  onAnnotatorPdfReady(): void {
+    if (!this.isSyncEnabled || !this.activeShare || this.pendingSyncPage === null) {
+      return;
+    }
+    const docId = Number(this.activeShare.document_index_id);
+    const pageIdx = this.pendingSyncPage;
+    const key = `${docId}:${pageIdx}`;
+    setTimeout(() => {
+      if (this.pendingSyncPage !== pageIdx) {
+        return;
+      }
+      this.flushPendingSyncScroll(key);
+    }, 0);
+  }
+
+  private flushPendingSyncScroll(appliedKey: string): void {
+    if (this.pendingSyncPage === null || !this.annotator) {
+      return;
+    }
+    if (this.annotator.pages.length === 0) {
+      return;
+    }
+    const idx = this.pendingSyncPage;
+    this.annotator.scrollToPage(idx);
+    this.lastAppliedSyncKey = appliedKey;
+    this.pendingSyncPage = null;
   }
 
   concludeHearing() {
@@ -160,9 +202,9 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
 
   // Step 2: Replace vs
   formatted = formatted.replace(
-    /\bVs\.?\s*/g,
-    '<span class="vs-circle">vs</span> ',
-  );
+  /\bVs\.?\s*/g,
+  '<span class="vs-circle">V/s</span> ',
+);
 
   return this.sanitizer.bypassSecurityTrustHtml(formatted);
 }
@@ -212,6 +254,8 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
     if (!fromSync && this.isSyncEnabled) {
       this.isSyncEnabled = false;
       this.originalState = null;
+      this.pendingSyncPage = null;
+      this.lastAppliedSyncKey = null;
     }
     this.previewDocument = doc;
     this.updatePreviewUrl(doc ?? null);

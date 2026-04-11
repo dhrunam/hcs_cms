@@ -3,6 +3,12 @@
     Loading Document... {{ loadingProgress }}%
   </div>
   
+  <div class="annotator-page-indicator" *ngIf="!isLoading && pages.length > 0">
+    <span class="page-indicator-text"
+      >Page {{ currentPageIndex + 1 }} of {{ pages.length }}</span
+    >
+  </div>
+
   <div class="annotator-toolbar" *ngIf="canWrite">
     <div class="btn-group btn-group-sm me-3">
       <button class="btn btn-outline-secondary" [class.active-tool]="currentTool === 'pen' && penColor === '#000000'" (click)="setTool('pen', '#000000')">

@@ -68,7 +68,8 @@
           [pdfUrl]="previewDocumentBlobUrl" 
           [annotationData]="previewDocument?.annotation_data"
           [canWrite]="false"
-          (pageChange)="onPageChange($event)">
+          (pageChange)="onPageChange($event)"
+          (pdfReady)="onPdfReady()">
         </app-pdf-annotator>
 
         <div *ngIf="!previewDocumentBlobUrl && !isLoading && !previewLoadError" class="no-doc-selected">
