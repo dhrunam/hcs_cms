@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.core.models import Efiling
 from apps.efiling.serializers.efiling_serializers import EfilingSerializer
+from apps.efiling.efiling_scope import should_scope_efilings_to_creator
 from apps.efiling.review_utils import (
     derive_filing_status,
     finalize_scrutiny_submission,
@@ -37,9 +38,6 @@ class EfilingListCreateView(ListCreateAPIView):
         is_active = parse_bool(self.request.query_params.get('is_active'))
         is_draft = parse_bool(self.request.query_params.get('is_draft'))
         status = self.request.query_params.get('status')
-        print("Login User: ", self.request.user)
-
-        print("User Groups: ", self.request.user.groups.all())
         if is_active is not None:
             qs = qs.filter(is_active=is_active)
         if is_draft is not None:
@@ -53,6 +51,8 @@ class EfilingListCreateView(ListCreateAPIView):
             else:
                 # all non-accepted records for any other status value.
                 qs = qs.filter(status=status)
+        if should_scope_efilings_to_creator(self.request.user):
+            qs = qs.filter(created_by=self.request.user)
         return qs
 
 
@@ -69,6 +69,8 @@ class EfilingRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
         is_active = parse_bool(self.request.query_params.get('is_active'))
         if is_active is not None:
             qs = qs.filter(is_active=is_active)
+        if should_scope_efilings_to_creator(self.request.user):
+            qs = qs.filter(created_by=self.request.user)
         return qs
 
     def partial_update(self, request, *args, **kwargs):
@@ -91,7 +93,10 @@ class EfilingRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
 class EfilingSubmitApprovedView(APIView):
     def post(self, request, pk):
         bench = request.data.get("bench")
-        filing = get_object_or_404(Efiling.objects.all(), pk=pk)
+        qs = Efiling.objects.all()
+        if should_scope_efilings_to_creator(request.user):
+            qs = qs.filter(created_by=request.user)
+        filing = get_object_or_404(qs, pk=pk)
         filing = finalize_scrutiny_submission(
             filing,
             user=request.user if request.user.is_authenticated else None,

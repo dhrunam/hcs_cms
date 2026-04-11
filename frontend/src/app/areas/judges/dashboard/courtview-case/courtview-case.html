@@ -191,6 +191,7 @@
             [annotationData]="previewDocument?.annotation_data"
             [canWrite]="canWrite"
             (save)="onSaveAnnotations($event)"
+            (pdfReady)="onAnnotatorPdfReady()"
             class="d-block w-100 h-100"
           ></app-pdf-annotator>
 

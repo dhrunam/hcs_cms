@@ -66,7 +66,7 @@ export class RegisteredCasesPage {
   }
 
   private loadBenchConfigurations(): void {
-    this.readerService.getBenchConfigurations().subscribe({
+    this.readerService.getBenchConfigurations({ accessible_only: true }).subscribe({
       next: (resp) => {
         this.benchConfigurations = resp?.items ?? [];
       },
@@ -94,8 +94,6 @@ export class RegisteredCasesPage {
       .subscribe((resp) => {
         this.cases = (resp?.items ?? []).map((c: any) => ({ ...c }));
         this.isLoading = false;
-
-        console.log("Register Cases ", this.cases);
       });
   }
 

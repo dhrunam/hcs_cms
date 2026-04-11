@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.contrib.auth.models import Group
 from django.test import SimpleTestCase, TestCase
 from rest_framework import status
 from rest_framework.test import APIRequestFactory
@@ -336,3 +337,105 @@ class EfilingAuditIntegrationTest(TestCase):
             _resolve_identity=lambda self, claims: ('sso-user-id', user.username, user.email),
             _sync_user=lambda self, sso_id, username, email, claims: user,
         )
+
+
+class EfilingAdvocateScopeTest(TestCase):
+    """List/detail e-filing APIs scope by created_by for advocate-only users."""
+
+    def setUp(self):
+        set_current_user(None)
+        self.factory = APIRequestFactory()
+        self.list_view = EfilingListCreateView.as_view()
+        self.detail_view = EfilingRetrieveUpdateDestroyView.as_view()
+        self.advocate_a = User.objects.create_user(
+            username='scope-adv-a',
+            email='scope-a@example.com',
+            password='password123',
+        )
+        self.advocate_b = User.objects.create_user(
+            username='scope-adv-b',
+            email='scope-b@example.com',
+            password='password123',
+        )
+        advocate_group, _ = Group.objects.get_or_create(name='API_ADVOCATE')
+        self.advocate_a.groups.add(advocate_group)
+        self.advocate_b.groups.add(advocate_group)
+
+        self.filing_a = Efiling.objects.create(
+            e_filing_number='SCOPE20240000001C202400001',
+            petitioner_name='Petitioner A',
+            created_by=self.advocate_a,
+            updated_by=self.advocate_a,
+        )
+        self.filing_b = Efiling.objects.create(
+            e_filing_number='SCOPE20240000002C202400002',
+            petitioner_name='Petitioner B',
+            created_by=self.advocate_b,
+            updated_by=self.advocate_b,
+        )
+
+    def tearDown(self):
+        set_current_user(None)
+
+    def _mock_authentication(self, user):
+        return patch.multiple(
+            'apps.core.authentication.AuditAwareSSOResourceServerAuthentication',
+            _introspect=lambda self, token: {'active': True, 'scope': 'cms:write'},
+            _resolve_identity=lambda self, claims: ('sso-user-id', user.username, user.email),
+            _sync_user=lambda self, sso_id, username, email, claims: user,
+        )
+
+    def test_advocate_list_only_own_filings(self):
+        request = self.factory.get(
+            '/api/v1/efiling/efilings/',
+            HTTP_AUTHORIZATION='Bearer test-token',
+        )
+        with self._mock_authentication(self.advocate_a):
+            response = self.list_view(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        ids = [row['id'] for row in response.data['results']]
+        self.assertEqual(ids, [self.filing_a.id])
+
+    def test_advocate_cannot_retrieve_others_filing(self):
+        request = self.factory.get(
+            f'/api/v1/efiling/efilings/{self.filing_b.pk}/',
+            HTTP_AUTHORIZATION='Bearer test-token',
+        )
+        with self._mock_authentication(self.advocate_a):
+            response = self.detail_view(request, pk=self.filing_b.pk)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_scrutiny_officer_sees_all_filings(self):
+        scrutiny_user = User.objects.create_user(
+            username='scope-scrutiny',
+            email='scope-scrutiny@example.com',
+            password='password123',
+        )
+        scrutiny_group, _ = Group.objects.get_or_create(name='SCRUTINY_OFFICER')
+        scrutiny_user.groups.add(scrutiny_group)
+
+        request = self.factory.get(
+            '/api/v1/efiling/efilings/',
+            HTTP_AUTHORIZATION='Bearer test-token',
+        )
+        with self._mock_authentication(scrutiny_user):
+            response = self.list_view(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        ids = {row['id'] for row in response.data['results']}
+        self.assertEqual(ids, {self.filing_a.id, self.filing_b.id})
+
+    def test_superuser_sees_all_filings(self):
+        superuser = User.objects.create_superuser(
+            username='scope-su',
+            email='scope-su@example.com',
+            password='password123',
+        )
+        request = self.factory.get(
+            '/api/v1/efiling/efilings/',
+            HTTP_AUTHORIZATION='Bearer test-token',
+        )
+        with self._mock_authentication(superuser):
+            response = self.list_view(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        ids = {row['id'] for row in response.data['results']}
+        self.assertEqual(ids, {self.filing_a.id, self.filing_b.id})
