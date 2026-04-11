@@ -19,7 +19,7 @@ class CourtroomApprovalFlowTest(TestCase):
             username="flow_judge",
             password="x",
         )
-        grp, _ = Group.objects.get_or_create(name="API_JUDGE")
+        grp, _ = Group.objects.get_or_create(name="JUDGE")
         self.judge.groups.add(grp)
 
         self.filing = Efiling.objects.create(
@@ -39,7 +39,7 @@ class CourtroomApprovalFlowTest(TestCase):
             forwarded_by=self.judge,
         )
 
-    def test_api_judge_approval_counts_when_bench_role_set(self):
+    def test_judge_approval_counts_when_bench_role_set(self):
         CourtroomJudgeDecision.objects.create(
             judge_user=self.judge,
             efiling=self.filing,
@@ -87,9 +87,9 @@ class CourtroomApprovalFlowTest(TestCase):
             password="x",
         )
         grp_cj, _ = Group.objects.get_or_create(name="JUDGE_CJ")
-        grp_api, _ = Group.objects.get_or_create(name="API_JUDGE")
+        grp_judge, _ = Group.objects.get_or_create(name="JUDGE")
         other_judge.groups.add(grp_cj)
-        other_judge.groups.add(grp_api)
+        other_judge.groups.add(grp_judge)
 
         CourtroomJudgeDecision.objects.create(
             judge_user=other_judge,

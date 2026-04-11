@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { AuthService } from '../../auth.service';
 import { app_url } from '../../environment';
 
 export type RegisteredCase = {
@@ -29,6 +30,8 @@ export type BenchConfiguration = {
   bench_code: string | null;
   bench_name: string | null;
   judge_names: string[];
+  /** Names for slots this reader is mapped to (division benches may omit other judges). */
+  mapped_judge_names?: string[];
   judge_user_ids: number[];
   reader_user_ids: number[];
   is_accessible_to_reader: boolean;
@@ -63,47 +66,35 @@ export function resolveBenchConfiguration(
   );
 }
 
-/**
- * Picks a stable `reader_group` query value for reader APIs. Prefer slot-specific
- * groups (READER_CJ/J1/J2) so the backend legacy bench-token map applies even when
- * `user_group` (first token group) is e.g. API_COURT_READER.
- */
-export function readerGroupForApiQuery(): string | null {
-  const raw = sessionStorage.getItem('user_groups');
-  let groups: string[] = [];
-  if (raw) {
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      if (Array.isArray(parsed)) {
-        groups = parsed.filter((g): g is string => typeof g === 'string' && g.trim().length > 0);
-      }
-    } catch {
-      groups = [];
-    }
-  }
-  const set = new Set(groups.map((g) => g.trim()));
-  for (const g of ['READER_CJ', 'READER_J1', 'READER_J2'] as const) {
-    if (set.has(g)) {
-      return g;
-    }
-  }
-  for (const g of ['READER', 'API_COURT_READER'] as const) {
-    if (set.has(g)) {
-      return g;
-    }
-  }
-  const fallback = sessionStorage.getItem('user_group')?.trim();
-  return fallback || null;
-}
-
 @Injectable({
   providedIn: 'root',
 })
 export class ReaderService {
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private auth: AuthService,
+  ) {}
+
+  /**
+   * Picks a stable `reader_group` query value for reader APIs. Prefer `READER`, then
+   * legacy slot groups so older deployments still send a bench token hint.
+   */
+  private readerGroupForQuery(): string | null {
+    const groups = this.auth.getUserGroups();
+    const set = new Set(groups.map((g) => g.trim()));
+    if (set.has('READER')) {
+      return 'READER';
+    }
+    for (const g of ['READER_CJ', 'READER_J1', 'READER_J2'] as const) {
+      if (set.has(g)) {
+        return g;
+      }
+    }
+    return sessionStorage.getItem('user_group')?.trim() || null;
+  }
 
   getBenchConfigurations(params?: { accessible_only?: boolean }): Observable<{ items: BenchConfiguration[] }> {
-    const readerGroup = readerGroupForApiQuery();
+    const readerGroup = this.readerGroupForQuery();
     let url = `${app_url}/api/v1/reader/bench-configurations/`;
     const queryParts: string[] = [];
     if (params?.accessible_only) {
@@ -119,7 +110,7 @@ export class ReaderService {
   }
 
   getRegisteredCases(params?: { page_size?: number }): Observable<{ total: number; items: RegisteredCase[] }> {
-    const readerGroup = readerGroupForApiQuery();
+    const readerGroup = this.readerGroupForQuery();
     let url = `${app_url}/api/v1/reader/registered-cases/`;
     const queryParts: string[] = [];
     if (params?.page_size != null) {
@@ -147,7 +138,7 @@ export class ReaderService {
     document_index_ids?: number[];
     efiling_ids: number[];
   }): Observable<{ updated: number }> {
-    const readerGroup = readerGroupForApiQuery();
+    const readerGroup = this.readerGroupForQuery();
     let url = `${app_url}/api/v1/reader/forward/`;
     if (readerGroup) {
       url += `?reader_group=${encodeURIComponent(readerGroup)}`;
@@ -156,7 +147,7 @@ export class ReaderService {
   }
 
   getApprovedCases(params: { bench_key: string; forwarded_for_date: string }): Observable<{ results: any[] }> {
-    const readerGroup = readerGroupForApiQuery();
+    const readerGroup = this.readerGroupForQuery();
     let url = `${app_url}/api/v1/reader/approved-cases/?bench_key=${encodeURIComponent(params.bench_key)}&forwarded_for_date=${encodeURIComponent(params.forwarded_for_date)}`;
     if (readerGroup) {
       url += `&reader_group=${encodeURIComponent(readerGroup)}`;
@@ -165,7 +156,7 @@ export class ReaderService {
   }
 
   assignDate(payload: { efiling_ids: number[]; listing_date: string; forwarded_for_date: string; listing_remark?: string }): Observable<{ updated: number }> {
-    const readerGroup = readerGroupForApiQuery();
+    const readerGroup = this.readerGroupForQuery();
     let url = `${app_url}/api/v1/reader/assign-date/`;
     if (readerGroup) {
       url += `?reader_group=${encodeURIComponent(readerGroup)}`;
@@ -174,7 +165,7 @@ export class ReaderService {
   }
 
   resetBench(efilingId: number): Observable<any> {
-    const readerGroup = readerGroupForApiQuery();
+    const readerGroup = this.readerGroupForQuery();
     let url = `${app_url}/api/v1/reader/reset-bench/`;
     if (readerGroup) {
       url += `?reader_group=${encodeURIComponent(readerGroup)}`;
@@ -186,7 +177,7 @@ export class ReaderService {
     page_size?: number;
     cause_list_date?: string;
   }): Observable<{ total: number; items: ReaderDailyProceedingCase[] }> {
-    const readerGroup = readerGroupForApiQuery();
+    const readerGroup = this.readerGroupForQuery();
     let url = `${app_url}/api/v1/reader/daily-proceedings/`;
     const queryParts: string[] = [];
     if (params?.page_size != null) {
@@ -212,7 +203,7 @@ export class ReaderService {
     reader_remark?: string | null;
     document_type?: 'ORDER' | 'JUDGMENT';
   }): Observable<any> {
-    const readerGroup = readerGroupForApiQuery();
+    const readerGroup = this.readerGroupForQuery();
     let url = `${app_url}/api/v1/reader/daily-proceedings/submit/`;
     if (readerGroup) {
       url += `?reader_group=${encodeURIComponent(readerGroup)}`;

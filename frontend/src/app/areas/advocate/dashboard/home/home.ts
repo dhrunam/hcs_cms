@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { forkJoin } from 'rxjs';
+import { AuthService } from '../../../../auth.service';
 import { EfilingService } from '../../../../services/advocate/efiling/efiling.services';
 
 @Component({
@@ -21,12 +22,15 @@ export class Home implements OnInit {
   notifications: any[] = [];
   isLoadingNotifications = false;
 
-  constructor(private efilingService: EfilingService) {}
+  constructor(
+    private efilingService: EfilingService,
+    private authService: AuthService,
+  ) {}
 
   ngOnInit(): void {
     this.loadFilingCounts();
     this.loadNotifications();
-    this.advocateName = JSON.parse(window.sessionStorage.getItem('id_token_claims_obj') || '{}').name;
+    this.advocateName = this.authService.getSessionProfile()?.displayName?.trim() ?? '';
   }
 
   loadNotifications(): void {

@@ -14,6 +14,220 @@ from apps.core.models import EfilingDocumentsIndex
 from apps.listing.models import CauseList, CauseListEntry
 from apps.reader.models import BenchWorkflowState, CourtroomForward, ReaderDailyProceeding, StenoOrderWorkflow
 from apps.reader.workflow_state import apply_judge_decision, upsert_state_on_forward
+from apps.core.bench_config import get_bench_configurations, get_forward_bench_keys_for_reader
+
+
+class ReaderBenchForwardTargetTest(TestCase):
+    """
+    reader_judge_assignment.reader_user_id must be the Django User.id of the reader.
+    Bench configs use active bench_t + generic JUDGE (or legacy slot groups).
+    """
+
+    def setUp(self):
+        self.today = timezone.localdate()
+        self.reader = self._create_user(
+            email="reader.single@example.com",
+            username="reader_single",
+            group_name="READER",
+        )
+        self.other_reader = self._create_user(
+            email="reader.other@example.com",
+            username="reader_other",
+            group_name="READER",
+        )
+        self.judge_user = self._create_user(
+            email="judge.single@example.com",
+            username="judge_single",
+            group_name="JUDGE",
+        )
+        self.judge = JudgeT.objects.create(
+            user=self.judge_user,
+            judge_code="SK-SINGLE",
+            judge_name="Hon Single Judge",
+            display="Single",
+            date_of_joining=self.today,
+        )
+        ReaderJudgeAssignment.objects.create(
+            judge=self.judge,
+            reader_user=self.reader,
+            effective_from=self.today,
+        )
+        BenchT.objects.create(
+            bench_code="S1",
+            bench_name="Single Bench",
+            bench_type_code="S",
+            judge_code=self.judge.judge_code,
+            judge=self.judge,
+            from_date=self.today,
+        )
+
+    def _create_user(
+        self,
+        *,
+        email: str,
+        username: str,
+        group_name: str,
+    ) -> User:
+        user = User.objects.create_user(
+            email=email,
+            username=username,
+            password="password123",
+            first_name=username,
+            last_name="User",
+        )
+        group, _ = Group.objects.get_or_create(name=group_name)
+        user.groups.add(group)
+        return user
+
+    def _auth_client(self, user: User) -> APIClient:
+        client = APIClient()
+        client.force_authenticate(user=user)
+        return client
+
+    def test_forward_keys_use_reader_user_id_from_assignment(self):
+        keys = get_forward_bench_keys_for_reader(
+            self.reader,
+            reader_group="READER",
+        )
+        self.assertEqual(keys, {"CJ"})
+        # Generic READER has no legacy bench token; unmapped user gets no forward keys.
+        keys_other = get_forward_bench_keys_for_reader(
+            self.other_reader,
+            reader_group="READER",
+        )
+        self.assertEqual(keys_other, set())
+
+    def test_bench_configurations_api_sets_forward_target_and_judge_names(self):
+        client = self._auth_client(self.reader)
+        resp = client.get(
+            "/api/v1/reader/bench-configurations/"
+            "?accessible_only=true&reader_group=READER",
+        )
+        self.assertEqual(resp.status_code, 200)
+        items = resp.data["items"]
+        forward = [i for i in items if i.get("is_forward_target")]
+        self.assertTrue(forward, "expected a forward bench for mapped reader")
+        self.assertTrue(
+            any("Hon Single Judge" in (n or "") for f in forward for n in f.get("judge_names") or []),
+        )
+        self.assertTrue(
+            any(f.get("bench_key") == "CJ" for f in forward),
+        )
+
+    def test_judge_without_judge_group_excludes_bench_and_assignment(self):
+        self.judge_user.groups.clear()
+        group, _ = Group.objects.get_or_create(name="STAFF")
+        self.judge_user.groups.add(group)
+        configs = get_bench_configurations()
+        self.assertFalse(
+            any(self.reader.id in c.reader_user_ids for c in configs),
+            "Assignment must not attach to configs when judge user lacks JUDGE_* group",
+        )
+
+
+class ReaderBenchScopeIsolationTest(TestCase):
+    """
+    With multiple active benches, accessible_only bench-configurations lists only benches
+    tied to this reader via ReaderJudgeAssignment (or reader_user_ids on config).
+    """
+
+    def setUp(self):
+        self.today = timezone.localdate()
+        self.reader = User.objects.create_user(
+            email="scope.reader@example.com",
+            username="scope_reader",
+            password="password123",
+            first_name="Scope",
+            last_name="Reader",
+        )
+        grp_r, _ = Group.objects.get_or_create(name="READER")
+        self.reader.groups.add(grp_r)
+        grp_j, _ = Group.objects.get_or_create(name="JUDGE")
+        self.judge_user_a = User.objects.create_user(
+            email="scope.judge.a@example.com",
+            username="scope_judge_a",
+            password="password123",
+            first_name="A",
+            last_name="Judge",
+        )
+        self.judge_user_a.groups.add(grp_j)
+        self.judge_user_b = User.objects.create_user(
+            email="scope.judge.b@example.com",
+            username="scope_judge_b",
+            password="password123",
+            first_name="B",
+            last_name="Judge",
+        )
+        self.judge_user_b.groups.add(grp_j)
+        self.judge_a = JudgeT.objects.create(
+            user=self.judge_user_a,
+            judge_code="SCOPE-A",
+            judge_name="Judge Alpha",
+            display="A",
+            date_of_joining=self.today,
+        )
+        self.judge_b = JudgeT.objects.create(
+            user=self.judge_user_b,
+            judge_code="SCOPE-B",
+            judge_name="Judge Beta",
+            display="B",
+            date_of_joining=self.today,
+        )
+        ReaderJudgeAssignment.objects.create(
+            judge=self.judge_a,
+            reader_user=self.reader,
+            effective_from=self.today,
+        )
+        BenchT.objects.create(
+            bench_code="SA",
+            bench_name="Bench A",
+            bench_type_code="S",
+            judge_code=self.judge_a.judge_code,
+            judge=self.judge_a,
+            from_date=self.today,
+        )
+        BenchT.objects.create(
+            bench_code="SB",
+            bench_name="Bench B",
+            bench_type_code="S",
+            judge_code=self.judge_b.judge_code,
+            judge=self.judge_b,
+            from_date=self.today,
+        )
+
+    def _auth_client(self, user: User) -> APIClient:
+        client = APIClient()
+        client.force_authenticate(user=user)
+        return client
+
+    def test_bench_configurations_accessible_only_single_bench_for_mapped_reader(self):
+        client = self._auth_client(self.reader)
+        resp = client.get(
+            "/api/v1/reader/bench-configurations/"
+            "?accessible_only=true&reader_group=READER",
+        )
+        self.assertEqual(resp.status_code, 200)
+        keys = {item["bench_key"] for item in resp.data["items"]}
+        self.assertEqual(keys, {"CJ"}, msg=resp.data)
+        self.assertEqual(len(resp.data["items"]), 1)
+        row = resp.data["items"][0]
+        self.assertEqual(row.get("mapped_judge_names"), ["Judge Alpha"])
+
+    def test_registered_cases_empty_when_reader_has_no_bench_scope_match(self):
+        """No bench filter rows when reader has no assignment to any configured bench."""
+        orphan = User.objects.create_user(
+            email="orphan.reader@example.com",
+            username="orphan_reader",
+            password="password123",
+            first_name="Orphan",
+            last_name="Reader",
+        )
+        grp_r, _ = Group.objects.get_or_create(name="READER")
+        orphan.groups.add(grp_r)
+        client = self._auth_client(orphan)
+        resp = client.get("/api/v1/reader/registered-cases/?page_size=50&reader_group=READER")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data.get("total"), 0)
 
 
 class ReaderDivisionBenchAuthorityTest(TestCase):
@@ -34,12 +248,12 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
         self.judge_cj_user = self._create_user(
             email="judge.cj@example.com",
             username="judge_cj",
-            group_name="JUDGE_CJ",
+            group_name="JUDGE",
         )
         self.judge_j1_user = self._create_user(
             email="judge.j1@example.com",
             username="judge_j1",
-            group_name="JUDGE_J1",
+            group_name="JUDGE",
         )
         self.steno_user = self._create_user(
             email="steno@example.com",
@@ -354,6 +568,25 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
         ).first()
         self.assertIsNotNone(state)
         self.assertEqual(state.required_role_groups, ["JUDGE_CJ"])
+
+    def test_bench_configurations_forward_target_for_division_mapped_readers(self):
+        """Division benches merge to e.g. CJ+Judge1; forward keys must match that bench_key."""
+        for user, group in (
+            (self.reader_cj, "READER_CJ"),
+            (self.reader_j1, "READER_J1"),
+        ):
+            client = self._auth_client(user)
+            resp = client.get(
+                f"/api/v1/reader/bench-configurations/"
+                f"?accessible_only=true&reader_group={group}"
+            )
+            self.assertEqual(resp.status_code, 200, msg=getattr(resp, "data", None))
+            forward = [i for i in resp.data["items"] if i.get("is_forward_target")]
+            self.assertEqual(len(forward), 1, msg=f"user={user.id}")
+            self.assertEqual(forward[0]["bench_key"], "CJ+Judge1")
+            names = " ".join(forward[0].get("judge_names") or [])
+            self.assertIn("Chief Justice", names)
+            self.assertIn("Judge I", names)
 
     def test_judge_decisions_dual_write_to_bench_workflow_state(self):
         cj_decision = CourtroomJudgeDecision.objects.filter(

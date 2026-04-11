@@ -28,6 +28,7 @@ from apps.core.bench_config import (
     get_required_judge_groups,
     is_reader_date_authority_for_bench,
     is_reader_allowed_for_bench,
+    mapped_judge_names_for_reader,
 )
 from apps.efiling.party_display import build_petitioner_vs_respondent
 from apps.efiling.pdf_validators import validate_pdf_file
@@ -142,8 +143,11 @@ def _get_reader_allowed_efiling_bench_filter(
     if allowed_bench_codes:
         filter_q |= Q(bench__in=allowed_bench_codes)
         has_filter = True
-    if allowed_bench_keys:
-        filter_q |= Q(bench__in=allowed_bench_keys)
+    if allowed_bench_keys is not None:
+        if allowed_bench_keys:
+            filter_q |= Q(bench__in=allowed_bench_keys)
+        else:
+            filter_q |= Q(pk__in=[])
         has_filter = True
 
     return filter_q if has_filter else None
@@ -430,12 +434,14 @@ class BenchConfigurationsView(APIView):
             )
             if accessible_only and not is_accessible:
                 continue
+            mapped_names = mapped_judge_names_for_reader(bench, user)
             items.append({
                 'bench_key': bench.bench_key,
                 'label': bench.label,
                 'bench_code': bench.bench_code,
                 'bench_name': bench.bench_name,
                 'judge_names': list(bench.judge_names),
+                'mapped_judge_names': list(mapped_names),
                 'judge_user_ids': list(bench.judge_user_ids),
                 'reader_user_ids': list(bench.reader_user_ids),
                 'is_accessible_to_reader': is_accessible,
