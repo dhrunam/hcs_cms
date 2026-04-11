@@ -232,6 +232,7 @@ def _allowed_bench_keys_for_judge(user_groups: Set[str], user: User | None = Non
             allowed_bench_keys.append(bench.bench_key)
     for token_group, legacy_key in JUDGE_GROUP_TO_BENCH_TOKEN.items():
         if token_group in user_groups:
+<<<<<<< HEAD
             allowed_bench_keys.append(legacy_key)
     if not allowed_bench_keys and user_groups & {
         JUDGE_GROUP_CJ,
@@ -331,6 +332,13 @@ def _resolve_courtroom_forward_for_case_view(
             user, list(base_qs(for_date=False))
         )
     return forward
+=======
+            # allowed_bench_keys.append(bench_cfg.bench_key)
+            allowed_bench_keys.append(bench.bench_key)
+    if (not allowed_bench_keys) and (user_groups & {JUDGE_GROUP_CJ, JUDGE_GROUP_J1, JUDGE_GROUP_J2}):
+        return [b.bench_key for b in get_bench_configurations()]
+    return sorted(set(allowed_bench_keys))
+>>>>>>> d9390d90d32adc86ef6932b4aaa9ed5f5bba7d31
 
 
 def _get_display_bench_for_efiling(
@@ -358,10 +366,13 @@ class CourtroomPendingCasesView(APIView):
 
     def get(self, request, *args, **kwargs):
         user = _resolve_courtroom_user(request)
+<<<<<<< HEAD
         user_groups = _user_judge_groups(user)
         print(user_groups)
+=======
+        user_groups = _user_judge_groups(user)        
+>>>>>>> d9390d90d32adc86ef6932b4aaa9ed5f5bba7d31
         is_judge = bool(user_groups)
-
         forwarded_for_date = request.query_params.get("forwarded_for_date")
         if forwarded_for_date:
             forwarded_date = timezone.datetime.fromisoformat(forwarded_for_date).date()
@@ -376,13 +387,11 @@ class CourtroomPendingCasesView(APIView):
                 included=True,
             ).values_list("efiling_id", flat=True)
         )
-
         # Advocates have nothing to see until something is on a published list for that date.
         if not is_judge and not listed_efiling_ids:
             return Response({"pending_for_listing": [], "pending_for_causelist": []}, status=drf_status.HTTP_200_OK)
 
         base_forwards = CourtroomForward.objects.filter(forwarded_for_date=forwarded_date)
-
         if is_judge:
             forwards = (
                 base_forwards.select_related("efiling")
@@ -396,7 +405,6 @@ class CourtroomPendingCasesView(APIView):
                 .prefetch_related("efiling__litigants")
                 .order_by("-id")
             )
-
         if is_judge:
             allowed_bench_keys = set(_allowed_bench_keys_for_judge(user_groups, user=user))
             print(allowed_bench_keys)
