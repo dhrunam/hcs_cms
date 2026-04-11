@@ -359,6 +359,7 @@ class CourtroomPendingCasesView(APIView):
     def get(self, request, *args, **kwargs):
         user = _resolve_courtroom_user(request)
         user_groups = _user_judge_groups(user)
+        print(user_groups)
         is_judge = bool(user_groups)
 
         forwarded_for_date = request.query_params.get("forwarded_for_date")
@@ -398,6 +399,7 @@ class CourtroomPendingCasesView(APIView):
 
         if is_judge:
             allowed_bench_keys = set(_allowed_bench_keys_for_judge(user_groups, user=user))
+            print(allowed_bench_keys)
         else:
             accessible_ids = set(EfilerDocumentAccess.objects.filter(efiler=user).values_list("e_filing_id", flat=True))
             creator_ids = set(Efiling.objects.filter(created_by=user).values_list("id", flat=True))
