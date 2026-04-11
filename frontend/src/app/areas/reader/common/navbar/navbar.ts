@@ -21,7 +21,7 @@ export class Navbar implements OnInit {
 
   ngOnInit() {
     this.authService.initializeAuth().catch((error) => {
-      console.warn("SSO initialization skipped in local mode.");
+      console.warn("Auth initialization warning:", error);
     });
 
     this.updateClock();
@@ -52,7 +52,7 @@ export class Navbar implements OnInit {
   //   if (!status.apiSessionLoggedOut) {
   //     issues.push('API session');
   //   }
-  //   if (!status.ssoSessionLoggedOut) {
+  //   if (!status.refreshBlacklisted) {
   //     issues.push('SSO session');
   //   }
   //   if (!status.tokensCleared) {
@@ -80,8 +80,8 @@ export class Navbar implements OnInit {
     if (!status.apiSessionLoggedOut) {
       issues.push("API session");
     }
-    if (!status.ssoSessionLoggedOut) {
-      issues.push("SSO session");
+    if (!status.refreshBlacklisted) {
+      issues.push("refresh token revocation");
     }
     if (!status.tokensCleared) {
       issues.push("local tokens");

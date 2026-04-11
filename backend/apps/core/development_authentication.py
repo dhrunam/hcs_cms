@@ -1,7 +1,6 @@
 """
 Optional local-dev auth: accepts a fixed Bearer token when DEBUG and
-DEV_AUTH_BYPASS_TOKEN are set. Use when the OIDC server on :8000 is unavailable
-or introspection credentials are not wired yet.
+DEV_AUTH_BYPASS_TOKEN are set (e.g. quick testing without JWT login).
 
 Never enable DEV_AUTH_BYPASS_TOKEN in production.
 """

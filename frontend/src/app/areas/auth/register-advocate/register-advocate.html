@@ -1,0 +1,217 @@
+<div class="auth-page">
+  <div class="auth-page-inner pb-5">
+    <div class="auth-card auth-card--wide">
+      <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+        <img class="auth-logo mb-0" src="/assets/icons/hcs_logo.jpeg" alt="" />
+        <div>
+          <h1 class="auth-title mb-0">Advocate</h1>
+          <p class="auth-subtitle mb-0">Register as counsel</p>
+        </div>
+      </div>
+
+      <p class="small text-muted mb-4">
+        <a routerLink="/user/register" class="auth-link">← Back to account type</a>
+      </p>
+
+      <div
+        *ngIf="formError"
+        class="alert alert-danger"
+        role="alert"
+        aria-live="polite"
+      >
+        {{ formError }}
+      </div>
+
+      <form (ngSubmit)="submit()" novalidate>
+        <fieldset [disabled]="isLoading">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="auth-label" for="adv-email">Email</label>
+              <input
+                id="adv-email"
+                class="auth-input"
+                type="email"
+                name="email"
+                [(ngModel)]="email"
+                autocomplete="email"
+                required
+              />
+            </div>
+            <div class="col-md-6">
+              <label class="auth-label" for="adv-phone">Phone</label>
+              <input
+                id="adv-phone"
+                class="auth-input"
+                type="text"
+                name="phone_number"
+                [(ngModel)]="phone_number"
+                autocomplete="tel"
+                required
+              />
+            </div>
+            <div class="col-md-6">
+              <label class="auth-label" for="adv-fn">First name</label>
+              <input
+                id="adv-fn"
+                class="auth-input"
+                type="text"
+                name="first_name"
+                [(ngModel)]="first_name"
+                autocomplete="given-name"
+                required
+              />
+            </div>
+            <div class="col-md-6">
+              <label class="auth-label" for="adv-ln">Last name</label>
+              <input
+                id="adv-ln"
+                class="auth-input"
+                type="text"
+                name="last_name"
+                [(ngModel)]="last_name"
+                autocomplete="family-name"
+                required
+              />
+            </div>
+            <div class="col-md-6">
+              <label class="auth-label" for="adv-dob">Date of birth</label>
+              <input
+                id="adv-dob"
+                class="auth-input"
+                type="date"
+                name="date_of_birth"
+                [(ngModel)]="date_of_birth"
+                required
+              />
+            </div>
+            <div class="col-md-6">
+              <label class="auth-label" for="adv-gender">Gender</label>
+              <select
+                id="adv-gender"
+                class="auth-input"
+                name="gender"
+                [(ngModel)]="gender"
+              >
+                <option value="M">Male</option>
+                <option value="F">Female</option>
+                <option value="O">Other</option>
+                <option value="U">Prefer not to say</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="auth-label" for="adv-address">Address</label>
+              <textarea
+                id="adv-address"
+                class="auth-input"
+                name="address"
+                [(ngModel)]="address"
+                rows="3"
+                required
+              ></textarea>
+            </div>
+            <div class="col-md-6">
+              <label class="auth-label" for="adv-bar-id">Bar ID</label>
+              <input
+                id="adv-bar-id"
+                class="auth-input"
+                type="text"
+                name="bar_id"
+                [(ngModel)]="bar_id"
+                required
+              />
+            </div>
+            <div class="col-md-6">
+              <label class="auth-label" for="adv-bar-file">Bar ID document</label>
+              <input
+                id="adv-bar-file"
+                class="form-control"
+                type="file"
+                name="bar_id_file"
+                (change)="onBarFileChange($event)"
+                required
+              />
+            </div>
+            <div class="col-md-6">
+              <label class="auth-label" for="adv-pass">Password</label>
+              <div class="password-wrap">
+                <input
+                  id="adv-pass"
+                  class="auth-input"
+                  [type]="showPassword ? 'text' : 'password'"
+                  name="password"
+                  [(ngModel)]="password"
+                  autocomplete="new-password"
+                  minlength="8"
+                  required
+                  aria-describedby="adv-pass-hint"
+                />
+                <button
+                  type="button"
+                  class="password-toggle"
+                  (click)="showPassword = !showPassword"
+                  [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+                >
+                  {{ showPassword ? 'Hide' : 'Show' }}
+                </button>
+              </div>
+              <small id="adv-pass-hint" class="text-muted">At least 8 characters.</small>
+            </div>
+            <div class="col-md-6">
+              <label class="auth-label" for="adv-pass2">Confirm password</label>
+              <div class="password-wrap">
+                <input
+                  id="adv-pass2"
+                  class="auth-input"
+                  [type]="showPassword2 ? 'text' : 'password'"
+                  name="passwordConfirm"
+                  [(ngModel)]="passwordConfirm"
+                  autocomplete="new-password"
+                  required
+                />
+                <button
+                  type="button"
+                  class="password-toggle"
+                  (click)="showPassword2 = !showPassword2"
+                  [attr.aria-label]="showPassword2 ? 'Hide password' : 'Show password'"
+                >
+                  {{ showPassword2 ? 'Hide' : 'Show' }}
+                </button>
+              </div>
+            </div>
+            <div class="col-12">
+              <label class="auth-label" for="adv-photo">Photo (optional)</label>
+              <input
+                id="adv-photo"
+                class="form-control"
+                type="file"
+                name="photo"
+                accept="image/*"
+                (change)="onPhotoChange($event)"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            class="auth-btn-primary mt-4"
+            [attr.aria-busy]="isLoading"
+            [disabled]="isLoading"
+          >
+            <span *ngIf="isLoading" class="auth-spinner" aria-hidden="true"></span>
+            {{ isLoading ? 'Submitting…' : 'Create account' }}
+          </button>
+        </fieldset>
+      </form>
+
+      <p class="text-center mt-3 mb-0 small">
+        <a routerLink="/user/login" class="auth-link">Already registered? Sign in</a>
+      </p>
+    </div>
+  </div>
+
+  <footer class="auth-footer">
+    <a routerLink="/user/login">Sign in</a>
+    ·
+    <a routerLink="/user/register">Register</a>
+  </footer>
+</div>

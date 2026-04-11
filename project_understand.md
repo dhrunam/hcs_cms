@@ -11,10 +11,9 @@ The system is built using a modern decoupled (headless) architecture, orchestrat
   1. `hcs_cms_db` (The primary transactional database).
   2. `cis_old_db` / `sikkimhc_pg` (A read-only legacy 'CIS 1.0' database for backward compatibility and introspection tasks).
 
-## Authentication & Security (SSO)
-The application handles authentication externally.
-* **Backend (`drf_sso_resource`)**: The backend functions as an **OAuth2 Resource Server** by using a custom local django app to intercept and validate OAuth bearer tokens against an introspection endpoint.
-* **Frontend**: The Angular app behaves as a public OAuth2 Client. It relies on the robust `angular-oauth2-oidc` library to handle token negotiation and refresh cycles with the identity provider.
+## Authentication & Security (JWT)
+* **Backend**: Django REST Framework with **SimpleJWT** — access and refresh tokens issued by the CMS API (`/api/v1/accounts/auth/`). The default authentication class validates `Authorization: Bearer` JWTs and maps roles via Django Groups.
+* **Frontend**: The Angular SPA stores access/refresh tokens (typically `sessionStorage`), attaches the Bearer token on API calls via an HTTP interceptor, and logs in with email/password against the CMS token endpoint.
 
 ## Domain Modules (Django Apps)
 The backend business logic is heavily domain-driven and split into the following apps:

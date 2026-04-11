@@ -408,11 +408,9 @@ class EfilingAuditIntegrationTest(TestCase):
         self.assertEqual(returned_ids, {own_filing.id, other_filing.id})
 
     def _mock_authentication(self, user):
-        return patch.multiple(
-            'apps.core.authentication.AuditAwareSSOResourceServerAuthentication',
-            _introspect=lambda self, token: {'active': True, 'scope': 'cms:write'},
-            _resolve_identity=lambda self, claims: ('sso-user-id', user.username, user.email),
-            _sync_user=lambda self, sso_id, username, email, claims: user,
+        return patch(
+            "apps.core.authentication.AuditAwareJWTAuthentication.authenticate",
+            return_value=(user, None),
         )
 
 
@@ -455,11 +453,9 @@ class EfilingAdvocateScopeTest(TestCase):
         set_current_user(None)
 
     def _mock_authentication(self, user):
-        return patch.multiple(
-            'apps.core.authentication.AuditAwareSSOResourceServerAuthentication',
-            _introspect=lambda self, token: {'active': True, 'scope': 'cms:write'},
-            _resolve_identity=lambda self, claims: ('sso-user-id', user.username, user.email),
-            _sync_user=lambda self, sso_id, username, email, claims: user,
+        return patch(
+            "apps.core.authentication.AuditAwareJWTAuthentication.authenticate",
+            return_value=(user, None),
         )
 
     def test_advocate_list_only_own_filings(self):

@@ -1,0 +1,198 @@
+<div class="auth-page">
+  <div class="auth-page-inner pb-5">
+    <div class="auth-card auth-card--wide">
+      <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+        <img class="auth-logo mb-0" src="/assets/icons/hcs_logo.jpeg" alt="" />
+        <div>
+          <h1 class="auth-title mb-0">Party in person</h1>
+          <p class="auth-subtitle mb-0">Create your eFiling account</p>
+        </div>
+      </div>
+
+      <p class="small text-muted mb-4">
+        <a routerLink="/user/register" class="auth-link">← Back to account type</a>
+      </p>
+
+      <div
+        *ngIf="formError"
+        class="alert alert-danger"
+        role="alert"
+        aria-live="polite"
+      >
+        {{ formError }}
+      </div>
+
+      <form (ngSubmit)="submit()" novalidate>
+        <fieldset [disabled]="isLoading">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="auth-label" for="party-email">Email</label>
+              <input
+                id="party-email"
+                class="auth-input"
+                [class.is-invalid]="submitted && !email.trim()"
+                type="email"
+                name="email"
+                [(ngModel)]="email"
+                autocomplete="email"
+                required
+                aria-required="true"
+                [attr.aria-invalid]="submitted && !email.trim()"
+              />
+            </div>
+            <div class="col-md-6">
+              <label class="auth-label" for="party-phone">Phone</label>
+              <input
+                id="party-phone"
+                class="auth-input"
+                type="text"
+                name="phone_number"
+                [(ngModel)]="phone_number"
+                autocomplete="tel"
+                required
+              />
+            </div>
+            <div class="col-md-6">
+              <label class="auth-label" for="party-fn">First name</label>
+              <input
+                id="party-fn"
+                class="auth-input"
+                type="text"
+                name="first_name"
+                [(ngModel)]="first_name"
+                autocomplete="given-name"
+                required
+              />
+            </div>
+            <div class="col-md-6">
+              <label class="auth-label" for="party-ln">Last name</label>
+              <input
+                id="party-ln"
+                class="auth-input"
+                type="text"
+                name="last_name"
+                [(ngModel)]="last_name"
+                autocomplete="family-name"
+                required
+              />
+            </div>
+            <div class="col-md-6">
+              <label class="auth-label" for="party-dob">Date of birth</label>
+              <input
+                id="party-dob"
+                class="auth-input"
+                type="date"
+                name="date_of_birth"
+                [(ngModel)]="date_of_birth"
+                required
+              />
+            </div>
+            <div class="col-md-6">
+              <label class="auth-label" for="party-gender">Gender</label>
+              <select
+                id="party-gender"
+                class="auth-input"
+                name="gender"
+                [(ngModel)]="gender"
+              >
+                <option value="M">Male</option>
+                <option value="F">Female</option>
+                <option value="O">Other</option>
+                <option value="U">Prefer not to say</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="auth-label" for="party-address">Address</label>
+              <textarea
+                id="party-address"
+                class="auth-input"
+                name="address"
+                [(ngModel)]="address"
+                rows="3"
+                required
+              ></textarea>
+            </div>
+            <div class="col-md-6">
+              <label class="auth-label" for="party-pass">Password</label>
+              <div class="password-wrap">
+                <input
+                  id="party-pass"
+                  class="auth-input"
+                  [type]="showPassword ? 'text' : 'password'"
+                  name="password"
+                  [(ngModel)]="password"
+                  autocomplete="new-password"
+                  minlength="8"
+                  required
+                  aria-describedby="party-pass-hint"
+                />
+                <button
+                  type="button"
+                  class="password-toggle"
+                  (click)="showPassword = !showPassword"
+                  [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+                >
+                  {{ showPassword ? 'Hide' : 'Show' }}
+                </button>
+              </div>
+              <small id="party-pass-hint" class="text-muted">At least 8 characters.</small>
+            </div>
+            <div class="col-md-6">
+              <label class="auth-label" for="party-pass2">Confirm password</label>
+              <div class="password-wrap">
+                <input
+                  id="party-pass2"
+                  class="auth-input"
+                  [type]="showPassword2 ? 'text' : 'password'"
+                  name="passwordConfirm"
+                  [(ngModel)]="passwordConfirm"
+                  autocomplete="new-password"
+                  required
+                />
+                <button
+                  type="button"
+                  class="password-toggle"
+                  (click)="showPassword2 = !showPassword2"
+                  [attr.aria-label]="showPassword2 ? 'Hide password' : 'Show password'"
+                >
+                  {{ showPassword2 ? 'Hide' : 'Show' }}
+                </button>
+              </div>
+            </div>
+            <div class="col-12">
+              <label class="auth-label" for="party-photo">Photo (optional)</label>
+              <input
+                id="party-photo"
+                class="form-control"
+                type="file"
+                name="photo"
+                accept="image/*"
+                (change)="onPhotoChange($event)"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            class="auth-btn-primary mt-4"
+            [attr.aria-busy]="isLoading"
+            [disabled]="isLoading"
+          >
+            <span *ngIf="isLoading" class="auth-spinner" aria-hidden="true"></span>
+            {{ isLoading ? 'Submitting…' : 'Create account' }}
+          </button>
+        </fieldset>
+      </form>
+
+      <p class="text-center mt-3 mb-0 small">
+        <a routerLink="/user/login" class="auth-link">Already registered? Sign in</a>
+      </p>
+    </div>
+  </div>
+
+  <footer class="auth-footer">
+    <a routerLink="/user/login">Sign in</a>
+    ·
+    <a routerLink="/user/register">Register</a>
+  </footer>
+</div>

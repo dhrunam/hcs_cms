@@ -1,0 +1,4 @@
+textarea.auth-input {
+  resize: vertical;
+  min-height: 80px;
+}

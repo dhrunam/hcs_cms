@@ -1,5 +1,6 @@
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -9,15 +10,24 @@ from .serializers import UserSerializer
 
 class UserViewSet(viewsets.ModelViewSet):
     """
-    CRUD endpoints for User accounts.
-
-    Development CRUD endpoints for User accounts.
+    User accounts: admin CRUD; any authenticated user can access `me` and `logout`.
     """
 
     serializer_class = UserSerializer
 
+    def get_permissions(self):
+        if self.action in ("me", "logout"):
+            return [IsAuthenticated()]
+        return [IsAdminUser()]
+
     def get_queryset(self):
-        return User.objects.all().order_by("email")
+        qs = User.objects.all().order_by("email")
+        user = self.request.user
+        if user.is_authenticated and user.is_staff:
+            return qs
+        if user.is_authenticated:
+            return qs.filter(pk=user.pk)
+        return qs.none()
 
     @action(detail=False, methods=["get"], url_path="me")
     def me(self, request: Request) -> Response:
@@ -29,18 +39,17 @@ class UserViewSet(viewsets.ModelViewSet):
         detail=False,
         methods=["post"],
         url_path="logout",
+        permission_classes=[IsAuthenticated],
     )
     def logout(self, request: Request) -> Response:
         """
-        Invalidate the Django session server-side and clear session/CSRF cookies.
+        Clear Django session cookies (legacy hybrid clients).
 
-        This must be called alongside the OAuth token revocation on the frontend
-        so that the sessionid cookie cannot be reused after logout.
+        JWT clients should also POST the refresh token to
+        `/api/v1/accounts/auth/token/blacklist/` (see SimpleJWT).
         """
         request.session.flush()
         response = Response({"detail": "Logged out successfully."}, status=status.HTTP_200_OK)
-        # Attributes must exactly match those used when the cookie was originally set;
-        # any mismatch causes browsers to silently ignore the deletion.
         response.delete_cookie(
             "sessionid",
             path="/",

@@ -13,8 +13,7 @@ export const authGuard: CanMatchFn = async () => {
       return true;
     }
 
-    authService.login();
-    return false;
+    return router.parseUrl('/user/login');
   } catch (error) {
     console.error('Auth guard initialization failed', error);
     return router.parseUrl('/user/login');

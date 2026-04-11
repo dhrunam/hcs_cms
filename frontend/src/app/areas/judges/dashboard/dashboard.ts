@@ -26,8 +26,8 @@ export class JudgeDashboard {
     if (!status.apiSessionLoggedOut) {
       issues.push("API session");
     }
-    if (!status.ssoSessionLoggedOut) {
-      issues.push("SSO session");
+    if (!status.refreshBlacklisted) {
+      issues.push("refresh token revocation");
     }
     if (!status.tokensCleared) {
       issues.push("local tokens");

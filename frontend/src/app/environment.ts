@@ -3,7 +3,6 @@
 export const url = 'http://localhost';
 
 export const app_url = `${url}:8002`;
-export const sso_url = `${url}:8000`;
 
 /** True when the SPA runs on localhost (dev bypass is ignored elsewhere). */
 export function isLocalDevHost(): boolean {
@@ -14,7 +13,7 @@ export function isLocalDevHost(): boolean {
 
 /**
  * Must match backend `DEV_AUTH_BYPASS_TOKEN` in `.env` (see `.env.example`).
- * Only used on localhost when no valid SSO access token is present.
- * Set to "" to disable and rely on SSO only.
+ * Only used on localhost when no JWT access token is in sessionStorage.
+ * Set to "" to disable.
  */
-// export const devAuthBypassToken = 'local-hcs-cms-dev-only';
+export const devAuthBypassToken = '';

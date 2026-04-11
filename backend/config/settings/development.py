@@ -5,7 +5,7 @@ from .base import *
 DEBUG = True
 
 # Optional: same token as frontend `devAuthBypassToken` (environment.ts).
-# Enables API auth when OIDC introspection (:8000) is down or misconfigured.
+# Enables API auth in development when JWT login is not used.
 _DEV_BYPASS = (os.getenv("DEV_AUTH_BYPASS_TOKEN") or "").strip()
 DEV_AUTH_BYPASS_TOKEN = _DEV_BYPASS
 DEV_AUTH_BYPASS_USERNAME = (os.getenv("DEV_AUTH_BYPASS_USERNAME") or "admin").strip() or "admin"

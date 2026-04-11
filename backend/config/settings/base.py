@@ -2,6 +2,7 @@
 Base Django settings for HCS Case Management System.
 """
 import os
+from datetime import timedelta
 from pathlib import Path
 
 import dj_database_url
@@ -48,8 +49,9 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Third-party
     "rest_framework",
+    "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
-    "drf_sso_resource",
     # Local
    
     "apps.accounts",
@@ -148,15 +150,42 @@ AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
 ]
 
+# JWT (SimpleJWT) — access/refresh lifetimes overridable via env
+JWT_ACCESS_MINUTES = int(os.getenv("JWT_ACCESS_MINUTES", "60"))
+JWT_REFRESH_DAYS = int(os.getenv("JWT_REFRESH_DAYS", "7"))
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=JWT_ACCESS_MINUTES),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=JWT_REFRESH_DAYS),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": True,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_TOKEN_CLASSES": ("apps.accounts.tokens.HCSAccessToken",),
+    "TOKEN_OBTAIN_SERIALIZER": "apps.accounts.jwt_serializers.HCSTokenObtainPairSerializer",
+    "TOKEN_REFRESH_SERIALIZER": "apps.accounts.jwt_serializers.HCSTokenRefreshSerializer",
+    "TOKEN_BLACKLIST_SERIALIZER": "apps.accounts.jwt_serializers.HCSTokenBlacklistSerializer",
+}
+
+# When True, new self-registrations get email_verified=False until they verify (if enforcement on).
+REGISTRATION_REQUIRE_EMAIL_VERIFICATION = env_bool(
+    "REGISTRATION_REQUIRE_EMAIL_VERIFICATION", False
+)
+
+# Maps role keys (JWT claims / view required_roles) → Django Group.name (see apps.accounts.roles).
+from apps.accounts.roles import ROLE_TO_GROUP_MAP as _ACCOUNTS_ROLE_TO_GROUP_MAP
+
+ROLE_TO_GROUP_MAP = _ACCOUNTS_ROLE_TO_GROUP_MAP
+
 # ---------------------------------------------------------------------------
 # Django REST Framework
 # ---------------------------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "apps.core.authentication.AuditAwareSSOResourceServerAuthentication",
+        "apps.core.authentication.AuditAwareJWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
-        "drf_sso_resource.permissions.IsSSOAuthenticated",
+        "rest_framework.permissions.IsAuthenticated",
     ],
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
@@ -170,6 +199,10 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PAGINATION_CLASS": "config.pagination.StandardResultsSetPagination",
     "PAGE_SIZE": 20,
+    "DEFAULT_THROTTLE_RATES": {
+        "registration": os.getenv("THROTTLE_REGISTRATION", "30/hour"),
+        "auth": os.getenv("THROTTLE_AUTH", "120/hour"),
+    },
 }
 
 # ---------------------------------------------------------------------------
@@ -218,46 +251,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # E-filing PDF validation (size <= 25 MB, OCR/text layer required)
 # ---------------------------------------------------------------------------
 EFILING_VALIDATE_PDF_UPLOAD = True
-
-
-
-OAUTH2_SERVER_URL = os.getenv("OAUTH2_SERVER_URL", "http://localhost:8000")
-OAUTH2_USERINFO_URL = os.getenv(
-    "OAUTH2_USERINFO_URL", f"{OAUTH2_SERVER_URL}/api/oidc/userinfo/"
-)
-SSO_BASE_URL = os.getenv("SSO_BASE_URL", OAUTH2_SERVER_URL).strip()
-SSO_INTROSPECTION_URL = os.getenv(
-    "SSO_INTROSPECTION_URL", f"{SSO_BASE_URL}/api/oidc/introspect/"
-)
-SSO_CLIENT_ID = os.getenv("SSO_CLIENT_ID", "")
-SSO_CLIENT_SECRET = os.getenv("SSO_CLIENT_SECRET", "")
-SSO_VERIFY_SSL = env_bool("SSO_VERIFY_SSL", True)
-SSO_HTTP_TIMEOUT = float(os.getenv("SSO_HTTP_TIMEOUT", "3"))
-SSO_HTTP_RETRY_TOTAL = int(os.getenv("SSO_HTTP_RETRY_TOTAL", "1"))
-SSO_HTTP_RETRY_CONNECT = int(os.getenv("SSO_HTTP_RETRY_CONNECT", "1"))
-SSO_HTTP_RETRY_READ = int(os.getenv("SSO_HTTP_RETRY_READ", "1"))
-SSO_HTTP_RETRY_BACKOFF = float(os.getenv("SSO_HTTP_RETRY_BACKOFF", "0.2"))
-SSO_HTTP_POOL_CONNECTIONS = int(os.getenv("SSO_HTTP_POOL_CONNECTIONS", "20"))
-SSO_HTTP_POOL_MAXSIZE = int(os.getenv("SSO_HTTP_POOL_MAXSIZE", "50"))
-SSO_INTROSPECTION_CACHE_TTL = int(os.getenv("SSO_INTROSPECTION_CACHE_TTL", "120"))
-SSO_USERINFO_CACHE_TTL = int(os.getenv("SSO_USERINFO_CACHE_TTL", "300"))
-SSO_INTROSPECTION_CACHE_PREFIX = os.getenv(
-    "SSO_INTROSPECTION_CACHE_PREFIX", "sso:introspection"
-)
-SSO_USERINFO_CACHE_PREFIX = os.getenv("SSO_USERINFO_CACHE_PREFIX", "sso:userinfo")
-SSO_ENABLE_USERINFO_FALLBACK = env_bool("SSO_ENABLE_USERINFO_FALLBACK", True)
-SSO_USER_SYNC_HANDLER = os.getenv(
-    "SSO_USER_SYNC_HANDLER", "drf_sso_resource.user_sync.map_sso_user"
-)
-
-# The package registers the app_authorized signal automatically.
-# Set False here only if you want to disable signal-based sync entirely.
-SSO_SIGNAL_AUTO_SYNC = env_bool("SSO_SIGNAL_AUTO_SYNC", True)
-SSO_SUB_CLAIM_KEYS = tuple(env_list("SSO_SUB_CLAIM_KEYS", "sub,id"))
-SSO_USERNAME_CLAIM_KEYS = tuple(
-    env_list("SSO_USERNAME_CLAIM_KEYS", "preferred_username,username,email")
-)
-SSO_EMAIL_CLAIM_KEYS = tuple(env_list("SSO_EMAIL_CLAIM_KEYS", "email"))
 
 # ---------------------------------------------------------------------------
 # Payment Gateway (SBS UAT)
