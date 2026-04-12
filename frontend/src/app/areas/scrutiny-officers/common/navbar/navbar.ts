@@ -40,7 +40,6 @@ export class Navbar implements OnInit {
     const status = await this.authService.logout();
     console.log('Logout status:', status);
     if (status.success) {
-      alert('You have been logged out successfully.');
       this.authService.login();
       return;
     }
@@ -56,8 +55,8 @@ export class Navbar implements OnInit {
       issues.push('local tokens');
     }
 
-  
-     this.authService.login();
+    console.warn('Logout partially completed:', issues.join(', '));
+    this.authService.login();
   }
 
 

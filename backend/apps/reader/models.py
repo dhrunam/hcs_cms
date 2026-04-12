@@ -15,6 +15,12 @@ class CourtroomForward(BaseModel):
     forwarded_for_date = models.DateField()
     efiling = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name="courtroom_forwards")
     bench_key = models.CharField(max_length=50)
+    bench_role_group = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        help_text="Reader slot on this bench (e.g. BENCH_S0). Unique per efiling/date/bench with listing flow.",
+    )
     listing_summary = models.TextField(blank=True, null=True)
     forwarded_by = models.ForeignKey(
         User,
@@ -27,7 +33,16 @@ class CourtroomForward(BaseModel):
     class Meta:
         db_table = "courtroom_forward"
         app_label = "reader"
-        indexes = [models.Index(fields=["forwarded_for_date", "bench_key"])]
+        indexes = [
+            models.Index(fields=["forwarded_for_date", "bench_key"]),
+            models.Index(fields=["efiling", "forwarded_for_date", "bench_key", "bench_role_group"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["efiling", "forwarded_for_date", "bench_key", "bench_role_group"],
+                name="courtroom_forward_efiling_date_bench_slot_uniq",
+            ),
+        ]
 
 
 class CourtroomForwardDocument(BaseModel):

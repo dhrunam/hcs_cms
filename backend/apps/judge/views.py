@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, Iterable, List, Optional, Sequence, Set
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Set
 import logging
 
 from django.contrib.auth.models import Group, AnonymousUser
@@ -17,12 +17,20 @@ from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
 from apps.accounts.models import User
 from apps.core.bench_config import (
-    JUDGE_GROUP_TO_BENCH_TOKEN,
-    get_bench_configurations,
+    bench_key_aliases_for_seated_judge,
     get_bench_configuration_for_stored_value,
     get_required_judge_groups,
+    judge_user_seated_on_bench_key,
 )
-from apps.core.models import Efiling, EfilingCaseDetails, EfilingDocumentsIndex, EfilingLitigant, EfilerDocumentAccess
+from apps.core.models import (
+    Efiling,
+    EfilingCaseDetails,
+    EfilingDocumentsIndex,
+    EfilingLitigant,
+    EfilerDocumentAccess,
+    JudgeT,
+    ReaderJudgeAssignment,
+)
 from apps.efiling.party_display import build_petitioner_vs_respondent
 from apps.efiling.serializers.efiling_document_index import EfilingDocumentsIndexSerializer
 
@@ -31,9 +39,6 @@ from .models import (
     CourtroomDocumentAnnotation,
     CourtroomJudgeDecision,
     CourtroomSharedView,
-    JUDGE_GROUP_CJ,
-    JUDGE_GROUP_J1,
-    JUDGE_GROUP_J2,
     JudgeDraftAnnotation,
 )
 from apps.reader.models import CourtroomForward, CourtroomForwardDocument, StenoOrderWorkflow
@@ -69,15 +74,7 @@ _DUMMY_TOKEN_TO_DUMMY_EMAIL: Dict[str, str] = {
     "advocate_dummy_token": "dummy_advocate@hcs.local",
 }
 
-_COURTROOM_JUDGE_GROUP_NAMES = frozenset(
-    {
-        "JUDGE",
-        JUDGE_GROUP_CJ,
-        JUDGE_GROUP_J1,
-        JUDGE_GROUP_J2,
-        *JUDGE_GROUP_TO_BENCH_TOKEN.keys(),
-    }
-)
+_COURTROOM_JUDGE_GROUP_NAMES = frozenset({"JUDGE"})
 
 
 def _auth_header_token(request) -> Optional[str]:
@@ -136,11 +133,14 @@ def _bench_required_groups(bench_key: str) -> Sequence[str]:
     return req
 
 
-def _judge_can_view_forward(user_groups: Set[str], bench_key: str) -> bool:
-    if not user_groups or not bench_key:
+def _judge_can_view_forward(user: User, bench_key: str) -> bool:
+    if not bench_key or not _user_judge_groups(user):
         return False
-    allowed = set(_allowed_bench_keys_for_judge(user_groups))
-    return bench_key in allowed
+    return judge_user_seated_on_bench_key(user, bench_key)
+
+
+def _bench_key_aliases_list_for_judge(user: User) -> list[str]:
+    return sorted(bench_key_aliases_for_seated_judge(user))
 
 
 def _assert_courtroom_user(request) -> User:
@@ -177,15 +177,25 @@ def _validate_courtroom_access(
     ).exists()
 
     if is_judge:
-        # Resolve user bench access
-        user_groups = _user_judge_groups(user)
         forwards = CourtroomForward.objects.filter(efiling_id=efiling_id, forwarded_for_date=cld)
         has_bench_access = False
         for f in forwards:
-            if _judge_can_view_forward(user_groups, f.bench_key):
+            if _judge_can_view_forward(user, f.bench_key):
                 has_bench_access = True
                 break
-        
+
+        # Hearing day may follow published cause list while reader forward used another calendar day.
+        if not has_bench_access and is_published:
+            for ent in CauseListEntry.objects.filter(
+                efiling_id=efiling_id,
+                included=True,
+                cause_list__cause_list_date=cld,
+                cause_list__status=CauseList.CauseListStatus.PUBLISHED,
+            ).select_related("cause_list"):
+                if _judge_can_view_forward(user, str(ent.cause_list.bench_key)):
+                    has_bench_access = True
+                    break
+
         if not has_bench_access:
             raise ValidationError({"detail": "Not authorized to view this case for your assigned bench."})
 
@@ -217,19 +227,6 @@ def _validate_courtroom_access(
         return {"role": "ADVOCATE", "is_judge": False}
 
 
-def _allowed_bench_keys_for_judge(user_groups: Set[str]) -> list[str]:
-    allowed_bench_keys: list[str] = []
-    for bench in get_bench_configurations():
-        if set(bench.judge_groups) & user_groups:
-            allowed_bench_keys.append(bench.bench_key)
-    for token_group, bench_cfg in JUDGE_GROUP_TO_BENCH_TOKEN.items():
-        if token_group in user_groups:
-            allowed_bench_keys.append(bench_cfg.bench_key)
-    if (not allowed_bench_keys) and (user_groups & {JUDGE_GROUP_CJ, JUDGE_GROUP_J1, JUDGE_GROUP_J2}):
-        return [b.bench_key for b in get_bench_configurations()]
-    return sorted(set(allowed_bench_keys))
-
-
 def _get_display_bench_for_efiling(
     efiling: Efiling | None,
     fallback_bench_key: str,
@@ -242,15 +239,245 @@ def _get_display_bench_for_efiling(
     return fallback_bench_key, fallback_bench_key
 
 
+def _courtroom_forward_matches_judge_slot(user: User, forward: CourtroomForward) -> bool:
+    """
+    Whether this forward row is the one this judge should see (per bench_role_group / legacy RJA).
+    """
+    if not _judge_can_view_forward(user, forward.bench_key):
+        return False
+    brg = (getattr(forward, "bench_role_group", None) or "").strip()
+    if brg:
+        try:
+            role = resolve_bench_role_group_for_forward(user, forward.bench_key)
+        except ValueError:
+            return False
+        return brg == str(role)
+    return _listing_summary_visible_to_judge(user, forward) is not None
+
+
+def _listing_summary_visible_to_judge(user: User, forward: CourtroomForward) -> str | None:
+    """
+    Division benches: show summary only for this judge's slot row (bench_role_group) or legacy RJA match.
+    Single-judge benches: show summary as before.
+    """
+    text = (getattr(forward, "listing_summary", None) or "").strip()
+    if not text:
+        return None
+    cfg = get_bench_configuration_for_stored_value(getattr(forward.efiling, "bench", None))
+    if not cfg or len(tuple(cfg.judge_groups or ())) <= 1:
+        return forward.listing_summary
+    brg = (getattr(forward, "bench_role_group", None) or "").strip()
+    if brg:
+        try:
+            role = resolve_bench_role_group_for_forward(user, forward.bench_key)
+        except ValueError:
+            return None
+        return forward.listing_summary if brg == str(role) else None
+    fwd_uid = getattr(getattr(forward, "forwarded_by", None), "id", None)
+    if fwd_uid is None:
+        return forward.listing_summary
+    judge_ids = list(JudgeT.objects.filter(user_id=user.id).values_list("id", flat=True))
+    if not judge_ids:
+        return None
+    reader_ids = set(
+        ReaderJudgeAssignment.objects.filter(judge_id__in=judge_ids).values_list(
+            "reader_user_id", flat=True
+        )
+    )
+    if int(fwd_uid) in reader_ids:
+        return forward.listing_summary
+    return None
+
+
+def _pick_forward_row_for_efiling_bench(
+    user: User,
+    efiling_id: int,
+    bench_key: str,
+) -> CourtroomForward | None:
+    """
+    Latest forward for efiling+bench, preferring the row that matches this judge's slot
+    (same logic as the main pending list).
+    """
+    fs = list(
+        CourtroomForward.objects.filter(efiling_id=efiling_id, bench_key=bench_key)
+        .select_related("efiling")
+        .prefetch_related("efiling__litigants")
+        .order_by("-forwarded_for_date", "-id")
+    )
+    if not fs:
+        return None
+    matches = [x for x in fs if _courtroom_forward_matches_judge_slot(user, x)]
+    if matches:
+        return max(matches, key=lambda x: x.id)
+    return fs[0]
+
+
+def _forwards_from_published_cause_lists_for_date(
+    *,
+    cause_list_date,
+    user: User,
+    is_judge: bool,
+) -> List[CourtroomForward]:
+    """
+    Courtroom / cause-list hearing day is keyed by **published** CauseList.cause_list_date,
+    not CourtroomForward.forwarded_for_date. Resolves the display forward per efiling+bench.
+    """
+    entries = (
+        CauseListEntry.objects.filter(
+            cause_list__cause_list_date=cause_list_date,
+            cause_list__status=CauseList.CauseListStatus.PUBLISHED,
+            included=True,
+        )
+        .select_related("cause_list", "efiling")
+    )
+    seen_fwd: Set[int] = set()
+    out: List[CourtroomForward] = []
+    for ent in entries:
+        eid = int(ent.efiling_id)
+        bkey = str(ent.cause_list.bench_key)
+        if is_judge:
+            if not _judge_can_view_forward(user, bkey):
+                continue
+            cand = _pick_forward_row_for_efiling_bench(user, eid, bkey)
+        else:
+            cand = (
+                CourtroomForward.objects.filter(efiling_id=eid, bench_key=bkey)
+                .select_related("efiling")
+                .prefetch_related("efiling__litigants")
+                .order_by("-forwarded_for_date", "-id")
+                .first()
+            )
+        if cand and cand.id not in seen_fwd:
+            out.append(cand)
+            seen_fwd.add(cand.id)
+    out.sort(key=lambda x: -x.id)
+    return out
+
+
+def _pick_courtroom_forward_for_user(
+    user: User,
+    f_qs,
+    *,
+    is_judge: bool,
+) -> CourtroomForward | None:
+    ordered = list(f_qs.order_by("-forwarded_for_date", "-id"))
+    if not ordered:
+        return None
+    if not is_judge:
+        return ordered[0]
+    for cand in ordered:
+        if _courtroom_forward_matches_judge_slot(user, cand):
+            return cand
+    if len(ordered) == 1:
+        return ordered[0]
+    return None
+
+
+def _resolve_courtroom_forward_for_hearing_day(
+    user: User,
+    efiling_id: int,
+    *,
+    hearing_date,
+    forward_bench_key: str | None,
+    is_judge: bool,
+) -> CourtroomForward | None:
+    """
+    Match the **cause-list / hearing calendar day** (``CauseList.cause_list_date``), not necessarily
+    ``CourtroomForward.forwarded_for_date``. Used by case summary and documents when the reader
+    forwarded on a different day than the published list date.
+    """
+    base = (
+        CourtroomForward.objects.filter(efiling_id=efiling_id)
+        .select_related("efiling")
+        .prefetch_related("efiling__litigants")
+    )
+    if is_judge:
+        allowed_bench_keys = _bench_key_aliases_list_for_judge(user)
+        base = base.filter(bench_key__in=allowed_bench_keys)
+    if forward_bench_key:
+        base = base.filter(bench_key=forward_bench_key)
+
+    if hearing_date is None:
+        return _pick_courtroom_forward_for_user(user, base, is_judge=is_judge)
+
+    strict = base.filter(forwarded_for_date=hearing_date)
+    forward = _pick_courtroom_forward_for_user(user, strict, is_judge=is_judge)
+    if forward:
+        return forward
+
+    ent_qs = CauseListEntry.objects.filter(
+        efiling_id=efiling_id,
+        included=True,
+        cause_list__cause_list_date=hearing_date,
+        cause_list__status=CauseList.CauseListStatus.PUBLISHED,
+    ).select_related("cause_list")
+    if forward_bench_key:
+        ent_qs = ent_qs.filter(cause_list__bench_key=forward_bench_key)
+    entries = list(ent_qs.order_by("-id"))
+
+    def _fallback_latest() -> CourtroomForward | None:
+        return _pick_courtroom_forward_for_user(
+            user, base.order_by("-forwarded_for_date", "-id"), is_judge=is_judge
+        )
+
+    if not entries:
+        return _fallback_latest()
+
+    for ent in entries:
+        bkey = str(ent.cause_list.bench_key)
+        if is_judge:
+            if not _judge_can_view_forward(user, bkey):
+                continue
+            cand = _pick_forward_row_for_efiling_bench(user, efiling_id, bkey)
+        else:
+            cand = (
+                CourtroomForward.objects.filter(efiling_id=efiling_id, bench_key=bkey)
+                .select_related("efiling")
+                .prefetch_related("efiling__litigants")
+                .order_by("-forwarded_for_date", "-id")
+                .first()
+            )
+        if cand:
+            return cand
+
+    return _fallback_latest()
+
+
+def _efiling_ids_listed_for_another_hearing_day(hearing_date) -> Set[int]:
+    """
+    E-filing IDs whose official hearing day (Listing Officer cause list, any status,
+    or reader ``listing_date`` on a judge decision with remark) is set to a calendar
+    day **other than** ``hearing_date``. Pre-publish courtroom rows must not appear
+    on the wrong day when ``CourtroomForward.forwarded_for_date`` still matches an
+    earlier reader forward.
+    """
+    other_cl = CauseListEntry.objects.filter(included=True).exclude(
+        cause_list__cause_list_date=hearing_date
+    )
+    from_decision = CourtroomJudgeDecision.objects.filter(
+        listing_date__isnull=False,
+    ).exclude(listing_date=hearing_date)
+    from_decision = from_decision.filter(
+        ~Q(reader_listing_remark__isnull=True) & ~Q(reader_listing_remark__exact="")
+    )
+    return set(other_cl.values_list("efiling_id", flat=True)) | set(
+        from_decision.values_list("efiling_id", flat=True)
+    )
+
+
 class CourtroomPendingCasesView(APIView):
     """
-    Pending courtroom cases for a hearing date (`forwarded_for_date`).
+    Pending courtroom cases for a **hearing / cause-list calendar day**.
 
-    Judges: can see forwarded summaries pre-publish in dashboard buckets.
-    (Case open/detail access is separately publish-gated.)
+    Query params (either): ``cause_list_date`` (preferred) or ``forwarded_for_date`` (alias).
+    The **published** bucket is driven by ``CauseList.cause_list_date`` for **PUBLISHED** lists,
+    not by ``CourtroomForward.forwarded_for_date``.
 
-    Advocates: only published, included entries on the cause list for that date, and only
-    cases they are allowed to represent.
+    Judges: ``pending_for_causelist`` = published cause list for that day; ``pending_for_listing``
+    = reader forwards dated that calendar day that are not yet published for this day, and not
+    already assigned to another hearing day (cause list or reader ``listing_date``).
+
+    Advocates: only published rows for that cause-list date.
     """
 
     def get(self, request, *args, **kwargs):
@@ -258,16 +485,18 @@ class CourtroomPendingCasesView(APIView):
         user_groups = _user_judge_groups(user)
         is_judge = bool(user_groups)
 
-        forwarded_for_date = request.query_params.get("forwarded_for_date")
-        if forwarded_for_date:
-            forwarded_date = timezone.datetime.fromisoformat(forwarded_for_date).date()
+        date_raw = request.query_params.get("cause_list_date") or request.query_params.get(
+            "forwarded_for_date"
+        )
+        if date_raw:
+            hearing_date = timezone.datetime.fromisoformat(date_raw).date()
         else:
-            forwarded_date = timezone.now().date()
+            hearing_date = timezone.now().date()
 
-        # Published cause list entries for this date (advocate visibility + judge bucketing)
+        # Published cause list entries for this hearing calendar day
         listed_efiling_ids = set(
             CauseListEntry.objects.filter(
-                cause_list__cause_list_date=forwarded_date,
+                cause_list__cause_list_date=hearing_date,
                 cause_list__status=CauseList.CauseListStatus.PUBLISHED,
                 included=True,
             ).values_list("efiling_id", flat=True)
@@ -277,32 +506,59 @@ class CourtroomPendingCasesView(APIView):
         if not is_judge and not listed_efiling_ids:
             return Response({"pending_for_listing": [], "pending_for_causelist": []}, status=drf_status.HTTP_200_OK)
 
-        base_forwards = CourtroomForward.objects.filter(forwarded_for_date=forwarded_date)
-
         if is_judge:
-            forwards = (
-                base_forwards.select_related("efiling")
+            forwards_published = _forwards_from_published_cause_lists_for_date(
+                cause_list_date=hearing_date,
+                user=user,
+                is_judge=True,
+            )
+            # Pre-publish: reader forward rows for this calendar day, excluding efilings
+            # already on the published cause list for this hearing day, and efilings whose
+            # official listing day is another calendar date (LO list or reader listing_date).
+            listed_on_other_day = _efiling_ids_listed_for_another_hearing_day(hearing_date)
+            base_pre = CourtroomForward.objects.filter(forwarded_for_date=hearing_date)
+            raw_pre = list(
+                base_pre.select_related("efiling")
                 .prefetch_related("efiling__litigants")
                 .order_by("-id")
             )
+            by_efiling: Dict[int, List[CourtroomForward]] = {}
+            for f in raw_pre:
+                if not _judge_can_view_forward(user, f.bench_key):
+                    continue
+                if f.efiling_id in listed_efiling_ids:
+                    continue
+                if f.efiling_id in listed_on_other_day:
+                    continue
+                by_efiling.setdefault(f.efiling_id, []).append(f)
+            forwards_pre: List[CourtroomForward] = []
+            for _eid, fs in by_efiling.items():
+                matches = [x for x in fs if _courtroom_forward_matches_judge_slot(user, x)]
+                if matches:
+                    forwards_pre.append(max(matches, key=lambda x: x.id))
+                else:
+                    forwards_pre.append(max(fs, key=lambda x: x.id))
+            forwards_pre.sort(key=lambda x: -x.id)
+            forwards = forwards_published + forwards_pre
         else:
-            forwards = (
-                base_forwards.filter(efiling_id__in=listed_efiling_ids)
-                .select_related("efiling")
-                .prefetch_related("efiling__litigants")
-                .order_by("-id")
+            forwards = _forwards_from_published_cause_lists_for_date(
+                cause_list_date=hearing_date,
+                user=user,
+                is_judge=False,
             )
 
-        if is_judge:
-            allowed_bench_keys = set(_allowed_bench_keys_for_judge(user_groups))
-        else:
+        if not is_judge:
             accessible_ids = set(EfilerDocumentAccess.objects.filter(efiler=user).values_list("e_filing_id", flat=True))
             creator_ids = set(Efiling.objects.filter(created_by=user).values_list("id", flat=True))
             accessible_ids.update(creator_ids)
             if user.email == "dummy_advocate@hcs.local":
                 accessible_ids.update(listed_efiling_ids)
 
-        def build_item(f: CourtroomForward) -> dict:
+        def build_item(
+            f: CourtroomForward,
+            *,
+            courtroom_bucket: str | None = None,
+        ) -> dict:
             display_bench_key, display_bench_label = _get_display_bench_for_efiling(
                 f.efiling, f.bench_key
             )
@@ -334,7 +590,12 @@ class CourtroomPendingCasesView(APIView):
                     if getattr(f.efiling, "filing_date", None)
                     else None
                 ),
-                "listing_summary": f.listing_summary,
+                "cause_list_date": hearing_date.isoformat(),
+                "listing_summary": (
+                    _listing_summary_visible_to_judge(user, f)
+                    if is_judge
+                    else f.listing_summary
+                ),
                 "forwarded_for_date": f.forwarded_for_date.isoformat(),
                 "judge_decision": (decision.approved if decision else None),
                 "judge_decision_status": (decision.status if decision else None),
@@ -364,6 +625,9 @@ class CourtroomPendingCasesView(APIView):
                 item["requested_document_count"] = 0
                 item["requested_documents"] = []
 
+            if courtroom_bucket:
+                item["courtroom_bucket"] = courtroom_bucket
+
             return item
 
         pending_for_listing: List[dict] = []
@@ -373,7 +637,7 @@ class CourtroomPendingCasesView(APIView):
 
         for f in forwards:
             if is_judge:
-                if f.bench_key not in allowed_bench_keys:
+                if not _judge_can_view_forward(user, f.bench_key):
                     continue
             else:
                 if f.efiling_id not in accessible_ids:
@@ -386,17 +650,23 @@ class CourtroomPendingCasesView(APIView):
                     if f.efiling_id in seen_pub:
                         continue
                     seen_pub.add(f.efiling_id)
-                    pending_for_causelist.append(build_item(f))
+                    pending_for_causelist.append(
+                        build_item(f, courtroom_bucket="published_causelist")
+                    )
                 else:
                     if f.efiling_id in seen_pre:
                         continue
                     seen_pre.add(f.efiling_id)
-                    pending_for_listing.append(build_item(f))
+                    pending_for_listing.append(
+                        build_item(f, courtroom_bucket="pre_publish_listing")
+                    )
             else:
                 if f.efiling_id in seen_pub:
                     continue
                 seen_pub.add(f.efiling_id)
-                pending_for_causelist.append(build_item(f))
+                pending_for_causelist.append(
+                    build_item(f, courtroom_bucket="published_causelist")
+                )
 
         return Response(
             {
@@ -417,41 +687,31 @@ class CourtroomCaseDocumentsView(APIView):
 
     def get(self, request, efiling_id: int, *args, **kwargs):
         user = _resolve_courtroom_user(request)
-        forwarded_for_date = request.query_params.get("forwarded_for_date")
+        date_raw = request.query_params.get("cause_list_date") or request.query_params.get(
+            "forwarded_for_date"
+        )
         forward_bench_key = str(request.query_params.get("forward_bench_key") or "").strip() or None
-        
+
         # 1. Permission and Publication Check
         access_meta = _validate_courtroom_access(
             user,
             efiling_id,
-            forwarded_for_date,
+            date_raw,
             allow_judge_unpublished=True,
         )
         is_judge = access_meta.get("is_judge", False)
-        
-        # 2. Get the specific forward for bench context (if judge)
-        forward = None
-        if forwarded_for_date:
-            forwarded_date = timezone.datetime.fromisoformat(forwarded_for_date).date()
-            f_qs = CourtroomForward.objects.filter(efiling_id=efiling_id, forwarded_for_date=forwarded_date)
-            if is_judge:
-                user_groups = _user_judge_groups(user)
-                allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
-                f_qs = f_qs.filter(bench_key__in=allowed_bench_keys)
-            if forward_bench_key:
-                f_qs = f_qs.filter(bench_key=forward_bench_key)
-            forward = f_qs.order_by("-id").first()
 
-        if not forward:
-            # Fallback to latest forward
-            f_qs = CourtroomForward.objects.filter(efiling_id=efiling_id)
-            if is_judge:
-                user_groups = _user_judge_groups(user)
-                allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
-                f_qs = f_qs.filter(bench_key__in=allowed_bench_keys)
-            if forward_bench_key:
-                f_qs = f_qs.filter(bench_key=forward_bench_key)
-            forward = f_qs.order_by("-forwarded_for_date", "-id").first()
+        hearing_date = None
+        if date_raw:
+            hearing_date = timezone.datetime.fromisoformat(date_raw).date()
+
+        forward = _resolve_courtroom_forward_for_hearing_day(
+            user,
+            efiling_id,
+            hearing_date=hearing_date,
+            forward_bench_key=forward_bench_key,
+            is_judge=is_judge,
+        )
 
         if not forward:
             raise ValidationError({"detail": "Case forward record not found."})
@@ -516,32 +776,31 @@ class CourtroomCaseSummaryView(APIView):
 
     def get(self, request, efiling_id: int, *args, **kwargs):
         user = _resolve_courtroom_user(request)
-        forwarded_for_date = request.query_params.get("forwarded_for_date")
+        date_raw = request.query_params.get("cause_list_date") or request.query_params.get(
+            "forwarded_for_date"
+        )
         forward_bench_key = str(request.query_params.get("forward_bench_key") or "").strip() or None
-        
+
         # 1. Permission and Publication Check
         access_meta = _validate_courtroom_access(
             user,
             efiling_id,
-            forwarded_for_date,
+            date_raw,
             allow_judge_unpublished=True,
         )
         is_judge = access_meta.get("is_judge", False)
 
-        # 2. Get forward context
-        f_qs = CourtroomForward.objects.filter(efiling_id=efiling_id)
-        if is_judge:
-            user_groups = _user_judge_groups(user)
-            allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
-            f_qs = f_qs.filter(bench_key__in=allowed_bench_keys)
-        if forward_bench_key:
-            f_qs = f_qs.filter(bench_key=forward_bench_key)
-        
-        if forwarded_for_date:
-            forwarded_date = timezone.datetime.fromisoformat(forwarded_for_date).date()
-            f_qs = f_qs.filter(forwarded_for_date=forwarded_date)
+        hearing_date = None
+        if date_raw:
+            hearing_date = timezone.datetime.fromisoformat(date_raw).date()
 
-        forward = f_qs.order_by("-forwarded_for_date", "-id").first()
+        forward = _resolve_courtroom_forward_for_hearing_day(
+            user,
+            efiling_id,
+            hearing_date=hearing_date,
+            forward_bench_key=forward_bench_key,
+            is_judge=is_judge,
+        )
         if not forward:
             raise ValidationError({"detail": "Case not forwarded for this user/date."})
 
@@ -602,7 +861,11 @@ class CourtroomCaseSummaryView(APIView):
                 "bench_label": display_bench_label,
                 "forward_bench_key": forward.bench_key,
                 "forwarded_for_date": forward.forwarded_for_date.isoformat(),
-                "listing_summary": forward.listing_summary,
+                "listing_summary": (
+                    _listing_summary_visible_to_judge(user, forward)
+                    if is_judge
+                    else forward.listing_summary
+                ),
                 "is_published": True, # By reaching here, we know it's published
                 "selected_documents": [
                     {
@@ -667,8 +930,7 @@ class CourtroomDocumentAnnotationView(APIView):
         if not doc_index or not doc_index.document_id:
             raise ValidationError({"efiling_document_index_id": "Invalid document index."})
 
-        user_groups = _user_judge_groups(user)
-        allowed_bench_keys = _allowed_bench_keys_for_judge(user_groups)
+        allowed_bench_keys = _bench_key_aliases_list_for_judge(user)
         if not CourtroomForward.objects.filter(
             efiling_id=doc_index.document.e_filing_id,
             bench_key__in=allowed_bench_keys,
@@ -710,7 +972,6 @@ class CourtroomDecisionView(APIView):
         requested_document_index_ids = payload.validated_data.get("requested_document_index_ids") or []
         approved = True
         decision_notes = payload.validated_data.get("decision_notes")
-        user_groups = _user_judge_groups(user)
         # Ensure there is an authorized forward row and resolve an unambiguous
         # bench role slot for this decision.
         fwd_qs = CourtroomForward.objects.filter(
@@ -724,11 +985,14 @@ class CourtroomDecisionView(APIView):
             raise ValidationError({"detail": "Case not forwarded for this date."})
         resolved_candidates: list[tuple[CourtroomForward, str]] = []
         for fwd in candidate_forwards:
-            if not _judge_can_view_forward(user_groups, fwd.bench_key):
+            if not _judge_can_view_forward(user, fwd.bench_key):
                 continue
             try:
                 role_group = resolve_bench_role_group_for_forward(user, fwd.bench_key)
             except ValueError:
+                continue
+            brg = (getattr(fwd, "bench_role_group", None) or "").strip()
+            if brg and brg != str(role_group):
                 continue
             resolved_candidates.append((fwd, role_group))
 
@@ -737,7 +1001,7 @@ class CourtroomDecisionView(APIView):
                 {
                     "detail": (
                         "Unable to resolve judge role slot for this bench. "
-                        "Configure judge role mapping (CJ/J1/J2)."
+                        "Configure bench seating (JudgeT) or bench slot groups for this forward."
                     )
                 }
             )

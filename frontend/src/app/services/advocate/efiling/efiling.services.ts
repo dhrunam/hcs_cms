@@ -4,8 +4,10 @@ import { Injectable } from "@angular/core";
 import { app_url } from "../../../environment";
 
 export interface DistinctBenchOption {
-  bench_code: string;
+  bench_key: string;
+  bench_code: string | null;
   bench_name: string | null;
+  label: string;
 }
 
 @Injectable({ providedIn: "root" })

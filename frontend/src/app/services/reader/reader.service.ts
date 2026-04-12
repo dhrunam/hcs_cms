@@ -4,6 +4,13 @@ import { Observable } from 'rxjs';
 import { AuthService } from '../../auth.service';
 import { app_url } from '../../environment';
 
+export type ReaderOverallStatus =
+  | 'not_forwarded'
+  | 'in_review'
+  | 'ready_for_listing'
+  | 'rejected'
+  | 'requested_docs';
+
 export type RegisteredCase = {
   efiling_id: number;
   case_number: string | null;
@@ -15,6 +22,14 @@ export type RegisteredCase = {
   petitioner_vs_respondent?: string | null;
   cause_of_action: string | null;
   approval_status?: 'NOT_FORWARDED' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'REQUESTED_DOCS';
+  /** Combined bench state; prefer for labels over raw approval_status on division benches. */
+  overall_status?: ReaderOverallStatus;
+  /** Whether this reader created a forward for their slot. */
+  my_forward_status?: 'forwarded' | 'not_forwarded';
+  /** True if any forward exists for this bench/date (may be another reader). */
+  bench_has_forward?: boolean;
+  all_judges_reviewed?: boolean;
+  judge_status_by_role?: Record<string, string>;
   approval_notes?: string[];
   approval_bench_key?: string | null;
   approval_forwarded_for_date?: string | null;
@@ -76,19 +91,13 @@ export class ReaderService {
   ) {}
 
   /**
-   * Picks a stable `reader_group` query value for reader APIs. Prefer `READER`, then
-   * legacy slot groups so older deployments still send a bench token hint.
+   * Picks a stable `reader_group` query value for reader APIs (generic READER role).
    */
   private readerGroupForQuery(): string | null {
     const groups = this.auth.getUserGroups();
     const set = new Set(groups.map((g) => g.trim()));
     if (set.has('READER')) {
       return 'READER';
-    }
-    for (const g of ['READER_CJ', 'READER_J1', 'READER_J2'] as const) {
-      if (set.has(g)) {
-        return g;
-      }
     }
     return sessionStorage.getItem('user_group')?.trim() || null;
   }

@@ -17,7 +17,6 @@ export class JudgeDashboard {
     const status = await this.authService.logout();
     console.log("Logout status:", status);
     if (status.success) {
-      alert("You have been logged out successfully.");
       this.authService.login();
       return;
     }
@@ -33,6 +32,7 @@ export class JudgeDashboard {
       issues.push("local tokens");
     }
 
+    console.warn("Logout partially completed:", issues.join(", "));
     this.authService.login();
   }
 }

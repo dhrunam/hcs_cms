@@ -19,6 +19,7 @@ export class CourtroomService {
       judge_decision_status?: 'APPROVED' | 'DECLINED' | 'REQUESTED_DOCS' | null;
       judge_listing_date: string | null;
       forwarded_for_date?: string;
+      courtroom_bucket?: string;
       requested_document_count?: number;
       requested_documents?: { document_index_id: number; document_part_name: string | null; document_type: string | null }[];
     }[];
@@ -33,12 +34,26 @@ export class CourtroomService {
       judge_decision_status?: 'APPROVED' | 'DECLINED' | 'REQUESTED_DOCS' | null;
       judge_listing_date: string | null;
       forwarded_for_date?: string;
+      courtroom_bucket?: string;
       requested_document_count?: number;
       requested_documents?: { document_index_id: number; document_part_name: string | null; document_type: string | null }[];
     }[];
   }> {
     return this.http.get<any>(
-      `${app_url}/api/v1/judge/courtroom/pending/?forwarded_for_date=${encodeURIComponent(forwarded_for_date)}`,
+      `${app_url}/api/v1/judge/courtroom/pending/?cause_list_date=${encodeURIComponent(forwarded_for_date)}`,
+    );
+  }
+
+  /** Published cause list PDFs for the date, scoped to benches this judge is seated on. */
+  getPublishedCauseListsForSeatedJudge(cause_list_date: string): Observable<{
+    items: { id: number; bench_key: string; included_count: number; pdf_url: string | null }[];
+  }> {
+    return this.http.get<{
+      items: { id: number; bench_key: string; included_count: number; pdf_url: string | null }[];
+    }>(
+      `${app_url}/api/v1/listing/cause-lists/published/?cause_list_date=${encodeURIComponent(
+        cause_list_date,
+      )}&for_seated_judge=true`,
     );
   }
 
@@ -54,7 +69,7 @@ export class CourtroomService {
       ? `&forward_bench_key=${encodeURIComponent(String(forward_bench_key))}`
       : "";
     return this.http.get<{ items: any[] }>(
-      `${app_url}/api/v1/judge/courtroom/cases/${efiling_id}/documents/?forwarded_for_date=${encodeURIComponent(
+      `${app_url}/api/v1/judge/courtroom/cases/${efiling_id}/documents/?cause_list_date=${encodeURIComponent(
         forwarded_for_date,
       )}${benchPart}&requested_only=${requested_only ? 'true' : 'false'}`,
     );
@@ -100,7 +115,7 @@ export class CourtroomService {
       ? `&forward_bench_key=${encodeURIComponent(String(forward_bench_key))}`
       : "";
     return this.http.get<any>(
-      `${app_url}/api/v1/judge/courtroom/cases/${efiling_id}/summary/?forwarded_for_date=${encodeURIComponent(
+      `${app_url}/api/v1/judge/courtroom/cases/${efiling_id}/summary/?cause_list_date=${encodeURIComponent(
         forwarded_for_date,
       )}${benchPart}`,
     );

@@ -1,7 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { ToastrService } from 'ngx-toastr';
 import { AuthService } from '../../../../auth.service';
 
 @Component({
@@ -14,10 +13,7 @@ export class Navbar implements OnInit {
   currentTime: string = '';
   currentDate: string = '';
 
-  constructor(
-    private authService: AuthService,
-    private toastr: ToastrService,
-  ) {}
+  constructor(private authService: AuthService) {}
 
   ngOnInit() {
     this.authService.initializeAuth().catch((error) => {
@@ -44,7 +40,6 @@ export class Navbar implements OnInit {
     const status = await this.authService.logout();
     console.log('Logout status:', status);
     if (status.success) {
-      alert('You have been logged out successfully.');
       this.authService.login();
       return;
     }
@@ -60,12 +55,8 @@ export class Navbar implements OnInit {
       issues.push('local tokens');
     }
 
-    this.toastr.warning(
-      `Logout partially completed. Check: ${issues.join(', ')}.`,
-      'Logout Verification',
-      { closeButton: true },
-    );
-     this.authService.login();
+    console.warn('Logout partially completed:', issues.join(', '));
+    this.authService.login();
   }
 
   // onLogout(): void {

@@ -14,6 +14,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.bench_config import bench_key_aliases_for_seated_judge
 from apps.core.models import (
     Efiling,
     EfilerDocumentAccess,
@@ -46,6 +47,12 @@ def _cause_list_target_efiling_ids(cld_obj: date_type | None, bench_key: str) ->
     """
     Cases available for this cause list calendar day: forwarded for that day, or
     reader listing_date matches that day (same bench), so listing tracks assign-date flow.
+
+    Date alignment: the listing officer's ``cause_list_date`` should match
+    ``CourtroomForward.forwarded_for_date`` when using the forward-only path, unless the
+    reader has already tied the file to this calendar day via ``listing_date`` +
+    ``reader_listing_remark`` on a judge decision (see ``by_listing`` below). If those
+    dates diverge, the case may not appear under ``approved_only`` until dates or remarks align.
     """
     if not cld_obj:
         return set()
@@ -734,12 +741,26 @@ class PublishedCauseListByDateView(APIView):
         if not cause_list_date:
             raise ValidationError({"detail": "cause_list_date is required."})
 
+        lists = CauseList.objects.filter(
+            cause_list_date=cause_list_date,
+            status=CauseList.CauseListStatus.PUBLISHED,
+        )
+        for_seated = (request.query_params.get("for_seated_judge") or "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "y",
+        }
+        if for_seated:
+            if not getattr(request.user, "is_authenticated", False):
+                raise ValidationError({"detail": "Authentication required when for_seated_judge is set."})
+            aliases = bench_key_aliases_for_seated_judge(request.user)
+            if not aliases:
+                return Response({"items": []}, status=drf_status.HTTP_200_OK)
+            lists = lists.filter(bench_key__in=list(aliases))
+
         lists = (
-            CauseList.objects.filter(
-                cause_list_date=cause_list_date,
-                status=CauseList.CauseListStatus.PUBLISHED,
-            )
-            .annotate(
+            lists.annotate(
                 included_count=Count("entries", filter=Q(entries__included=True)),
             )
             .order_by("bench_key")

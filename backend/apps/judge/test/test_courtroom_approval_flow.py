@@ -5,7 +5,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from apps.accounts.models import User
-from apps.core.models import Efiling
+from apps.core.models import BenchT, Efiling, JudgeT
 from apps.judge.courtroom_approval import efiling_ids_with_all_required_approvals
 from apps.judge.models import CourtroomJudgeDecision
 from apps.reader.models import CourtroomForward
@@ -22,10 +22,26 @@ class CourtroomApprovalFlowTest(TestCase):
         grp, _ = Group.objects.get_or_create(name="JUDGE")
         self.judge.groups.add(grp)
 
+        self.judge_t = JudgeT.objects.create(
+            user=self.judge,
+            judge_code="FLOW-J",
+            judge_name="Flow Judge",
+            display="FJ",
+            date_of_joining=self.fwd_date,
+        )
+        BenchT.objects.create(
+            bench_code="FLOW1",
+            bench_name="Flow Bench",
+            bench_type_code="S",
+            judge_code=self.judge_t.judge_code,
+            judge=self.judge_t,
+            from_date=self.fwd_date,
+        )
+
         self.filing = Efiling.objects.create(
             case_number="FLOW-001",
             e_filing_number="ASK20260000001C202600201",
-            bench="CJ",
+            bench="FLOW1",
             petitioner_name="P",
             petitioner_contact="1",
             is_draft=False,
@@ -34,7 +50,8 @@ class CourtroomApprovalFlowTest(TestCase):
         CourtroomForward.objects.create(
             efiling=self.filing,
             forwarded_for_date=self.fwd_date,
-            bench_key="CJ",
+            bench_key="FLOW1",
+            bench_role_group="BENCH_S0",
             listing_summary="Summary",
             forwarded_by=self.judge,
         )
@@ -46,10 +63,10 @@ class CourtroomApprovalFlowTest(TestCase):
             forwarded_for_date=self.fwd_date,
             approved=True,
             status=CourtroomJudgeDecision.DecisionStatus.APPROVED,
-            bench_role_group="JUDGE_CJ",
+            bench_role_group="BENCH_S0",
         )
         out = efiling_ids_with_all_required_approvals(
-            bench_key="CJ",
+            bench_key="FLOW1",
             efiling_ids=[self.filing.id],
             forwarded_for_date=self.fwd_date,
             listing_date=None,
@@ -76,7 +93,7 @@ class CourtroomApprovalFlowTest(TestCase):
             efiling=self.filing,
             forwarded_for_date=self.fwd_date,
         )
-        self.assertEqual(row.bench_role_group, "JUDGE_CJ")
+        self.assertEqual(row.bench_role_group, "BENCH_S0")
 
     def test_decision_view_rejects_duplicate_bench_role_slot(self):
         from rest_framework.test import APIClient
@@ -86,10 +103,24 @@ class CourtroomApprovalFlowTest(TestCase):
             username="flow_judge2",
             password="x",
         )
-        grp_cj, _ = Group.objects.get_or_create(name="JUDGE_CJ")
         grp_judge, _ = Group.objects.get_or_create(name="JUDGE")
-        other_judge.groups.add(grp_cj)
         other_judge.groups.add(grp_judge)
+
+        other_j_t = JudgeT.objects.create(
+            user=other_judge,
+            judge_code="FLOW-J2",
+            judge_name="Flow Judge 2",
+            display="FJ2",
+            date_of_joining=self.fwd_date,
+        )
+        BenchT.objects.create(
+            bench_code="FLOW1",
+            bench_name="Flow Bench",
+            bench_type_code="S",
+            judge_code=other_j_t.judge_code,
+            judge=other_j_t,
+            from_date=self.fwd_date,
+        )
 
         CourtroomJudgeDecision.objects.create(
             judge_user=other_judge,
@@ -97,7 +128,7 @@ class CourtroomApprovalFlowTest(TestCase):
             forwarded_for_date=self.fwd_date,
             approved=True,
             status=CourtroomJudgeDecision.DecisionStatus.APPROVED,
-            bench_role_group="JUDGE_CJ",
+            bench_role_group="BENCH_S0",
         )
 
         client = APIClient()
