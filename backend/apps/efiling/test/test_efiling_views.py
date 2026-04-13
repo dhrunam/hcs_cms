@@ -14,9 +14,11 @@ from apps.efiling.serializers.efiling_case_details_serializers import EfilingCas
 from apps.efiling.serializers.efiling_litigant_serializers import EfilingLitigantSerializer
 from apps.efiling.serializers.efiling_serializers import EfilingSerializer
 from apps.efiling.serializers.ia_serializers import IASerializer
+from apps.efiling.models import EfilingNotification
 from apps.efiling.views.efiling_acts_views import EfilingActsListCreateView, EfilingActsRetrieveUpdateDestroyView
 from apps.efiling.views.efiling_case_details_views import EfilingCaseDetailsListCreateView, EfilingCaseDetailsRetrieveUpdateDestroyView
 from apps.efiling.views.efiling_litigant_views import EfilingLitigantListCreateView, EfilingLitigantRetrieveUpdateDestroyView
+from apps.efiling.views.notification_views import EfilingNotificationListView
 from apps.efiling.views.efiling_views import EfilingListCreateView, EfilingRetrieveUpdateDestroyView
 from apps.efiling.views.ia_views import IAListCreateView, IARetrieveUpdateDestroyView
 from apps.core.models import IA
@@ -512,3 +514,131 @@ class EfilingAdvocateScopeTest(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         ids = {row['id'] for row in response.data['results']}
         self.assertEqual(ids, {self.filing_a.id, self.filing_b.id})
+
+
+class EfilingNotificationListViewTest(TestCase):
+    def setUp(self):
+        set_current_user(None)
+        self.factory = APIRequestFactory()
+        self.view = EfilingNotificationListView.as_view()
+
+        advocate_group, _ = Group.objects.get_or_create(name='API_ADVOCATE')
+        scrutiny_group, _ = Group.objects.get_or_create(name='API_SCRUTINY_OFFICER')
+
+        self.advocate_a = User.objects.create_user(
+            username='notif-adv-a',
+            email='notif-a@example.com',
+            password='password123',
+        )
+        self.advocate_b = User.objects.create_user(
+            username='notif-adv-b',
+            email='notif-b@example.com',
+            password='password123',
+        )
+        self.scrutiny_user = User.objects.create_user(
+            username='notif-scrutiny',
+            email='notif-scrutiny@example.com',
+            password='password123',
+        )
+        self.advocate_a.groups.add(advocate_group)
+        self.advocate_b.groups.add(advocate_group)
+        self.scrutiny_user.groups.add(scrutiny_group)
+
+        self.filing_a = Efiling.objects.create(
+            e_filing_number='NOTIF20240000001C202400001',
+            petitioner_name='Notification Petitioner A',
+            created_by=self.advocate_a,
+            updated_by=self.advocate_a,
+        )
+        self.filing_b = Efiling.objects.create(
+            e_filing_number='NOTIF20240000002C202400002',
+            petitioner_name='Notification Petitioner B',
+            created_by=self.advocate_b,
+            updated_by=self.advocate_b,
+        )
+        self.ia_a = IA.objects.create(
+            e_filing=self.filing_a,
+            e_filing_number=self.filing_a.e_filing_number,
+            status='UNDER_SCRUTINY',
+        )
+        self.ia_b = IA.objects.create(
+            e_filing=self.filing_b,
+            e_filing_number=self.filing_b.e_filing_number,
+            status='UNDER_SCRUTINY',
+        )
+
+    def tearDown(self):
+        set_current_user(None)
+
+    def _mock_authentication(self, user):
+        return patch(
+            'apps.core.authentication.AuditAwareJWTAuthentication.authenticate',
+            return_value=(user, None),
+        )
+
+    def test_advocate_only_sees_notifications_for_owned_filing_and_ia(self):
+        own_filing_notification = EfilingNotification.objects.create(
+            role='advocate',
+            notification_type='scrutiny_accepted',
+            message='Own filing notification',
+            e_filing=self.filing_a,
+        )
+        own_ia_notification = EfilingNotification.objects.create(
+            role='advocate',
+            notification_type='ia_filed',
+            message='Own IA notification',
+            e_filing=self.filing_a,
+            ia=self.ia_a,
+        )
+        EfilingNotification.objects.create(
+            role='advocate',
+            notification_type='scrutiny_rejected',
+            message='Other filing notification',
+            e_filing=self.filing_b,
+        )
+        EfilingNotification.objects.create(
+            role='advocate',
+            notification_type='ia_filed',
+            message='Other IA notification',
+            e_filing=self.filing_b,
+            ia=self.ia_b,
+        )
+
+        request = self.factory.get(
+            '/api/v1/efiling/notifications/?role=advocate',
+            HTTP_AUTHORIZATION='Bearer test-token',
+        )
+
+        with self._mock_authentication(self.advocate_a):
+            response = self.view(request)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        returned_ids = {item['id'] for item in response.data}
+        self.assertEqual(returned_ids, {own_filing_notification.id, own_ia_notification.id})
+
+    def test_scrutiny_officer_still_sees_all_scrutiny_notifications(self):
+        first_notification = EfilingNotification.objects.create(
+            role='scrutiny_officer',
+            notification_type='filing_submitted',
+            message='First scrutiny notification',
+            e_filing=self.filing_a,
+        )
+        second_notification = EfilingNotification.objects.create(
+            role='scrutiny_officer',
+            notification_type='ia_filed',
+            message='Second scrutiny notification',
+            e_filing=self.filing_b,
+            ia=self.ia_b,
+        )
+
+        request = self.factory.get(
+            '/api/v1/efiling/notifications/?role=scrutiny_officer',
+            HTTP_AUTHORIZATION='Bearer test-token',
+        )
+
+        with self._mock_authentication(self.scrutiny_user):
+            response = self.view(request)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        returned_ids = {item['id'] for item in response.data}
+        self.assertEqual(returned_ids, {first_notification.id, second_notification.id})
