@@ -35,14 +35,23 @@
   </div>
 
   <!-- HEARINGS GRID -->
-  <div *ngIf="!isLoading && !loadError" class="row g-4">
+  <div *ngIf="!isLoading" class="row g-4">
     <div *ngFor="let c of listedCases" class="col-xxl-3 col-xl-4 col-md-6">
       <div class="hearing-card card border-0 h-100 shadow-sm rounded-4">
         <div class="card-body p-4 d-flex flex-column">
           <!-- TOP BADGES -->
-          <div class="d-flex justify-content-between align-items-start mb-3">
-            <!-- <span class="serial-badge">SL #{{ c.serial_no || '-' }}</span> -->
+          <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-1">
             <span class="bench-badge">{{ c.bench_label || c.bench_key }}</span>
+            <span
+              *ngIf="courtroomBucketLabel(c)"
+              class="badge rounded-pill"
+              [ngClass]="
+                c.courtroom_bucket === 'published_causelist'
+                  ? 'text-bg-success'
+                  : 'text-bg-secondary'
+              "
+              >{{ courtroomBucketLabel(c) }}</span
+            >
           </div>
 
           <!-- CASE NUMBER -->
@@ -60,7 +69,7 @@
           <div class="d-grid mt-4">
             <button
               class="btn btn-start-hearing"
-              (click)="openCourtroom(c)"
+              (click)="openCourtroom(c.efiling_id)"
             >
               <i class="fa fa-gavel me-2"></i>
               Start Hearing
@@ -82,8 +91,12 @@
         <h5 class="fw-bold mb-2">No Hearings Scheduled</h5>
 
         <p class="text-muted small mx-auto" style="max-width: 420px">
-          There are no cases forwarded for hearing or published in the
-          cause-list for the selected date.
+          No cases for this calendar date. Readers must forward cases to the
+          bench; for the Published badge, the Listing Officer must
+          <strong>publish</strong> the cause list (draft-only assignments do not
+          appear as published). If the reader used a different forward date than
+          this hearing day, published lists still appear once the cause list is
+          published.
         </p>
       </div>
     </div>

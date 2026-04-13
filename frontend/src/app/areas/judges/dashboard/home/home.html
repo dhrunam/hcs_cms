@@ -27,6 +27,27 @@
     {{ loadError }}
   </div>
 
+  <div *ngIf="!isLoading && !loadError && publishedCauseLists.length > 0" class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-header bg-white border-0 py-3 px-4">
+      <span class="fw-semibold text-dark">Published cause list (this date)</span>
+      <span class="text-muted small ms-2">PDF for your bench only</span>
+    </div>
+    <div class="card-body pt-0">
+      <div class="row g-2">
+        <div class="col-md-6 col-lg-4" *ngFor="let p of publishedCauseLists">
+          <div class="border rounded p-2 h-100">
+            <div class="fw-semibold small">{{ benchLabel(p.bench_key) }}</div>
+            <div class="text-muted small">{{ p.included_count }} case(s)</div>
+            <a *ngIf="p.pdf_url" [href]="p.pdf_url" target="_blank" rel="noopener"
+              class="small text-decoration-none text-warning-emphasis">
+              <i class="fa fa-file-pdf"></i> View PDF
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- MAIN TABLES -->
   <div *ngIf="!isLoading && !loadError" class="row g-4">
 

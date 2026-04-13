@@ -17,8 +17,6 @@ from rest_framework.views import APIView
 from apps.core.models import Efiling, EfilingCaseDetails, EfilingDocuments, EfilingDocumentsIndex
 from apps.core.models import ReaderJudgeAssignment, JudgeT
 from apps.core.bench_config import (
-    BENCH_TOKEN_TO_JUDGE_GROUP,
-    LEGACY_READER_GROUP_TO_TOKENS,
     get_accessible_bench_codes_for_reader,
     get_accessible_bench_keys_for_reader,
     get_bench_configuration,
@@ -28,7 +26,8 @@ from apps.core.bench_config import (
     get_required_judge_groups,
     is_reader_date_authority_for_bench,
     is_reader_allowed_for_bench,
-    resolve_reader_slot_group_for_user,
+    mapped_judge_names_for_reader,
+    resolved_efiling_bench_value,
 )
 from apps.efiling.party_display import build_petitioner_vs_respondent
 from apps.efiling.pdf_validators import validate_pdf_file
@@ -95,6 +94,12 @@ _STENO_UPLOAD_ALLOWED = frozenset(
 logger = logging.getLogger(__name__)
 
 
+def _approval_note_label_for_role(grp: str) -> str:
+    if str(grp).startswith("BENCH_S"):
+        return f"Seat {str(grp)[6:]}:"
+    return str(grp).replace("JUDGE_", "Judge ")
+
+
 def _get_reader_allowed_bench_keys(
     request,
     reader_group: str | None = None,
@@ -143,8 +148,11 @@ def _get_reader_allowed_efiling_bench_filter(
     if allowed_bench_codes:
         filter_q |= Q(bench__in=allowed_bench_codes)
         has_filter = True
-    if allowed_bench_keys:
-        filter_q |= Q(bench__in=allowed_bench_keys)
+    if allowed_bench_keys is not None:
+        if allowed_bench_keys:
+            filter_q |= Q(bench__in=allowed_bench_keys)
+        else:
+            filter_q |= Q(pk__in=[])
         has_filter = True
 
     return filter_q if has_filter else None
@@ -166,8 +174,17 @@ def _is_forward_relevant_to_bench(
     forward: CourtroomForward,
     bench_config,
     reader_slot_group: str | None = None,
+    *,
+    reader_user=None,
 ) -> bool:
     if reader_slot_group:
+        if (
+            bench_config
+            and forward.bench_key == bench_config.bench_key
+            and reader_user
+            and getattr(forward.forwarded_by, "id", None) == reader_user.id
+        ):
+            return True
         forward_groups = tuple(get_required_judge_groups(forward.bench_key))
         return len(forward_groups) == 1 and forward_groups[0] == reader_slot_group
     forward_groups = set(get_required_judge_groups(forward.bench_key))
@@ -179,6 +196,8 @@ def _get_relevant_forwards_for_bench(
     forwards: list[CourtroomForward],
     bench_config,
     reader_slot_group: str | None = None,
+    *,
+    reader_user=None,
 ) -> list[CourtroomForward]:
     return [
         forward
@@ -187,8 +206,74 @@ def _get_relevant_forwards_for_bench(
             forward,
             bench_config,
             reader_slot_group=reader_slot_group,
+            reader_user=reader_user,
         )
     ]
+
+
+def _overall_status_from_aggregate(approval_status: str) -> str:
+    """Semantic status for reader UIs (division bench combined state)."""
+    return {
+        "NOT_FORWARDED": "not_forwarded",
+        "PENDING": "in_review",
+        "APPROVED": "ready_for_listing",
+        "REJECTED": "rejected",
+        "REQUESTED_DOCS": "requested_docs",
+    }.get(approval_status, "not_forwarded")
+
+
+def _build_judge_status_by_role(
+    *,
+    required_groups: tuple[str, ...],
+    group_decisions: dict[str, bool],
+    group_statuses: dict[str, str],
+) -> dict[str, str]:
+    """Per-slot judge lane for the active forward date (keys = bench_role_group)."""
+    out: dict[str, str] = {}
+    for gn in required_groups:
+        appr = group_decisions.get(gn)
+        st = (group_statuses.get(gn) or "").strip()
+        if appr is True:
+            out[gn] = "approved"
+        elif appr is False:
+            out[gn] = "rejected"
+        elif st == "REQUESTED_DOCS":
+            out[gn] = "requested_docs"
+        elif st:
+            out[gn] = "pending_review"
+        else:
+            out[gn] = "pending"
+    return out
+
+
+def _reader_bench_slot_key_for_forward(
+    *,
+    request,
+    bench_key: str,
+    reader_group: str | None,
+) -> str:
+    """Required judge slot (BENCH_Sn) for this reader on this bench; used as CourtroomForward key."""
+    bench_config = get_bench_configuration(bench_key)
+    if not bench_config:
+        raise ValidationError({"bench_key": f"Unknown bench_key={bench_key}."})
+    required = tuple(bench_config.judge_groups or ())
+    reader_slot = _resolve_reader_slot_group_for_bench(
+        request=request,
+        bench_config=bench_config,
+        reader_group=reader_group,
+    )
+    if len(required) == 1:
+        return str(required[0])
+    if reader_slot:
+        return str(reader_slot)
+    raise ValidationError(
+        {
+            "detail": (
+                "Your reader account is not mapped to a division bench slot; "
+                "cannot forward until ReaderJudgeAssignment / bench configuration is set."
+            )
+        }
+    )
 
 
 def _resolve_reader_slot_group_for_bench(
@@ -204,11 +289,6 @@ def _resolve_reader_slot_group_for_bench(
         mapping = dict(bench_config.reader_user_ids_by_group or ())
         for group_name, reader_user_id in mapping.items():
             if int(reader_user_id) == int(user.id):
-                return str(group_name)
-    if reader_group:
-        for token in LEGACY_READER_GROUP_TO_TOKENS.get(reader_group, set()):
-            group_name = BENCH_TOKEN_TO_JUDGE_GROUP.get(token)
-            if group_name and group_name in set(bench_config.judge_groups):
                 return str(group_name)
     if len(tuple(bench_config.judge_groups or ())) == 1:
         return str(tuple(bench_config.judge_groups)[0])
@@ -247,6 +327,8 @@ def _resolve_reader_approval_state(
             "approval_bench_key": approval_bench_key,
             "approval_forwarded_for_date": approval_forwarded_for_date,
             "listing_summary": listing_summary,
+            "approved_all": False,
+            "judge_status_by_role": {},
         }
 
     required_groups = tuple(bench_config.judge_groups)
@@ -338,6 +420,12 @@ def _resolve_reader_approval_state(
     elif relevant_forwards:
         approval_status = "PENDING"
 
+    judge_status_by_role = _build_judge_status_by_role(
+        required_groups=required_groups,
+        group_decisions=group_decisions,
+        group_statuses=group_statuses,
+    )
+
     return {
         "approval_status": approval_status,
         "approval_notes": approval_notes,
@@ -346,6 +434,8 @@ def _resolve_reader_approval_state(
         "approval_bench_key": approval_bench_key,
         "approval_forwarded_for_date": approval_forwarded_for_date,
         "listing_summary": listing_summary,
+        "approved_all": approved_all,
+        "judge_status_by_role": judge_status_by_role,
     }
 
 
@@ -431,12 +521,14 @@ class BenchConfigurationsView(APIView):
             )
             if accessible_only and not is_accessible:
                 continue
+            mapped_names = mapped_judge_names_for_reader(bench, user)
             items.append({
                 'bench_key': bench.bench_key,
                 'label': bench.label,
                 'bench_code': bench.bench_code,
                 'bench_name': bench.bench_name,
                 'judge_names': list(bench.judge_names),
+                'mapped_judge_names': list(mapped_names),
                 'judge_user_ids': list(bench.judge_user_ids),
                 'reader_user_ids': list(bench.reader_user_ids),
                 'is_accessible_to_reader': is_accessible,
@@ -529,7 +621,7 @@ class RegisteredCasesListView(APIView):
                     decision_status_map[key][str(grp)] = str((payload or {}).get("status") or "")
                     note_text = (payload or {}).get("decision_notes")
                     if note_text:
-                        label = str(grp).replace("JUDGE_", "Judge ")
+                        label = _approval_note_label_for_role(str(grp))
                         decision_notes_map.setdefault(key, []).append(f"{label}: {note_text}")
                 if st.listing_date:
                     decision_listing_date_map.setdefault(key, []).append(str(st.listing_date))
@@ -589,7 +681,7 @@ class RegisteredCasesListView(APIView):
                 if note:
                     if key not in decision_notes_map:
                         decision_notes_map[key] = []
-                    label = grp.replace("JUDGE_", "Judge ")
+                    label = _approval_note_label_for_role(str(grp))
                     decision_notes_map[key].append(f"{label}: {note}")
 
                 lst_date = d.listing_date
@@ -626,16 +718,23 @@ class RegisteredCasesListView(APIView):
                     bench_config=assigned_bench,
                     reader_group=reader_group,
                 )
-                # Full bench-relevant forwards are used for final approval aggregation.
+                # Full bench-relevant forwards drive aggregate judge state (one or two rows per
+                # day: a single shared forward is allowed; both readers still see the same
+                # approval_status / overall_status).
                 relevant_forwards = _get_relevant_forwards_for_bench(
                     forwards_by_efiling.get(e.id, []),
                     assigned_bench,
                 )
-                # Reader-slot forwards are used to determine if this reader has forwarded yet.
+                # Reader-slot forwards: rows this user created (forwarded_by); used for
+                # listing_summary and my_forward_status only.
                 reader_slot_forwards = _get_relevant_forwards_for_bench(
                     forwards_by_efiling.get(e.id, []),
                     assigned_bench,
                     reader_slot_group=reader_slot_group,
+                    reader_user=request.user
+                    if reader_slot_group
+                    and getattr(request.user, "is_authenticated", False)
+                    else None,
                 )
                 can_assign_listing_date = _can_reader_assign_listing_date(
                     request,
@@ -661,13 +760,25 @@ class RegisteredCasesListView(APIView):
             approval_forwarded_for_date = approval_state[
                 "approval_forwarded_for_date"
             ]
-            if assigned_bench and not reader_slot_forwards and approval_status != "NOT_FORWARDED":
-                # Enforce per-reader forward scope in dashboard status progression.
-                approval_status = "NOT_FORWARDED"
-                approval_notes = []
-                approval_listing_date = None
-                requested_documents = []
-                approval_forwarded_for_date = None
+            # Aggregate judge/forward state is not scrubbed by slot: both readers see the same
+            # approval_status / overall_status for the bench. Per-reader forward ownership is
+            # reported separately via my_forward_status and bench_has_forward.
+
+            # Only expose listing_summary text from forwards this reader/slot owns (not bench-wide).
+            listing_summary_for_response = None
+            if reader_slot_forwards:
+                slot_sorted = sorted(
+                    reader_slot_forwards,
+                    key=lambda fw: (fw.forwarded_for_date, fw.id),
+                    reverse=True,
+                )
+                listing_summary_for_response = slot_sorted[0].listing_summary
+
+            overall_status = _overall_status_from_aggregate(approval_status)
+            my_forward_status = (
+                "forwarded" if reader_slot_forwards else "not_forwarded"
+            )
+            bench_has_forward = bool(relevant_forwards)
 
             items.append({
                 "efiling_id": e.id,
@@ -686,11 +797,21 @@ class RegisteredCasesListView(APIView):
                 ),
                 "cause_of_action": getattr(case_detail, "cause_of_action", None) if case_detail else None,
                 "approval_status": approval_status,
+                "overall_status": overall_status,
+                "my_forward_status": my_forward_status,
+                "bench_has_forward": bench_has_forward,
+                "all_judges_reviewed": bool(
+                    approval_state.get("approved_all", False)
+                ),
+                "judge_status_by_role": approval_state.get(
+                    "judge_status_by_role"
+                )
+                or {},
                 "approval_notes": approval_notes,
                 "approval_bench_key": approval_bench_key,
                 "approval_forwarded_for_date": approval_forwarded_for_date,
                 "approval_listing_date": approval_listing_date,
-                "listing_summary": approval_state["listing_summary"],
+                "listing_summary": listing_summary_for_response,
                 "requested_documents": requested_documents,
                 "can_assign_listing_date": can_assign_listing_date,
             })
@@ -724,7 +845,7 @@ class AssignBenchesView(APIView):
             if eid in ef_by_id:
                 e = ef_by_id[eid]
                 bench_config = get_bench_configuration(bench_key)
-                e.bench = bench_config.bench_code or bench_key
+                e.bench = resolved_efiling_bench_value(bench_config)
                 e.updated_by = acting_user
                 e.updated_at = updated_at
                 updated_instances.append(e)
@@ -753,27 +874,11 @@ class CourtroomForwardView(APIView):
         if not is_reader_allowed_for_bench(bench_key, user, reader_group=reader_group):
             raise ValidationError({"bench_key": "You do not have permission to forward to this bench."})
 
-        explicit_slot = (payload.validated_data.get("reader_slot_group") or "").strip() or None
-        req_groups = tuple(get_required_judge_groups(bench_key))
-        if explicit_slot:
-            if explicit_slot not in req_groups:
-                raise ValidationError(
-                    {
-                        "reader_slot_group": (
-                            f"Must be one of this bench's slots: {', '.join(req_groups)}."
-                        )
-                    }
-                )
-            reader_slot_group = explicit_slot
-        else:
-            try:
-                reader_slot_group = resolve_reader_slot_group_for_user(
-                    user,
-                    bench_key,
-                    reader_group=reader_group,
-                )
-            except ValueError as exc:
-                raise ValidationError({"reader_slot": str(exc)}) from exc
+        slot_key = _reader_bench_slot_key_for_forward(
+            request=request,
+            bench_key=bench_key,
+            reader_group=reader_group,
+        )
 
         # Security: check if user can forward these efilings
         allowed_bench_filter = _get_reader_allowed_efiling_bench_filter(
@@ -805,7 +910,7 @@ class CourtroomForwardView(APIView):
                 efiling_id=eid,
                 forwarded_for_date=effective_forwarded_for_date,
                 bench_key=bench_key,
-                reader_slot_group=reader_slot_group,
+                bench_role_group=slot_key,
                 defaults={
                     "forwarded_by": user,
                     "listing_summary": listing_summary,

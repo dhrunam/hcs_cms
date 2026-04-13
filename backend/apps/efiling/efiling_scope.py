@@ -21,17 +21,10 @@ _GLOBAL_EFILING_VIEW_GROUP_NAMES = frozenset(
     {
         "SCRUTINY_OFFICER",
         "API_SCRUTINY_OFFICER",
-        "API_COURT_READER",
         "READER",
-        "READER_CJ",
-        "READER_J1",
-        "READER_J2",
         "LISTING_OFFICER",
         "API_LISTING_OFFICER",
-        "API_JUDGE",
-        "JUDGE_CJ",
-        "JUDGE_J1",
-        "JUDGE_J2",
+        "JUDGE",
         "API_STENOGRAPHER",
     }
 )

@@ -6,6 +6,15 @@ import { Router } from "@angular/router";
 import { CourtroomService } from "../../../../services/judge/courtroom.service";
 import { benchLabel } from "../../../listing-officers/shared/bench-labels";
 
+/** YYYY-MM-DD in the user's local calendar (avoids UTC day skew from `toISOString()`). */
+function localCalendarDateIsoString(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 @Component({
   selector: "app-judge-courtview-cases",
   imports: [CommonModule, FormsModule],
@@ -14,7 +23,7 @@ import { benchLabel } from "../../../listing-officers/shared/bench-labels";
 })
 export class JudgeCourtviewPage {
   benchLabel = benchLabel;
-  forwardedForDate: string = new Date().toISOString().slice(0, 10);
+  forwardedForDate: string = localCalendarDateIsoString();
   isLoading = false;
   loadError = "";
 
@@ -39,13 +48,11 @@ export class JudgeCourtviewPage {
 
     this.courtroomService.getPendingCases(this.forwardedForDate).subscribe({
       next: (resp) => {
-        // Unified API returns cases in 'pending_for_causelist' once published/forwarded
-        this.listedCases = resp?.pending_for_causelist ?? [];
-        console.log("Listed case for today is", this.listedCases);
+        const published = resp?.pending_for_causelist ?? [];
+        const prePublish = resp?.pending_for_listing ?? [];
+        this.listedCases = [...published, ...prePublish];
         this.isLoading = false;
-        if (this.listedCases.length === 0) {
-          this.loadError = "No published hearings found for this date.";
-        }
+        this.loadError = "";
       },
       error: (err) => {
         console.warn("Failed to load judge hearings", err);
@@ -55,19 +62,20 @@ export class JudgeCourtviewPage {
     });
   }
 
-  openCourtroom(c: {
-    efiling_id: number;
-    forwarded_for_date?: string;
-    forward_bench_key?: string;
-    reader_slot_group?: string;
-  }): void {
-    const fdate = c.forwarded_for_date || this.forwardedForDate;
-    this.router.navigate(["/judges/dashboard/courtview/case", c.efiling_id], {
-      queryParams: {
-        forwarded_for_date: fdate,
-        forward_bench_key: c.forward_bench_key || undefined,
-        reader_slot_group: c.reader_slot_group || undefined,
-      },
+  courtroomBucketLabel(c: { courtroom_bucket?: string }): string {
+    if (c.courtroom_bucket === "pre_publish_listing") {
+      return "Pre-hearing (not on published list)";
+    }
+    if (c.courtroom_bucket === "published_causelist") {
+      return "Published cause list";
+    }
+    return "";
+  }
+
+  /** Uses the selected Hearing Date so detail views align with this list (not the forward row date). */
+  openCourtroom(efilingId: number): void {
+    this.router.navigate(["/judges/dashboard/courtview/case", efilingId], {
+      queryParams: { forwarded_for_date: this.forwardedForDate },
     });
   }
 }

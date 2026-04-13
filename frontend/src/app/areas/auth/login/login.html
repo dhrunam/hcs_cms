@@ -1,35 +1,95 @@
-<div class="login-page">
-  <div class="login-card">
-    <div class="logo-wrap">
-      <img src="/assets/icons/hcs_logo.jpeg" alt="High Court" />
-    </div>
+<div class="auth-page login-page">
+  <div class="auth-page-inner">
+    <div class="auth-split">
+      <aside class="auth-brand d-none d-lg-block" aria-hidden="false">
+        <!-- <div class="auth-brand-badge">Secure access</div> -->
+        <h1>Sikkim High Court eFiling</h1>
+        <p>
+          Sign in to file cases, manage documents, and follow your matters in one place.
+        </p>
+      </aside>
 
-    <h1 class="title">Sikkim eFiling Module</h1>
-    <p class="subtitle text-muted">Sign in using the High Court SSO service.</p>
+      <div class="login-form-column">
 
-    <div *ngIf="authErrorMessage" class="alert alert-danger mt-4" role="alert">
-      {{ authErrorMessage }}
-    </div>
+        <div class="auth-card" [@fadeInCard]>
+          <div class="text-center mb-3">
+            <img class="auth-logo mx-auto d-block" src="/assets/icons/hcs_logo.jpeg" alt="High Court of Sikkim" />
+            <h2 class="auth-title">Sign in</h2>
+            <!-- <p class="auth-subtitle mb-0">Use your registered email and password.</p> -->
+          </div>
 
-    <div class="actions text-center mt-5">
-      <button
-        class="btn login-button"
-        style="color: white; background: rgb(37, 37, 129)"
-        type="button"
-        [disabled]="isLoading"
-        (click)="submit()"
-      >
-        <span *ngIf="!isLoading">Continue with SSO</span>
-        <span *ngIf="isLoading" class="loading">Redirecting...</span>
-      </button>
-    </div>
+          <div
+            *ngIf="authErrorMessage"
+            class="alert alert-danger"
+            role="alert"
+            aria-live="polite"
+          >
+            {{ authErrorMessage }}
+          </div>
 
-    <div class="hint hint-warning" role="status" aria-live="polite">
-      <div class="hint-item">
-        Authentication is handled only by the SSO server at localhost:8000.
-      </div>
-      <div class="hint-item">
-        No local fallback credentials are available in this UI.
+          <form (ngSubmit)="submit()" novalidate>
+            <div class="mb-3">
+              <label class="auth-label" for="login-identifier">Email or phone number</label>
+              <input
+                id="login-identifier"
+                class="auth-input"
+                [class.is-invalid]="identifierInvalid"
+                type="text"
+                name="email"
+                [(ngModel)]="email"
+                autocomplete="username"
+                inputmode="text"
+                required
+                [attr.aria-invalid]="identifierInvalid"
+                [attr.aria-describedby]="identifierInvalid ? 'login-id-err' : null"
+                placeholder="Email or phone number"
+              />
+              <small *ngIf="identifierInvalid" id="login-id-err" class="text-danger d-block mt-1">
+                Enter a valid email address or phone number (digits, spaces, +, -).
+              </small>
+            </div>
+
+            <div class="mb-3">
+              <label class="auth-label" for="login-password">Password</label>
+              <div class="password-wrap">
+                <input
+                  id="login-password"
+                  class="auth-input"
+                  [type]="showPassword ? 'text' : 'password'"
+                  name="password"
+                  [(ngModel)]="password"
+                  autocomplete="current-password"
+                  required
+                  aria-describedby="login-pass-hint"
+                />
+                <button
+                  type="button"
+                  class="password-toggle"
+                  (click)="showPassword = !showPassword"
+                  [attr.aria-pressed]="showPassword"
+                  [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+                >
+                  {{ showPassword ? 'Hide' : 'Show' }}
+                </button>
+              </div>
+              <small id="login-pass-hint" class="text-muted">Never share your password.</small>
+            </div>
+
+            <button
+              type="submit"
+              class="auth-btn-primary"
+              [disabled]="isLoading"
+              [attr.aria-busy]="isLoading"
+            >
+              <span *ngIf="isLoading" class="auth-spinner" aria-hidden="true"></span>
+              {{ isLoading ? 'Signing in…' : 'Sign in' }}
+            </button>
+          </form>
+
+          <p class="text-center mt-3 mb-2">
+            <a routerLink="/user/register" class="auth-link">Create an account</a>
+          </p>
+        </div>
       </div>
     </div>
   </div>

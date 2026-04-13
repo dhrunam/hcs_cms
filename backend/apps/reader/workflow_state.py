@@ -63,7 +63,7 @@ def upsert_state_on_forward(
     state.save(
         update_fields=[
             "required_role_groups",
-            "assignable_reader_user",
+            "assignable_reader_user_id",
             "all_required_approved",
             "reader_visible",
             "updated_by",

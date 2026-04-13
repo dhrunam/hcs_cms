@@ -412,15 +412,16 @@ export class FiledCaseDetails {
 
       const inputOptions = this.distinctBenches.reduce<Record<string, string>>(
         (options, bench) => {
-          const benchCode = String(bench?.bench_code ?? "").trim();
-          if (!benchCode || options[benchCode]) {
+          const code = String(bench?.bench_code ?? "").trim();
+          const key = String(bench?.bench_key ?? "").trim();
+          const value = code || key;
+          if (!value || options[value]) {
             return options;
           }
-
           const benchName = String(bench?.bench_name ?? "").trim();
-          options[benchCode] = benchName
-            ? `${benchCode} - ${benchName}`
-            : benchCode;
+          const label = String(bench?.label ?? "").trim();
+          const title = benchName || label || value;
+          options[value] = title !== value ? `${value} - ${title}` : value;
           return options;
         },
         {},

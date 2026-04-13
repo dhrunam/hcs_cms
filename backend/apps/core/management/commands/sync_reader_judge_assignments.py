@@ -9,21 +9,12 @@ from django.utils import timezone
 from apps.accounts.models import User
 from apps.core.models import JudgeT, ReaderJudgeAssignment
 
-
-LEGACY_GROUP_MAPPING = {
-    'JUDGE_CJ': {
-        'judge_code': 'SK0',
-        'reader_group': 'READER_CJ',
-    },
-    'JUDGE_J1': {
-        'judge_code': 'HSK0002',
-        'reader_group': 'READER_J1',
-    },
-    'JUDGE_J2': {
-        'judge_code': 'HSK0003',
-        'reader_group': 'READER_J2',
-    },
-}
+# (label_for_log, judge_code) — reader users taken from the READER group in stable id order.
+READER_SYNC_ROWS = [
+    ('JUDGE_CJ', 'SK0'),
+    ('JUDGE_J1', 'HSK0002'),
+    ('JUDGE_J2', 'HSK0003'),
+]
 
 
 @dataclass
@@ -37,8 +28,8 @@ class SyncResult:
 
 class Command(BaseCommand):
     help = (
-        'Backfill JudgeT.user and ReaderJudgeAssignment rows from the '
-        'legacy JUDGE_* and READER_* group conventions.'
+        'Backfill JudgeT.user and ReaderJudgeAssignment rows. '
+        'Assigns readers from the READERS group in id order to each judge_code row.'
     )
 
     def add_arguments(self, parser):
@@ -52,14 +43,24 @@ class Command(BaseCommand):
         dry_run = options['dry_run']
         results: list[SyncResult] = []
 
+        readers = list(
+            User.objects.filter(groups__name='READER')
+            .order_by('id')
+            .distinct()
+        )
+        judges = list(
+            User.objects.filter(groups__name='JUDGE')
+            .order_by('id')
+            .distinct()
+        )
+
         with transaction.atomic():
-            for judge_group, mapping in LEGACY_GROUP_MAPPING.items():
-                judge_user = self._pick_user_for_group(judge_group)
-                reader_user = self._pick_user_for_group(
-                    mapping['reader_group'],
-                )
+            for idx, (judge_group, judge_code) in enumerate(READER_SYNC_ROWS):
+                reader_user = readers[idx] if idx < len(readers) else None
+                judge_user = judges[idx] if idx < len(judges) else None
+
                 judge = JudgeT.objects.filter(
-                    judge_code=mapping['judge_code'],
+                    judge_code=judge_code,
                 ).first()
 
                 if not judge:
@@ -68,7 +69,7 @@ class Command(BaseCommand):
                             judge_group=judge_group,
                             judge_user=getattr(judge_user, 'email', None),
                             reader_user=getattr(reader_user, 'email', None),
-                            judge_code=mapping['judge_code'],
+                            judge_code=judge_code,
                             action='missing-judge-profile',
                         ),
                     )
@@ -153,17 +154,3 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(f'{created_count} assignments {suffix}.'),
         )
-
-    def _pick_user_for_group(self, group_name: str) -> User | None:
-        users = list(
-            User.objects.filter(groups__name=group_name)
-            .order_by('id')
-            .distinct()
-        )
-        if not users:
-            return None
-
-        non_dummy = [
-            user for user in users if not user.email.endswith('@hcs.local')
-        ]
-        return non_dummy[0] if non_dummy else users[0]

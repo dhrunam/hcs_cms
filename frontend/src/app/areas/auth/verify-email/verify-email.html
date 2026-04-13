@@ -1,0 +1,61 @@
+<div class="auth-page">
+  <div class="auth-page-inner">
+    <div class="auth-card auth-card--wide">
+      <img
+        class="auth-logo d-block mx-auto"
+        src="/assets/icons/hcs_logo.jpeg"
+        alt=""
+      />
+      <h1 class="auth-title text-center">Verify your email</h1>
+      <p class="auth-subtitle text-center">
+        If you registered with email verification enabled, paste the token from your email below, or open the
+        verification link you were sent.
+      </p>
+
+      <div *ngIf="successMessage" class="alert alert-success" role="status" aria-live="polite">
+        {{ successMessage }}
+        <p class="mb-0 mt-2">
+          <a routerLink="/user/login" class="auth-link">Continue to sign in</a>
+        </p>
+      </div>
+
+      <div *ngIf="formError && !successMessage" class="alert alert-danger" role="alert" aria-live="polite">
+        {{ formError }}
+      </div>
+
+      <form *ngIf="!successMessage" (ngSubmit)="verify()" novalidate>
+        <label class="auth-label" for="verify-token">Verification token</label>
+        <input
+          id="verify-token"
+          class="auth-input mb-3"
+          type="text"
+          name="token"
+          [(ngModel)]="tokenInput"
+          autocomplete="one-time-code"
+          [disabled]="isLoading"
+          aria-describedby="verify-hint"
+        />
+        <small id="verify-hint" class="text-muted d-block mb-3">
+          In development, the token may also be shown once after registration.
+        </small>
+        <button
+          type="submit"
+          class="auth-btn-primary"
+          [attr.aria-busy]="isLoading"
+          [disabled]="isLoading"
+        >
+          <span *ngIf="isLoading" class="auth-spinner" aria-hidden="true"></span>
+          {{ isLoading ? 'Verifying…' : 'Verify email' }}
+        </button>
+      </form>
+
+      <p class="text-center mt-4 mb-0 small">
+        <a routerLink="/user/login" class="auth-link">Back to sign in</a>
+      </p>
+    </div>
+  </div>
+
+  <footer class="auth-footer">
+    <a routerLink="/user/register">Register</a>
+  </footer>
+</div>

@@ -98,6 +98,7 @@ Thumbs.db
 
 # ─── Miscellaneous ───────────────────────────────────────────────────────────
 backend/.venv/
+backend/.pip-target/
 
 /old_data
 /venv

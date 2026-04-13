@@ -17,6 +17,26 @@ export const routes: Routes = [
     loadComponent: () => import('./areas/auth/login/login').then((m) => m.Login),
   },
   {
+    path: 'user/register',
+    loadComponent: () =>
+      import('./areas/auth/register-hub/register-hub').then((m) => m.RegisterHub),
+  },
+  {
+    path: 'user/register/party',
+    loadComponent: () =>
+      import('./areas/auth/register-party/register-party').then((m) => m.RegisterParty),
+  },
+  {
+    path: 'user/register/advocate',
+    loadComponent: () =>
+      import('./areas/auth/register-advocate/register-advocate').then((m) => m.RegisterAdvocate),
+  },
+  {
+    path: 'user/verify-email',
+    loadComponent: () =>
+      import('./areas/auth/verify-email/verify-email').then((m) => m.VerifyEmail),
+  },
+  {
     path: 'advocate',
     canMatch: [authGuard],
     loadChildren: () =>

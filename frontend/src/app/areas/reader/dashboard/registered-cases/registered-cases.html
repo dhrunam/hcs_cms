@@ -65,6 +65,19 @@
           <div class="case-summary">
             <div
               class="summary-row"
+              *ngIf="
+                c.bench_has_forward === true &&
+                c.my_forward_status === 'not_forwarded'
+              "
+            >
+              <div class="summary-label">Your slot</div>
+              <div class="summary-value text-muted">
+                Another reader has already forwarded this bench; status above is
+                the combined bench state. Send your own summary when required.
+              </div>
+            </div>
+            <div
+              class="summary-row"
               *ngIf="showDivisionBenchAuthorityHint(c)"
             >
               <div class="summary-label">Division Bench</div>

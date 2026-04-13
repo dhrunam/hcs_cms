@@ -16,8 +16,12 @@ class CourtroomForward(BaseModel):
     forwarded_for_date = models.DateField()
     efiling = models.ForeignKey(Efiling, on_delete=models.CASCADE, related_name="courtroom_forwards")
     bench_key = models.CharField(max_length=50)
-    # JUDGE_CJ / JUDGE_J1 / JUDGE_J2 — which judge slot this reader submission targets.
-    reader_slot_group = models.CharField(max_length=32)
+    bench_role_group = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        help_text="Reader slot on this bench (e.g. BENCH_S0). Unique per efiling/date/bench with listing flow.",
+    )
     listing_summary = models.TextField(blank=True, null=True)
     forwarded_by = models.ForeignKey(
         User,
@@ -32,12 +36,12 @@ class CourtroomForward(BaseModel):
         app_label = "reader"
         indexes = [
             models.Index(fields=["forwarded_for_date", "bench_key"]),
-            models.Index(fields=["forwarded_for_date", "bench_key", "reader_slot_group"]),
+            models.Index(fields=["efiling", "forwarded_for_date", "bench_key", "bench_role_group"]),
         ]
         constraints = [
             models.UniqueConstraint(
-                fields=["efiling", "forwarded_for_date", "bench_key", "reader_slot_group"],
-                name="courtroom_forward_unique_efiling_date_bench_slot",
+                fields=["efiling", "forwarded_for_date", "bench_key", "bench_role_group"],
+                name="courtroom_forward_efiling_date_bench_slot_uniq",
             ),
         ]
 

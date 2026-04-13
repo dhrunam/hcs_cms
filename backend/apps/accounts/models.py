@@ -1,5 +1,39 @@
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.db.models import Q
+
+from apps.accounts.roles import REG_ADVOCATE, REG_PARTY, REGISTRATION_TYPE_CHOICES
+
+_PHONE_SET = Q(phone_number__gt="")
+
+
+def _registration_profile_user_pk(instance: "RegistrationProfile") -> int | str:
+    """User primary key for per-advocate / per-party media folders (set at registration)."""
+    uid = instance.user_id
+    if uid is not None:
+        return uid
+    user = getattr(instance, "user", None)
+    if user is not None and user.pk:
+        return user.pk
+    return "unsaved"
+
+
+def registration_profile_photo_upload_to(instance: "RegistrationProfile", filename: str) -> str:
+    """Store photos under persona-specific paths; advocate/party folders use the user's PK."""
+    reg = getattr(instance.user, "registration_type", "") or ""
+    pk = _registration_profile_user_pk(instance)
+    if reg == REG_ADVOCATE:
+        return f"advocate/{pk}/{filename}"
+    if reg == REG_PARTY:
+        return f"party_in_person/{pk}/{filename}"
+    return f"profiles/registration/{filename}"
+
+
+def registration_profile_bar_id_upload_to(instance: "RegistrationProfile", filename: str) -> str:
+    # /media/advocate/<advocate_user_pk>/<filename> — advocate_id is the registered user's id (PK).
+    pk = _registration_profile_user_pk(instance)
+    return f"advocate/{pk}/{filename}"
 
 
 class User(AbstractUser):
@@ -24,6 +58,14 @@ class User(AbstractUser):
         blank=True,
         verbose_name="Designation",
     )
+    registration_type = models.CharField(
+        max_length=32,
+        blank=True,
+        choices=REGISTRATION_TYPE_CHOICES,
+        default="",
+        verbose_name="Registration type",
+    )
+    email_verified = models.BooleanField(default=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username", "first_name", "last_name"]
@@ -32,7 +74,67 @@ class User(AbstractUser):
         verbose_name = "User"
         verbose_name_plural = "Users"
         ordering = ["email"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["phone_number"],
+                condition=_PHONE_SET,
+                name="accounts_user_phone_unique_when_set",
+            ),
+        ]
 
     def __str__(self) -> str:
         full_name = self.get_full_name().strip()
         return full_name if full_name else self.email
+
+
+class RegistrationProfile(models.Model):
+    """
+    Single profile table for self-registered party-in-person and advocate users.
+    Advocate-only fields (bar_id, bar_id_file, verification_status) are empty for parties.
+    """
+
+    GENDER_CHOICES = (
+        ("M", "Male"),
+        ("F", "Female"),
+        ("O", "Other"),
+        ("U", "Prefer not to say"),
+    )
+
+    VERIFICATION_PENDING = "pending"
+    VERIFICATION_VERIFIED = "verified"
+    VERIFICATION_REJECTED = "rejected"
+    VERIFICATION_CHOICES = (
+        ("", "Not applicable"),
+        (VERIFICATION_PENDING, "Pending"),
+        (VERIFICATION_VERIFIED, "Verified"),
+        (VERIFICATION_REJECTED, "Rejected"),
+    )
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="registration_profile",
+    )
+    date_of_birth = models.DateField()
+    address = models.TextField()
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
+    photo = models.FileField(
+        upload_to=registration_profile_photo_upload_to, blank=True, null=True
+    )
+    bar_id = models.CharField(max_length=128, blank=True, default="")
+    bar_id_file = models.FileField(
+        upload_to=registration_profile_bar_id_upload_to, blank=True, null=True
+    )
+    verification_status = models.CharField(
+        max_length=16,
+        choices=VERIFICATION_CHOICES,
+        blank=True,
+        default="",
+    )
+
+    class Meta:
+        verbose_name = "Registration profile"
+        verbose_name_plural = "Registration profiles"
+
+    def __str__(self) -> str:
+        return f"Registration profile: {self.user.email}"

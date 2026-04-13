@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 
 import { Login } from './login';
 import { AuthService } from '../../../auth.service';
@@ -16,7 +16,13 @@ describe('Login', () => {
           provide: AuthService,
           useValue: {
             login: () => {},
+            loginWithPassword: async () => {},
+            navigateToDashboardByRole: async () => {},
           },
+        },
+        {
+          provide: Router,
+          useValue: { navigate: async () => true },
         },
         {
           provide: ActivatedRoute,

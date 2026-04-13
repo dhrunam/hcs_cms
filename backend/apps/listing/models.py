@@ -42,6 +42,9 @@ class CauseList(BaseModel):
     class Meta:
         db_table = "cause_list"
         unique_together = ("cause_list_date", "bench_key")
+        indexes = [
+            models.Index(fields=["cause_list_date", "status"]),
+        ]
 
     def __str__(self) -> str:
         return f"CauseList({self.cause_list_date}, {self.bench_key}, {self.status})"

@@ -2,6 +2,7 @@ from django.utils import timezone
 from django.db import models, transaction
 from rest_framework.exceptions import ValidationError
 
+from apps.core.bench_config import resolve_bench_for_registration, resolved_efiling_bench_value
 from apps.core.models import CaseTypeT, Efiling, EfilingDocuments, EfilingDocumentsIndex, EfilingDocumentsScrutinyHistory
 from apps.efiling.notification_utils import create_notification
 
@@ -246,7 +247,11 @@ def finalize_approved_filing(filing, user=None, bench=None):
 
         if filing.case_number:
             if bench:
-                filing.bench = bench
+                try:
+                    resolved = resolve_bench_for_registration(bench)
+                except ValueError as exc:
+                    raise ValidationError(str(exc)) from exc
+                filing.bench = resolved_efiling_bench_value(resolved)
                 filing.updated_by = user
                 filing.save(update_fields=["bench", "updated_by", "updated_at"])
             return filing
@@ -267,8 +272,13 @@ def finalize_approved_filing(filing, user=None, bench=None):
             locked_case_type.updated_by = user
             locked_case_type.save(update_fields=["reg_no", "reg_year", "updated_by", "updated_at"])
 
+        try:
+            resolved_bench = resolve_bench_for_registration(bench)
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from exc
+
         filing.status = "ACCEPTED"
-        filing.bench = bench
+        filing.bench = resolved_efiling_bench_value(resolved_bench)
         latest_review_time = (
             active_document_indexes.exclude(last_reviewed_at__isnull=True)
             .order_by("-last_reviewed_at")

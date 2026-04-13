@@ -14,7 +14,7 @@
       <div>
         <label class="form-label mb-1 fw-semibold">Forwarded To</label>
         <div class="form-control form-control-sm bg-light">
-          {{ forwardBenchConfiguration?.judge_names?.join(', ') || 'No mapped judge available' }}
+          {{ forwardedToJudgeLabel }}
         </div>
         
       </div>
@@ -110,7 +110,7 @@
               <div class="d-flex justify-content-end mt-3">
                 <button
                   class="btn btn-primary"
-                  [disabled]="isForwarding || !forwardBenchConfiguration"
+                  [disabled]="isForwarding || !effectiveForwardBenchConfiguration"
                   (click)="forwardToJudge()"
                 >
                   {{ isForwarding ? 'Forwarding...' : "Forward To Hon'ble Judge" }}

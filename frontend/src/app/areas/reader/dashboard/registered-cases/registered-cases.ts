@@ -7,41 +7,9 @@ import { catchError, of } from "rxjs";
 import {
   BenchConfiguration,
   ReaderService,
+  RegisteredCase,
   resolveBenchConfiguration,
 } from "../../../../services/reader/reader.service";
-
-type RegisteredCase = {
-  efiling_id: number;
-  case_number: string | null;
-  petitioner_name: string | null;
-  respondent_name: string | null;
-  petitioner_vs_respondent?: string | null;
-  bench: string | null;
-  bench_key?: string | null;
-
-  cause_of_action: string | null;
-  date_of_cause_of_action: string | null;
-  dispute_state: string | null;
-  dispute_district: string | null;
-  dispute_taluka: string | null;
-  approval_status?:
-    | "NOT_FORWARDED"
-    | "PENDING"
-    | "APPROVED"
-    | "REJECTED"
-    | "REQUESTED_DOCS";
-  approval_notes?: string[];
-  approval_bench_key?: string | null;
-  approval_forwarded_for_date?: string | null;
-  approval_listing_date?: string | null;
-  listing_summary?: string | null;
-  can_assign_listing_date?: boolean;
-  requested_documents?: {
-    document_index_id: number;
-    document_part_name: string | null;
-    document_type: string | null;
-  }[];
-};
 
 @Component({
   selector: "app-registered-cases",
@@ -119,22 +87,46 @@ export class RegisteredCasesPage {
 
   approvalStatusLabel(c: RegisteredCase): string {
     if (c.approval_listing_date) return "Forwarded for Listing";
+    const o = c.overall_status;
+    if (o === "ready_for_listing") {
+      return "Ready for listing";
+    }
+    if (o === "in_review") {
+      if (
+        c.my_forward_status === "not_forwarded" &&
+        c.bench_has_forward === true
+      ) {
+        return "Your summary not sent";
+      }
+      return "Waiting for judge(s)";
+    }
+    if (o === "not_forwarded") {
+      return "Pending forward";
+    }
+    if (o === "rejected") return "Judge rejected";
+    if (o === "requested_docs") return "Docs requested";
     switch (c.approval_status) {
       case "APPROVED":
-        return "Judge Approved";
+        return "Judge approved";
       case "REJECTED":
-        return "Judge Rejected";
+        return "Judge rejected";
       case "REQUESTED_DOCS":
-        return "Docs Requested";
+        return "Docs requested";
       case "PENDING":
-        return "Waiting for Judge";
+        return "Waiting for judge(s)";
       default:
-        return "Pending Forward";
+        return "Pending forward";
     }
   }
 
   approvalIcon(c: RegisteredCase): string {
     if (c.approval_listing_date) return "fa-check-double";
+    const o = c.overall_status;
+    if (o === "ready_for_listing") return "fa-check";
+    if (o === "in_review") return "fa-clock";
+    if (o === "not_forwarded") return "fa-paper-plane";
+    if (o === "rejected") return "fa-xmark";
+    if (o === "requested_docs") return "fa-file-circle-question";
     switch (c.approval_status) {
       case "APPROVED":
         return "fa-check";
@@ -150,6 +142,12 @@ export class RegisteredCasesPage {
   }
 
   approvalBadgeClass(c: RegisteredCase): string {
+    const o = c.overall_status;
+    if (o === "ready_for_listing") return "text-bg-success";
+    if (o === "in_review") return "text-bg-warning";
+    if (o === "not_forwarded") return "text-bg-primary";
+    if (o === "rejected") return "text-bg-danger";
+    if (o === "requested_docs") return "text-bg-warning";
     switch (c.approval_status) {
       case "APPROVED":
         return "text-bg-success";
@@ -165,8 +163,11 @@ export class RegisteredCasesPage {
   }
 
   showDivisionBenchAuthorityHint(c: RegisteredCase): boolean {
+    const ready =
+      c.overall_status === "ready_for_listing" ||
+      c.approval_status === "APPROVED";
     return (
-      c.approval_status === "APPROVED" &&
+      ready &&
       !c.approval_listing_date &&
       c.can_assign_listing_date === false
     );

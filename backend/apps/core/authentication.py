@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from apps.core.audit_context import set_current_user
-from drf_sso_resource.authentication import SSOResourceServerAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 
-class AuditAwareSSOResourceServerAuthentication(SSOResourceServerAuthentication):
+class AuditAwareJWTAuthentication(JWTAuthentication):
+    """Validate Bearer JWTs and attach the user for audit context."""
+
     def authenticate(self, request):
         result = super().authenticate(request)
         if result is None:

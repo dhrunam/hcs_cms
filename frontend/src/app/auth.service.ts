@@ -1,12 +1,20 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { OAuthService } from 'angular-oauth2-oidc';
-import { authConfig } from './auth.config';
-import { app_url,  isLocalDevHost, sso_url } from './environment';
+import { firstValueFrom } from 'rxjs';
+import { app_url, devAuthBypassToken, isLocalDevHost, sessionProfileKey } from './environment';
 import { Router } from '@angular/router';
+import {
+  USER_SESSION_ENC_KEY,
+  UserSessionProfile,
+  encryptUserSessionProfile,
+} from './session-profile-crypto';
+
+export type { UserSessionProfile } from './session-profile-crypto';
+
 export type LogoutStatus = {
   apiSessionLoggedOut: boolean;
-  ssoSessionLoggedOut: boolean;
+  /** True when the refresh token was revoked on the server (JWT blacklist). */
+  refreshBlacklisted: boolean;
   tokensCleared: boolean;
   success: boolean;
 };
@@ -20,90 +28,106 @@ export type AuthorizationError = {
   providedIn: 'root',
 })
 export class AuthService {
+  private readonly tokenUrl = `${app_url}/api/v1/accounts/auth/token/`;
+  private readonly tokenBlacklistUrl = `${app_url}/api/v1/accounts/auth/token/blacklist/`;
   private readonly logoutUrl = `${app_url}/api/v1/accounts/users/logout/`;
-  private readonly ssoLogoutUrl = `${sso_url}/accounts/logout/`;
+  /** Fallback when JWT payload cannot expose `groups` to the client (decode issues) or claims are empty. */
+  private readonly userMeUrl = `${app_url}/api/v1/accounts/users/me/`;
+
+  /** In-memory copy of `/users/me/` profile; mirrored encrypted in sessionStorage when configured. */
+  private sessionProfileCache: UserSessionProfile | null = null;
 
   constructor(
-    private oauthService: OAuthService,
     private http: HttpClient,
     private router: Router,
   ) {}
 
   async initAuth(): Promise<void> {
-    // alert('initAuth');
-    this.oauthService.configure(authConfig);
-    try {
-      // alert('loadDiscoveryDocumentAndTryLogin');
-      await this.oauthService.loadDiscoveryDocumentAndTryLogin();
-    } catch (error) {
-      // alert('error in initAuth');
-      // In local/dev flows SSO server may be offline; keep app usable.
-      console.warn('SSO discovery unavailable, continuing without SSO session.');
-    }
-    this.syncSessionFromTokens();
     this.applyDevAuthBypassIfConfigured();
+    this.syncSessionFromJwtAccessToken();
+    await this.syncEncryptedUserProfile();
   }
 
-  login() {
-    this.oauthService.initCodeFlow();
+  /** Navigate to local login. */
+  login(): void {
+    void this.router.navigate(['/user/login']);
+  }
+
+  /**
+   * JWT login against the CMS API; stores access/refresh in sessionStorage.
+   * @param identifier Registered email or phone number (`User.phone_number`); sent as JSON `email`.
+   */
+  async loginWithPassword(identifier: string, password: string): Promise<void> {
+    const res = await firstValueFrom(
+      this.http.post<{ access: string; refresh: string }>(this.tokenUrl, {
+        email: identifier.trim(),
+        password,
+      }),
+    );
+    if (res?.access) {
+      sessionStorage.setItem('access_token', res.access);
+      if (res.refresh) {
+        sessionStorage.setItem('refresh_token', res.refresh);
+      }
+      this.syncSessionFromJwtAccessToken();
+      await this.syncEncryptedUserProfile();
+    }
   }
 
   async logout(): Promise<LogoutStatus> {
-    const csrfToken = this.getCookieValue('csrftoken');
-    let apiSessionLoggedOut = false;
-    let ssoSessionLoggedOut = false;
+    const refresh = sessionStorage.getItem('refresh_token');
+    let refreshBlacklisted = false;
+    if (refresh) {
+      try {
+        await firstValueFrom(this.http.post(this.tokenBlacklistUrl, { refresh }));
+        refreshBlacklisted = true;
+      } catch (error) {
+        console.warn('Refresh token blacklist failed:', error);
+      }
+    }
 
+    // Session logout must run while access_token is still in sessionStorage so the
+    // auth interceptor sends Authorization: Bearer (UserViewSet.logout is IsAuthenticated).
+    let apiSessionLoggedOut = false;
     try {
-      await this.http
-        .post(this.logoutUrl, {}, { withCredentials: true })
-        .toPromise();
+      await firstValueFrom(this.http.post(this.logoutUrl, {}, { withCredentials: true }));
       apiSessionLoggedOut = true;
     } catch (error) {
-      console.warn('Backend session logout failed (continuing with OAuth logout):', error);
+      console.warn('Backend session logout failed:', error);
     }
 
-    try {
-      await this.http
-        .post(
-          this.ssoLogoutUrl,
-          {},
-          {
-            withCredentials: true,
-            headers: csrfToken ? { 'X-CSRFToken': csrfToken } : {},
-          },
-        )
-        .toPromise();
-      ssoSessionLoggedOut = true;
-    } catch (error) {
-      console.warn('SSO session logout failed:', error);
-    }
-
-    // Expire csrftoken from JS where possible; sessionid is HttpOnly and must be
-    // invalidated by server-side logout endpoints.
-    document.cookie = 'csrftoken=; Max-Age=0; path=/; SameSite=Lax';
-    this.oauthService.logOut();
     sessionStorage.removeItem('access_token');
+    sessionStorage.removeItem('refresh_token');
     sessionStorage.removeItem('user_groups');
     sessionStorage.removeItem('user_group');
+    sessionStorage.removeItem(USER_SESSION_ENC_KEY);
+    this.sessionProfileCache = null;
+    document.cookie = 'csrftoken=; Max-Age=0; path=/; SameSite=Lax';
 
     const tokensCleared = !this.isLoggedIn();
     return {
       apiSessionLoggedOut,
-      ssoSessionLoggedOut,
+      refreshBlacklisted,
       tokensCleared,
-      success: apiSessionLoggedOut && ssoSessionLoggedOut && tokensCleared,
+      success: tokensCleared,
     };
   }
 
-  get accessToken() {
-    return this.oauthService.getAccessToken();
+  get accessToken(): string | null {
+    return sessionStorage.getItem('access_token');
   }
 
   public initializeAuth(): Promise<void> {
     return this.initAuth();
   }
 
+  /**
+   * Django group names for routing and APIs; prefers decrypted/in-memory profile from `/users/me/`.
+   */
   public getUserGroups(): string[] {
+    if (this.sessionProfileCache?.groups && Array.isArray(this.sessionProfileCache.groups)) {
+      return [...this.sessionProfileCache.groups];
+    }
     const rawGroups = sessionStorage.getItem('user_groups');
     if (!rawGroups) {
       return [];
@@ -117,10 +141,11 @@ export class AuthService {
     }
   }
 
-  /**
-   * After SSO login, `user_group` is set from the token in {@link syncSessionFromTokens}.
-   * Navigates to the dashboard for that role; falls back to group-based routing if unknown.
-   */
+  /** Decrypted user profile (name, groups, email) after login or `initAuth`; null if not loaded yet. */
+  public getSessionProfile(): UserSessionProfile | null {
+    return this.sessionProfileCache;
+  }
+
   async navigateToDashboardByRole(): Promise<void> {
     let role = window.sessionStorage.getItem('user_group')?.trim() || null;
     if (!role) {
@@ -143,62 +168,82 @@ export class AuthService {
     await this.navigateToDashboardFromUserGroups();
   }
 
-  /** Route commands for `router.navigate` — `null` means use {@link navigateToDashboardFromUserGroups}. */
+  /**
+   * Maps JWT `role` (lowercase key from API) and Django `Group.name` values
+   * (e.g. JUDGE_CJ, READER_J1) to dashboard routes.
+   */
   static dashboardRouteForRole(primaryRole: string | null): string[] | null {
     const r = primaryRole?.trim() || '';
     if (!r) return null;
-    switch (r) {
-      case 'API_ADVOCATE':
-      case 'ADVOCATE':
-        return ['/advocate/dashboard/home'];
-      case 'API_SCRUTINY_OFFICER':
-      case 'SCRUTINY_OFFICER':
-        return ['/scrutiny-officers/dashboard/home'];
-      case 'API_COURT_READER':
-      case 'READER':
-      case 'READER_CJ':
-      case 'READER_J1':
-      case 'READER_J2':
-        return ['/reader/dashboard'];
-      case 'API_LISTING_OFFICER':
-      case 'LISTING_OFFICER':
-        return ['/listing-officers/dashboard/home'];
-      case 'API_JUDGE':
-      case 'JUDGE_CJ':
-      case 'JUDGE_J1':
-      case 'JUDGE_J2':
-        return ['/judges/dashboard/home'];
-      case 'API_STENOGRAPHER':
-        return ['/steno/dashboard/home'];
-      default:
-        return null;
+    const u = r.toUpperCase();
+
+    if (u === 'ADVOCATE' || r === 'advocate') {
+      return ['/advocate/dashboard/home'];
     }
+    if (u === 'PARTY_IN_PERSON' || r === 'party_in_person') {
+      return ['/advocate/dashboard/home'];
+    }
+    if (u === 'SCRUTINY_OFFICER' || r === 'scrutiny_officer') {
+      return ['/scrutiny-officers/dashboard/home'];
+    }
+    if (
+      u === 'READER' ||
+      r === 'reader' ||
+      u.startsWith('READER_')
+    ) {
+      return ['/reader/dashboard'];
+    }
+    if (u === 'LISTING_OFFICER' || r === 'listing_officer') {
+      return ['/listing-officers/dashboard/home'];
+    }
+    if (u === 'JUDGE' || r === 'judge' || u.startsWith('JUDGE_')) {
+      return ['/judges/dashboard/home'];
+    }
+    if (u === 'STENO' || r === 'steno') {
+      return ['/steno/dashboard/home'];
+    }
+    if (u === 'SUPERADMIN' || r === 'superadmin') {
+      return ['/advocate/dashboard/home'];
+    }
+    return null;
   }
 
   private async navigateToDashboardFromUserGroups(): Promise<void> {
     const groups = this.getUserGroups();
+    const has = (pred: (g: string) => boolean) => groups.some(pred);
 
-    if (groups.some((group) => ['JUDGE_CJ', 'JUDGE_J1', 'JUDGE_J2'].includes(group))) {
+    if (has((g) => g === 'JUDGE' || g.startsWith('JUDGE_'))) {
       await this.router.navigate(['/judges/dashboard/home']);
       return;
     }
 
-    if (
-      groups.some((group) =>
-        ['READER', 'READER_CJ', 'READER_J1', 'READER_J2'].includes(group),
-      )
-    ) {
+    if (has((g) => g === 'READER' || g.startsWith('READER_'))) {
       await this.router.navigate(['/reader/dashboard']);
       return;
     }
 
-    if (groups.includes('LISTING_OFFICER')) {
+    if (has((g) => g === 'LISTING_OFFICER')) {
       await this.router.navigate(['/listing-officers/dashboard/home']);
       return;
     }
 
-    if (groups.includes('SCRUTINY_OFFICER')) {
+    if (has((g) => g === 'SCRUTINY_OFFICER')) {
       await this.router.navigate(['/scrutiny-officers/dashboard/home']);
+      return;
+    }
+
+    if (has((g) => g === 'STENO')) {
+      await this.router.navigate(['/steno/dashboard/home']);
+      return;
+    }
+
+    if (has((g) => g === 'PARTY_IN_PERSON')) {
+      await this.router.navigate(['/advocate/dashboard/home']);
+      return;
+    }
+
+    if (has((g) => g === 'ADVOCATE')) {
+      await this.router.navigate(['/advocate/dashboard/home']);
       return;
     }
 
@@ -206,14 +251,7 @@ export class AuthService {
   }
 
   public isLoggedIn(): boolean {
-    return (
-      this.oauthService.hasValidAccessToken() ||
-      this.oauthService.hasValidIdToken() ||
-      !!this.oauthService.getAccessToken() ||
-      !!this.oauthService.getIdToken() ||
-      !!sessionStorage.getItem('access_token') ||
-      !!localStorage.getItem('access_token')
-    );
+    return !!sessionStorage.getItem('access_token');
   }
 
   public getAuthorizationError(): AuthorizationError | null {
@@ -226,104 +264,169 @@ export class AuthService {
 
     return {
       error,
-      errorDescription: params.get('error_description') || 'SSO login could not be completed.',
+      errorDescription: params.get('error_description') || 'Login could not be completed.',
     };
   }
 
-  /**
-   * When `devAuthBypassToken` is set (localhost only), act as logged-in so the guard passes
-   * and the interceptor sends the same Bearer token the backend dev auth accepts.
-   */
   private applyDevAuthBypassIfConfigured(): void {
-    // if (!isLocalDevHost() || !devAuthBypassToken?.trim()) {
-    //   return;
-    // }
-    // if (this.oauthService.hasValidAccessToken()) {
-    //   return;
-    // }
-    // const trimmed = devAuthBypassToken.trim();
-    // sessionStorage.setItem('access_token', trimmed);
-    // if (!sessionStorage.getItem('user_group')) {
-    //   sessionStorage.setItem('user_group', 'ADVOCATE');
-    //   sessionStorage.setItem('user_groups', JSON.stringify(['ADVOCATE']));
-    // }
+    if (!isLocalDevHost() || !devAuthBypassToken?.trim()) {
+      return;
+    }
+    if (sessionStorage.getItem('access_token')) {
+      return;
+    }
+    const trimmed = devAuthBypassToken.trim();
+    sessionStorage.setItem('access_token', trimmed);
+    if (!sessionStorage.getItem('user_group')) {
+      sessionStorage.setItem('user_group', 'ADVOCATE');
+      sessionStorage.setItem('user_groups', JSON.stringify(['ADVOCATE']));
+    }
+    this.sessionProfileCache = {
+      displayName: 'Dev user',
+      groups: ['ADVOCATE'],
+    };
   }
 
-  private syncSessionFromTokens(): void {
-    const accessToken = this.oauthService.getAccessToken();
-    if (accessToken) {
-      sessionStorage.setItem('access_token', accessToken);
-    }
-
-    const identityClaims = this.oauthService.getIdentityClaims() as Record<string, unknown> | null;
-    const accessTokenClaims = this.getAccessTokenClaims();
-    const groups = [
-      ...this.extractGroups(identityClaims),
-      ...this.extractGroups(accessTokenClaims),
-    ];
-
-    const uniqueGroups = Array.from(new Set(groups));
-    if (uniqueGroups.length > 0) {
-      sessionStorage.setItem('user_groups', JSON.stringify(uniqueGroups));
-      sessionStorage.setItem('user_group', uniqueGroups[0]);
-    }
+  /** When JWT omits `groups`, derive a canonical group from `role` for routing. */
+  private static primaryGroupForRoleKey(role: string): string | null {
+    const m: Record<string, string> = {
+      advocate: 'ADVOCATE',
+      party_in_person: 'PARTY_IN_PERSON',
+      scrutiny_officer: 'SCRUTINY_OFFICER',
+      reader: 'READER',
+      listing_officer: 'LISTING_OFFICER',
+      steno: 'STENO',
+      judge: 'JUDGE',
+      superadmin: 'SUPERADMIN',
+    };
+    return m[role] ?? null;
   }
 
-  private getAccessTokenClaims(): Record<string, unknown> | null {
-    const accessToken = this.oauthService.getAccessToken();
+  private syncSessionFromJwtAccessToken(): void {
+    const accessToken = sessionStorage.getItem('access_token');
     if (!accessToken) {
-      return null;
+      return;
+    }
+    const claims = this.decodeJwtPayload(accessToken);
+    if (!claims) {
+      return;
+    }
+    const role = typeof claims['role'] === 'string' ? claims['role'].trim() : '';
+    let groups = AuthService.groupsFromClaims(claims);
+
+    if (groups.length === 0 && role) {
+      const fallback = AuthService.primaryGroupForRoleKey(role);
+      if (fallback) {
+        groups = [fallback];
+      }
     }
 
+    sessionStorage.setItem('user_groups', JSON.stringify(groups));
+    if (role) {
+      sessionStorage.setItem('user_group', role);
+    } else if (groups.length > 0) {
+      sessionStorage.setItem('user_group', groups[0]);
+    } else {
+      sessionStorage.removeItem('user_group');
+    }
+  }
+
+  /** Normalize `groups` from JWT payload (array, JSON string, or missing). */
+  private static groupsFromClaims(claims: Record<string, unknown>): string[] {
+    const raw = claims['groups'];
+    if (Array.isArray(raw)) {
+      return raw.filter((g): g is string => typeof g === 'string' && g.length > 0);
+    }
+    if (typeof raw === 'string') {
+      const s = raw.trim();
+      if (!s) {
+        return [];
+      }
+      try {
+        const parsed: unknown = JSON.parse(s);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((g): g is string => typeof g === 'string' && g.length > 0);
+        }
+      } catch {
+        /* single group name */
+      }
+      return [s];
+    }
+    return [];
+  }
+
+  /**
+   * Loads `/users/me/`, updates plain `user_groups` / `user_group` for routing, caches profile,
+   * and stores an AES-GCM encrypted blob when `sessionProfileKey` is set.
+   */
+  private async syncEncryptedUserProfile(): Promise<void> {
+    if (!this.isLoggedIn()) {
+      return;
+    }
+    try {
+      const me = await firstValueFrom(
+        this.http.get<{
+          full_name?: string;
+          first_name?: string;
+          last_name?: string;
+          email?: string;
+          groups?: string[];
+          registration_type?: string;
+        }>(this.userMeUrl),
+      );
+      const groups = Array.isArray(me?.groups)
+        ? me.groups.filter((g) => typeof g === 'string' && g.trim().length > 0)
+        : [];
+      const displayName =
+        (typeof me.full_name === 'string' && me.full_name.trim()) ||
+        [me.first_name, me.last_name]
+          .filter((x): x is string => typeof x === 'string' && !!x.trim())
+          .join(' ')
+          .trim() ||
+        (typeof me.email === 'string' ? me.email : '');
+      const profile: UserSessionProfile = {
+        displayName,
+        groups,
+        email: typeof me.email === 'string' ? me.email : undefined,
+        registration_type:
+          typeof me.registration_type === 'string' ? me.registration_type : undefined,
+      };
+      this.sessionProfileCache = profile;
+      sessionStorage.setItem('user_groups', JSON.stringify(groups));
+      if (groups.length > 0) {
+        sessionStorage.setItem('user_group', groups[0]);
+      } else {
+        sessionStorage.removeItem('user_group');
+      }
+      const enc = await encryptUserSessionProfile(profile, sessionProfileKey);
+      if (enc) {
+        sessionStorage.setItem(USER_SESSION_ENC_KEY, enc);
+      } else {
+        sessionStorage.removeItem(USER_SESSION_ENC_KEY);
+      }
+    } catch {
+      /* 401 / network — leave existing cache and plain keys */
+    }
+  }
+
+  /** UTF-8 safe JWT payload decode (atob alone breaks on non-ASCII in claims). */
+  private decodeJwtPayload(accessToken: string): Record<string, unknown> | null {
     const tokenParts = accessToken.split('.');
     if (tokenParts.length < 2) {
       return null;
     }
-
     try {
-      const payload = tokenParts[1].replace(/-/g, '+').replace(/_/g, '/');
-      const decoded = atob(payload.padEnd(Math.ceil(payload.length / 4) * 4, '='));
-      return JSON.parse(decoded) as Record<string, unknown>;
+      const base64 = tokenParts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+      const binary = atob(padded);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      const json = new TextDecoder('utf-8').decode(bytes);
+      return JSON.parse(json) as Record<string, unknown>;
     } catch {
       return null;
     }
-  }
-
-  private extractGroups(claims: Record<string, unknown> | null): string[] {
-    if (!claims) {
-      return [];
-    }
-
-    const groupCandidates: unknown[] = [
-      claims['groups'],
-      claims['group'],
-      claims['roles'],
-      (claims['realm_access'] as { roles?: unknown } | undefined)?.roles,
-    ];
-
-    const selected = groupCandidates.find((candidate) => candidate !== undefined && candidate !== null);
-
-    if (Array.isArray(selected)) {
-      return selected.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
-    }
-
-    if (typeof selected === 'string' && selected.trim().length > 0) {
-      return [selected];
-    }
-
-    return [];
-  }
-
-  private getCookieValue(name: string): string {
-    const cookies = document.cookie ? document.cookie.split(';') : [];
-
-    for (const cookie of cookies) {
-      const [rawKey, ...rawValue] = cookie.trim().split('=');
-      if (rawKey === name) {
-        return decodeURIComponent(rawValue.join('='));
-      }
-    }
-
-    return '';
   }
 }

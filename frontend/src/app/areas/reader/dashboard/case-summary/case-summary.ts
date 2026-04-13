@@ -244,12 +244,48 @@ export class ReaderCaseSummaryPage {
   }
 
   get forwardBenchConfiguration(): BenchConfiguration | undefined {
-    console.log(this.benchConfigurations.find((item) => item.is_forward_target));
     return this.benchConfigurations.find((item) => item.is_forward_target);
   }
 
+  /** Bench metadata for this case: matches `filing.bench` (stored bench_key or bench_code). */
+  get caseBenchConfiguration(): BenchConfiguration | undefined {
+    return resolveBenchConfiguration(
+      this.benchConfigurations,
+      this.filing?.bench,
+    );
+  }
+
+  /**
+   * Target for forward API: this case's bench when known, else first forward-target bench.
+   */
+  get effectiveForwardBenchConfiguration(): BenchConfiguration | undefined {
+    return this.caseBenchConfiguration ?? this.forwardBenchConfiguration;
+  }
+
+  /**
+   * Shown under "Forwarded To": mapped judge(s) for this reader when available;
+   * if only full-bench names exist, label them as full bench (no silent "all judges" as mapped).
+   */
+  get forwardedToJudgeLabel(): string {
+    const cfg = this.caseBenchConfiguration ?? this.forwardBenchConfiguration;
+    if (!cfg) {
+      return "No bench information";
+    }
+    const mapped = cfg.mapped_judge_names;
+    if (Array.isArray(mapped) && mapped.length > 0) {
+      return mapped.join(", ");
+    }
+    const full = cfg.judge_names;
+    if (Array.isArray(full) && full.length > 0) {
+      const tag = cfg.label || cfg.bench_key || "Bench";
+      return `Full bench (${tag}): ${full.join(", ")}`;
+    }
+    return "No mapped judge available";
+  }
+
   forwardToJudge(): void {
-    if (!this.filingId || !this.forwardBenchConfiguration) return;
+    const target = this.effectiveForwardBenchConfiguration;
+    if (!this.filingId || !target) return;
     const summary = (this.listingSummary || "").trim();
     if (!summary) {
       Swal.fire({
@@ -264,7 +300,7 @@ export class ReaderCaseSummaryPage {
     this.readerService
       .forwardToCourtroom({
         forwarded_for_date: today,
-        bench_key: this.forwardBenchConfiguration.bench_key,
+        bench_key: target.bench_key,
         listing_summary: summary,
         document_index_ids: this.forwardDocumentIndexIds.length
           ? this.forwardDocumentIndexIds

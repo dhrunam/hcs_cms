@@ -20,7 +20,7 @@ describe('Navbar', () => {
             logout: () =>
               Promise.resolve({
                 apiSessionLoggedOut: true,
-                ssoSessionLoggedOut: true,
+                refreshBlacklisted: true,
                 tokensCleared: true,
                 success: true,
               }),
