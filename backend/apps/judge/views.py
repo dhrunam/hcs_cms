@@ -177,12 +177,13 @@ def _validate_courtroom_access(
     ).exists()
 
     if is_judge:
-        forwards = CourtroomForward.objects.filter(efiling_id=efiling_id, forwarded_for_date=cld)
-        has_bench_access = False
-        for f in forwards:
-            if _judge_can_view_forward(user, f.bench_key):
-                has_bench_access = True
-                break
+        # Any forward for this filing where the judge is seated on the bench — do not require
+        # forwarded_for_date to match the URL date (reader may have merged rows on an older day
+        # or the hearing calendar day may differ from CourtroomForward.forwarded_for_date).
+        forwards_any = CourtroomForward.objects.filter(efiling_id=efiling_id)
+        has_bench_access = any(
+            _judge_can_view_forward(user, f.bench_key) for f in forwards_any
+        )
 
         # Hearing day may follow published cause list while reader forward used another calendar day.
         if not has_bench_access and is_published:
@@ -370,7 +371,9 @@ def _pick_courtroom_forward_for_user(
             return cand
     if len(ordered) == 1:
         return ordered[0]
-    return None
+    # Multiple forwards and no slot match (misconfigured groups): still show a row like
+    # _pick_forward_row_for_efiling_bench so summary/documents do not 404.
+    return ordered[0]
 
 
 def _resolve_courtroom_forward_for_hearing_day(

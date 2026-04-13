@@ -178,13 +178,14 @@ def _is_forward_relevant_to_bench(
     reader_user=None,
 ) -> bool:
     if reader_slot_group:
-        if (
-            bench_config
-            and forward.bench_key == bench_config.bench_key
-            and reader_user
-            and getattr(forward.forwarded_by, "id", None) == reader_user.id
-        ):
-            return True
+        if bench_config and forward.bench_key == bench_config.bench_key:
+            if reader_user and getattr(forward.forwarded_by, "id", None) == reader_user.id:
+                return True
+            # Slot row is unique per (efiling, date, bench_key, bench_role_group). Match the
+            # reader's slot even when forwarded_by is null or points at a different user id
+            # (e.g. after DB restore / user id remap).
+            if (forward.bench_role_group or "").strip() == (reader_slot_group or "").strip():
+                return True
         forward_groups = tuple(get_required_judge_groups(forward.bench_key))
         return len(forward_groups) == 1 and forward_groups[0] == reader_slot_group
     forward_groups = set(get_required_judge_groups(forward.bench_key))
@@ -444,28 +445,12 @@ def _get_effective_forwarded_for_date(
     efiling: Efiling,
     requested_forwarded_for_date,
 ) -> date_type:
-    assigned_bench = get_bench_configuration_for_stored_value(efiling.bench)
-    if not assigned_bench:
-        return requested_forwarded_for_date
+    """
+    Use the reader's chosen calendar day for the CourtroomForward row.
 
-    existing_forwards = list(
-        CourtroomForward.objects.filter(efiling_id=efiling.id)
-        .order_by("-forwarded_for_date", "-id")
-        .all()
-    )
-    relevant_forwards = _get_relevant_forwards_for_bench(
-        existing_forwards,
-        assigned_bench,
-    )
-    for forward in relevant_forwards:
-        has_listing_date = CourtroomJudgeDecision.objects.filter(
-            efiling_id=efiling.id,
-            forwarded_for_date=forward.forwarded_for_date,
-            listing_date__isnull=False,
-        ).exists()
-        if not has_listing_date:
-            return forward.forwarded_for_date
-
+    Reusing an older forward date caused the case to disappear from the judge dashboard
+    for the selected day and broke courtroom APIs that matched URL date to forwarded_for_date.
+    """
     return requested_forwarded_for_date
 
 

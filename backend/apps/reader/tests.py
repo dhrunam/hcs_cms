@@ -709,6 +709,37 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
         self.assertEqual(cj_case.get("listing_summary"), "Only for CJ reader eyes")
         self.assertEqual(j1_case.get("listing_summary"), "Only for J1 reader eyes")
 
+    def test_listing_summary_resolves_by_slot_when_forwarded_by_unset(self):
+        """Division bench: slot (bench_role_group) identifies the row if forwarded_by is null."""
+        CourtroomForward.objects.filter(
+            efiling=self.filing,
+            forwarded_for_date=self.forwarded_for_date,
+        ).delete()
+        CourtroomForward.objects.create(
+            efiling=self.filing,
+            forwarded_for_date=self.forwarded_for_date,
+            bench_key="DB1",
+            bench_role_group="BENCH_S0",
+            listing_summary="S0 text",
+            forwarded_by=None,
+        )
+        CourtroomForward.objects.create(
+            efiling=self.filing,
+            forwarded_for_date=self.forwarded_for_date,
+            bench_key="DB1",
+            bench_role_group="BENCH_S1",
+            listing_summary="S1 text",
+            forwarded_by=None,
+        )
+        cj_client = self._auth_client(self.reader_cj)
+        j1_client = self._auth_client(self.reader_j1)
+        cj_resp = cj_client.get("/api/v1/reader/registered-cases/?page_size=10&reader_group=READER")
+        j1_resp = j1_client.get("/api/v1/reader/registered-cases/?page_size=10&reader_group=READER")
+        cj_case = next(item for item in cj_resp.data["items"] if item["efiling_id"] == self.filing.id)
+        j1_case = next(item for item in j1_resp.data["items"] if item["efiling_id"] == self.filing.id)
+        self.assertEqual(cj_case.get("listing_summary"), "S0 text")
+        self.assertEqual(j1_case.get("listing_summary"), "S1 text")
+
     def test_api_forward_per_slot_preserves_both_summaries(self):
         CourtroomForward.objects.filter(efiling=self.filing).delete()
         CourtroomJudgeDecision.objects.filter(efiling=self.filing).delete()
