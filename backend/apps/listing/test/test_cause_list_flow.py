@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from django.contrib.auth.models import Group
 from django.test import TestCase
@@ -227,3 +227,47 @@ class CauseListFlowTest(TestCase):
         item = next((i for i in preview_items if i["efiling_id"] == self.filing.id), None)
         self.assertIsNotNone(item)
         self.assertIsNone(item.get("judge_listing_date"))
+
+    def test_draft_preview_includes_reader_next_listing_date_cases(self):
+        other_day = self.cause_date + timedelta(days=1)
+        CourtroomForward.objects.create(
+            efiling=self.filing,
+            forwarded_for_date=other_day,
+            bench_key="CLTEST",
+            bench_role_group="BENCH_S0",
+            listing_summary="Forwarded for another day",
+        )
+        CourtroomJudgeDecision.objects.create(
+            judge_user=self.judge_user,
+            efiling=self.filing,
+            forwarded_for_date=other_day,
+            listing_date=self.cause_date,
+            reader_listing_remark="Different date listing",
+            approved=True,
+            status=CourtroomJudgeDecision.DecisionStatus.APPROVED,
+            bench_role_group="BENCH_S0",
+        )
+        preview_resp = self.client.get(
+            f"/api/v1/listing/cause-lists/draft/preview/?cause_list_date={self.cause_list_date}&bench_key=CLTEST"
+        )
+        self.assertEqual(preview_resp.status_code, 200)
+        preview_ids = {int(item["efiling_id"]) for item in (preview_resp.data.get("items") or [])}
+        self.assertIn(self.filing.id, preview_ids)
+
+    def test_published_list_returns_benchwise_rows_for_date(self):
+        CauseList.objects.create(
+            cause_list_date=self.cause_date,
+            bench_key="CLTEST",
+            status=CauseList.CauseListStatus.PUBLISHED,
+        )
+        CauseList.objects.create(
+            cause_list_date=self.cause_date,
+            bench_key="CLTEST2",
+            status=CauseList.CauseListStatus.PUBLISHED,
+        )
+        resp = self.client.get(
+            f"/api/v1/listing/cause-lists/published/?cause_list_date={self.cause_list_date}"
+        )
+        self.assertEqual(resp.status_code, 200)
+        items = resp.data.get("items") or []
+        self.assertEqual(len(items), 2)

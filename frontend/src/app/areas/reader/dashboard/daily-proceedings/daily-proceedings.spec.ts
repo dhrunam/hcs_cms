@@ -42,4 +42,17 @@ describe('ReaderDailyProceedingsPage', () => {
       }),
     );
   });
+
+  it('submits separate steno and listing remarks', () => {
+    const item = component.items[0];
+    component.formState[item.efiling_id].steno_remark = 'For steno';
+    component.formState[item.efiling_id].listing_remark = 'For listing';
+    component.submit(item);
+    expect(readerServiceMock.submitDailyProceeding).toHaveBeenCalledWith(
+      jasmine.objectContaining({
+        steno_remark: 'For steno',
+        listing_remark: 'For listing',
+      }),
+    );
+  });
 });

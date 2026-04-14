@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { catchError, of } from 'rxjs';
+import { catchError, forkJoin, of } from 'rxjs';
 import Swal from 'sweetalert2';
 
 import {
@@ -25,14 +26,17 @@ type ListedCase = {
 
 @Component({
   selector: 'app-listed-cases',
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './listed-cases.html',
   styleUrl: './listed-cases.css',
 })
 export class ListedCasesPage {
   isLoading = false;
   cases: ListedCase[] = [];
+  filteredCases: ListedCase[] = [];
   loadError = '';
+  selectedCauseListDate = new Date().toISOString().slice(0, 10);
+  listedOnByCaseNumber: Record<string, string | null> = {};
   benchConfigurations: BenchConfiguration[] = [];
 
   constructor(private causeListService: CauseListService, private router: Router) {}
@@ -70,8 +74,46 @@ export class ListedCasesPage {
       )
       .subscribe((resp) => {
         this.cases = (resp?.items ?? []).filter((c: ListedCase) => !this.isUnassignedBench(c.bench));
-        this.isLoading = false;
+        this.loadListedOnDates();
       });
+  }
+
+  onDateChange(): void {
+    this.loadListedOnDates();
+  }
+
+  private loadListedOnDates(): void {
+    if (!this.cases.length || !this.selectedCauseListDate) {
+      this.listedOnByCaseNumber = {};
+      this.filteredCases = [];
+      this.isLoading = false;
+      return;
+    }
+    const requests = this.cases.map((c) => {
+      const caseNumber = String(c.case_number || '').trim();
+      if (!caseNumber) return of({ found: false, __case_number: '' });
+      return this.causeListService
+        .lookupEntryByCaseNumber(this.selectedCauseListDate, caseNumber)
+        .pipe(
+          catchError(() => of({ found: false })),
+        );
+    });
+    forkJoin(requests).subscribe((responses) => {
+      const map: Record<string, string | null> = {};
+      this.cases.forEach((c, idx) => {
+        const caseNumber = String(c.case_number || '').trim();
+        if (!caseNumber) return;
+        const resp: any = responses[idx];
+        map[caseNumber] = resp?.found ? (resp?.cause_list_date || this.selectedCauseListDate) : null;
+      });
+      this.listedOnByCaseNumber = map;
+      this.filteredCases = this.cases.filter((c) => {
+        const key = String(c.case_number || '').trim();
+        if (!key) return false;
+        return this.listedOnByCaseNumber[key] === this.selectedCauseListDate;
+      });
+      this.isLoading = false;
+    });
   }
 
   benchLabel(key: string | null | undefined): string {
@@ -86,14 +128,14 @@ export class ListedCasesPage {
   }
 
   get canProceedToGenerator(): boolean {
-    return this.cases.length > 0;
+    return this.filteredCases.length > 0;
   }
 
   proceedToGenerator(): void {
-    if (this.cases.length === 0) {
+    if (this.filteredCases.length === 0) {
       Swal.fire({
         title: 'No Listed Cases',
-        text: 'Assign at least one bench before generating the cause list.',
+        text: 'No cases are listed on the selected date.',
         icon: 'warning',
       });
       return;
@@ -104,5 +146,10 @@ export class ListedCasesPage {
 
   openCase(efilingId: number): void {
     this.router.navigate(['/listing-officers/dashboard/case', efilingId]);
+  }
+
+  listedOn(caseNumber: string | null | undefined): string {
+    const key = String(caseNumber || '').trim();
+    return this.listedOnByCaseNumber[key] || '-';
   }
 }

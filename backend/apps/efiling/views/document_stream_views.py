@@ -4,6 +4,8 @@ import mimetypes
 from pathlib import Path
 
 from django.conf import settings
+from django.utils.decorators import method_decorator
+from django.views.decorators.clickjacking import xframe_options_exempt
 from django.http import FileResponse
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -12,6 +14,7 @@ from rest_framework.views import APIView
 from apps.core.models import EfilingDocumentsIndex
 
 
+@method_decorator(xframe_options_exempt, name="dispatch")
 class EfilingDocumentStreamByIndexView(APIView):
     """
     Stream a document by EfilingDocumentsIndex id.

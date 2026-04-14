@@ -11,6 +11,9 @@ class CauseList(BaseModel):
     class CauseListStatus(models.TextChoices):
         DRAFT = "DRAFT", "Draft"
         PUBLISHED = "PUBLISHED", "Published"
+    class CauseListType(models.TextChoices):
+        DAILY = "DAILY", "Daily"
+        SUPPLEMENTARY = "SUPPLEMENTARY", "Supplementary"
 
     cause_list_date = models.DateField()
     # bench_key is a string representation of the bench/division bench combination
@@ -20,6 +23,11 @@ class CauseList(BaseModel):
         max_length=20,
         choices=CauseListStatus.choices,
         default=CauseListStatus.DRAFT,
+    )
+    cause_list_type = models.CharField(
+        max_length=20,
+        choices=CauseListType.choices,
+        default=CauseListType.DAILY,
     )
 
     # Explicit field to match workflow semantics; BaseModel also has created_by/updated_by.

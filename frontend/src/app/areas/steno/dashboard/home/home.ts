@@ -149,6 +149,35 @@ export class StenoHomePage {
     window.open(abs, '_blank', 'noopener,noreferrer');
   }
 
+  statusLabel(status: string | null | undefined): string {
+    return String(status || 'PENDING_UPLOAD').replaceAll('_', ' ');
+  }
+
+  statusBadgeClass(status: string | null | undefined): string {
+    const value = String(status || '');
+    if (value === 'PENDING_UPLOAD') return 'badge bg-secondary-subtle text-secondary-emphasis';
+    if (value === 'UPLOADED_BY_STENO') return 'badge bg-info-subtle text-info-emphasis';
+    if (value === 'SENT_FOR_JUDGE_APPROVAL') return 'badge bg-primary-subtle text-primary-emphasis';
+    if (value === 'CHANGES_REQUESTED') return 'badge bg-warning-subtle text-warning-emphasis';
+    if (value === 'JUDGE_APPROVED') return 'badge bg-success-subtle text-success-emphasis';
+    if (value === 'SIGNED_AND_PUBLISHED') return 'badge bg-dark-subtle text-dark-emphasis';
+    return 'badge bg-light text-dark';
+  }
+
+  canUploadDraft(item: any): boolean {
+    const status = item?.workflow_status;
+    return (
+      status === 'PENDING_UPLOAD' ||
+      status === 'UPLOADED_BY_STENO' ||
+      status === 'SENT_FOR_JUDGE_APPROVAL' ||
+      status === 'CHANGES_REQUESTED'
+    );
+  }
+
+  canSubmitToJudge(item: any): boolean {
+    return !!item?.draft_document_index_id && this.canUploadDraft(item);
+  }
+
   showJudgeFeedback(item: any): boolean {
     const st = item?.workflow_status;
     const notes = (item?.judge_approval_notes || '').toString().trim();

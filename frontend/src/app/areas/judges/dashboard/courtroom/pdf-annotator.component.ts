@@ -59,7 +59,7 @@ export class PdfAnnotatorComponent implements OnChanges, AfterViewInit, OnDestro
 
   private resizeObserver: ResizeObserver | null = null;
 
-  currentTool: 'pen' | 'highlighter' | 'note' = 'pen';
+  currentTool: 'select' | 'pen' | 'highlighter' | 'note' = 'pen';
   penColor: string = '#000000';
   highlighterColor: string = 'rgba(255, 255, 0, 0.4)';
   
@@ -163,7 +163,12 @@ export class PdfAnnotatorComponent implements OnChanges, AfterViewInit, OnDestro
     this.redrawAllAnnotations();
   }
 
-  setTool(tool: 'pen' | 'highlighter' | 'note', color?: string) {
+  setTool(tool: 'select' | 'pen' | 'highlighter' | 'note', color?: string) {
+    // Clicking an already-active drawing/note tool toggles back to select mode.
+    if (this.currentTool === tool && !color && tool !== 'select') {
+      this.currentTool = 'select';
+      return;
+    }
     this.currentTool = tool;
     if (color && tool === 'pen') {
       this.penColor = color;
@@ -298,40 +303,19 @@ export class PdfAnnotatorComponent implements OnChanges, AfterViewInit, OnDestro
   }
 
   onMouseDown(event: MouseEvent, pageIndex: number) {
-    if (!this.canWrite) return;
-    if (this.currentTool === 'note') {
-       this.addNoteAt(event, pageIndex);
-       return;
-    }
+    this.startInteraction(event, pageIndex);
+  }
 
-    this.isDrawing = true;
-    this.activePageIndex = pageIndex;
-    
-    const canvas = this.drawCanvases.toArray()[pageIndex].nativeElement;
-    const rect = canvas.getBoundingClientRect();
-    const x = (event.clientX - rect.left) / canvas.width;
-    const y = (event.clientY - rect.top) / canvas.height;
-
-    this.currentPath = {
-      type: this.currentTool,
-      color: this.currentTool === 'highlighter' ? this.highlighterColor : this.penColor,
-      width: this.currentTool === 'highlighter' ? 16 : 2,
-      points: [{ x, y }]
-    };
-    
-    this.pages[pageIndex].paths.push(this.currentPath);
+  onPointerDown(event: PointerEvent, pageIndex: number): void {
+    this.startInteraction(event, pageIndex);
   }
 
   onMouseMove(event: MouseEvent, pageIndex: number) {
-    if (!this.isDrawing || pageIndex !== this.activePageIndex || !this.currentPath) return;
+    this.moveInteraction(event, pageIndex);
+  }
 
-    const canvas = this.drawCanvases.toArray()[pageIndex].nativeElement;
-    const rect = canvas.getBoundingClientRect();
-    const x = (event.clientX - rect.left) / canvas.width;
-    const y = (event.clientY - rect.top) / canvas.height;
-
-    this.currentPath.points.push({ x, y });
-    this.redrawCanvas(canvas, this.pages[pageIndex].paths);
+  onPointerMove(event: PointerEvent, pageIndex: number): void {
+    this.moveInteraction(event, pageIndex);
   }
 
   onMouseUp() {
@@ -343,16 +327,63 @@ export class PdfAnnotatorComponent implements OnChanges, AfterViewInit, OnDestro
     this.currentPath = null;
   }
 
-  addNoteAt(event: MouseEvent, pageIndex: number) {
+  onPointerUp(): void {
+    this.onMouseUp();
+  }
+
+  private startInteraction(event: MouseEvent | PointerEvent, pageIndex: number): void {
+    if (!this.canWrite) return;
+    if (this.currentTool === 'select') return;
+    if (this.currentTool === 'note') {
+      this.addNoteAt(event, pageIndex);
+      return;
+    }
+
+    this.isDrawing = true;
+    this.activePageIndex = pageIndex;
+
     const canvas = this.drawCanvases.toArray()[pageIndex].nativeElement;
+    const point = this.getRelativePoint(event, canvas);
+
+    this.currentPath = {
+      type: this.currentTool,
+      color: this.currentTool === 'highlighter' ? this.highlighterColor : this.penColor,
+      width: this.currentTool === 'highlighter' ? 16 : 2,
+      points: [point]
+    };
+
+    this.pages[pageIndex].paths.push(this.currentPath);
+  }
+
+  private moveInteraction(event: MouseEvent | PointerEvent, pageIndex: number): void {
+    if (!this.isDrawing || pageIndex !== this.activePageIndex || !this.currentPath) return;
+
+    const canvas = this.drawCanvases.toArray()[pageIndex].nativeElement;
+    const point = this.getRelativePoint(event, canvas);
+    this.currentPath.points.push(point);
+    this.redrawCanvas(canvas, this.pages[pageIndex].paths);
+  }
+
+  private getRelativePoint(event: MouseEvent | PointerEvent, canvas: HTMLCanvasElement): Point {
     const rect = canvas.getBoundingClientRect();
-    const x = Math.max(0, Math.min((event.clientX - rect.left) / canvas.width, 0.8));
-    const y = Math.max(0, Math.min((event.clientY - rect.top) / canvas.height, 0.9));
+    const x = (event.clientX - rect.left) / rect.width;
+    const y = (event.clientY - rect.top) / rect.height;
+    return {
+      x: Math.max(0, Math.min(1, x)),
+      y: Math.max(0, Math.min(1, y)),
+    };
+  }
+
+  addNoteAt(event: MouseEvent | PointerEvent, pageIndex: number) {
+    const canvas = this.drawCanvases.toArray()[pageIndex].nativeElement;
+    const point = this.getRelativePoint(event, canvas);
+    const x = Math.max(0, Math.min(point.x, 0.8));
+    const y = Math.max(0, Math.min(point.y, 0.9));
 
     const newNote = { x, y, text: '' };
     this.pages[pageIndex].notes.push(newNote);
     this.undoStack.push({ pageIndex, type: 'note', item: newNote });
-    this.setTool('pen');
+    // Stay on note tool so users can quickly place multiple notes.
   }
 
   onScroll(event: any) {

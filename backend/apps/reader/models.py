@@ -87,6 +87,8 @@ class ReaderDailyProceeding(BaseModel):
     next_listing_date = models.DateField()
     proceedings_text = models.TextField()
     reader_remark = models.TextField(blank=True, null=True)
+    steno_remark = models.TextField(blank=True, null=True)
+    listing_remark = models.TextField(blank=True, null=True)
     listing_sync_status = models.CharField(
         max_length=20,
         choices=ListingSyncStatus.choices,

@@ -13,10 +13,12 @@ import { app_url } from '../../../../environment';
 type BenchState = {
   bench_key: string;
   cause_list_id: number | null;
+  cause_list_type: 'DAILY' | 'SUPPLEMENTARY';
   items: DraftPreviewItem[];
   pdfUrl: string | null;
   isSaving: boolean;
   isPublishing: boolean;
+  isDraftPdfLoading: boolean;
 };
 
 @Component({
@@ -46,10 +48,12 @@ export class ListingOfficerHome {
         this.benchStates = this.benchConfigurations.map((bench) => ({
           bench_key: bench.bench_key,
           cause_list_id: null,
+          cause_list_type: 'DAILY',
           items: [],
           pdfUrl: null,
           isSaving: false,
           isPublishing: false,
+          isDraftPdfLoading: false,
         }));
         this.loadAllPreviews();
         this.loadMonthCalendar();
@@ -91,10 +95,12 @@ export class ListingOfficerHome {
         approvedResps.forEach((resp: any, i: number) => {
           const s = this.benchStates[i];
           s.cause_list_id = resp.cause_list_id;
+          s.cause_list_type = (resp.cause_list_type as 'DAILY' | 'SUPPLEMENTARY') || 'DAILY';
           s.items = resp.items ?? [];
           s.pdfUrl = null; // will be filled from published lists call
           s.isSaving = false;
           s.isPublishing = false;
+          s.isDraftPdfLoading = false;
         });
 
         // Load published PDFs for the date so View PDF works reliably.
@@ -180,6 +186,7 @@ export class ListingOfficerHome {
     const payload = {
       cause_list_date: this.selectedDate,
       bench_key: state.bench_key,
+      cause_list_type: state.cause_list_type,
       entries: state.items.map((i) => ({
         efiling_id: i.efiling_id,
         serial_no: i.serial_no,
@@ -193,6 +200,7 @@ export class ListingOfficerHome {
     this.causeListService.saveDraft(payload).subscribe({
       next: (resp) => {
         state.cause_list_id = resp.cause_list_id;
+        state.cause_list_type = (resp.cause_list_type as 'DAILY' | 'SUPPLEMENTARY') || state.cause_list_type;
         state.isSaving = false;
       },
       error: (err) => {
@@ -220,6 +228,24 @@ export class ListingOfficerHome {
     return this.causeListService.getDraftPdfUrl(this.selectedDate, state.bench_key);
   }
 
+  viewDraftPdf(state: BenchState): void {
+    if (!this.selectedDate || !state.cause_list_id) return;
+    state.isDraftPdfLoading = true;
+    this.causeListService.getDraftPdf(this.selectedDate, state.bench_key).subscribe({
+      next: (blob) => {
+        state.isDraftPdfLoading = false;
+        const objectUrl = URL.createObjectURL(blob);
+        window.open(objectUrl, '_blank', 'noopener');
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+      },
+      error: (err) => {
+        state.isDraftPdfLoading = false;
+        console.warn('draft pdf preview failed', err);
+        this.publishError = err?.error?.detail || 'Failed to open draft PDF preview.';
+      },
+    });
+  }
+
   isIaSelected(item: DraftPreviewItem, ia: { ia_number: string }): boolean {
     return (item.selected_ias || []).some((s) => s.ia_number === ia.ia_number);
   }
@@ -240,6 +266,7 @@ export class ListingOfficerHome {
     const payload = {
       cause_list_date: this.selectedDate,
       bench_key: state.bench_key,
+      cause_list_type: state.cause_list_type,
       entries: (state.items || []).map((i) => ({
         efiling_id: i.efiling_id,
         serial_no: i.serial_no,

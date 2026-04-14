@@ -49,6 +49,16 @@ class ReaderDailyProceedingSubmitSerializer(serializers.Serializer):
         allow_null=True,
         required=False,
     )
+    steno_remark = serializers.CharField(
+        allow_blank=True,
+        allow_null=True,
+        required=False,
+    )
+    listing_remark = serializers.CharField(
+        allow_blank=True,
+        allow_null=True,
+        required=False,
+    )
     document_type = serializers.ChoiceField(
         choices=[("ORDER", "Order"), ("JUDGMENT", "Judgment")],
         required=False,

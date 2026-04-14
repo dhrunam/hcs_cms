@@ -88,6 +88,8 @@ _STENO_UPLOAD_ALLOWED = frozenset(
     {
         StenoOrderWorkflow.WorkflowStatus.PENDING_UPLOAD,
         StenoOrderWorkflow.WorkflowStatus.UPLOADED_BY_STENO,
+        # Allow steno to replace draft while judge review is pending.
+        StenoOrderWorkflow.WorkflowStatus.SENT_FOR_JUDGE_APPROVAL,
         StenoOrderWorkflow.WorkflowStatus.CHANGES_REQUESTED,
     }
 )
@@ -1230,7 +1232,13 @@ class ReaderDailyProceedingsSubmitView(APIView):
         hearing_date = payload.validated_data["hearing_date"]
         next_listing_date = payload.validated_data["next_listing_date"]
         proceedings_text = payload.validated_data["proceedings_text"]
-        reader_remark = payload.validated_data.get("reader_remark")
+        legacy_reader_remark = payload.validated_data.get("reader_remark")
+        steno_remark = payload.validated_data.get("steno_remark")
+        listing_remark = payload.validated_data.get("listing_remark")
+        if steno_remark in (None, "") and legacy_reader_remark not in (None, ""):
+            steno_remark = legacy_reader_remark
+        if listing_remark in (None, "") and legacy_reader_remark not in (None, ""):
+            listing_remark = legacy_reader_remark
         document_type = payload.validated_data.get("document_type") or "ORDER"
 
         efiling = Efiling.objects.filter(
@@ -1255,7 +1263,9 @@ class ReaderDailyProceedingsSubmitView(APIView):
             defaults={
                 "next_listing_date": next_listing_date,
                 "proceedings_text": proceedings_text,
-                "reader_remark": reader_remark,
+                "reader_remark": legacy_reader_remark or steno_remark,
+                "steno_remark": steno_remark,
+                "listing_remark": listing_remark,
                 "listing_sync_status": ReaderDailyProceeding.ListingSyncStatus.SYNCED,
                 "submitted_by": user,
                 "updated_by": user,
@@ -1267,7 +1277,7 @@ class ReaderDailyProceedingsSubmitView(APIView):
             forwarded_for_date=hearing_date,
         ).update(
             listing_date=next_listing_date,
-            reader_listing_remark=reader_remark or proceedings_text,
+            reader_listing_remark=listing_remark or proceedings_text,
             updated_by=user,
             updated_at=timezone.now(),
         )
@@ -1276,7 +1286,7 @@ class ReaderDailyProceedingsSubmitView(APIView):
                 efiling_ids=[int(efiling_id)],
                 forwarded_for_date=hearing_date,
                 listing_date=next_listing_date,
-                listing_remark=reader_remark or proceedings_text,
+                listing_remark=listing_remark or proceedings_text,
                 assigned_by=user,
             )
         except Exception:

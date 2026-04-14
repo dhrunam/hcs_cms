@@ -20,6 +20,13 @@ function toApiCoord(v: number): number {
 export class JudgeStenoReviewPage {
   items: any[] = [];
   isLoading = false;
+  statusFilter:
+    | 'ALL'
+    | 'SENT_FOR_JUDGE_APPROVAL'
+    | 'CHANGES_REQUESTED'
+    | 'JUDGE_APPROVED'
+    | 'SIGNED_AND_PUBLISHED' = 'SENT_FOR_JUDGE_APPROVAL';
+  selectedWorkflowId: number | null = null;
   notes: Record<number, string> = {};
   annotationText: Record<number, string> = {};
 
@@ -34,6 +41,8 @@ export class JudgeStenoReviewPage {
     this.courtroomService.getStenoWorkflows().subscribe({
       next: (resp) => {
         this.items = resp?.items ?? [];
+        const firstVisible = this.filteredItems[0];
+        this.selectedWorkflowId = firstVisible ? Number(firstVisible.workflow_id) : null;
         this.isLoading = false;
       },
       error: () => {
@@ -65,6 +74,70 @@ export class JudgeStenoReviewPage {
 
   groupedItems(status: string): any[] {
     return this.items.filter((x) => x?.workflow_status === status);
+  }
+
+  get filteredItems(): any[] {
+    if (this.statusFilter === 'ALL') {
+      return this.items;
+    }
+    return this.groupedItems(this.statusFilter);
+  }
+
+  get selectedItem(): any | null {
+    if (this.selectedWorkflowId == null) return null;
+    return this.items.find((item) => Number(item.workflow_id) === Number(this.selectedWorkflowId)) || null;
+  }
+
+  setFilter(
+    filter:
+      | 'ALL'
+      | 'SENT_FOR_JUDGE_APPROVAL'
+      | 'CHANGES_REQUESTED'
+      | 'JUDGE_APPROVED'
+      | 'SIGNED_AND_PUBLISHED',
+  ): void {
+    this.statusFilter = filter;
+    const selected = this.selectedItem;
+    if (selected && this.filteredItems.some((item) => item.workflow_id === selected.workflow_id)) {
+      return;
+    }
+    this.selectedWorkflowId = this.filteredItems[0]?.workflow_id ?? null;
+  }
+
+  selectItem(item: any): void {
+    this.selectedWorkflowId = Number(item.workflow_id);
+  }
+
+  statusLabel(status: string | null | undefined): string {
+    return String(status || 'PENDING').replaceAll('_', ' ');
+  }
+
+  statusBadgeClass(status: string | null | undefined): string {
+    const value = String(status || '');
+    if (value === 'SENT_FOR_JUDGE_APPROVAL') return 'badge-pending';
+    if (value === 'CHANGES_REQUESTED') return 'badge-warning';
+    if (value === 'JUDGE_APPROVED') return 'badge-success';
+    if (value === 'SIGNED_AND_PUBLISHED') return 'badge-muted';
+    return 'badge-muted';
+  }
+
+  canDecide(item: any): boolean {
+    return item?.workflow_status === 'SENT_FOR_JUDGE_APPROVAL';
+  }
+
+  canAnnotate(item: any): boolean {
+    const status = item?.workflow_status;
+    return status === 'SENT_FOR_JUDGE_APPROVAL' || status === 'CHANGES_REQUESTED';
+  }
+
+  decisionHint(item: any): string {
+    if (this.canDecide(item)) return 'Ready for judge decision.';
+    const status = this.statusLabel(item?.workflow_status);
+    return `Decision unavailable in current status: ${status}.`;
+  }
+
+  isSelected(item: any): boolean {
+    return Number(this.selectedWorkflowId) === Number(item?.workflow_id);
   }
 
   /** Hydrate PDF annotator from saved JudgeDraftAnnotation rows. */

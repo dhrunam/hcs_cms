@@ -15,6 +15,7 @@ export type DraftPreviewItem = {
   respondent_advocate?: string | null;
   available_ias?: Array<{ ia_number: string; ia_text: string }>;
   selected_ias?: Array<{ ia_number: string; ia_text: string }>;
+  forwarded_for_date?: string | null;
   judge_listing_date?: string | null;
   reader_listing_remark?: string | null;
 };
@@ -23,6 +24,7 @@ export type DraftPreviewResponse = {
   cause_list_id: number | null;
   cause_list_date: string;
   bench_key: string;
+  cause_list_type?: 'DAILY' | 'SUPPLEMENTARY';
   items: DraftPreviewItem[];
 };
 
@@ -89,9 +91,19 @@ export class CauseListService {
     )}&bench_key=${encodeURIComponent(bench_key)}`;
   }
 
+  getDraftPdf(
+    cause_list_date: string,
+    bench_key: string,
+  ): Observable<Blob> {
+    return this.http.get(this.getDraftPdfUrl(cause_list_date, bench_key), {
+      responseType: 'blob',
+    });
+  }
+
   saveDraft(payload: {
     cause_list_date: string;
     bench_key: string;
+    cause_list_type?: 'DAILY' | 'SUPPLEMENTARY';
     entries: {
       efiling_id: number;
       serial_no: number | null;
@@ -100,8 +112,8 @@ export class CauseListService {
       respondent_advocate?: string | null;
       selected_ias?: Array<{ ia_number: string; ia_text: string }>;
     }[];
-  }): Observable<{ cause_list_id: number; status: string }> {
-    return this.http.post<{ cause_list_id: number; status: string }>(
+  }): Observable<{ cause_list_id: number; status: string; cause_list_type?: 'DAILY' | 'SUPPLEMENTARY' }> {
+    return this.http.post<{ cause_list_id: number; status: string; cause_list_type?: 'DAILY' | 'SUPPLEMENTARY' }>(
       `${app_url}/api/v1/listing/cause-lists/draft/save/`,
       payload,
     );
@@ -117,6 +129,7 @@ export class CauseListService {
   publishCauseListDirect(payload: {
     cause_list_date: string;
     bench_key: string;
+    cause_list_type?: 'DAILY' | 'SUPPLEMENTARY';
     entries: {
       efiling_id: number;
       serial_no: number | null;
@@ -185,6 +198,7 @@ export class CauseListService {
   ): Observable<{
     found: boolean;
     cause_list_id?: number;
+    cause_list_date?: string;
     bench_key?: string;
     serial_no?: number | null;
     pdf_url?: string | null;

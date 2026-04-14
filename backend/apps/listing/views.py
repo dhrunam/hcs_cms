@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Sequence, Set
+from typing import Any, Dict, List, Set
 
 from django.core.files.base import ContentFile
 from django.db import transaction
@@ -71,7 +71,7 @@ def _cause_list_target_efiling_ids(cld_obj: date_type | None, bench_key: str) ->
         CourtroomJudgeDecision.objects.filter(
             listing_date=cld_obj,
             efiling_id__in=on_bench,
-            # Reader must have pushed the case to listing flow; prevents judge-only bypass.
+            # Include only files explicitly pushed by reader into listing flow.
             reader_listing_remark__isnull=False,
         ).values_list("efiling_id", flat=True)
     )
@@ -138,6 +138,9 @@ class CauseListDraftPreviewView(APIView):
             .order_by("-id")
             .first()
         )
+        cause_list_type = (
+            draft.cause_list_type if draft else CauseList.CauseListType.DAILY
+        )
 
         # Auto preselect all accepted filings for this bench_key.
         approved_only_raw = request.query_params.get("approved_only", "true")
@@ -145,6 +148,7 @@ class CauseListDraftPreviewView(APIView):
 
         judge_listing_date_map: Dict[int, str | None] = {}
         judge_listing_remark_map: Dict[int, str | None] = {}
+        forwarded_for_date_map: Dict[int, str | None] = {}
         if approved_only:
             # WORKFLOW CORRECTION: Use Reader's 'Forward' as the signal for the Listing Officer.
             try:
@@ -153,6 +157,20 @@ class CauseListDraftPreviewView(APIView):
                 cld_obj = None
 
             target_ids = _cause_list_target_efiling_ids(cld_obj, bench_key)
+            if target_ids:
+                forward_rows = (
+                    CourtroomForward.objects.filter(
+                        efiling_id__in=target_ids,
+                        bench_key=bench_key,
+                    )
+                    .values("efiling_id", "forwarded_for_date")
+                    .order_by("efiling_id", "-forwarded_for_date", "-id")
+                )
+                for row in forward_rows:
+                    eid = int(row["efiling_id"])
+                    if eid not in forwarded_for_date_map:
+                        d = row.get("forwarded_for_date")
+                        forwarded_for_date_map[eid] = d.isoformat() if d else None
 
             # Still pull Judge data (if any) as metadata for the Listing Officer.
             if target_ids:
@@ -246,6 +264,7 @@ class CauseListDraftPreviewView(APIView):
                     "respondent_advocate": respondent_advocate,
                     "available_ias": ia_map.get(filing.id, []),
                     "selected_ias": selected_ias,
+                    "forwarded_for_date": forwarded_for_date_map.get(filing.id),
                     "judge_listing_date": judge_listing_date_map.get(filing.id),
                     "reader_listing_remark": judge_listing_remark_map.get(filing.id),
                 }
@@ -256,6 +275,7 @@ class CauseListDraftPreviewView(APIView):
                 "cause_list_id": draft.id if draft else None,
                 "cause_list_date": cause_list_date,
                 "bench_key": bench_key,
+                "cause_list_type": cause_list_type,
                 "items": items,
             },
             status=drf_status.HTTP_200_OK,
@@ -284,6 +304,9 @@ class CauseListDraftPdfPreviewView(APIView):
             )
             .order_by("-id")
             .first()
+        )
+        cause_list_type = (
+            draft.cause_list_type if draft else CauseList.CauseListType.DAILY
         )
 
         try:
@@ -368,6 +391,7 @@ class CauseListDraftPdfPreviewView(APIView):
         pdf_bytes = generate_cause_list_pdf_bytes(
             cause_list_date=cld,
             bench_key=str(bench_key),
+            cause_list_type=cause_list_type,
             rows=rows,
         )
 
@@ -390,6 +414,7 @@ class CauseListDraftSaveView(APIView):
 
         cause_list_date = payload.validated_data["cause_list_date"]
         bench_key = payload.validated_data["bench_key"]
+        cause_list_type = payload.validated_data.get("cause_list_type") or CauseList.CauseListType.DAILY
         entries = payload.validated_data["entries"]
 
         user = request.user if request.user.is_authenticated else None
@@ -411,6 +436,9 @@ class CauseListDraftSaveView(APIView):
                 cause_list.published_at = None
                 cause_list.pdf_file = cause_list.pdf_file  # keep file; publish will overwrite later
                 cause_list.save(update_fields=["status", "published_at"])
+            if cause_list.cause_list_type != cause_list_type:
+                cause_list.cause_list_type = cause_list_type
+                cause_list.save(update_fields=["cause_list_type", "updated_at"])
 
             incoming_efiling_ids = [e["efiling_id"] for e in entries]
             incoming_id_set = set(incoming_efiling_ids)
@@ -453,7 +481,7 @@ class CauseListDraftSaveView(APIView):
             )
 
         return Response(
-            {"cause_list_id": cause_list.id, "status": cause_list.status},
+            {"cause_list_id": cause_list.id, "status": cause_list.status, "cause_list_type": cause_list.cause_list_type},
             status=drf_status.HTTP_200_OK,
         )
 
@@ -533,6 +561,7 @@ class CauseListPublishView(APIView):
             pdf_bytes = generate_cause_list_pdf_bytes(
                 cause_list_date=cause_list.cause_list_date,
                 bench_key=cause_list.bench_key,
+                cause_list_type=cause_list.cause_list_type,
                 rows=rows,
             )
 
@@ -573,6 +602,7 @@ class CauseListPublishDirectView(APIView):
 
         cause_list_date = payload.validated_data["cause_list_date"]
         bench_key = payload.validated_data["bench_key"]
+        cause_list_type = payload.validated_data.get("cause_list_type") or CauseList.CauseListType.DAILY
         entries = payload.validated_data["entries"]
         user = request.user if request.user.is_authenticated else None
 
@@ -591,6 +621,9 @@ class CauseListPublishDirectView(APIView):
                 cause_list.status = CauseList.CauseListStatus.DRAFT
                 cause_list.published_at = None
                 cause_list.save(update_fields=["status", "published_at"])
+            if cause_list.cause_list_type != cause_list_type:
+                cause_list.cause_list_type = cause_list_type
+                cause_list.save(update_fields=["cause_list_type", "updated_at"])
 
             # Upsert entries (same validation as draft save)
             incoming_id_set = set()
@@ -709,6 +742,7 @@ class CauseListPublishDirectView(APIView):
             pdf_bytes = generate_cause_list_pdf_bytes(
                 cause_list_date=cause_list.cause_list_date,
                 bench_key=cause_list.bench_key,
+                cause_list_type=cause_list.cause_list_type,
                 rows=rows,
             )
 
@@ -759,16 +793,21 @@ class PublishedCauseListByDateView(APIView):
                 return Response({"items": []}, status=drf_status.HTTP_200_OK)
             lists = lists.filter(bench_key__in=list(aliases))
 
-        lists = (
+        lists = list(
             lists.annotate(
                 included_count=Count("entries", filter=Q(entries__included=True)),
             )
-            .order_by("bench_key")
+            .order_by("bench_key", "-published_at", "-id")
             .all()
         )
 
-        response_items = []
+        latest_by_bench: dict[str, CauseList] = {}
         for cl in lists:
+            latest_by_bench.setdefault(str(cl.bench_key), cl)
+
+        response_items = []
+        for bench_key in sorted(latest_by_bench.keys()):
+            cl = latest_by_bench[bench_key]
             response_items.append(
                 {
                     "id": cl.id,
@@ -969,6 +1008,7 @@ class CauseListEntryLookupByCaseNumberView(APIView):
                 "found": True,
                 "efiling_id": filing.id,
                 "cause_list_id": cl.id,
+                "cause_list_date": str(cl.cause_list_date),
                 "bench_key": cl.bench_key,
                 "serial_no": entry.serial_no,
                 "pdf_url": (

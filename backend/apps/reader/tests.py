@@ -859,6 +859,41 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
         self.assertEqual(workflow.assigned_steno_id, self.steno_user.id)
         self.assertEqual(workflow.workflow_status, StenoOrderWorkflow.WorkflowStatus.PENDING_UPLOAD)
 
+    def test_reader_daily_proceeding_submit_routes_listing_and_steno_remarks_separately(self):
+        client = self._auth_client(self.reader_cj)
+        response = client.post(
+            "/api/v1/reader/daily-proceedings/submit/?reader_group=READER",
+            {
+                "efiling_id": self.filing.id,
+                "hearing_date": self.forwarded_for_date.isoformat(),
+                "next_listing_date": self.listing_date.isoformat(),
+                "proceedings_text": "Matter heard.",
+                "steno_remark": "Prepare order draft for corrections.",
+                "listing_remark": "List this after two weeks.",
+                "document_type": "ORDER",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        proceeding = ReaderDailyProceeding.objects.get(efiling=self.filing)
+        self.assertEqual(
+            (proceeding.steno_remark or "").strip(),
+            "Prepare order draft for corrections.",
+        )
+        self.assertEqual(
+            (proceeding.listing_remark or "").strip(),
+            "List this after two weeks.",
+        )
+        decision = CourtroomJudgeDecision.objects.filter(
+            efiling=self.filing,
+            forwarded_for_date=self.forwarded_for_date,
+        ).first()
+        self.assertIsNotNone(decision)
+        self.assertEqual(
+            (decision.reader_listing_remark or "").strip(),
+            "List this after two weeks.",
+        )
+
     def test_forward_creates_bench_workflow_state(self):
         state = BenchWorkflowState.objects.filter(
             efiling=self.filing,

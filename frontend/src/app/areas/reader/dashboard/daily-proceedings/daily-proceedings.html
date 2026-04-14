@@ -36,9 +36,13 @@
           <label class="form-label small">Next Listing Date</label>
           <input class="form-control" type="date" [(ngModel)]="formState[item.efiling_id].next_listing_date" />
         </div>
-        <div class="col-md-6">
-          <label class="form-label small">Reader Remark <span class="text-muted"> (For Stenographer)</span></label>
-          <input class="form-control" [(ngModel)]="formState[item.efiling_id].reader_remark" />
+        <div class="col-md-3">
+          <label class="form-label small">Remark For Stenographer</label>
+          <textarea class="form-control" rows="2" [(ngModel)]="formState[item.efiling_id].steno_remark"></textarea>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">Remark For Listing Officer</label>
+          <textarea class="form-control" rows="2" [(ngModel)]="formState[item.efiling_id].listing_remark"></textarea>
         </div>
       </div>
 

@@ -210,6 +210,8 @@ export class ReaderService {
     next_listing_date: string;
     proceedings_text: string;
     reader_remark?: string | null;
+    steno_remark?: string | null;
+    listing_remark?: string | null;
     document_type?: 'ORDER' | 'JUDGMENT';
   }): Observable<any> {
     const readerGroup = this.readerGroupForQuery();

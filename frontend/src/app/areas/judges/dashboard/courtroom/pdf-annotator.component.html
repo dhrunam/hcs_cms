@@ -11,6 +11,12 @@
 
   <div class="annotator-toolbar" *ngIf="canWrite">
     <div class="btn-group btn-group-sm me-3">
+      <button class="btn btn-outline-dark" [class.active-tool]="currentTool === 'select'" (click)="setTool('select')">
+        <i class="fa fa-mouse-pointer"></i> Select
+      </button>
+    </div>
+
+    <div class="btn-group btn-group-sm me-3">
       <button class="btn btn-outline-secondary" [class.active-tool]="currentTool === 'pen' && penColor === '#000000'" (click)="setTool('pen', '#000000')">
         <i class="fa fa-pen" style="color: black;"></i> Black
       </button>
@@ -60,10 +66,12 @@
       
       <!-- Drawing Canvas -->
       <canvas class="draw-canvas" [id]="'draw-canvas-' + i" [width]="page.width" [height]="page.height" #drawCanvas
-        (mousedown)="onMouseDown($event, i)"
-        (mousemove)="onMouseMove($event, i)"
-        (mouseup)="onMouseUp()"
-        (mouseleave)="onMouseUp()">
+        [class.draw-canvas-readonly]="currentTool === 'select'"
+        (pointerdown)="onPointerDown($event, i)"
+        (pointermove)="onPointerMove($event, i)"
+        (pointerup)="onPointerUp()"
+        (pointercancel)="onPointerUp()"
+        (pointerleave)="onPointerUp()">
       </canvas>
 
       <!-- Notes Overlay -->
@@ -71,6 +79,7 @@
         <div class="note-box" *ngFor="let note of getNotesForPage(i); let noteIndex = index"
              [style.left.px]="note.x * page.width"
              [style.top.px]="note.y * page.height"
+             (pointerdown)="$event.stopPropagation()"
              cdkDrag 
              [cdkDragBoundary]="'.pdf-page-container'"
              (cdkDragEnded)="onNoteDropped($event, i, noteIndex)">

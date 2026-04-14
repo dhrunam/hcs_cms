@@ -17,7 +17,13 @@ export class ReaderDailyProceedingsPage {
   loadError = '';
   selectedCauseListDate = new Date().toISOString().slice(0, 10);
   saveState: Record<number, boolean> = {};
-  formState: Record<number, { hearing_date: string; next_listing_date: string; proceedings_text: string; reader_remark: string }> = {};
+  formState: Record<number, {
+    hearing_date: string;
+    next_listing_date: string;
+    proceedings_text: string;
+    steno_remark: string;
+    listing_remark: string;
+  }> = {};
 
   constructor(private readerService: ReaderService) {}
 
@@ -39,7 +45,8 @@ export class ReaderDailyProceedingsPage {
             hearing_date: item.last_hearing_date || new Date().toISOString().slice(0, 10),
             next_listing_date: item.last_next_listing_date || new Date().toISOString().slice(0, 10),
             proceedings_text: item.latest_proceedings_text || '',
-            reader_remark: '',
+            steno_remark: '',
+            listing_remark: '',
           };
         }
         this.isLoading = false;
@@ -61,7 +68,8 @@ export class ReaderDailyProceedingsPage {
         hearing_date: state.hearing_date,
         next_listing_date: state.next_listing_date,
         proceedings_text: state.proceedings_text,
-        reader_remark: state.reader_remark,
+        steno_remark: state.steno_remark,
+        listing_remark: state.listing_remark,
       })
       .subscribe({
         next: () => {
