@@ -32,12 +32,14 @@ export class Litigant {
   showPetitionerForm = true;
   showRespondentForm = true;
 
+  // Wire master services for organisations, states, and districts.
   constructor(
     private organisationService: OrganisationService,
     private eFilingService: EfilingService,
     private stateService: StateAndDistrictService,
   ) {}
 
+  // Load master data and bind organization-related form behaviors.
   ngOnInit() {
     this.get_organisation_list();
     this.get_state_list();
@@ -48,12 +50,14 @@ export class Litigant {
     this.syncFormVisibility();
   }
 
+  // Recompute form visibility when litigant list changes.
   ngOnChanges(changes: SimpleChanges) {
     if (changes["litigantList"]) {
       this.syncFormVisibility();
     }
   }
 
+  // Start a new litigant entry form for the given side.
   startNewLitigant(side: "petitioner" | "respondent") {
     if (side === "petitioner") {
       this.showPetitionerForm = true;
@@ -63,6 +67,7 @@ export class Litigant {
     this.startNew.emit(side);
   }
 
+  // Emit create or update based on editing state.
   onSubmit(side: "petitioner" | "respondent", form: FormGroup) {
     if (this.isEditing(form)) {
       this.updateLitigant.emit(side);
@@ -72,14 +77,17 @@ export class Litigant {
     this.submitLitigant.emit(side);
   }
 
+  // Emit undo action to reset editing mode.
   onUndo(side: "petitioner" | "respondent") {
     this.undoEdit.emit(side);
   }
 
+  // Determine if a form is in edit mode based on id field.
   isEditing(form: FormGroup): boolean {
     return !!form?.get("id")?.value;
   }
 
+  // Toggle org/person fields when organization checkbox changes.
   private bindOrganisationToggle(form: FormGroup) {
     const orgCtrl = form?.get("is_organisation");
     if (!orgCtrl) return;
@@ -94,6 +102,7 @@ export class Litigant {
     });
   }
 
+  // Keep litigant name synced with selected organization.
   private bindOrganisationName(form: FormGroup) {
     const updateName = () => {
       const orgId = form.get("organization")?.value;
@@ -111,6 +120,7 @@ export class Litigant {
     form.get("is_organisation")?.valueChanges.subscribe(updateName);
   }
 
+  // Delete a litigant on the server and notify parent.
   delete_ligitant_details(id: number) {
     this.eFilingService.delete_litigant_details_by_id(id).subscribe({
       next: (data: any) => {
@@ -119,6 +129,7 @@ export class Litigant {
     });
   }
 
+  // Populate the edit form with an existing litigant row.
   editLitigant(item: any) {
     if (!item) return;
 
@@ -163,26 +174,31 @@ export class Litigant {
     // window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  // Sorted view: petitioners first, then respondents.
   get sortedLitigants() {
     return this.litigantList.sort(
       (a: any, b: any) => Number(b.is_petitioner) - Number(a.is_petitioner),
     );
   }
 
+  // Normalize petitioner flag from mixed backend values.
   private isPetitioner(value: any): boolean {
     return value === true || value === 1 || value === "1" || value === "true";
   }
 
+  // Filter to petitioner list for UI rendering.
   get petitionerLitigants() {
     const list = Array.isArray(this.litigantList) ? this.litigantList : [];
     return list.filter((item: any) => this.isPetitioner(item.is_petitioner));
   }
 
+  // Filter to respondent list for UI rendering.
   get respondentLitigants() {
     const list = Array.isArray(this.litigantList) ? this.litigantList : [];
     return list.filter((item: any) => !this.isPetitioner(item.is_petitioner));
   }
 
+  // Show/hide the add form based on current list sizes.
   private syncFormVisibility() {
     const petitionerCount = this.petitionerLitigants.length;
     const respondentCount = this.respondentLitigants.length;
@@ -190,6 +206,7 @@ export class Litigant {
     this.showRespondentForm = respondentCount === 0;
   }
 
+  // True when both petitioner and respondent exist.
   get hasRequiredLitigants(): boolean {
     const list = Array.isArray(this.litigantList) ? this.litigantList : [];
     const hasPetitioner = list.some((item) => item.is_petitioner);
@@ -197,6 +214,7 @@ export class Litigant {
     return hasPetitioner && hasRespondent;
   }
 
+  // Load organisation list for dropdown.
   get_organisation_list() {
     this.organisationService.get_organisations().subscribe({
       next: (data) => {
@@ -207,6 +225,7 @@ export class Litigant {
     });
   }
 
+  // Load state list for address section.
   get_state_list() {
     this.stateService.get_states().subscribe({
       next: (data) => {
@@ -215,6 +234,7 @@ export class Litigant {
     });
   }
 
+  // React to state change and load districts.
   onStateChange(event: any) {
     const stateId = event.target.value;
 
@@ -223,6 +243,7 @@ export class Litigant {
     }
   }
 
+  // Load districts for selected state.
   get_district_list_by_state_id(state_id: number) {
     this.stateService.get_district_by_state_id(state_id).subscribe({
       next: (data) => {
@@ -233,10 +254,12 @@ export class Litigant {
     });
   }
 
+  // Resolve organisation label by id.
   get_organisation_name(id: number): string {
     return this.organisations.find((o) => o.id === id)?.orgname || "";
   }
 
+  // Confirm and delete a litigant, or emit immediately for unsaved rows.
   deleteLitigant(id: number) {
     const confirmDelete = confirm(
       "Are you sure you want to delete this litigant?",

@@ -19,7 +19,7 @@
           <tbody class="text-muted small">
             <tr
               *ngFor="let c of filingsUnderDraft; let i = index"
-              [routerLink]="['/advocate/dashboard/efiling/draft-filings/edit']"
+              [routerLink]="['/advocate/dashboard/efiling/new-filing']"
               [queryParams]="{ id: c.id, e_filing_number: c.e_filing_number }"
               style="cursor: pointer"
             >
@@ -36,7 +36,7 @@
               </td>
               <td>
                 <a
-                  [routerLink]="['/advocate/dashboard/efiling/draft-filings/edit']"
+                  [routerLink]="['/advocate/dashboard/efiling/new-filing']"
                   [queryParams]="{ id: c.id, e_filing_number: c.e_filing_number }"
                   class="btn btn-sm clean-btn-outline"
                 >

@@ -10,16 +10,19 @@ import { CaseTypeService } from "../../../../../../services/master/case-type.ser
   styleUrl: "./initial-inputs.css",
 })
 export class InitialInputs {
+  // Wire services for case type lookups.
   constructor(private caseTypeService: CaseTypeService) {}
 
   @Input() form!: FormGroup;
   @Input() isDraft = false;
   case_types: any[] = [];
 
+  // Load case type options for the select control.
   ngOnInit() {
     this.get_case_types();
   }
 
+  // Fetch case types from API and normalize the response array.
   get_case_types() {
     this.caseTypeService.get_case_types().subscribe({
       next: (data) => {
@@ -33,6 +36,7 @@ export class InitialInputs {
     });
   }
 
+  // Resolve a case type label for draft/read-only display.
   get_case_type_label(value: any): string {
     if (value?.type_name) return value.type_name;
     const id = value?.id ?? value;

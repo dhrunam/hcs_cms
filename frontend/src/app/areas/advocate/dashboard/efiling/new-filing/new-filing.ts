@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component } from "@angular/core";
+import { Component, Input } from "@angular/core";
 import {
   FormGroup,
   FormBuilder,
@@ -54,6 +54,10 @@ import {
   styleUrls: ["./new-filing.css"],
 })
 export class NewFiling {
+
+  @Input() e_filing_id!:number
+  @Input() e_filing_number!:string
+  isNewFiling=true;
   step = 1;
   filingId: number | null = null;
   eFilingNumber: string = "";
@@ -123,6 +127,7 @@ export class NewFiling {
   /** Raw API included an "Annexure(s)" row that was stripped — still enable annexure UI. */
   excludedAnnexureSlotFromApi = false;
 
+  // Wire services and build the initial form structure.
   constructor(
     private fb: FormBuilder,
     private toastr: ToastrService,
@@ -173,6 +178,7 @@ export class NewFiling {
     this.respondentForm = this.buildLitigantForm(false);
   }
 
+  // Initialize page state, case types, document indexes, and load draft data if present.
   ngOnInit() {
     this.bindLitigantSequenceAutoGeneration(this.petitionerForm);
     this.bindLitigantSequenceAutoGeneration(this.respondentForm);
@@ -199,6 +205,7 @@ export class NewFiling {
       this.eFilingNumber = params["e_filing_number"] || this.eFilingNumber;
       this.applyPaymentReturnQueryParams(params);
       if (this.filingId) {
+        this.isNewFiling=false;
         this.restorePaymentOutcomeFromStorage();
         this.loadPaymentDetailsFromBackend();
       }
@@ -212,6 +219,10 @@ export class NewFiling {
       }
     });
   }
+
+
+
+
 
   private buildLitigantForm(isPetitioner: boolean): FormGroup {
     return this.fb.group(
@@ -264,6 +275,7 @@ export class NewFiling {
     );
   }
 
+  // Check if selected case type is WP(C) for mandatory index rules.
   get isWPCCaseType(): boolean {
     const label = this.getSelectedCaseTypeLabel().trim().toUpperCase();
     return label === "WP(C)" || (label.includes("WP") && label.includes("(C)"));
@@ -280,11 +292,13 @@ export class NewFiling {
     return n;
   }
 
+  // Resolve document type for structured uploads based on case type.
   get effectiveDocumentType(): string | null {
     if (!this.useStructuredDocumentUpload) return null;
     return this.isWPCCaseType ? "Main Petition" : null;
   }
 
+  // Derive mandatory index names from API ordering.
   get mandatoryIndexesForCurrentCase(): string[] {
     return this.fetchedNewFilingDocumentIndexes.map((x) => x.name);
   }
@@ -294,6 +308,7 @@ export class NewFiling {
     return this.mandatoryIndexesForCurrentCase.length > 0;
   }
 
+  // Enable annexure section when API includes annexure marker or name.
   get enableAnnexureFromIndexList(): boolean {
     return (
       this.excludedAnnexureSlotFromApi ||
@@ -339,6 +354,7 @@ export class NewFiling {
     return true;
   }
 
+  // True when payment flow has completed successfully.
   get isPaymentSuccessful(): boolean {
     if (!this.requiresCourtFeePayment) return true;
     return this.paymentOutcome === "success";
@@ -353,6 +369,7 @@ export class NewFiling {
     return mode === "online";
   }
 
+  // Generate and download the online payment receipt PDF.
   downloadOnlinePaymentReceiptPdf(): void {
     if (!this.canDownloadOnlinePaymentReceipt) return;
     const pd = this.paymentDetails;
@@ -429,6 +446,7 @@ export class NewFiling {
     doc.save(`payment-receipt-${safeEf}-${safeTxn}.pdf`);
   }
 
+  // Format a payment timestamp for receipt output.
   private formatPaymentReceiptDateTime(): string {
     const pd = this.paymentDetails;
     const raw = pd?.paidAt || pd?.paymentDate;
@@ -438,6 +456,7 @@ export class NewFiling {
     return String(raw);
   }
 
+  // Resolve a readable case type label from initial inputs.
   private getSelectedCaseTypeLabel(): string {
     const init = this.initialInputsForm?.value;
     const caseTypeVal = init?.case_type;
@@ -455,6 +474,7 @@ export class NewFiling {
     return "";
   }
 
+  // Parse payment status and details from gateway return query params.
   private applyPaymentReturnQueryParams(params: Params) {
     const statusRaw =
       params["status"] ?? params["payment_status"] ?? params["txn_status"];
@@ -518,6 +538,7 @@ export class NewFiling {
     });
   }
 
+  // Copy payment amount into manual fee when payment is successful.
   private hydrateManualCourtFeeFromPaymentDetails(): void {
     if (this.paymentOutcome !== "success") return;
     const pd = this.paymentDetails;
@@ -526,6 +547,7 @@ export class NewFiling {
     if (v) this.manualCourtFeeAmount = v;
   }
 
+  // Persist payment outcome to session storage for return navigation.
   private persistPaymentOutcome() {
     if (!this.filingId || !this.paymentOutcome) return;
     try {
@@ -542,6 +564,7 @@ export class NewFiling {
     }
   }
 
+  // Restore payment outcome from session storage when revisiting.
   private restorePaymentOutcomeFromStorage() {
     if (!this.filingId || this.paymentOutcome !== null) return;
     try {
@@ -561,6 +584,7 @@ export class NewFiling {
     }
   }
 
+  // API GET: fetch latest payment record from backend and update UI state.
   private loadPaymentDetailsFromBackend() {
     if (!this.filingId) return;
     this.paymentService.latest(this.filingId).subscribe({
@@ -607,6 +631,7 @@ export class NewFiling {
     });
   }
 
+  // Normalize payment details for preview screen.
   get paymentDetailsForPreview() {
     if (!this.requiresCourtFeePayment) {
       return {
@@ -631,6 +656,7 @@ export class NewFiling {
     };
   }
 
+  // Switch between online and offline payment modes.
   onPaymentModeChange(mode: "online" | "offline") {
     this.paymentMode = mode;
     if (mode === "offline" && !this.offlinePaymentDate) {
@@ -638,6 +664,7 @@ export class NewFiling {
     }
   }
 
+  // Capture offline bank receipt file selection.
   onOfflineReceiptChange(event: Event) {
     const input = event.target as HTMLInputElement | null;
     const file = input?.files?.[0] || null;
@@ -645,6 +672,7 @@ export class NewFiling {
     this.offlineBankReceiptName = file?.name || "";
   }
 
+  // API SUBMIT: submit offline payment details and bank receipt.
   async submitOfflinePayment() {
     if (!this.requiresCourtFeePayment) return;
     if (!this.filingId) {
@@ -701,6 +729,7 @@ export class NewFiling {
     }
   }
 
+  // API GET: load litigants for the current filing.
   get_litigant_list_by_filing_id() {
     if (!this.filingId) return;
     this.eFilingService
@@ -714,6 +743,7 @@ export class NewFiling {
       });
   }
 
+  // API GET: load existing document uploads for this filing.
   private loadDocuments() {
     if (!this.filingId) return;
     this.eFilingService
@@ -764,6 +794,33 @@ export class NewFiling {
       });
   }
 
+  // API GET: load initial filing inputs from backend and disable the form.
+  private loadInitialInputs() {
+    this.eFilingService.get_filing_by_efiling_id(this.filingId || 0).subscribe({
+      next: (data) => {
+        const record = Array.isArray(data?.results) ? data.results[0] : data;
+        if (!record) return;
+
+        this.filingData = record;
+
+        this.initialInputsForm.patchValue({
+          bench: record.bench || "High Court Of Sikkim",
+          case_type: record.case_type?.id ?? record.case_type ?? "",
+          petitioner_name: record.petitioner_name || "",
+          petitioner_contact: record.petitioner_contact || "",
+          e_filing_number: this.eFilingNumber || record.e_filing_number,
+        });
+        if (!this.eFilingNumber && record.e_filing_number) {
+          this.eFilingNumber = record.e_filing_number;
+        }
+        this.step1Saved = true;
+        this.initialInputsForm.disable({ emitEvent: false });
+        this.loadNewFilingDocumentIndexes(this.selectedCaseTypeId);
+      },
+    });
+  }
+
+  // API SUBMIT: confirm and initiate online payment gateway flow.
   async confirmProceedToPay() {
     if (!this.requiresCourtFeePayment) return;
     if (this.paymentFeeRupees <= 0) {
@@ -806,6 +863,7 @@ export class NewFiling {
     }
   }
 
+  // Submit a form POST to the payment gateway.
   private postToGateway(action: string, fields: Record<string, string>) {
     const form = document.createElement("form");
     form.method = "POST";
@@ -823,6 +881,7 @@ export class NewFiling {
     form.submit();
   }
 
+  // Advance to preview step after payment success.
   private moveToPreviewIfPaymentComplete() {
     if (!this.requiresCourtFeePayment || this.paymentOutcome !== "success")
       return;
@@ -886,6 +945,7 @@ export class NewFiling {
   //   this.actList = this.actList.filter((_: any, i: number) => i !== index);
   // }
 
+  // Validate that uploaded files are PDFs only.
   pdfOnlyValidator(control: any) {
     const files: File[] = control.value;
 
@@ -896,26 +956,32 @@ export class NewFiling {
     return invalid ? { invalidFileType: true } : null;
   }
 
+  // Access initial inputs form group.
   get initialInputsForm(): FormGroup {
     return this.form.get("initialInputs") as FormGroup;
   }
 
+  // Access petitioner form for litigator operations.
   get litigantsForm(): FormGroup {
     return this.petitionerForm;
   }
 
+  // Access case details form group (currently hidden in UI).
   get caseDetailsForm(): FormGroup {
     return this.form.get("caseDetails") as FormGroup;
   }
 
+  // Access act details form group.
   getActDetailsForm(): FormGroup {
     return this.form.get("actDetails") as FormGroup;
   }
 
+  // Access upload documents form group.
   get uploadFilingDocForm(): FormGroup {
     return this.form.get("uploadFilingDoc") as FormGroup;
   }
 
+  // Check if memo of appeal is already uploaded.
   get memoOfAppealUploaded(): boolean {
     const list = Array.isArray(this.docList) ? this.docList : [];
     return list.some(
@@ -923,6 +989,7 @@ export class NewFiling {
     );
   }
 
+  // Collect all uploaded index names for duplicate prevention.
   get uploadedIndexNames(): string[] {
     const list = Array.isArray(this.docList) ? this.docList : [];
     const names: string[] = [];
@@ -944,6 +1011,7 @@ export class NewFiling {
     return names;
   }
 
+  // Resolve selected case type id from the initial inputs form.
   get selectedCaseTypeId(): number | null {
     const value = this.initialInputsForm?.get("case_type")?.value;
     if (!value) return null;
@@ -955,6 +1023,7 @@ export class NewFiling {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   }
 
+  // Fetch and normalize document index rows for structured upload.
   private loadNewFilingDocumentIndexes(caseTypeId: number | null): void {
     this.fetchedNewFilingDocumentIndexes = [];
     this.fullNewFilingDocumentIndexesOrdered = [];
@@ -1003,6 +1072,7 @@ export class NewFiling {
     });
   }
 
+  // Build the front-page data for merged PDF download.
   get mergeFrontPage(): {
     petitionerName: string;
     respondentName: string;
@@ -1035,10 +1105,12 @@ export class NewFiling {
     };
   }
 
+  // Access declaration checkbox form group.
   get setDeclarationForm(): FormGroup {
     return this.form.get("setDeclaration") as FormGroup;
   }
 
+  // Resolve the current form for validation by step.
   getCurrentForm(): FormGroup {
     if (this.step === 1) {
       return this.form;
@@ -1051,6 +1123,7 @@ export class NewFiling {
     return this.form;
   }
 
+  // Move forward through the accordion steps with validation.
   next() {
     if (this.step === 1 && !this.hasRequiredLitigants()) {
       const message = this.hasPetitionerOnly()
@@ -1129,6 +1202,7 @@ export class NewFiling {
     // });
   }
 
+  // Sync petitioner name with litigant list and persist to backend.
   private syncPetitionerNameFromLitigants() {
     const filingId = Number(this.filingId || 0);
     if (!filingId) return;
@@ -1162,6 +1236,7 @@ export class NewFiling {
       });
   }
 
+  // Move backward through the accordion steps.
   prev() {
     if (this.step === 6) {
       this.step = 5;
@@ -1176,6 +1251,7 @@ export class NewFiling {
     this.setCaseDetailsReviewState(this.step === 6);
   }
 
+  // Jump to a specific step if prior steps are complete.
   goToStep(stepNumber: number) {
     if (stepNumber === 2 || stepNumber === 3) {
       stepNumber = 1;
@@ -1257,18 +1333,22 @@ export class NewFiling {
   //   });
   // }
 
+  // Dispatch litigant create.
   handleSubmitLitigant(side: "petitioner" | "respondent") {
     this.saveLitigant(this.getLitigantForm(side));
   }
 
+  // Dispatch litigant update.
   handleUpdateLitigant(side: "petitioner" | "respondent") {
     this.updateLitigant(this.getLitigantForm(side));
   }
 
+  // Cancel editing and reset form.
   handleUndoLitigant(side: "petitioner" | "respondent") {
     this.resetLitigantForm(this.getLitigantForm(side), side === "petitioner");
   }
 
+  // Create and persist a new litigant entry.
   private saveLitigant(form: FormGroup) {
     const initialForm = this.form.get("initialInputs") as FormGroup;
     const formValue = { ...form.getRawValue() };
@@ -1384,16 +1464,19 @@ export class NewFiling {
     submitLitigant();
   }
 
+  // Remove a litigant from the local list after delete.
   onDelete(id: number) {
     this.litigantList = this.litigantList.filter((item) => item.id !== id);
     this.refreshLitigantSequenceNumber(this.petitionerForm);
     this.refreshLitigantSequenceNumber(this.respondentForm);
   }
 
+  // Reset the form for a new litigant entry.
   startNewLitigant(side: "petitioner" | "respondent") {
     this.resetLitigantForm(this.getLitigantForm(side), side === "petitioner");
   }
 
+  // Reset litigant form values and sequence number.
   private resetLitigantForm(form: FormGroup, isPetitioner: boolean) {
     form.reset({
       id: "",
@@ -1421,6 +1504,7 @@ export class NewFiling {
     this.refreshLitigantSequenceNumber(form, true);
   }
 
+  // Update an existing litigant entry on the backend.
   private updateLitigant(form: FormGroup) {
     const formValue = { ...form.getRawValue() };
     const litigantId = Number(formValue.id || 0);
@@ -1514,6 +1598,7 @@ export class NewFiling {
       });
   }
 
+  // Validate sequence number uniqueness for a litigant type.
   private isSequenceNumberUnique(
     sequenceNumber: number,
     isPetitioner: boolean,
@@ -1529,16 +1614,19 @@ export class NewFiling {
     );
   }
 
+  // Normalize petitioner flag to boolean.
   private normalizeIsPetitioner(value: any): boolean {
     return value === true || value === "true" || value === 1 || value === "1";
   }
 
+  // Get a display label for petitioner/respondent.
   private getLitigantTypeLabel(isPetitioner: boolean): string {
     return this.normalizeIsPetitioner(isPetitioner)
       ? "petitioner"
       : "respondent";
   }
 
+  // Compute next sequence number for a litigant type.
   private getNextSequenceNumber(isPetitioner: boolean): number {
     const maxSequence = this.litigantList
       .filter(
@@ -1553,6 +1641,7 @@ export class NewFiling {
     return maxSequence + 1;
   }
 
+  // Refresh sequence number on the form when needed.
   private refreshLitigantSequenceNumber(
     form: FormGroup,
     force = false,
@@ -1569,6 +1658,7 @@ export class NewFiling {
     );
   }
 
+  // Bind auto-sequencing to petitioner/respondent toggle.
   private bindLitigantSequenceAutoGeneration(form: FormGroup): void {
     if (!form) return;
     form.get("sequence_number")?.disable({ emitEvent: false });
@@ -1578,10 +1668,12 @@ export class NewFiling {
     });
   }
 
+  // Resolve the correct litigant form by side.
   private getLitigantForm(side: "petitioner" | "respondent"): FormGroup {
     return side === "petitioner" ? this.petitionerForm : this.respondentForm;
   }
 
+  // True when only petitioners are present.
   private hasPetitionerOnly(): boolean {
     const hasPetitioner = this.litigantList.some((item) => item.is_petitioner);
     const hasRespondent = this.litigantList.some((item) => !item.is_petitioner);
@@ -1638,16 +1730,19 @@ export class NewFiling {
   //   });
   // }
 
+  // True when both petitioner and respondent exist.
   hasRequiredLitigants(): boolean {
     const hasPetitioner = this.litigantList.some((item) => item.is_petitioner);
     const hasRespondent = this.litigantList.some((item) => !item.is_petitioner);
     return hasPetitioner && hasRespondent;
   }
 
+  // Placeholder for case details step validation (currently unused).
   isCaseDetailsNextDisabled(): boolean {
     return false;
   }
 
+  // Compute the furthest step the user can navigate to.
   private getMaxAllowedStep(): number {
     if (!this.hasRequiredLitigants()) return 1;
     if (this.docList.length === 0) return 4;
@@ -1656,6 +1751,7 @@ export class NewFiling {
     return 6;
   }
 
+  // Validate that all required WP(C) indexes (and annexure) are uploaded.
   private hasMandatoryWpCDocuments(): boolean {
     if (!this.isWPCCaseType) return true;
     if (this.fetchedNewFilingDocumentIndexes.length === 0) {
@@ -1690,6 +1786,7 @@ export class NewFiling {
     );
   }
 
+  // Jump to a step from the preview card.
   goToPageFromPreview(step: number) {
     if (step === 2 || step === 3) {
       step = 1;
@@ -1727,30 +1824,6 @@ export class NewFiling {
   //     });
   // }
 
-  private loadInitialInputs() {
-    this.eFilingService.get_filing_by_efiling_id(this.filingId || 0).subscribe({
-      next: (data) => {
-        const record = Array.isArray(data?.results) ? data.results[0] : data;
-        if (!record) return;
-
-        this.filingData = record;
-
-        this.initialInputsForm.patchValue({
-          bench: record.bench || "High Court Of Sikkim",
-          case_type: record.case_type?.id ?? record.case_type ?? "",
-          petitioner_name: record.petitioner_name || "",
-          petitioner_contact: record.petitioner_contact || "",
-          e_filing_number: this.eFilingNumber || record.e_filing_number,
-        });
-        if (!this.eFilingNumber && record.e_filing_number) {
-          this.eFilingNumber = record.e_filing_number;
-        }
-        this.step1Saved = true;
-        this.initialInputsForm.disable({ emitEvent: false });
-        this.loadNewFilingDocumentIndexes(this.selectedCaseTypeId);
-      },
-    });
-  }
 
   // private loadActList() {
   //   this.eFilingService.get_acts_by_filing_id(this.filingId || 0).subscribe({
@@ -1786,12 +1859,14 @@ export class NewFiling {
     form.enable({ emitEvent: false });
   }
 
+  // Preview a final document in a new tab.
   previewDoc(doc: any) {
     if (doc.final_document) {
       window.open(doc.final_document, "_blank");
     }
   }
 
+  // Delete a document group and remove from list.
   deleteDoc(id: number, index: number) {
     const confirmDelete = confirm(
       "Your document will be deleted and you need to re-upload it. Continue?",
@@ -1809,12 +1884,14 @@ export class NewFiling {
       });
   }
 
+  // Normalize document type for comparisons.
   private normalizeDocType(value: any): string {
     return String(value || "")
       .trim()
       .toLowerCase();
   }
 
+  // Find an existing document group by type.
   private findExistingDocumentByType(documentType: string): any | null {
     const target = this.normalizeDocType(documentType);
     const list = Array.isArray(this.docList) ? this.docList : [];
@@ -1825,6 +1902,7 @@ export class NewFiling {
     );
   }
 
+  // Compute max sequence among existing document parts.
   private maxDocumentSequence(parts: any[]): number {
     if (!Array.isArray(parts) || parts.length === 0) return 0;
     return parts.reduce(
@@ -1833,6 +1911,7 @@ export class NewFiling {
     );
   }
 
+  // API SUBMIT: upload document parts and update local list.
   async handleDocUpload(data: any) {
     if (this.isUploadingDocuments || this.isUploadRequestInFlight) return;
     this.isUploadRequestInFlight = true;
@@ -1965,6 +2044,7 @@ export class NewFiling {
     }
   }
 
+  // Upload a single index file while tracking progress.
   private uploadIndexFileWithProgress(
     formData: FormData,
     index: number,
@@ -1991,6 +2071,7 @@ export class NewFiling {
     });
   }
 
+  // Placeholder for legacy upload flow (unused).
   saveStep4() {
     const files = this.form.get("uploadFilingDoc.documents")?.value;
 
@@ -2003,6 +2084,7 @@ export class NewFiling {
     });
   }
 
+  // API SUBMIT: submit the final filing after validation and OTP.
   submit() {
     if (!this.hasMandatoryWpCDocuments()) {
       this.toastr.error(
@@ -2030,6 +2112,7 @@ export class NewFiling {
     });
   }
 
+  // Prompt OTP input and finalize submission.
   private promptOtpAndSubmit() {
     if (!this.filingId) return;
 

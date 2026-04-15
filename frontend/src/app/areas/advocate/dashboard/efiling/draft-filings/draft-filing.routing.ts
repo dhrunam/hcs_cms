@@ -7,10 +7,7 @@ export const DraftFilingRoutes: Routes = [
     loadComponent: () => import('./draft-filings').then((c) => c.DraftFilings),
     children: [
       { path: 'view', loadComponent: () => import('./view/view').then((c) => c.View) },
-      {
-        path: 'edit',
-        loadComponent: () => import('./edit/edit').then((c) => c.Edit),
-      },
+      
     ],
   },
 ];

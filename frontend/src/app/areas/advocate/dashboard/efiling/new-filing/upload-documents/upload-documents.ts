@@ -136,6 +136,7 @@ export class UploadDocuments implements OnInit, OnChanges {
   structuredRows: StructuredIndexRow[] = [];
   annexureRows: StructuredIndexRow[] = [];
 
+  // Wire services and helpers for uploads and change detection.
   constructor(
     private eFilingService: EfilingService,
     private toastr: ToastrService,
@@ -143,6 +144,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     private ngZone: NgZone,
   ) {}
 
+  // Initialize document type and index master data.
   ngOnInit(): void {
     const initialDocType = this.getEffectiveDocumentType();
     if (initialDocType) {
@@ -152,6 +154,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     this.ensureIndexMastersForMatching();
   }
 
+  // React to input changes and refresh structured rows/masters.
   ngOnChanges(changes: SimpleChanges): void {
     if (changes["defaultDocumentType"]) {
       const value = this.getEffectiveDocumentType();
@@ -216,6 +219,7 @@ export class UploadDocuments implements OnInit, OnChanges {
   private static readonly ANNEXURE_AUTO_NAME_RE =
     /^annexure\s+([arp])\s*(\d+)\s*$/i;
 
+  // Convert an annexure index name to the current letter (P/A/R).
   private annexureRenamedName(
     indexName: string,
     letter: "P" | "A" | "R",
@@ -227,6 +231,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     return `Annexure ${letter}${m[2]}`;
   }
 
+  // Resolve index master id for an annexure name.
   private resolveIndexIdForAnnexureName(name: string): number | null {
     const matchedMaster = this.indexMasters.find(
       (item) => item.name.toLowerCase() === String(name || "").toLowerCase(),
@@ -267,6 +272,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     }
   }
 
+  // Normalize annexure letter to P/A/R.
   private getAnnexureLetter(): "P" | "A" | "R" {
     const c = String(this.annexureSequenceLetter ?? "P")
       .trim()
@@ -276,6 +282,7 @@ export class UploadDocuments implements OnInit, OnChanges {
   }
 
   /** Next annexure index name for the current letter; flat annexures only. */
+  // Get the highest annexure suffix for flat entries.
   private maxFlatAnnexureSuffixForLetter(letter: string): number {
     let max = 0;
     const L = letter.toUpperCase();
@@ -290,6 +297,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     return max;
   }
 
+  // Sync annexure counter across flat and structured annexures.
   private syncAnnexureCounterForCurrentLetter(): void {
     const L = this.getAnnexureLetter();
     const flatMax = this.maxFlatAnnexureSuffixForLetter(L);
@@ -330,6 +338,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     this.fetchCaseTypeDocumentIndexes(() => this.cdr.markForCheck());
   }
 
+  // Fetch case-type-specific indexes and fall back to full master list.
   private fetchCaseTypeDocumentIndexes(done: () => void): void {
     if (!this.caseTypeId) {
       done();
@@ -365,6 +374,7 @@ export class UploadDocuments implements OnInit, OnChanges {
       });
   }
 
+  // Load the full index master list when filtered list is unavailable.
   private loadFullIndexMasterForMatching(done: () => void): void {
     this.eFilingService.get_document_index_master().subscribe({
       next: (r2) => {
@@ -390,6 +400,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     });
   }
 
+  // Sync index masters from parent-provided list.
   private syncDocumentIndexMasters(): void {
     const rows = Array.isArray(this.documentIndexMasterList)
       ? this.documentIndexMasterList
@@ -407,6 +418,7 @@ export class UploadDocuments implements OnInit, OnChanges {
       );
   }
 
+  // Determine if structured upload mode is active.
   private isStructuredMode(): boolean {
     return this.structuredIndexUpload && this.mandatoryIndexNames.length > 0;
   }
@@ -423,6 +435,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     return true;
   }
 
+  // Build structured rows from mandatory index names and preserve file selections.
   private initializeStructuredRows() {
     if (!this.isStructuredMode()) return;
     const prevByName = new Map<string, StructuredIndexRow>();
@@ -458,19 +471,23 @@ export class UploadDocuments implements OnInit, OnChanges {
     this.cdr.markForCheck();
   }
 
+  // Keep document_type in sync with top-level input.
   onTopDocumentTypeInput(value: string) {
     this.form.patchValue({ document_type: value });
   }
 
+  // Validate top-level document type field.
   isDocumentTypeInvalid(): boolean {
     const control = this.form?.get("document_type");
     return !!control && control.invalid && (control.touched || control.dirty);
   }
 
+  // Validate file selection for flat uploads.
   isFilesInvalid(): boolean {
     return this.submitAttempted && this.entries.length === 0;
   }
 
+  // Handle flat file selection and staged entries.
   onFileChange(event: Event) {
     if (this.isStructuredMode()) return;
     const input = event.target as HTMLInputElement;
@@ -512,6 +529,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     this.cdr.detectChanges();
   }
 
+  // Handle single file selection in text index mode.
   onStagedFileChange(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] || null;
@@ -528,10 +546,12 @@ export class UploadDocuments implements OnInit, OnChanges {
     this.cdr.detectChanges();
   }
 
+  // Clear staged file in text index mode.
   clearStagedFile() {
     this.stagedFile = null;
   }
 
+  // Handle file selection for a structured row.
   onStructuredFileChange(rowIndex: number, event: Event) {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
@@ -593,6 +613,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     this.cdr.detectChanges();
   }
 
+  // Next annexure sequence number for current letter.
   private getNextAnnexureSequenceNumber(): number {
     const L = this.getAnnexureLetter();
     const fromNames = this.maxAnnexureNameSuffix(this.annexureRows, L);
@@ -603,6 +624,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     return Math.max(fromNames, countForLetter) + 1;
   }
 
+  // Max numeric suffix across annexure rows.
   private maxAnnexureNameSuffix(
     rows: StructuredIndexRow[],
     letter: string,
@@ -620,6 +642,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     return max;
   }
 
+  // Remove an annexure row in structured mode.
   removeAnnexureRow(index: number) {
     this.annexureRows = this.annexureRows.filter((_, i) => i !== index);
     this.syncStructuredFinalDocument();
@@ -627,6 +650,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     this.cdr.detectChanges();
   }
 
+  // Clear a file from a structured row.
   clearStructuredRowFile(index: number) {
     if (index < 0 || index >= this.structuredRows.length) return;
     this.structuredRows = this.structuredRows.map((r, i) =>
@@ -637,6 +661,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     this.cdr.detectChanges();
   }
 
+  // Preview a locally selected file in a new tab.
   previewLocalFile(file: File | null) {
     if (!file) return;
     const url = URL.createObjectURL(file);
@@ -644,6 +669,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
 
+  // Count completed structured rows for progress display.
   getStructuredCompletedCount(): number {
     const mandatoryFilled = this.structuredRows.filter((row) => !!row.file).length;
     const annexureFilled = this.enableAnnexureSequence
@@ -654,16 +680,19 @@ export class UploadDocuments implements OnInit, OnChanges {
     return mandatoryFilled + annexureFilled;
   }
 
+  // Total structured rows for progress display.
   getStructuredTotalCount(): number {
     return this.structuredRows.length + (this.enableAnnexureSequence ? 1 : 0);
   }
 
+  // Percentage of structured uploads completed.
   getStructuredCompletionPercent(): number {
     const total = this.getStructuredTotalCount();
     if (!total) return 0;
     return Math.round((this.getStructuredCompletedCount() / total) * 100);
   }
 
+  // Locate the Vakalatnama row index if present.
   private getVakalatnamaIndex(): number {
     return this.structuredRows.findIndex(
       (row) => row.index_name.trim().toLowerCase() === "vakalatnama",
@@ -679,6 +708,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     return `name:${String(row.index_name || "").toLowerCase()}`;
   }
 
+  // Track annexure rows by filename + index.
   trackByAnnexureRow(index: number, row: StructuredIndexRow): string {
     const f = row.file;
     const fp =
@@ -707,12 +737,14 @@ export class UploadDocuments implements OnInit, OnChanges {
     return Math.min(Math.max(raw, -1), last);
   }
 
+  // True when annexure slot renders before all mandatory rows.
   showAnnexureSlotBeforeAllRows(): boolean {
     return (
       this.enableAnnexureSequence && this.getResolvedAnnexureInsertAfterIndex() < 0
     );
   }
 
+  // True when annexure slot renders after the given row.
   showAnnexureSlotAfterRow(rowIdx: number): boolean {
     return (
       this.enableAnnexureSequence &&
@@ -720,6 +752,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     );
   }
 
+  // Count total upload items for progress calculation.
   private getCurrentUploadItemCount(): number {
     if (this.isStructuredMode()) {
       return (
@@ -730,6 +763,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     return this.entries.length;
   }
 
+  // Compute overall upload progress across current items.
   getOverallUploadProgress(): number {
     const totalItems = this.getCurrentUploadItemCount();
     if (totalItems <= 0) return 0;
@@ -742,6 +776,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     return Math.round(sum / totalItems);
   }
 
+  // Check if all required structured documents are already uploaded.
   hasUploadedAllStructuredDocuments(): boolean {
     if (!this.isStructuredMode()) return false;
     if (this.structuredRows.length === 0) return false;
@@ -764,11 +799,13 @@ export class UploadDocuments implements OnInit, OnChanges {
     );
   }
 
+  // Determine if the structured table should show.
   shouldShowStructuredUploadTable(): boolean {
     if (!this.structuredIndexUpload) return false;
     return !this.hasUploadedAllStructuredDocuments();
   }
 
+  // Sync form final_document with the first selected file.
   private syncStructuredFinalDocument() {
     const first =
       this.structuredRows.find((r) => !!r.file)?.file ||
@@ -777,6 +814,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     this.form?.patchValue({ final_document: first });
   }
 
+  // Handle flat annexure file selection.
   onFlatAnnexureFileChange(event: Event) {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
@@ -786,6 +824,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     this.cdr.detectChanges();
   }
 
+  // Append annexure files for flat upload mode.
   private appendFlatAnnexureFiles(files: File[]) {
     const { valid, errors } = validatePdfFiles(files);
     if (errors.length > 0) {
@@ -815,6 +854,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     });
   }
 
+  // Update index name and matched index id for a flat entry.
   updateDocumentType(index: number, value: string) {
     const entry = this.entries[index];
     if (!entry) return;
@@ -829,6 +869,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     entry.index_id = matchedMaster ? matchedMaster.id : null;
   }
 
+  // Resolve allowed document types for the selected case type.
   private getDocTypeDocuments(): string[] {
     const docTypeRows = docTypes as DocTypeOption[];
 
@@ -845,6 +886,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     );
   }
 
+  // Get available index names for a given entry, excluding duplicates.
   getAvailableIndexNames(index: number): string[] {
     const allDocs = this.getDocumentIndexUniverse();
     const currentValue = String(this.entries?.[index]?.index_name || "").trim();
@@ -881,6 +923,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     });
   }
 
+  // Build the universe of index names (mandatory + annexures or doc type list).
   private getDocumentIndexUniverse(): string[] {
     const base = this.getDocTypeDocuments();
     if (this.mandatoryIndexNames?.length) {
@@ -893,6 +936,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     return base;
   }
 
+  // Auto-pick next index name for flat upload mode.
   private getAutoIndexName(): string {
     if (!this.mandatoryIndexNames?.length) return "";
 
@@ -909,6 +953,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     return "";
   }
 
+  // Provide autocomplete suggestions for index names.
   getIndexSuggestions(query: string): string[] {
     const q = (query || "").trim().toLowerCase();
     if (!q) return [];
@@ -919,15 +964,18 @@ export class UploadDocuments implements OnInit, OnChanges {
       .slice(0, 12);
   }
 
+  // Track flat entries by file reference.
   trackByEntry(index: number, entry: DocumentUploadEntry): File {
     return entry.file;
   }
 
+  // Track annexure entries by name + file metadata.
   trackByAnnexureEntry(index: number, entry: DocumentUploadEntry): string {
     const f = entry.file;
     return `${entry.index_name}:${f.name}:${f.size}:${f.lastModified}:${index}`;
   }
 
+  // Remove a flat entry by index.
   removeEntry(index: number) {
     this.entries = this.entries.filter((_, i) => i !== index);
 
@@ -948,31 +996,37 @@ export class UploadDocuments implements OnInit, OnChanges {
     this.cdr.detectChanges();
   }
 
+  // Reorder entries when drag-and-drop completes.
   reorderEntries(event: CdkDragDrop<DocumentUploadEntry[]>) {
     if (this.isUploading) return;
     moveItemInArray(this.entries, event.previousIndex, event.currentIndex);
   }
 
+  // Check if an entry represents an annexure.
   isAnnexureEntry(entry: DocumentUploadEntry): boolean {
     return !!entry?.is_annexure;
   }
 
+  // Filter entries to only annexures.
   getAnnexureEntries(): DocumentUploadEntry[] {
     return this.entries.filter((entry) => !!entry.is_annexure);
   }
 
+  // Resolve default document type for this upload form.
   private resolveDefaultDocumentType(): string {
     const provided = String(this.defaultDocumentType || "").trim();
     if (provided) return provided;
     return "New Filing";
   }
 
+  // Resolve effective document type for payloads.
   getEffectiveDocumentType(): string {
     const resolved = this.resolveDefaultDocumentType();
     if (resolved) return resolved;
     return String(this.form?.value?.document_type || "").trim();
   }
 
+  // Validate whether upload action can be submitted.
   canUpload(): boolean {
     if (this.isStructuredMode()) {
       const hasAllMandatory = this.structuredRows.every((row) => !!row.file);
@@ -1002,6 +1056,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     );
   }
 
+  // Handle memo-of-appeal file selection.
   onMemoAppealFileChange(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] || null;
@@ -1016,15 +1071,18 @@ export class UploadDocuments implements OnInit, OnChanges {
     input.value = "";
   }
 
+  // Clear memo-of-appeal file selection.
   clearMemoAppealFile() {
     this.memoAppealFile = null;
   }
 
+  // Clear memo-of-appeal file and input element.
   clearMemoAppealWithInput(input: HTMLInputElement | null) {
     this.memoAppealFile = null;
     if (input) input.value = "";
   }
 
+  // Submit a memo-of-appeal upload payload.
   submitMemoAppeal() {
     if (
       !this.enableMemoOfAppeal ||
@@ -1053,6 +1111,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     });
   }
 
+  // Submit the upload payload (flat, text, or structured).
   submit() {
     if (this.isSubmitting) return;
     this.submitAttempted = true;
@@ -1082,6 +1141,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     this.submitAttempted = false;
   }
 
+  // Build payload items for text index mode.
   private getTextModeItems(): UploadDocumentsPayloadItem[] {
     const mainIndexName = String(this.stagedIndexName || "").trim();
     const mainFile = this.stagedFile;
@@ -1104,6 +1164,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     return mainItem ? [mainItem, ...annexures] : annexures;
   }
 
+  // Build payload items in required order for structured mode.
   private getStructuredItemsInRequiredOrder(): UploadDocumentsPayloadItem[] {
     const k = this.getResolvedAnnexureInsertAfterIndex();
     let before: StructuredIndexRow[];
@@ -1126,23 +1187,27 @@ export class UploadDocuments implements OnInit, OnChanges {
       }));
   }
 
+  // Validate index name for flat entries when submitting.
   isIndexNameInvalid(entry: DocumentUploadEntry): boolean {
     if (!this.submitAttempted) return false;
     return !entry.index_name || entry.index_name.trim().length === 0;
   }
 
+  // Get per-file upload progress percentage.
   getFileProgress(index: number): number {
     const progress = this.fileProgresses?.[index];
     if (typeof progress !== "number") return 0;
     return Math.min(100, Math.max(0, Math.round(progress)));
   }
 
+  // True when any progress is present.
   hasAnyProgress(): boolean {
     return (this.fileProgresses || []).some(
       (p) => typeof p === "number" && p > 0,
     );
   }
 
+  // Check if merged PDF can be downloaded.
   canDownloadMerged(): boolean {
     return (
       !this.isUploading &&
@@ -1152,6 +1217,7 @@ export class UploadDocuments implements OnInit, OnChanges {
     );
   }
 
+  // Request a merged PDF from the backend and download it.
   downloadMergedPdf(): void {
     if (!this.canDownloadMerged()) return;
     const files = this.entries.map((e) => e.file);

@@ -37,21 +37,25 @@ export class EFile {
   isMergingPdf = false;
   mergeError: string | null = null;
 
+  // Toggle a litigant detail row in the preview table.
   toggleRow(index: number) {
     this.expandedRows[index] = !this.expandedRows[index];
   }
 
+  // Wire lookup services used by preview labels and receipt metadata.
   constructor(
     private caseTypeService: CaseTypeService,
     private organisationService: OrganisationService,
     private efilingService: EfilingService,
   ) {}
 
+  // Load case types and organisations for label resolution.
   ngOnInit() {
     this.get_case_types();
     this.get_organisation_list();
   }
 
+  // Fetch case types from master data.
   get_case_types() {
     this.caseTypeService.get_case_types().subscribe({
       next: (data) => {
@@ -60,12 +64,14 @@ export class EFile {
     });
   }
 
+  // Sort litigants with petitioners first for display.
   get sortedLitigants() {
     return this.litigantList.sort(
       (a: any, b: any) => Number(b.is_petitioner) - Number(a.is_petitioner),
     );
   }
 
+  // Generate the petitioner vs respondent line for preview.
   get petitionerVsRespondentLine(): string {
     const init = this.initialInputsView || {};
     return (
@@ -76,31 +82,38 @@ export class EFile {
     );
   }
 
+  // Resolve case type name for a given id.
   get_case_type_name(id: number): string {
     const item = this.caseTypes.find((n) => n.id === id);
     return item?.type_name || item?.name || '';
   }
 
+  // Resolve case type full form for a given id.
   get_case_type_full_form(id: number): string {
     return this.caseTypes.find((n) => n.id === id)?.full_form || '';
   }
 
+  // Access initial inputs form group.
   get initialInputsForm(): FormGroup {
     return this.form.get('initialInputs') as FormGroup;
   }
 
+  // Access litigants form group (unused when case-details step is hidden).
   get litigantsForm(): FormGroup {
     return this.form.get('litigants') as FormGroup;
   }
 
+  // Access case details form group (case-details UI currently hidden).
   get caseDetailsForm(): FormGroup {
     return this.form.get('caseDetails') as FormGroup;
   }
 
+  // Resolve initial inputs data from filing payload or form state.
   get initialInputsView(): any {
     return this.filingData || this.initialInputsForm.getRawValue();
   }
 
+  // Normalize case type values that can be id or object.
   private resolveCaseTypeFromValue(value: any): any | null {
     if (value && typeof value === 'object') return value;
     const id = Number(value);
@@ -108,23 +121,27 @@ export class EFile {
     return this.caseTypes.find((item) => Number(item.id) === id) || null;
   }
 
+  // Case type label for preview.
   get caseTypeLabel(): string {
     const value = this.initialInputsView?.case_type;
     const resolved = this.resolveCaseTypeFromValue(value);
     return resolved?.type_name || resolved?.name || '';
   }
 
+  // Case type full form for preview.
   get caseTypeFullForm(): string {
     const value = this.initialInputsView?.case_type;
     const resolved = this.resolveCaseTypeFromValue(value);
     return resolved?.full_form || '';
   }
 
+  // Resolve case details from API payload or form state.
   get caseDetailsView(): any {
     if (this.caseDetailsData) return this.caseDetailsData;
     return this.caseDetailsForm.getRawValue();
   }
 
+  // Normalize act label for mixed act payload shapes.
   getActLabel(item: any): string {
     if (!item) return '-';
     if (item.actname) return item.actname;
@@ -136,20 +153,24 @@ export class EFile {
     return '-';
   }
 
+  // Normalize location values into a readable label.
   private resolveLocationLabel(value: any): string {
     if (!value) return '-';
     if (typeof value === 'string' || typeof value === 'number') return String(value);
     return value.state || value.district || value.name || value.label || value.title || '-';
   }
 
+  // Resolve dispute state label.
   getDisputeStateLabel(): string {
     return this.resolveLocationLabel(this.caseDetailsView?.state_detail?.state);
   }
 
+  // Resolve dispute district label.
   getDisputeDistrictLabel(): string {
     return this.resolveLocationLabel(this.caseDetailsView?.dispute_district);
   }
 
+  // Fetch organisations list for label resolution.
   get_organisation_list() {
     this.organisationService.get_organisations().subscribe({
       next: (data) => {
@@ -159,13 +180,16 @@ export class EFile {
     });
   }
 
+  // Resolve organisation name by id.
   get_organisation_name(id: number): string {
     return this.organisations.find((o) => o.id === id)?.orgname || '';
   }
+  // Emit navigation event to return to an edit step.
   onUpdateClick(id: number) {
     this.goToPage.emit(id);
   }
 
+  // Build list of document files to merge into a preview PDF.
   private getMergeItems(): { url: string; name: string }[] {
     const items: { url: string; name: string }[] = [];
     const list = Array.isArray(this.docList) ? this.docList : [];
@@ -188,6 +212,7 @@ export class EFile {
     return items;
   }
 
+  // Ensure document URLs are absolute for download/merge.
   private toAbsoluteUrl(url: string): string {
     if (!url) return '';
     const s = String(url).trim();
@@ -196,6 +221,7 @@ export class EFile {
     return s.startsWith('/') ? `${base}${s}` : `${base}/${s}`;
   }
 
+  // True when an online receipt is eligible for download.
   get canDownloadOnlinePaymentReceipt(): boolean {
     const pd = this.paymentDetails;
     if (!pd || pd.required === false) return false;
@@ -204,6 +230,7 @@ export class EFile {
     return mode === 'online';
   }
 
+  // Generate a PDF receipt for a successful online payment.
   downloadOnlinePaymentReceiptPdf(): void {
     if (!this.canDownloadOnlinePaymentReceipt) return;
     const pd = this.paymentDetails || {};
@@ -288,6 +315,7 @@ export class EFile {
   }
 
   private formatPaymentReceiptDateTime(pd: Record<string, unknown>): string {
+  // Format payment date/time for receipt output.
     const raw = (pd['paidAt'] || pd['paymentDate']) as string | undefined;
     if (!raw || String(raw).trim() === '') return '-';
     const d = new Date(raw);
@@ -296,9 +324,11 @@ export class EFile {
   }
 
   canDownloadMerged(): boolean {
+  // Check if merge button should be enabled.
     return this.getMergeItems().length > 0;
   }
 
+  // Merge uploaded document parts and download a single PDF.
   downloadMergedPdf(): void {
     const items = this.getMergeItems();
     if (items.length === 0 || this.isMergingPdf) return;
