@@ -1,0 +1,9 @@
+.case-access-section .page-title {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.suggestion-list {
+  max-height: 220px;
+  overflow-y: auto;
+}

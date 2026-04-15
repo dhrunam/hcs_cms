@@ -16,6 +16,12 @@ export const ScrutinyOfficerDashboardRoutes: Routes = [
           import('./filed-cases/filed-cases.routing.module').then((m) => m.FiledCasesRoutes),
         title: 'Filed Cases | CMS',
       },
+      {
+        path: 'grant-case-access',
+        loadComponent: () =>
+          import('./grant-case-access/grant-case-access').then((c) => c.GrantCaseAccess),
+        title: 'Grant Case Access | CMS',
+      },
     ],
   },
 ];

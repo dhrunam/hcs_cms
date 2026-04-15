@@ -50,6 +50,7 @@ export class ScrutinyDetails {
   documentHistory: any[] = [];
   isLoading = false;
   isReplacing = false;
+  previewErrorMessage = "";
   notesPopupOpen = false;
   canShowReplaceBtn: boolean = false;
   pendingReplacements: Array<{
@@ -253,9 +254,7 @@ export class ScrutinyDetails {
     this.canShowReplaceBtn = Boolean(
       document?.scrutiny_status?.toLowerCase().includes("rejected"),
     );
-    this.updatePreviewUrl(
-      (document?.file_url ?? document?.file_part_path ?? null) as string | null,
-    );
+    this.updatePreviewUrl(document ?? null);
 
     if (!document?.id) {
       this.documentHistory = [];
@@ -272,20 +271,29 @@ export class ScrutinyDetails {
     });
   }
 
-  updatePreviewUrl(fileUrl: string | null): void {
+  updatePreviewUrl(document: any | null): void {
     if (this.selectedDocumentBlobUrl) {
       URL.revokeObjectURL(this.selectedDocumentBlobUrl);
       this.selectedDocumentBlobUrl = null;
     }
 
+    const docId = Number(document?.id || 0);
+    const fileUrl =
+      (document?.file_url ?? document?.file_part_path ?? null) as string | null;
+
     if (!fileUrl) {
       this.selectedDocumentUrl = null;
+      this.previewErrorMessage = "Document file is not available.";
       return;
     }
 
-    this.selectedDocumentUrl =
-      this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
-    this.efilingService.fetch_document_blob(fileUrl).subscribe({
+    this.previewErrorMessage = "";
+    this.selectedDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+    const stream$ =
+      docId > 0
+        ? this.efilingService.fetch_document_blob_by_index(docId)
+        : this.efilingService.fetch_document_blob(fileUrl);
+    stream$.subscribe({
       next: (blob) => {
         this.selectedDocumentBlobUrl = URL.createObjectURL(blob);
         this.selectedDocumentUrl =
@@ -296,6 +304,8 @@ export class ScrutinyDetails {
       error: () => {
         this.selectedDocumentUrl =
           this.sanitizer.bypassSecurityTrustResourceUrl(fileUrl);
+        this.previewErrorMessage =
+          "This PDF is missing on server for this case. Please ask scrutiny officer to replace/re-upload it.";
       },
     });
   }
@@ -536,6 +546,15 @@ export class ScrutinyDetails {
   }
 
   openInNewTab(): void {
+    if (this.selectedDocumentBlobUrl) {
+      window.open(this.selectedDocumentBlobUrl, "_blank", "noopener");
+      return;
+    }
+    if (this.selectedDocument?.id) {
+      const streamUrl = `/api/v1/efiling/efiling-documents-index/${this.selectedDocument.id}/stream/`;
+      window.open(streamUrl, "_blank", "noopener");
+      return;
+    }
     if (this.selectedDocument?.file_url) {
       window.open(this.selectedDocument.file_url, "_blank", "noopener");
     }
@@ -744,9 +763,13 @@ export class ScrutinyDetails {
       this.selectedIaDocumentUrl = null;
       return;
     }
-    this.selectedIaDocumentUrl =
-      this.sanitizer.bypassSecurityTrustResourceUrl(iaStreamUrl);
-    this.efilingService.fetch_document_blob(iaStreamUrl).subscribe({
+    this.selectedIaDocumentUrl = this.sanitizer.bypassSecurityTrustResourceUrl(iaStreamUrl);
+    const iaDocId = Number(document?.id || 0);
+    const stream$ =
+      iaDocId > 0
+        ? this.efilingService.fetch_document_blob_by_index(iaDocId)
+        : this.efilingService.fetch_document_blob(iaStreamUrl);
+    stream$.subscribe({
       next: (blob) => {
         this.selectedIaDocumentBlobUrl = URL.createObjectURL(blob);
         this.selectedIaDocumentUrl =

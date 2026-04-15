@@ -10,6 +10,25 @@ export interface DistinctBenchOption {
   label: string;
 }
 
+export interface CaseAccessRequestItem {
+  id: number;
+  case_number: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  rejection_reason?: string | null;
+  vakalatnama_document?: string | null;
+  created_at: string;
+  reviewed_at?: string | null;
+  advocate?: number;
+  e_filing?: number;
+}
+
+export interface CaseAccessSearchItem {
+  id: number;
+  case_number: string;
+  e_filing_number?: string | null;
+  petitioner_name?: string | null;
+}
+
 @Injectable({ providedIn: "root" })
 export class EfilingService {
   constructor(private http: HttpClient) {}
@@ -412,6 +431,47 @@ export class EfilingService {
   get_notifications(role: "advocate" | "scrutiny_officer"): Observable<any[]> {
     return this.http.get<any[]>(
       `${app_url}/api/v1/efiling/notifications/?role=${role}`,
+    );
+  }
+
+  create_case_access_request(fd: FormData): Observable<CaseAccessRequestItem> {
+    return this.http.post<CaseAccessRequestItem>(
+      `${app_url}/api/v1/efiling/case-access-requests/`,
+      fd,
+    );
+  }
+
+  get_case_access_requests(status?: string): Observable<{ results?: CaseAccessRequestItem[] } | CaseAccessRequestItem[]> {
+    let url = `${app_url}/api/v1/efiling/case-access-requests/`;
+    if (status) {
+      url += `?status=${encodeURIComponent(status)}`;
+    }
+    return this.http.get<{ results?: CaseAccessRequestItem[] } | CaseAccessRequestItem[]>(url);
+  }
+
+  review_case_access_request(
+    requestId: number,
+    payload: { status: "APPROVED" | "REJECTED"; rejection_reason?: string },
+  ): Observable<CaseAccessRequestItem> {
+    return this.http.patch<CaseAccessRequestItem>(
+      `${app_url}/api/v1/efiling/case-access-requests/${requestId}/review/`,
+      payload,
+    );
+  }
+
+  reapply_case_access_request(
+    requestId: number,
+    fd?: FormData,
+  ): Observable<CaseAccessRequestItem> {
+    return this.http.post<CaseAccessRequestItem>(
+      `${app_url}/api/v1/efiling/case-access-requests/${requestId}/reapply/`,
+      fd ?? new FormData(),
+    );
+  }
+
+  search_case_access_candidates(q: string): Observable<{ items: CaseAccessSearchItem[] }> {
+    return this.http.get<{ items: CaseAccessSearchItem[] }>(
+      `${app_url}/api/v1/efiling/case-access-requests/search-cases/?q=${encodeURIComponent(q)}`,
     );
   }
 

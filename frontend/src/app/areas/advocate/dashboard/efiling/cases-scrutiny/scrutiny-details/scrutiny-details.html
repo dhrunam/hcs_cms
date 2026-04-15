@@ -893,7 +893,7 @@
 
   <ng-template #noPreview>
     <div class="preview-empty text-muted small">
-      PDF preview will appear here once a file is available.
+      {{ previewErrorMessage || "PDF preview will appear here once a file is available." }}
     </div>
   </ng-template>
   <ng-template #noPreviewIa>

@@ -63,6 +63,12 @@ from apps.efiling.views.bench_views import BenchTListCreateView, BenchTRetrieveU
 from apps.efiling.views.bench_distinct_views import BenchDistinctListView
 from apps.efiling.views.budget_head_views import BudgetHeadTListView
 from apps.efiling.views.chat_message_views import ChatMessageListCreateView
+from apps.efiling.views.case_access_request_views import (
+    CaseAccessRequestListCreateView,
+    CaseAccessRequestReviewView,
+    CaseAccessRequestReapplyView,
+    CaseAccessCaseSearchView,
+)
 
 
 app_name = "efiling"
@@ -214,5 +220,25 @@ urlpatterns = [
     path("benches/<int:pk>/", BenchTRetrieveUpdateDestroyView.as_view(), name="bench-detail"),
     path("benches/distinct/", BenchDistinctListView.as_view(), name="bench-distinct-list"),
     path("budget-heads/", BudgetHeadTListView.as_view(), name="budget-head-list"),
+    path(
+        "case-access-requests/",
+        CaseAccessRequestListCreateView.as_view(),
+        name="case-access-request-list-create",
+    ),
+    path(
+        "case-access-requests/<int:pk>/review/",
+        CaseAccessRequestReviewView.as_view(),
+        name="case-access-request-review",
+    ),
+    path(
+        "case-access-requests/<int:pk>/reapply/",
+        CaseAccessRequestReapplyView.as_view(),
+        name="case-access-request-reapply",
+    ),
+    path(
+        "case-access-requests/search-cases/",
+        CaseAccessCaseSearchView.as_view(),
+        name="case-access-request-case-search",
+    ),
 ]
 

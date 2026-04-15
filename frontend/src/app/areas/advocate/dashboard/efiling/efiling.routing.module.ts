@@ -42,4 +42,11 @@ export const EfilingRoutes: Routes = [
     loadChildren: () =>
       import("./ia-filing/ia-filing.routing").then((r) => r.IaFilingRoutes),
   },
+  {
+    path: "case-access-requests",
+    loadComponent: () =>
+      import("./case-access-requests/case-access-requests").then(
+        (c) => c.CaseAccessRequests,
+      ),
+  },
 ];

@@ -1150,16 +1150,18 @@ export class FiledCaseDetails {
 
   private get activeDocuments(): any[] {
     const explicitlyActive = this.documents.filter(
-      (document) => document?.is_active !== false,
+      (document) =>
+        document?.is_active !== false && this.isDocumentIndexClickable(document),
     );
-    return explicitlyActive.length > 0 ? explicitlyActive : this.documents;
+    return explicitlyActive;
   }
 
   private get activeIaDocuments(): any[] {
     const explicitlyActive = this.iaDocuments.filter(
-      (document) => document?.is_active !== false,
+      (document) =>
+        document?.is_active !== false && this.isDocumentIndexClickable(document),
     );
-    return explicitlyActive.length > 0 ? explicitlyActive : this.iaDocuments;
+    return explicitlyActive;
   }
 
   private get reviewCycleDocuments(): any[] {

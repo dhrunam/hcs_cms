@@ -502,8 +502,15 @@
                             <span
                               class="status-badge status-badge-sm"
                               [ngClass]="getDocumentStatusClass(row.document)"
+                              *ngIf="isDocumentIndexClickable(row.document)"
                             >
                               {{ getDocumentStatusLabel(row.document) }}
+                            </span>
+                            <span
+                              class="header-row-tag"
+                              *ngIf="!isDocumentIndexClickable(row.document)"
+                            >
+                              Header only (not reviewable)
                             </span>
                           </div>
                         </div>
@@ -777,8 +784,15 @@
                                     <span
                                       class="status-badge status-badge-sm"
                                       [ngClass]="getDocumentStatusClass(row.document)"
+                                      *ngIf="isDocumentIndexClickable(row.document)"
                                     >
                                       {{ getDocumentStatusLabel(row.document) }}
+                                    </span>
+                                    <span
+                                      class="header-row-tag"
+                                      *ngIf="!isDocumentIndexClickable(row.document)"
+                                    >
+                                      Header only (not reviewable)
                                     </span>
                                   </div>
                                 </div>

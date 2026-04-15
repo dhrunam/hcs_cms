@@ -600,6 +600,62 @@ class EfilerDocumentAccess(BaseModel):
       
         db_table = 'efiler_document_access'
 
+
+class CaseAccessRequest(BaseModel):
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        APPROVED = "APPROVED", "Approved"
+        REJECTED = "REJECTED", "Rejected"
+
+    advocate = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="case_access_requests",
+    )
+    e_filing = models.ForeignKey(
+        Efiling,
+        on_delete=models.CASCADE,
+        related_name="case_access_requests",
+    )
+    case_number = models.CharField(max_length=120)
+    vakalatnama_document = models.FileField(
+        upload_to="media/efile/case-access-requests/",
+        max_length=512,
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+    rejection_reason = models.TextField(blank=True, null=True)
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_case_access_requests",
+    )
+    reviewed_at = models.DateTimeField(blank=True, null=True)
+    resubmission_of = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reapplications",
+    )
+    approved_access = models.ForeignKey(
+        EfilerDocumentAccess,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="source_requests",
+    )
+
+    class Meta:
+        db_table = "case_access_request"
+        ordering = ["-id"]
+
         
 class CivilT(BaseModel):
     case_no = models.CharField(max_length=15, blank=True, null=True)
