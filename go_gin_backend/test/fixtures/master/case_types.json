@@ -1,0 +1,19 @@
+[
+  {
+    "id": 1,
+    "created_at": null,
+    "updated_at": null,
+    "created_by": null,
+    "updated_by": null,
+    "is_active": true,
+    "case_type": 10,
+    "type_name": "Writ",
+    "ltype_name": null,
+    "full_form": "Writ Petition",
+    "lfull_form": null,
+    "type_flag": "W",
+    "est_code_src": "SKNM01",
+    "reg_no": 1,
+    "reg_year": 2026
+  }
+]

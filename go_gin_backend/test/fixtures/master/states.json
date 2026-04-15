@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1,
+    "created_at": null,
+    "updated_at": null,
+    "created_by": null,
+    "updated_by": null,
+    "is_active": true,
+    "state": "Sikkim",
+    "create_modify": null,
+    "est_code_src": "SKNM01",
+    "national_code": null
+  }
+]

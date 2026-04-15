@@ -1,0 +1,28 @@
+[
+  {
+    "id": 1,
+    "created_at": null,
+    "updated_at": null,
+    "created_by": null,
+    "updated_by": null,
+    "is_active": true,
+    "orgtype": 1,
+    "orgname": "High Court of Sikkim",
+    "contactperson": null,
+    "address": null,
+    "state_id": 1,
+    "district_id": 1,
+    "taluka_code": 0,
+    "village_code": 0,
+    "email": null,
+    "mobile": null,
+    "phone": null,
+    "fax": null,
+    "village1_code": 0,
+    "village2_code": 0,
+    "town_code": 0,
+    "ward_code": 0,
+    "national_code": null,
+    "est_code_src": "SKNM01"
+  }
+]
