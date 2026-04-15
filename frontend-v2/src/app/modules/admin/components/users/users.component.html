@@ -1,0 +1,82 @@
+<div class="admin-page">
+  <h1 class="admin-page__title">Users</h1>
+  <p class="admin-page__subtitle">Manage accounts and activation status.</p>
+
+  <mat-form-field appearance="outline" class="admin-page__search">
+    <mat-label>Search</mat-label>
+    <input
+      matInput
+      type="search"
+      [(ngModel)]="search"
+      (ngModelChange)="onSearchInput($event)"
+      placeholder="Name or email"
+      autocomplete="off"
+    />
+  </mat-form-field>
+
+  @if (errorMsg()) {
+    <div class="admin-page__error" role="alert">{{ errorMsg() }}</div>
+  }
+
+  <div class="admin-table-card mat-elevation-z2">
+    @if (loading()) {
+      <div class="admin-page__loading">
+        <mat-progress-spinner diameter="40" mode="indeterminate" />
+        <span>Loading…</span>
+      </div>
+    } @else if (rows().length === 0) {
+      <div class="admin-page__empty">No Data Found</div>
+    } @else {
+      <div class="admin-table-wrap">
+        <table mat-table [dataSource]="rows()" class="admin-mat-table">
+          <ng-container matColumnDef="index">
+            <th mat-header-cell *matHeaderCellDef>#</th>
+            <td mat-cell *matCellDef="let row; let i = index">{{ serialForRow(i) }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef>Name</th>
+            <td mat-cell *matCellDef="let row">{{ displayName(row) }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="email">
+            <th mat-header-cell *matHeaderCellDef>Email</th>
+            <td mat-cell *matCellDef="let row">{{ row.email }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="role">
+            <th mat-header-cell *matHeaderCellDef>Role</th>
+            <td mat-cell *matCellDef="let row">{{ roleLabel(row) }}</td>
+          </ng-container>
+
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Status</th>
+            <td mat-cell *matCellDef="let row">
+              <mat-slide-toggle
+                class="user-active-toggle"
+                [checked]="isUserActive(row)"
+                [disabled]="togglingId() === row.id"
+                (change)="onToggle(row, $event.checked)"
+                color="primary"
+              >
+                {{ isUserActive(row) ? 'Active' : 'Inactive' }}
+              </mat-slide-toggle>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="columnKeys"></tr>
+          <tr mat-row *matRowDef="let row; columns: columnKeys" class="admin-mat-row"></tr>
+        </table>
+      </div>
+
+      <mat-paginator
+        [length]="totalCount()"
+        [pageSize]="pageSize()"
+        [pageIndex]="page() - 1"
+        [pageSizeOptions]="[5, 10, 25, 50]"
+        [showFirstLastButtons]="true"
+        (page)="onMatPage($event)"
+      />
+    }
+  </div>
+</div>

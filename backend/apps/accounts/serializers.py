@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.contrib.auth.models import Group, Permission
 from rest_framework import serializers
 
 from .models import RegistrationProfile, User
@@ -90,3 +91,31 @@ class UserSerializer(serializers.ModelSerializer):
 
 class EmailVerifySerializer(serializers.Serializer):
     token = serializers.CharField()
+
+
+class RoleGroupSerializer(serializers.ModelSerializer):
+    """Django auth Group for Super Admin roles list."""
+
+    permission_count = serializers.IntegerField(read_only=True)
+    description = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Group
+        fields = ("id", "name", "description", "permission_count")
+
+    def get_description(self, obj: Group) -> str:
+        return ""
+
+
+class AuthPermissionSerializer(serializers.ModelSerializer):
+    """Django auth Permission for Super Admin permissions list."""
+
+    description = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Permission
+        fields = ("id", "name", "codename", "description")
+
+    def get_description(self, obj: Permission) -> str:
+        ct = obj.content_type
+        return f"{ct.app_label} · {ct.model}"

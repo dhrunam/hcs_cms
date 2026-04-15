@@ -1,0 +1,12 @@
+@use '../../styles/admin-shared';
+
+.user-active-toggle {
+  --mdc-switch-selected-track-color: #22c55e;
+  --mdc-switch-selected-hover-track-color: #16a34a;
+  --mdc-switch-selected-focus-track-color: #22c55e;
+  --mdc-switch-selected-pressed-track-color: #15803d;
+  --mdc-switch-selected-handle-color: #ffffff;
+  --mdc-switch-unselected-track-color: #cbd5e1;
+  --mdc-switch-unselected-hover-track-color: #94a3b8;
+  --mdc-switch-unselected-handle-color: #f8fafc;
+}

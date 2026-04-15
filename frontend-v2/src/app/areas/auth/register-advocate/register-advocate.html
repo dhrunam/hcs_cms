@@ -1,0 +1,303 @@
+<div
+  class="relative flex min-h-screen flex-col overflow-x-hidden bg-gradient-to-br from-slate-950 via-[#1e3a5f] to-blue-800 pb-10"
+>
+  <div
+    class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_20%_40%,rgba(201,162,39,0.15),transparent),radial-gradient(ellipse_60%_40%_at_80%_60%,rgba(59,130,246,0.12),transparent)]"
+    aria-hidden="true"
+  ></div>
+
+  <div class="relative z-10 mx-auto w-full max-w-[1200px] flex-1 px-4 py-8 sm:px-6 lg:px-10">
+    <div
+      class="mx-auto w-full max-w-[560px] rounded-2xl border border-[#1e3a5f]/12 bg-white/[0.97] p-6 shadow-[0_25px_50px_-12px_rgba(15,23,42,0.25)] sm:p-8"
+    >
+      <div class="mb-4 flex flex-wrap items-center gap-3">
+        <img class="h-[72px] w-[72px] object-contain" src="/assets/icons/hcs_logo.jpeg" alt="" />
+        <div>
+          <h1 class="mb-0 text-[1.35rem] font-bold text-[#1e3a5f]">Advocate</h1>
+          <p class="mb-0 text-sm text-slate-500">
+            @if (registrationStep === 'form') {
+              Register as counsel
+            } @else {
+              Confirm with OTP
+            }
+          </p>
+        </div>
+      </div>
+
+      <p class="mb-6 text-sm text-slate-500">
+        <a routerLink="/user/register" class="font-semibold text-[#2d5a8a] no-underline hover:underline">
+          ← Back to account type
+        </a>
+      </p>
+
+      @if (registrationStep === 'form') {
+        @if (formError) {
+          <div
+            class="mb-4 rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900"
+            role="alert"
+            aria-live="polite"
+          >
+            {{ formError }}
+          </div>
+        }
+
+        <form (ngSubmit)="goToOtpStep()" novalidate>
+          <fieldset class="min-w-0 border-0 p-0">
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div class="md:col-span-1">
+                <label class="mb-1.5 block text-sm font-semibold text-slate-700" for="adv-email">Email</label>
+                <input
+                  id="adv-email"
+                  class="w-full rounded-[10px] border border-slate-200 px-3.5 py-2.5 text-[0.95rem] text-slate-900 focus:border-[#2d5a8a] focus:outline-none focus:ring-[3px] focus:ring-[#1e3a5f]/15"
+                  type="email"
+                  name="email"
+                  [(ngModel)]="email"
+                  autocomplete="email"
+                  required
+                />
+              </div>
+              <div class="md:col-span-1">
+                <label class="mb-1.5 block text-sm font-semibold text-slate-700" for="adv-phone">Phone</label>
+                <input
+                  id="adv-phone"
+                  class="w-full rounded-[10px] border border-slate-200 px-3.5 py-2.5 text-[0.95rem] text-slate-900 focus:border-[#2d5a8a] focus:outline-none focus:ring-[3px] focus:ring-[#1e3a5f]/15"
+                  type="text"
+                  name="phone_number"
+                  [(ngModel)]="phone_number"
+                  autocomplete="tel"
+                  required
+                />
+              </div>
+              <div class="md:col-span-1">
+                <label class="mb-1.5 block text-sm font-semibold text-slate-700" for="adv-fn">First name</label>
+                <input
+                  id="adv-fn"
+                  class="w-full rounded-[10px] border border-slate-200 px-3.5 py-2.5 text-[0.95rem] text-slate-900 focus:border-[#2d5a8a] focus:outline-none focus:ring-[3px] focus:ring-[#1e3a5f]/15"
+                  type="text"
+                  name="first_name"
+                  [(ngModel)]="first_name"
+                  autocomplete="given-name"
+                  required
+                />
+              </div>
+              <div class="md:col-span-1">
+                <label class="mb-1.5 block text-sm font-semibold text-slate-700" for="adv-ln">Last name</label>
+                <input
+                  id="adv-ln"
+                  class="w-full rounded-[10px] border border-slate-200 px-3.5 py-2.5 text-[0.95rem] text-slate-900 focus:border-[#2d5a8a] focus:outline-none focus:ring-[3px] focus:ring-[#1e3a5f]/15"
+                  type="text"
+                  name="last_name"
+                  [(ngModel)]="last_name"
+                  autocomplete="family-name"
+                  required
+                />
+              </div>
+              <div class="md:col-span-1">
+                <label class="mb-1.5 block text-sm font-semibold text-slate-700" for="adv-dob"
+                  >Date of birth</label
+                >
+                <input
+                  id="adv-dob"
+                  class="w-full rounded-[10px] border border-slate-200 px-3.5 py-2.5 text-[0.95rem] text-slate-900 focus:border-[#2d5a8a] focus:outline-none focus:ring-[3px] focus:ring-[#1e3a5f]/15"
+                  type="date"
+                  name="date_of_birth"
+                  [(ngModel)]="date_of_birth"
+                  required
+                />
+              </div>
+              <div class="md:col-span-1">
+                <label class="mb-1.5 block text-sm font-semibold text-slate-700" for="adv-gender">Gender</label>
+                <select
+                  id="adv-gender"
+                  class="w-full rounded-[10px] border border-slate-200 bg-white px-3.5 py-2.5 text-[0.95rem] text-slate-900 focus:border-[#2d5a8a] focus:outline-none focus:ring-[3px] focus:ring-[#1e3a5f]/15"
+                  name="gender"
+                  [(ngModel)]="gender"
+                >
+                  <option value="M">Male</option>
+                  <option value="F">Female</option>
+                  <option value="O">Other</option>
+                  <option value="U">Prefer not to say</option>
+                </select>
+              </div>
+              <div class="md:col-span-2">
+                <label class="mb-1.5 block text-sm font-semibold text-slate-700" for="adv-address"
+                  >Address</label
+                >
+                <textarea
+                  id="adv-address"
+                  class="w-full rounded-[10px] border border-slate-200 px-3.5 py-2.5 text-[0.95rem] text-slate-900 focus:border-[#2d5a8a] focus:outline-none focus:ring-[3px] focus:ring-[#1e3a5f]/15"
+                  name="address"
+                  [(ngModel)]="address"
+                  rows="3"
+                  required
+                ></textarea>
+              </div>
+              <div class="md:col-span-1">
+                <label class="mb-1.5 block text-sm font-semibold text-slate-700" for="adv-bar-id">Bar ID</label>
+                <input
+                  id="adv-bar-id"
+                  class="w-full rounded-[10px] border border-slate-200 px-3.5 py-2.5 text-[0.95rem] text-slate-900 focus:border-[#2d5a8a] focus:outline-none focus:ring-[3px] focus:ring-[#1e3a5f]/15"
+                  type="text"
+                  name="bar_id"
+                  [(ngModel)]="bar_id"
+                  required
+                />
+              </div>
+              <div class="md:col-span-1">
+                <label class="mb-1.5 block text-sm font-semibold text-slate-700" for="adv-bar-file"
+                  >Bar ID document</label
+                >
+                <input
+                  id="adv-bar-file"
+                  class="block w-full cursor-pointer text-sm text-slate-600 file:mr-4 file:rounded-[10px] file:border-0 file:bg-slate-100 file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-slate-800 hover:file:bg-slate-200"
+                  type="file"
+                  name="bar_id_file"
+                  (change)="onBarFileChange($event)"
+                  required
+                />
+              </div>
+              <div class="md:col-span-1">
+                <label class="mb-1.5 block text-sm font-semibold text-slate-700" for="adv-pass">Password</label>
+                <div class="relative">
+                  <input
+                    id="adv-pass"
+                    class="w-full rounded-[10px] border border-slate-200 py-2.5 pl-3.5 pr-[3.25rem] text-[0.95rem] text-slate-900 focus:border-[#2d5a8a] focus:outline-none focus:ring-[3px] focus:ring-[#1e3a5f]/15"
+                    [type]="showPassword ? 'text' : 'password'"
+                    name="password"
+                    [(ngModel)]="password"
+                    autocomplete="new-password"
+                    minlength="8"
+                    required
+                    aria-describedby="adv-pass-hint"
+                  />
+                  <button
+                    type="button"
+                    class="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1.5 text-sm text-slate-500 hover:bg-[#1e3a5f]/[0.06] hover:text-[#1e3a5f]"
+                    (click)="showPassword = !showPassword"
+                    [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
+                  >
+                    {{ showPassword ? 'Hide' : 'Show' }}
+                  </button>
+                </div>
+                <small id="adv-pass-hint" class="mt-1 block text-sm text-slate-500">At least 8 characters.</small>
+              </div>
+              <div class="md:col-span-1">
+                <label class="mb-1.5 block text-sm font-semibold text-slate-700" for="adv-pass2"
+                  >Confirm password</label
+                >
+                <div class="relative">
+                  <input
+                    id="adv-pass2"
+                    class="w-full rounded-[10px] border border-slate-200 py-2.5 pl-3.5 pr-[3.25rem] text-[0.95rem] text-slate-900 focus:border-[#2d5a8a] focus:outline-none focus:ring-[3px] focus:ring-[#1e3a5f]/15"
+                    [type]="showPassword2 ? 'text' : 'password'"
+                    name="passwordConfirm"
+                    [(ngModel)]="passwordConfirm"
+                    autocomplete="new-password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    class="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1.5 text-sm text-slate-500 hover:bg-[#1e3a5f]/[0.06] hover:text-[#1e3a5f]"
+                    (click)="showPassword2 = !showPassword2"
+                    [attr.aria-label]="showPassword2 ? 'Hide password' : 'Show password'"
+                  >
+                    {{ showPassword2 ? 'Hide' : 'Show' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              class="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-[10px] bg-gradient-to-br from-[#1e3a5f] to-[#2d5a8a] px-5 py-3 text-[0.95rem] font-semibold text-white shadow-[0_4px_14px_rgba(30,58,95,0.35)] transition hover:-translate-y-px"
+            >
+              Create account
+            </button>
+          </fieldset>
+        </form>
+
+        <p class="mb-0 mt-6 text-center text-sm">
+          <a routerLink="/user/login" class="font-semibold text-[#2d5a8a] no-underline hover:underline">
+            Already registered? Sign in
+          </a>
+        </p>
+      } @else {
+        <p class="mb-4 text-sm text-slate-600">
+          You’ve entered your details. Enter the one-time password to complete registration. For now, use the
+          placeholder code <span class="font-mono font-semibold text-slate-800">0000</span>.
+        </p>
+
+        <button
+          type="button"
+          class="mb-6 text-sm font-semibold text-[#2d5a8a] hover:underline"
+          (click)="backToForm()"
+        >
+          ← Edit registration details
+        </button>
+
+        @if (formError) {
+          <div
+            class="mb-4 rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900"
+            role="alert"
+            aria-live="polite"
+          >
+            {{ formError }}
+          </div>
+        }
+
+        <form (ngSubmit)="completeRegistration()" novalidate>
+          <fieldset [disabled]="isLoading" class="min-w-0 border-0 p-0">
+            @if (otpError) {
+              <div
+                class="mb-4 rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900"
+                role="alert"
+              >
+                {{ otpError }}
+              </div>
+            }
+            <label class="mb-1.5 block text-sm font-semibold text-slate-700" for="adv-otp">OTP</label>
+            <input
+              id="adv-otp"
+              class="mb-6 w-full rounded-[10px] border border-slate-200 px-3.5 py-2.5 text-[0.95rem] tracking-widest text-slate-900 focus:border-[#2d5a8a] focus:outline-none focus:ring-[3px] focus:ring-[#1e3a5f]/15"
+              type="text"
+              name="otp"
+              [(ngModel)]="otpInput"
+              autocomplete="one-time-code"
+              inputmode="numeric"
+              maxlength="8"
+              placeholder="0000"
+            />
+            <button
+              type="submit"
+              class="inline-flex w-full items-center justify-center gap-2 rounded-[10px] bg-gradient-to-br from-[#1e3a5f] to-[#2d5a8a] px-5 py-3 text-[0.95rem] font-semibold text-white shadow-[0_4px_14px_rgba(30,58,95,0.35)] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-65"
+              [attr.aria-busy]="isLoading"
+              [disabled]="isLoading"
+            >
+              @if (isLoading) {
+                <span
+                  class="inline-block h-[1.1rem] w-[1.1rem] animate-spin rounded-full border-2 border-white/35 border-t-white"
+                  aria-hidden="true"
+                ></span>
+              }
+              {{ isLoading ? 'Registering…' : 'Complete registration' }}
+            </button>
+          </fieldset>
+        </form>
+
+        <p class="mb-0 mt-6 text-center text-sm">
+          <a routerLink="/user/login" class="font-semibold text-[#2d5a8a] no-underline hover:underline">
+            Already registered? Sign in
+          </a>
+        </p>
+      }
+    </div>
+  </div>
+
+  <footer
+    class="relative z-10 mt-auto py-4 text-center text-xs text-slate-300/80 [&_a]:text-slate-100 [&_a]:no-underline hover:[&_a]:underline"
+  >
+    <a routerLink="/user/login">Sign in</a>
+    <span aria-hidden="true"> · </span>
+    <a routerLink="/user/register">Register</a>
+  </footer>
+</div>

@@ -1,0 +1,97 @@
+<div
+  class="relative flex min-h-screen flex-col overflow-x-hidden bg-gradient-to-br from-slate-950 via-[#1e3a5f] to-blue-800"
+>
+  <div
+    class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_20%_40%,rgba(201,162,39,0.15),transparent),radial-gradient(ellipse_60%_40%_at_80%_60%,rgba(59,130,246,0.12),transparent)]"
+    aria-hidden="true"
+  ></div>
+
+  <div class="relative z-10 mx-auto flex w-full max-w-[1200px] flex-1 flex-col justify-center px-4 py-10 sm:px-6 lg:px-10">
+    <div
+      class="mx-auto w-full max-w-[560px] rounded-2xl border border-[#1e3a5f]/12 bg-white/[0.97] p-6 shadow-[0_25px_50px_-12px_rgba(15,23,42,0.25)] sm:p-8"
+    >
+      <img
+        class="mx-auto mb-4 block h-[72px] w-[72px] object-contain"
+        src="/assets/icons/hcs_logo.jpeg"
+        alt=""
+      />
+      <h1 class="mb-2 text-center text-[1.35rem] font-bold text-[#1e3a5f]">Verify your email</h1>
+      <p class="mb-6 text-center text-sm text-slate-500">
+        If you registered with email verification enabled, paste the token from your email below, or open the
+        verification link you were sent.
+      </p>
+
+      @if (successMessage) {
+        <div
+          class="mb-4 rounded-[10px] border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-900"
+          role="status"
+          aria-live="polite"
+        >
+          {{ successMessage }}
+          <p class="mb-0 mt-2">
+            <a routerLink="/user/login" class="font-semibold text-[#2d5a8a] no-underline hover:underline">
+              Continue to sign in
+            </a>
+          </p>
+        </div>
+      }
+
+      @if (formError && !successMessage) {
+        <div
+          class="mb-4 rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900"
+          role="alert"
+          aria-live="polite"
+        >
+          {{ formError }}
+        </div>
+      }
+
+      @if (!successMessage) {
+        <form (ngSubmit)="verify()" novalidate>
+          <label class="mb-1.5 block text-sm font-semibold text-slate-700" for="verify-token"
+            >Verification token</label
+          >
+          <input
+            id="verify-token"
+            class="mb-2 w-full rounded-[10px] border border-slate-200 px-3.5 py-2.5 text-[0.95rem] text-slate-900 focus:border-[#2d5a8a] focus:outline-none focus:ring-[3px] focus:ring-[#1e3a5f]/15"
+            type="text"
+            name="token"
+            [(ngModel)]="tokenInput"
+            autocomplete="one-time-code"
+            [disabled]="isLoading"
+            aria-describedby="verify-hint"
+          />
+          <small id="verify-hint" class="mb-4 block text-sm text-slate-500">
+            In development, the token may also be shown once after registration.
+          </small>
+          <button
+            type="submit"
+            class="inline-flex w-full items-center justify-center gap-2 rounded-[10px] bg-gradient-to-br from-[#1e3a5f] to-[#2d5a8a] px-5 py-3 text-[0.95rem] font-semibold text-white shadow-[0_4px_14px_rgba(30,58,95,0.35)] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-65"
+            [attr.aria-busy]="isLoading"
+            [disabled]="isLoading"
+          >
+            @if (isLoading) {
+              <span
+                class="inline-block h-[1.1rem] w-[1.1rem] animate-spin rounded-full border-2 border-white/35 border-t-white"
+                aria-hidden="true"
+              ></span>
+            }
+            {{ isLoading ? 'Verifying…' : 'Verify email' }}
+          </button>
+        </form>
+      }
+
+      <p class="mb-0 mt-6 text-center text-sm">
+        <a routerLink="/user/login" class="font-semibold text-[#2d5a8a] no-underline hover:underline">
+          Back to sign in
+        </a>
+      </p>
+    </div>
+  </div>
+
+  <footer
+    class="relative z-10 py-4 text-center text-xs text-slate-300/80 [&_a]:text-slate-100 [&_a]:no-underline hover:[&_a]:underline"
+  >
+    <a routerLink="/user/register">Register</a>
+  </footer>
+</div>

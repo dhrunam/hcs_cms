@@ -69,3 +69,29 @@ class JwtTokenObtainByPhoneTests(TestCase):
             format="json",
         )
         self.assertEqual(res.status_code, 400)
+
+
+class InactiveAccountLoginTests(TestCase):
+    """Self-registered users are created with is_active=False until an admin activates them."""
+
+    def test_inactive_user_with_valid_password_gets_clear_error(self):
+        User = get_user_model()
+        user = User.objects.create_user(
+            username="inactive_party",
+            email="inactive_party@test.invalid",
+            password="Valid-pass-99",
+            first_name="A",
+            last_name="B",
+            is_active=False,
+        )
+        client = APIClient()
+        url = reverse("accounts:token_obtain_pair")
+        res = client.post(
+            url,
+            {"email": "inactive_party@test.invalid", "password": "Valid-pass-99"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 400)
+        detail = res.data.get("detail")
+        text = detail[0] if isinstance(detail, list) else detail
+        self.assertIn("administrator", str(text).lower())

@@ -1,0 +1,96 @@
+.admin-page {
+  min-height: 100%;
+  padding: 1.5rem 1rem 2rem;
+  background: #f4f5f7;
+
+  @media (min-width: 640px) {
+    padding: 1.5rem 2rem 2rem;
+  }
+}
+
+.admin-page__title {
+  margin: 0;
+  font-family: 'Merriweather', Georgia, serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+
+  @media (min-width: 640px) {
+    font-size: 1.875rem;
+  }
+}
+
+.admin-page__subtitle {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  color: #475569;
+}
+
+.admin-page__search {
+  display: block;
+  width: 100%;
+  max-width: 28rem;
+  margin-top: 1.25rem;
+}
+
+.admin-page__error {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  font-size: 0.875rem;
+  color: #991b1b;
+}
+
+.admin-table-card {
+  margin-top: 1.25rem;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  background: #fff;
+}
+
+.admin-page__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 12rem;
+  color: #64748b;
+}
+
+.admin-page__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 12rem;
+  font-size: 0.9375rem;
+  color: #64748b;
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-mat-table {
+  width: 100%;
+  background: #fff;
+}
+
+.admin-mat-table th.mat-mdc-header-cell {
+  background: #f1f5f9;
+  color: #475569;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.admin-mat-row:hover .mat-mdc-cell {
+  background: rgba(241, 245, 249, 0.65);
+}
+
+.admin-mat-table .mat-mdc-cell,
+.admin-mat-table .mat-mdc-header-cell {
+  padding: 0.75rem 1rem;
+}

@@ -53,6 +53,7 @@ class PartyRegistrationSerializer(serializers.Serializer):
             phone_number=validated_data["phone_number"],
             registration_type=role_defs.REG_PARTY,
             email_verified=not require_verify,
+            is_active=False,
         )
         user.set_password(password)
         user.save()
@@ -121,6 +122,7 @@ class AdvocateRegistrationSerializer(serializers.Serializer):
             phone_number=validated_data["phone_number"],
             registration_type=role_defs.REG_ADVOCATE,
             email_verified=not require_verify,
+            is_active=False,
         )
         user.set_password(password)
         user.save()

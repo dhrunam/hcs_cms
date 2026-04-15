@@ -3,10 +3,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { trigger, transition, style, animate } from '@angular/animations';
-import { ToastrService } from 'ngx-toastr';
 import { AuthService } from '../../../auth.service';
 
+/** Reads DRF / SimpleJWT error bodies (`detail` as string or list of strings). */
 function messageFromHttpError(err: unknown): string {
   const fallback = 'Login failed. Check your email or phone number and password.';
   if (!(err instanceof HttpErrorResponse)) {
@@ -29,7 +28,6 @@ function messageFromHttpError(err: unknown): string {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-/** Loose match for phone-style sign-in (backend matches User.phone_number). */
 const PHONE_RE = /^[\d\s\-+()]{8,24}$/;
 
 function isValidLoginIdentifier(raw: string): boolean {
@@ -48,22 +46,16 @@ function isValidLoginIdentifier(raw: string): boolean {
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './login.html',
-  styleUrls: ['../auth-shell.css', './login.css'],
-  animations: [
-    trigger('fadeInCard', [
-      transition(':enter', [
-        style({ opacity: 0, transform: 'translateY(12px)' }),
-        animate('420ms cubic-bezier(0.22, 1, 0.36, 1)', style({ opacity: 1, transform: 'translateY(0)' })),
-      ]),
-    ]),
-  ],
+  styleUrl: './login.css',
 })
 export class Login implements OnInit {
   isLoading = false;
   authErrorMessage = '';
+  registeredBanner = false;
+  /** Shown after advocate/party registration while account awaits admin ID verification (`is_active=false`). */
+  pendingActivationBanner = false;
   submitted = false;
 
-  /** Value may be email or phone; API still expects JSON key `email`. */
   email = '';
   password = '';
   showPassword = false;
@@ -71,7 +63,6 @@ export class Login implements OnInit {
   constructor(
     private authService: AuthService,
     private route: ActivatedRoute,
-    private toastr: ToastrService,
   ) {}
 
   ngOnInit(): void {
@@ -83,7 +74,11 @@ export class Login implements OnInit {
     }
 
     if (this.route.snapshot.queryParamMap.get('registered') === '1') {
-      this.toastr.success('Account created. Sign in with your email or phone number and password.');
+      this.registeredBanner = true;
+    }
+
+    if (this.route.snapshot.queryParamMap.get('pending_activation') === '1') {
+      this.pendingActivationBanner = true;
     }
   }
 
@@ -108,10 +103,9 @@ export class Login implements OnInit {
     try {
       await this.authService.loginWithPassword(id, this.password);
       await this.authService.navigateToDashboardByRole();
-    } catch (err: unknown) {
-      const detail = messageFromHttpError(err);
-      this.authErrorMessage = detail;
-      this.toastr.error(detail, 'Sign in failed');
+    } catch (err: any) {
+      console.log(err.error.detail[0]);
+      this.authErrorMessage = messageFromHttpError(err);
     } finally {
       this.isLoading = false;
     }

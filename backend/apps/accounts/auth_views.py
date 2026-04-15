@@ -34,7 +34,11 @@ class PartyRegistrationView(APIView):
         payload = {
             "id": user.pk,
             "email": user.email,
-            "detail": "Registration successful.",
+            "detail": (
+                "Registration received. Your account is inactive until an administrator verifies your "
+                "identity documents; you will not be able to sign in until then."
+            ),
+            "requires_admin_activation": True,
         }
         if getattr(settings, "REGISTRATION_REQUIRE_EMAIL_VERIFICATION", False):
             payload["email_verification_required"] = True
@@ -55,7 +59,11 @@ class AdvocateRegistrationView(APIView):
         payload = {
             "id": user.pk,
             "email": user.email,
-            "detail": "Registration successful.",
+            "detail": (
+                "Registration received. Your account is inactive until an administrator verifies your "
+                "identity documents; you will not be able to sign in until then."
+            ),
+            "requires_admin_activation": True,
         }
         if getattr(settings, "REGISTRATION_REQUIRE_EMAIL_VERIFICATION", False):
             payload["email_verification_required"] = True

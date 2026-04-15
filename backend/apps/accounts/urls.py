@@ -12,12 +12,14 @@ from apps.accounts.jwt_views import (
     ThrottledTokenRefreshView,
     ThrottledTokenVerifyView,
 )
-from apps.accounts.views import UserViewSet
+from apps.accounts.views import GroupViewSet, PermissionViewSet, UserViewSet
 
 app_name = "accounts"
 
 router = DefaultRouter()
 router.register(r"users", UserViewSet, basename="user")
+router.register(r"groups", GroupViewSet, basename="group")
+router.register(r"permissions", PermissionViewSet, basename="permission")
 
 urlpatterns = [
     path("auth/token/", ThrottledTokenObtainPairView.as_view(), name="token_obtain_pair"),

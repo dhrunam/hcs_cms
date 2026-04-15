@@ -6,6 +6,7 @@ import { Router } from '@angular/router';
 import {
   USER_SESSION_ENC_KEY,
   UserSessionProfile,
+  decryptUserSessionProfile,
   encryptUserSessionProfile,
 } from './session-profile-crypto';
 
@@ -13,7 +14,6 @@ export type { UserSessionProfile } from './session-profile-crypto';
 
 export type LogoutStatus = {
   apiSessionLoggedOut: boolean;
-  /** True when the refresh token was revoked on the server (JWT blacklist). */
   refreshBlacklisted: boolean;
   tokensCleared: boolean;
   success: boolean;
@@ -31,10 +31,8 @@ export class AuthService {
   private readonly tokenUrl = `${app_url}/api/v1/accounts/auth/token/`;
   private readonly tokenBlacklistUrl = `${app_url}/api/v1/accounts/auth/token/blacklist/`;
   private readonly logoutUrl = `${app_url}/api/v1/accounts/users/logout/`;
-  /** Fallback when JWT payload cannot expose `groups` to the client (decode issues) or claims are empty. */
   private readonly userMeUrl = `${app_url}/api/v1/accounts/users/me/`;
 
-  /** In-memory copy of `/users/me/` profile; mirrored encrypted in sessionStorage when configured. */
   private sessionProfileCache: UserSessionProfile | null = null;
 
   constructor(
@@ -45,18 +43,14 @@ export class AuthService {
   async initAuth(): Promise<void> {
     this.applyDevAuthBypassIfConfigured();
     this.syncSessionFromJwtAccessToken();
+    await this.hydrateSessionProfileFromEncryptedStorage();
     await this.syncEncryptedUserProfile();
   }
 
-  /** Navigate to local login. */
   login(): void {
     void this.router.navigate(['/user/login']);
   }
 
-  /**
-   * JWT login against the CMS API; stores access/refresh in sessionStorage.
-   * @param identifier Registered email or phone number (`User.phone_number`); sent as JSON `email`.
-   */
   async loginWithPassword(identifier: string, password: string): Promise<void> {
     const res = await firstValueFrom(
       this.http.post<{ access?: string; refresh?: string }>(this.tokenUrl, {
@@ -72,6 +66,7 @@ export class AuthService {
       sessionStorage.setItem('refresh_token', res.refresh);
     }
     this.syncSessionFromJwtAccessToken();
+    await this.hydrateSessionProfileFromEncryptedStorage();
     await this.syncEncryptedUserProfile();
   }
 
@@ -87,8 +82,6 @@ export class AuthService {
       }
     }
 
-    // Session logout must run while access_token is still in sessionStorage so the
-    // auth interceptor sends Authorization: Bearer (UserViewSet.logout is IsAuthenticated).
     let apiSessionLoggedOut = false;
     try {
       await firstValueFrom(this.http.post(this.logoutUrl, {}, { withCredentials: true }));
@@ -122,14 +115,12 @@ export class AuthService {
     return this.initAuth();
   }
 
-  /**
-   * Django group names for routing and APIs; prefers decrypted/in-memory profile from `/users/me/`.
-   */
   public getUserGroups(): string[] {
     if (this.sessionProfileCache?.groups && Array.isArray(this.sessionProfileCache.groups)) {
       return [...this.sessionProfileCache.groups];
     }
-    const rawGroups = sessionStorage.getItem('user_groups');
+    const rawGroups =
+      sessionStorage.getItem('user_groups') ?? localStorage.getItem('user_groups');
     if (!rawGroups) {
       return [];
     }
@@ -142,9 +133,140 @@ export class AuthService {
     }
   }
 
-  /** Decrypted user profile (name, groups, email) after login or `initAuth`; null if not loaded yet. */
   public getSessionProfile(): UserSessionProfile | null {
     return this.sessionProfileCache;
+  }
+
+  /**
+   * Full display string for names and initials (not truncated).
+   */
+  public getUserDisplayNameRaw(): string {
+    const p = this.sessionProfileCache;
+    const fromProfile =
+      p?.displayName?.trim() || p?.email?.trim() || p?.username?.trim() || '';
+    if (fromProfile) {
+      return fromProfile;
+    }
+    const token = sessionStorage.getItem('access_token');
+    if (token) {
+      const claims = this.decodeJwtPayload(token);
+      if (claims) {
+        const fromJwt = AuthService.displayNameFromJwtClaims(claims);
+        if (fromJwt) {
+          return fromJwt;
+        }
+      }
+    }
+    return 'User';
+  }
+
+  /**
+   * Name shown in the shell header (truncated). Uses profile, then email / username, then JWT claims.
+   */
+  public getUserDisplayLabel(): string {
+    const raw = this.getUserDisplayNameRaw();
+    return raw.length > 28 ? raw.slice(0, 26) + '…' : raw;
+  }
+
+  /**
+   * Human-readable role(s) from `/users/me` groups (session profile), then `sessionStorage`
+   * (`user_groups`, `user_group`), then JWT `role` claim.
+   */
+  public getUserRoleDisplayLabel(): string {
+    const groups = this.getUserGroups().filter((g) => String(g).trim().length > 0);
+    if (groups.length > 0) {
+      return groups.map((g) => AuthService.formatRoleGroupName(String(g))).join(', ');
+    }
+    const single =
+      sessionStorage.getItem('user_group')?.trim() ?? localStorage.getItem('user_group')?.trim();
+    if (single) {
+      return AuthService.formatRoleGroupName(single);
+    }
+    const token = sessionStorage.getItem('access_token');
+    if (token) {
+      const claims = this.decodeJwtPayload(token);
+      const role = typeof claims?.['role'] === 'string' ? claims['role'].trim() : '';
+      if (role) {
+        return AuthService.formatRoleGroupName(role);
+      }
+    }
+    return '—';
+  }
+
+  /** Maps Django group names / JWT role keys to display labels. */
+  private static formatRoleGroupName(raw: string): string {
+    const n = raw.trim();
+    if (!n) {
+      return '';
+    }
+    const upper = n.toUpperCase();
+    const groupLabels: Record<string, string> = {
+      ADVOCATE: 'Advocate',
+      PARTY_IN_PERSON: 'Party in person',
+      SCRUTINY_OFFICER: 'Scrutiny officer',
+      READER: 'Reader',
+      LISTING_OFFICER: 'Listing officer',
+      STENO: 'Steno',
+      JUDGE: 'Judge',
+      SUPERADMIN: 'Super admin',
+    };
+    if (groupLabels[upper]) {
+      return groupLabels[upper];
+    }
+    const norm = n.toLowerCase().replace(/\s+/g, '_');
+    const roleKeyLabels: Record<string, string> = {
+      superadmin: 'Super admin',
+      advocate: 'Advocate',
+      party_in_person: 'Party in person',
+      scrutiny_officer: 'Scrutiny officer',
+      reader: 'Reader',
+      listing_officer: 'Listing officer',
+      steno: 'Steno',
+      judge: 'Judge',
+    };
+    if (roleKeyLabels[norm]) {
+      return roleKeyLabels[norm];
+    }
+    if (upper.startsWith('JUDGE_')) {
+      const rest = n.slice(6).replace(/_/g, ' ').trim();
+      return rest ? `Judge · ${rest}` : 'Judge';
+    }
+    if (upper.startsWith('READER_')) {
+      const rest = n.slice(7).replace(/_/g, ' ').trim();
+      return rest ? `Reader · ${rest}` : 'Reader';
+    }
+    return n
+      .replace(/_/g, ' ')
+      .replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+  }
+
+  private static displayNameFromJwtClaims(claims: Record<string, unknown>): string {
+    const str = (k: string): string | undefined =>
+      typeof claims[k] === 'string' ? (claims[k] as string).trim() || undefined : undefined;
+    return (
+      str('name') ||
+      [str('given_name'), str('family_name')].filter(Boolean).join(' ').trim() ||
+      str('preferred_username') ||
+      str('email') ||
+      str('username') ||
+      ''
+    );
+  }
+
+  private async hydrateSessionProfileFromEncryptedStorage(): Promise<void> {
+    const p = this.sessionProfileCache;
+    if (p?.displayName?.trim() || p?.email?.trim() || p?.username?.trim()) {
+      return;
+    }
+    const stored = sessionStorage.getItem(USER_SESSION_ENC_KEY);
+    if (!stored || !sessionProfileKey?.trim()) {
+      return;
+    }
+    const profile = await decryptUserSessionProfile(stored, sessionProfileKey);
+    if (!profile) {
+      return;
+    }
+    this.sessionProfileCache = profile;
   }
 
   async navigateToDashboardByRole(): Promise<void> {
@@ -169,30 +291,25 @@ export class AuthService {
     await this.navigateToDashboardFromUserGroups();
   }
 
-  /**
-   * Maps JWT `role` (lowercase key from API) and Django `Group.name` values
-   * (e.g. JUDGE_CJ, READER_J1) to dashboard routes.
-   */
   static dashboardRouteForRole(primaryRole: string | null): string[] | null {
     const r = primaryRole?.trim() || '';
     if (!r) return null;
     const u = r.toUpperCase();
 
+    if (u === 'SUPERADMIN' || r === 'superadmin') {
+      return ['/superadmin/dashboard/home'];
+    }
     if (u === 'ADVOCATE' || r === 'advocate') {
       return ['/advocate/dashboard/home'];
     }
     if (u === 'PARTY_IN_PERSON' || r === 'party_in_person') {
-      return ['/advocate/dashboard/home'];
+      return ['/party/dashboard/home'];
     }
     if (u === 'SCRUTINY_OFFICER' || r === 'scrutiny_officer') {
       return ['/scrutiny-officers/dashboard/home'];
     }
-    if (
-      u === 'READER' ||
-      r === 'reader' ||
-      u.startsWith('READER_')
-    ) {
-      return ['/reader/dashboard'];
+    if (u === 'READER' || r === 'reader' || u.startsWith('READER_')) {
+      return ['/reader/dashboard/home'];
     }
     if (u === 'LISTING_OFFICER' || r === 'listing_officer') {
       return ['/listing-officers/dashboard/home'];
@@ -203,9 +320,6 @@ export class AuthService {
     if (u === 'STENO' || r === 'steno') {
       return ['/steno/dashboard/home'];
     }
-    if (u === 'SUPERADMIN' || r === 'superadmin') {
-      return ['/advocate/dashboard/home'];
-    }
     return null;
   }
 
@@ -213,13 +327,18 @@ export class AuthService {
     const groups = this.getUserGroups();
     const has = (pred: (g: string) => boolean) => groups.some(pred);
 
+    if (has((g) => g === 'SUPERADMIN')) {
+      await this.router.navigate(['/superadmin/dashboard/home']);
+      return;
+    }
+
     if (has((g) => g === 'JUDGE' || g.startsWith('JUDGE_'))) {
       await this.router.navigate(['/judges/dashboard/home']);
       return;
     }
 
     if (has((g) => g === 'READER' || g.startsWith('READER_'))) {
-      await this.router.navigate(['/reader/dashboard']);
+      await this.router.navigate(['/reader/dashboard/home']);
       return;
     }
 
@@ -239,7 +358,7 @@ export class AuthService {
     }
 
     if (has((g) => g === 'PARTY_IN_PERSON')) {
-      await this.router.navigate(['/advocate/dashboard/home']);
+      await this.router.navigate(['/party/dashboard/home']);
       return;
     }
 
@@ -288,7 +407,6 @@ export class AuthService {
     };
   }
 
-  /** When JWT omits `groups`, derive a canonical group from `role` for routing. */
   private static primaryGroupForRoleKey(role: string): string | null {
     const m: Record<string, string> = {
       advocate: 'ADVOCATE',
@@ -332,7 +450,6 @@ export class AuthService {
     }
   }
 
-  /** Normalize `groups` from JWT payload (array, JSON string, or missing). */
   private static groupsFromClaims(claims: Record<string, unknown>): string[] {
     const raw = claims['groups'];
     if (Array.isArray(raw)) {
@@ -356,10 +473,6 @@ export class AuthService {
     return [];
   }
 
-  /**
-   * Loads `/users/me/`, updates plain `user_groups` / `user_group` for routing, caches profile,
-   * and stores an AES-GCM encrypted blob when `sessionProfileKey` is set.
-   */
   private async syncEncryptedUserProfile(): Promise<void> {
     if (!this.isLoggedIn()) {
       return;
@@ -371,6 +484,7 @@ export class AuthService {
           first_name?: string;
           last_name?: string;
           email?: string;
+          username?: string;
           groups?: string[];
           registration_type?: string;
         }>(this.userMeUrl),
@@ -384,11 +498,14 @@ export class AuthService {
           .filter((x): x is string => typeof x === 'string' && !!x.trim())
           .join(' ')
           .trim() ||
-        (typeof me.email === 'string' ? me.email : '');
+        (typeof me.email === 'string' ? me.email.trim() : '') ||
+        (typeof me.username === 'string' ? me.username.trim() : '') ||
+        '';
       const profile: UserSessionProfile = {
         displayName,
         groups,
         email: typeof me.email === 'string' ? me.email : undefined,
+        username: typeof me.username === 'string' ? me.username : undefined,
         registration_type:
           typeof me.registration_type === 'string' ? me.registration_type : undefined,
       };
@@ -410,7 +527,6 @@ export class AuthService {
     }
   }
 
-  /** UTF-8 safe JWT payload decode (atob alone breaks on non-ASCII in claims). */
   private decodeJwtPayload(accessToken: string): Record<string, unknown> | null {
     const tokenParts = accessToken.split('.');
     if (tokenParts.length < 2) {

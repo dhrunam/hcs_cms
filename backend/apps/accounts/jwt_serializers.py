@@ -50,6 +50,31 @@ class HCSTokenObtainPairSerializer(TokenObtainPairSerializer):
 
     def validate(self, attrs):
         attrs = self._normalize_login_identifier(attrs)
+        User = get_user_model()
+        field = self.username_field
+        login_value = (attrs.get(field) or "").strip()
+        password = attrs.get("password")
+        if login_value and password:
+            try:
+                candidate = User.objects.get(**{field: login_value})
+            except User.DoesNotExist:
+                candidate = None
+            if (
+                candidate is not None
+                and candidate.check_password(password)
+                and not candidate.is_active
+            ):
+                raise serializers.ValidationError(
+                    {
+                        "detail": (
+                            "Your account is inactive. Sign-in requires activation by an administrator "
+                            "after your identity documents are verified. Please contact the court office "
+                            "if you need assistance."
+                        )
+                    },
+                    code="account_inactive",
+                )
+
         data = super().validate(attrs)
         user = self.user
         if getattr(settings, "REGISTRATION_REQUIRE_EMAIL_VERIFICATION", False):
