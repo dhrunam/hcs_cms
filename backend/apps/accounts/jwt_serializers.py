@@ -17,6 +17,31 @@ from apps.accounts.tokens import HCSRefreshToken
 class HCSTokenObtainPairSerializer(TokenObtainPairSerializer):
     token_class = HCSRefreshToken
 
+    def __init__(self, *args, **kwargs):
+        """
+        Allow frontend clients to send a generic `identifier` (or `username`)
+        instead of the backend username field (`email`).
+        """
+        super().__init__(*args, **kwargs)
+        self.fields[self.username_field].required = False
+        self.fields["identifier"] = serializers.CharField(required=False, allow_blank=True)
+        self.fields["username"] = serializers.CharField(required=False, allow_blank=True)
+
+    def _coalesce_identifier(self, attrs: dict) -> dict:
+        """
+        Accept either `email`, `identifier`, or `username` from clients and map
+        the first non-empty value to the configured username field (`email`).
+        """
+        field = self.username_field
+        explicit = attrs.get(field)
+        identifier = attrs.get("identifier")
+        username = attrs.get("username")
+        candidate = (explicit or identifier or username or "").strip()
+        if not candidate:
+            raise serializers.ValidationError({field: "This field may not be blank."})
+        attrs[field] = candidate
+        return attrs
+
     def _normalize_login_identifier(self, attrs: dict) -> dict:
         """
         The JSON field name stays ``email`` (USERNAME_FIELD), but the value may be
@@ -49,6 +74,7 @@ class HCSTokenObtainPairSerializer(TokenObtainPairSerializer):
         return attrs
 
     def validate(self, attrs):
+        attrs = self._coalesce_identifier(attrs)
         attrs = self._normalize_login_identifier(attrs)
         data = super().validate(attrs)
         user = self.user
