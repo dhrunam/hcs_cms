@@ -62,8 +62,8 @@ INSTALLED_APPS = [
     "apps.listing",
     "apps.judge",
     "apps.master",
-    "apps.reader",
-   
+"apps.reader",
+    "apps.office_notes",
 ]
 
 MIDDLEWARE = [

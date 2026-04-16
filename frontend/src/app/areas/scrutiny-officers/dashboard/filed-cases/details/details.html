@@ -126,6 +126,17 @@
               Chat
             </button>
           </li>
+          <li class="nav-item">
+            <button
+              type="button"
+              class="nav-link"
+              [class.active]="activeTab === 'notes'"
+              (click)="setActiveTab('notes')"
+            >
+              <i class="fa-solid fa-file-alt me-2"></i>
+              Notes
+            </button>
+          </li>
         </ul>
         <div
           (click)="toogleScreen()"
@@ -401,6 +412,13 @@
           composerTitle="Scrutiny Officer"
           roleScope="scrutiny_officer"
         ></app-efiling-chat>
+      </div>
+      <div *ngIf="activeTab === 'notes'" class="document-summary-section">
+        <app-office-note-editor
+          [caseId]="filingId"
+          [showHeader]="false"
+          *ngIf="filingId"
+        ></app-office-note-editor>
       </div>
       <div *ngIf="activeTab === 'documents'" class="document-summary-section">
         <div class="row g-4">

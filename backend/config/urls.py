@@ -15,6 +15,7 @@ urlpatterns = [
     path('api/v1/judge/', include('apps.judge.urls', namespace='judge')),
     path('api/v1/master/', include('apps.master.urls', namespace='master')),
     path('api/v1/reader/', include('apps.reader.urls', namespace='reader')),
+    path('api/v1/office-notes/', include('apps.office_notes.urls', namespace='office_notes')),
 ]
 
 if settings.DEBUG:

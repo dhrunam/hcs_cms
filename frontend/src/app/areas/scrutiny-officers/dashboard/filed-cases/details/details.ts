@@ -21,11 +21,12 @@ import {
   isEfilingDocumentIndexClickable,
   trackByEfilingDocumentIndexRowId,
 } from "../../../../../utils/efiling-document-index-tree";
+import { OfficeNoteEditor } from "../../../../office-note-sheet/note-editor/note-editor";
 
 @Component({
   selector: "app-filed-case-details",
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, EfilingChatComponent],
+  imports: [CommonModule, FormsModule, RouterLink, EfilingChatComponent, OfficeNoteEditor],
   templateUrl: "./details.html",
   styleUrl: "./details.css",
 })
@@ -82,7 +83,7 @@ export class FiledCaseDetails {
   isSavingReview = false;
   isSubmittingApprovedCase = false;
   missingFilingId = false;
-  activeTab: "filing" | "documents" | "ia" | "chat" = "filing";
+  activeTab: "filing" | "documents" | "ia" | "chat" | "notes" = "filing";
   iaList: any[] = [];
   fullScreen = false;
   iaDocuments: any[] = [];
@@ -110,7 +111,7 @@ export class FiledCaseDetails {
     private toastr: ToastrService,
   ) {}
 
-  setActiveTab(tab: "filing" | "documents" | "ia" | "chat"): void {
+  setActiveTab(tab: "filing" | "documents" | "ia" | "chat" | "notes"): void {
     this.activeTab = tab;
   }
 
