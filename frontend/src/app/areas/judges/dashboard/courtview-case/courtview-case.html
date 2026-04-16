@@ -40,8 +40,8 @@
        </div> -->
        <div class="text-end d-flex flex-column justify-content-center align-items-start">
           <h5 class="caseh font-weight-bold fs-6">
-          <!-- {{ caseSummary.case_number || 'No Case Number' }} -->
-            case no: WP(C) / 1/ 2023
+          Case No: {{ caseSummary.case_number || 'No Case Number' }}
+            <!-- case no: WP(C) / 1/ 2023 -->
           </h5>
         <div class="text-center text-dark fw-bold col-12"
        [innerHTML]="formatVs(caseSummary.petitioner_name)">
