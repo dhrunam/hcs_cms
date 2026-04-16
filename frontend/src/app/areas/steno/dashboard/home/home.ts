@@ -3,7 +3,7 @@ import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import Swal from 'sweetalert2';
 
-import { ReaderService } from '../../../../services/reader/reader.service';
+import { ReaderService, StenoQueueItem } from '../../../../services/reader/reader.service';
 import { app_url } from '../../../../environment';
 
 @Component({
@@ -14,7 +14,7 @@ import { app_url } from '../../../../environment';
 })
 export class StenoHomePage {
   isLoading = false;
-  items: any[] = [];
+  items: StenoQueueItem[] = [];
   draftDocIds: Record<number, number> = {};
   selectedFiles: Record<number, File | null> = {};
   signedFiles: Record<number, File | null> = {};
