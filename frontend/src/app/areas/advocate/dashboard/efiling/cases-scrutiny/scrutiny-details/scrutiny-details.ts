@@ -21,6 +21,7 @@ import {
   trackByEfilingDocumentIndexRowId,
 } from "../../../../../../utils/efiling-document-index-tree";
 import { EfilingChatComponent } from "../../../../../../shared/efiling-chat/efiling-chat";
+import { orderDocumentsForDisplay } from "../../../../../../shared/document-groups";
 
 @Component({
   selector: "app-scrutiny-details",
@@ -135,9 +136,9 @@ export class ScrutinyDetails {
         payment,
       }) => {
         this.filing = filing;
-        this.documents = documents?.results ?? [];
+        this.documents = orderDocumentsForDisplay(documents?.results ?? [], "");
         this.groupedDocuments = this.groupDocumentsByType(this.documents);
-        this.iaDocuments = iaDocuments?.results ?? [];
+        this.iaDocuments = orderDocumentsForDisplay(iaDocuments?.results ?? [], "");
         this.litigantList = litigants?.results ?? [];
         this.caseDetails = caseDetails?.results?.[0] ?? null;
         this.actList = acts?.results ?? [];

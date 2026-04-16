@@ -337,11 +337,12 @@
                     class="document-list"
                     *ngIf="groupedDocuments.length > 0"
                   >
-                    <div
+                    <details
                       class="document-group"
                       *ngFor="let group of groupedDocuments; let i = index; trackBy: trackByGroupIndex"
+                      [open]="!(group.document_type || '').toLowerCase().includes('vakalat')"
                     >
-                      <div class="document-type-header">
+                      <summary class="document-type-header">
                         <span
                           >{{ group.document_type || 'Main Document' }}</span
                         >
@@ -354,7 +355,7 @@
                             date: 'hh:mm a' }}
                           </span>
                         </ng-container>
-                      </div>
+                      </summary>
 
                       <div
                         *ngFor="let row of group.rows; trackBy: trackByRowDocumentId"
@@ -379,7 +380,7 @@
                           >
                             <div>
                               <div class="document-title fw-normal">
-                                {{ row.document.document_part_name ||
+                                {{ row.document.display_index_label || '-' }}. {{ row.document.document_part_name ||
                                 getDocumentTitle(row.document) }}
                               </div>
                             </div>
@@ -440,7 +441,7 @@
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </details>
                   </div>
                 </div>
               </div>
@@ -691,11 +692,12 @@
                               >
                             </div>
                             <div class="document-list">
-                              <div
+                              <details
                                 class="document-group"
                                 *ngFor="let group of item.groupedDocs; trackBy: trackByGroupIndex"
+                                [open]="!(group.document_type || '').toLowerCase().includes('vakalat')"
                               >
-                                <div class="document-type-header">
+                                <summary class="document-type-header">
                                   <span
                                     >{{ group.document_type || 'Main Document'
                                     }}</span
@@ -709,7 +711,7 @@
                                       at {{ id0 | date: 'hh:mm a' }}
                                     </span>
                                   </ng-container>
-                                </div>
+                                </summary>
                                 <div
                                   *ngFor="let row of group.rows; trackBy: trackByRowDocumentId"
                                   class="document-index-row"
@@ -732,7 +734,7 @@
                                       class="d-flex justify-content-between align-items-start gap-2"
                                     >
                                       <div class="document-title fw-normal">
-                                        {{ row.document.document_part_name ||
+                                        {{ row.document.display_index_label || '-' }}. {{ row.document.document_part_name ||
                                         getDocumentTitle(row.document) }}
                                       </div>
                                       <div
@@ -791,7 +793,7 @@
                                     </div>
                                   </div>
                                 </div>
-                              </div>
+                              </details>
                             </div>
                           </div>
                         </div>

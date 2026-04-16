@@ -71,3 +71,8 @@
   border: 0;
   height: 100vh;
 }
+
+.doc-sub-item {
+  margin-left: 14px;
+  border-left: 2px solid #cbd5e1 !important;
+}

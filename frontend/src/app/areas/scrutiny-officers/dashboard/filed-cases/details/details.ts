@@ -11,6 +11,7 @@ import {
   EfilingService,
 } from "../../../../../services/advocate/efiling/efiling.services";
 import { EfilingChatComponent } from "../../../../../shared/efiling-chat/efiling-chat";
+import { orderDocumentsForDisplay } from "../../../../../shared/document-groups";
 import { catchError, of } from "rxjs";
 import { PaymentService } from "../../../../../services/payment/payment.service";
 import {
@@ -170,9 +171,9 @@ export class FiledCaseDetails {
         this.litigants = litigants?.results ?? [];
         this.caseDetails = caseDetails?.results?.[0] ?? null;
         this.acts = acts?.results ?? [];
-        this.documents = documents?.results ?? [];
+        this.documents = orderDocumentsForDisplay(documents?.results ?? [], "");
         this.groupedDocuments = this.groupDocumentsByType(this.documents);
-        this.iaDocuments = iaDocuments?.results ?? [];
+        this.iaDocuments = orderDocumentsForDisplay(iaDocuments?.results ?? [], "");
         this.groupedIaDocuments = this.groupDocumentsByType(this.iaDocuments);
         this.iaList = Array.isArray(ias) ? ias : (ias?.results ?? []);
         this.updatePaymentDetails(payment);

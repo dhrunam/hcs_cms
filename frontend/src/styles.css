@@ -104,3 +104,108 @@ body.fullscreen-mode app-sidebar {
 body.fullscreen-mode nav.navbar {
   display: none !important;
 }
+
+.litigants-trigger {
+  border: 1px solid #c7d2fe;
+  background: #eef2ff;
+  color: #3730a3;
+  font-weight: 600;
+}
+
+.litigants-trigger:hover {
+  background: #e0e7ff;
+  color: #312e81;
+}
+
+.litigants-modal-popup {
+  border-radius: 14px;
+}
+
+.litigants-modal {
+  text-align: left;
+}
+
+.litigants-modal__subtitle {
+  color: #64748b;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+.litigants-modal__section {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  background: #f8fafc;
+  margin-bottom: 10px;
+}
+
+.litigants-modal__heading {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 10px;
+}
+
+.litigants-modal__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.litigants-modal__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 7px 0;
+}
+
+.litigants-modal__row:last-child {
+  border-bottom: 0;
+}
+
+.litigants-modal__name {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.litigants-modal__meta {
+  color: #475569;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.litigants-modal__empty {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.vakalat-collapse {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 6px 8px;
+}
+
+.vakalat-collapse__trigger {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 2px 0;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.vakalat-collapse__trigger:hover {
+  color: #334155;
+}
+
+.doc-sub-item {
+  margin-left: 12px !important;
+  border-left: 2px solid #cbd5e1 !important;
+}

@@ -39,6 +39,16 @@
               {{ caseSummary.bench_label || benchLabel(caseSummary.bench_key) }}
             </div>
           </div>
+          <div class="col-md-6 d-flex align-items-end">
+            <button
+              type="button"
+              class="btn btn-sm litigants-trigger"
+              (click)="openLitigantsModal()"
+            >
+              <i class="fa fa-users me-2"></i>
+              View Litigants
+            </button>
+          </div>
           <div
             class="col-md-6"
             *ngIf="(caseSummary.litigants?.length ?? 0) > 0;"
@@ -104,21 +114,46 @@
                       placeholder="Search ..."
                     />
                   </div>
-                  <div
-                    *ngFor="let doc of filteredDocuments;let i=index"
-                    class="form-check mb-1 px-2 py-2 shadow-sm mb-2"
-                    style="
-                      cursor: pointer;
-                      border: 1px solid rgb(232, 232, 232);
-                      color: rgb(5, 3, 78);
-                      border-radius: 6px;
-                    "
-                    (click)="selectPreviewDocument(doc)"
-                  >
-                    <label class="form-check-label small me-2">
-                      {{i+1}}. {{ doc.document_part_name || 'Document' }}
-                    </label>
-                  </div>
+                  <ng-container *ngFor="let section of documentDisplaySections; let i = index">
+                    <div
+                      *ngIf="section.kind === 'doc'"
+                      class="form-check mb-1 px-2 py-2 shadow-sm mb-2"
+                      style="
+                        cursor: pointer;
+                        border: 1px solid rgb(232, 232, 232);
+                        color: rgb(5, 3, 78);
+                        border-radius: 6px;
+                      "
+                      (click)="selectPreviewDocument(section.doc)"
+                    >
+                      <label class="form-check-label small me-2">
+                        {{ section.doc.display_index_label || (i + 1) }}. {{ section.doc.document_part_name || 'Document' }}
+                      </label>
+                    </div>
+                    <div *ngIf="section.kind === 'vakalatGroup'" class="vakalat-collapse mb-2">
+                      <button type="button" class="vakalat-collapse__trigger" (click)="toggleVakalatGroup(section.id)">
+                        <i class="fa" [class.fa-chevron-right]="!isVakalatGroupExpanded(section.id)" [class.fa-chevron-down]="isVakalatGroupExpanded(section.id)"></i>
+                        <span>{{ section.label }}</span>
+                      </button>
+                      <ng-container *ngIf="isVakalatGroupExpanded(section.id)">
+                        <div
+                          *ngFor="let doc of section.items"
+                          class="form-check mb-1 px-2 py-2 shadow-sm mb-2 doc-sub-item"
+                          style="
+                            cursor: pointer;
+                            border: 1px solid rgb(232, 232, 232);
+                            color: rgb(5, 3, 78);
+                            border-radius: 6px;
+                          "
+                          (click)="selectPreviewDocument(doc)"
+                        >
+                          <label class="form-check-label small me-2">
+                            {{ doc.display_index_label }}. {{ doc.document_part_name || 'Document' }}
+                          </label>
+                        </div>
+                      </ng-container>
+                    </div>
+                  </ng-container>
                 </div>
               </div>
               <div class="col-lg-9">

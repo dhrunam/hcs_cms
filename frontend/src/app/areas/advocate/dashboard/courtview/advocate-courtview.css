@@ -141,6 +141,11 @@
   cursor: pointer;
 }
 
+.doc-sub-item {
+  margin-left: 14px;
+  border-left: 2px solid #cbd5e1;
+}
+
 .document-item:hover {
   transform: translateX(4px);
   background-color: #f8fafc;

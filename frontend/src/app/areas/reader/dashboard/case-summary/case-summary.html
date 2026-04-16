@@ -81,20 +81,44 @@
                   <!-- Click a document to preview -->
                 </div>
                 <div class="d-flex flex-column gap-2">
-                  <button
-                    type="button"
-                    class="doc-preview-item text-start"
-                    *ngFor="let d of documents"
-                    [class.active]="isSelectedDocument(d.id)"
-                    (click)="selectDocument(d)"
-                  >
-                    <span class="doc-preview-name">{{ documentName(d) }}</span>
-                    <span
-                      *ngIf="isRequestedDocument(d.id)"
-                      class="badge rounded-pill text-bg-info"
-                      >Requested</span
+                  <ng-container *ngFor="let section of documentDisplaySections">
+                    <button
+                      *ngIf="section.kind === 'doc'"
+                      type="button"
+                      class="doc-preview-item text-start"
+                      [class.active]="isSelectedDocument(section.doc.id)"
+                      (click)="selectDocument(section.doc)"
                     >
-                  </button>
+                      <span class="doc-preview-name">{{ section.doc.display_index_label || '-' }}. {{ documentName(section.doc) }}</span>
+                      <span
+                        *ngIf="isRequestedDocument(section.doc.id)"
+                        class="badge rounded-pill text-bg-info"
+                        >Requested</span
+                      >
+                    </button>
+                    <div *ngIf="section.kind === 'vakalatGroup'" class="vakalat-collapse">
+                      <button type="button" class="vakalat-collapse__trigger" (click)="toggleVakalatGroup(section.id)">
+                        <i class="fa" [class.fa-chevron-right]="!isVakalatGroupExpanded(section.id)" [class.fa-chevron-down]="isVakalatGroupExpanded(section.id)"></i>
+                        <span>{{ section.label }}</span>
+                      </button>
+                      <div class="d-flex flex-column gap-2 mt-2" *ngIf="isVakalatGroupExpanded(section.id)">
+                        <button
+                          type="button"
+                          class="doc-preview-item text-start doc-sub-item"
+                          *ngFor="let d of section.items"
+                          [class.active]="isSelectedDocument(d.id)"
+                          (click)="selectDocument(d)"
+                        >
+                          <span class="doc-preview-name">{{ d.display_index_label || '-' }}. {{ documentName(d) }}</span>
+                          <span
+                            *ngIf="isRequestedDocument(d.id)"
+                            class="badge rounded-pill text-bg-info"
+                            >Requested</span
+                          >
+                        </button>
+                      </div>
+                    </div>
+                  </ng-container>
                 </div>
               </div>
 

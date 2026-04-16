@@ -13,6 +13,7 @@ import {
   resolveBenchConfiguration,
 } from "../../../../services/reader/reader.service";
 import { formatPetitionerVsRespondent } from "../../../../utils/petitioner-vs-respondent";
+import { buildCollapsedDisplaySections, DocumentDisplaySection, orderDocumentsForDisplay } from "../../../../shared/document-groups";
 
 type Filing = any;
 type CaseDetails = any;
@@ -55,6 +56,7 @@ export class ReaderCaseSummaryPage {
   approvalForwardedForDate: string | null = null;
   benchConfigurations: BenchConfiguration[] = [];
   listingRemark = "";
+  private expandedVakalatGroupIds = new Set<string>();
 
   constructor(
     private route: ActivatedRoute,
@@ -133,7 +135,7 @@ export class ReaderCaseSummaryPage {
           : Array.isArray(iaDocuments)
             ? iaDocuments
             : [];
-        this.documents = [...mainDocs, ...iaDocs];
+        this.documents = orderDocumentsForDisplay([...mainDocs, ...iaDocs], "");
         this.selectedDocument = this.documents[0] ?? null;
         this.updatePreviewUrl(this.selectedDocument ?? null);
 
@@ -488,5 +490,21 @@ export class ReaderCaseSummaryPage {
       !this.canAssignListingDate &&
       !this.approvalListingDate
     );
+  }
+
+  get documentDisplaySections(): DocumentDisplaySection[] {
+    return buildCollapsedDisplaySections(this.documents);
+  }
+
+  isVakalatGroupExpanded(id: string): boolean {
+    return this.expandedVakalatGroupIds.has(id);
+  }
+
+  toggleVakalatGroup(id: string): void {
+    if (this.expandedVakalatGroupIds.has(id)) {
+      this.expandedVakalatGroupIds.delete(id);
+      return;
+    }
+    this.expandedVakalatGroupIds.add(id);
   }
 }
