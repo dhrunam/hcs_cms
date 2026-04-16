@@ -1,0 +1,36 @@
+/* Login-specific tweaks; shared tokens live in auth-shell.css */
+
+.login-page .auth-brand h1 {
+  color: #f8fafc;
+  font-size: clamp(1.75rem, 3vw, 2.1rem);
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.login-page .auth-brand p {
+  color: rgba(248, 250, 252, 0.88);
+  font-size: 1rem;
+  line-height: 1.65;
+  max-width: 38ch;
+}
+
+.login-form-column {
+  width: 100%;
+  max-width: 440px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (min-width: 992px) {
+  .login-form-column {
+    margin-left: 0;
+    margin-right: 0;
+    justify-self: end;
+  }
+}
+
+@media (max-width: 991px) {
+  .login-page .auth-brand {
+    display: none;
+  }
+}

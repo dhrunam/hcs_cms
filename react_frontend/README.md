@@ -41,7 +41,7 @@ cp .env.example .env
 
 Variables:
 
-- `VITE_API_BASE_URL` (default: `http://localhost:8000/api/v1`)
+- `VITE_API_BASE_URL` (default: `http://localhost:8002/api/v1`)
 
 ## Project Structure
 

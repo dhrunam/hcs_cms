@@ -14,7 +14,16 @@ describe("auth api integration", () => {
         if (!body.email) {
           return HttpResponse.json({ detail: "Email is required." }, { status: 400 });
         }
-        return HttpResponse.json({ detail: "Registration successful." }, { status: 201 });
+        return HttpResponse.json(
+          {
+            id: 1,
+            email: body.email,
+            detail: "Registration successful.",
+            email_verification_required: true,
+            verification_token: "token-123",
+          },
+          { status: 201 },
+        );
       }),
     );
 
@@ -30,6 +39,8 @@ describe("auth api integration", () => {
     });
 
     expect(response.detail).toBe("Registration successful.");
+    expect(response.email_verification_required).toBe(true);
+    expect(response.verification_token).toBe("token-123");
   });
 
   it("normalizes registration API error payload", async () => {

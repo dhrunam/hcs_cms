@@ -1,7 +1,13 @@
 import { Link, Outlet, useNavigate } from "react-router-dom";
 
 import { authStorage } from "../lib/authStorage";
+import { normalizeApiError } from "../lib/apiError";
+import { useToast } from "../lib/toast";
 import type { UserRole } from "../types/auth";
+import { logout } from "../../features/auth/api/authApi";
+import { AdvocateNavbar } from "./AdvocateNavbar";
+import { AdvocateSidebar } from "./AdvocateSidebar";
+import "./advocate-shell.css";
 
 type NavLink = {
   to: string;
@@ -14,8 +20,8 @@ const navByRole: Record<UserRole, NavLink[]> = {
     { to: "/party-in-person/filings", label: "My Filings" },
   ],
   advocate: [
-    { to: "/advocate", label: "Overview" },
-    { to: "/advocate/filings", label: "Filings" },
+    { to: "/advocate/dashboard/home", label: "Overview" },
+    { to: "/advocate/dashboard/efiling/filing", label: "Filings" },
   ],
   "scrutiny-officers": [
     { to: "/scrutiny-officers", label: "Overview" },
@@ -42,12 +48,34 @@ const navByRole: Record<UserRole, NavLink[]> = {
 export function AppShell() {
   const user = authStorage.getUser();
   const navigate = useNavigate();
+  const { push } = useToast();
   const navLinks = user ? navByRole[user.role] : [];
 
-  const handleLogout = () => {
-    authStorage.clearSession();
-    navigate("/user/login", { replace: true });
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      const message = normalizeApiError(error, "Unable to notify server about logout.");
+      push(message, "info");
+    } finally {
+      authStorage.clearSession();
+      navigate("/user/login", { replace: true });
+    }
   };
+
+  if (user?.role === "advocate") {
+    return (
+      <div className="app-shell">
+        <AdvocateNavbar />
+        <div className="app-body app-body--advocate">
+          <AdvocateSidebar />
+          <section className="content">
+            <Outlet />
+          </section>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-shell">
@@ -58,7 +86,7 @@ export function AppShell() {
         </div>
         <div className="topbar-actions">
           <span>{user?.fullName ?? user?.email ?? "User"}</span>
-          <button onClick={handleLogout}>Logout</button>
+          <button onClick={() => void handleLogout()}>Logout</button>
         </div>
       </header>
       <div className="app-body">

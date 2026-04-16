@@ -77,6 +77,11 @@ const ScrutinyOfficerDashboardPage = lazy(() =>
     default: module.ScrutinyOfficerDashboardPage,
   })),
 );
+const FilingPage = lazy(() =>
+  import("../../features/advocate/pages/FilingPage").then((module) => ({
+    default: module.default,
+  })),
+);
 const StenoDashboardPage = lazy(() =>
   import("../../features/steno/pages/StenoDashboardPage").then((module) => ({
     default: module.StenoDashboardPage,
@@ -148,7 +153,78 @@ export const router = createBrowserRouter([
                 children: [
                   {
                     index: true,
-                    element: withSuspense(<AdvocateDashboardPage />),
+                    element: <Navigate to="dashboard/home" replace />,
+                  },
+                  {
+                    path: "dashboard",
+                    children: [
+                      {
+                        index: true,
+                        element: <Navigate to="home" replace />,
+                      },
+                      {
+                        path: "home",
+                        element: withSuspense(<AdvocateDashboardPage />),
+                      },
+                      {
+                        path: "cause-list",
+                        element: withSuspense(<ModuleQueuePage />),
+                      },
+                      {
+                        path: "courtview/:id",
+                        element: withSuspense(<ModuleQueuePage />),
+                      },
+                      {
+                        path: "efiling",
+                        children: [
+                          {
+                            index: true,
+                            element: <Navigate to="filing" replace />,
+                          },
+                          {
+                            path: "filing",
+                            element: withSuspense(<FilingPage />),
+                          },
+                          {
+                            path: "new-filing",
+                            element: withSuspense(<ModuleQueuePage />),
+                          },
+                          {
+                            path: "draft-filings",
+                            element: withSuspense(<ModuleQueuePage />),
+                          },
+                          {
+                            path: "approved-cases",
+                            element: withSuspense(<ModuleQueuePage />),
+                          },
+                          {
+                            path: "pending-scrutiny",
+                            element: withSuspense(<ModuleQueuePage />),
+                          },
+                          {
+                            path: "document-filing",
+                            children: [
+                              {
+                                index: true,
+                                element: <Navigate to="list" replace />,
+                              },
+                              {
+                                path: "list",
+                                element: withSuspense(<ModuleQueuePage />),
+                              },
+                              {
+                                path: "create",
+                                element: withSuspense(<ModuleQueuePage />),
+                              },
+                            ],
+                          },
+                          {
+                            path: "ia-filing",
+                            element: withSuspense(<ModuleQueuePage />),
+                          },
+                        ],
+                      },
+                    ],
                   },
                   {
                     path: "filings",

@@ -1,0 +1,39 @@
+textarea.auth-input {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.auth-grid {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .auth-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .auth-grid .auth-span-2 {
+    grid-column: span 2;
+  }
+}
+
+.auth-footer {
+  margin-top: auto;
+  padding: 1rem 0;
+  text-align: center;
+  font-size: 0.8rem;
+  color: rgba(248, 250, 252, 0.55);
+  position: relative;
+  z-index: 1;
+}
+
+.auth-footer a {
+  color: rgba(248, 250, 252, 0.85);
+  text-decoration: none;
+}
+
+.auth-footer a:hover {
+  text-decoration: underline;
+}

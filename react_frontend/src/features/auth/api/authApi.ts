@@ -6,6 +6,14 @@ interface TokenResponse {
   refresh: string;
 }
 
+export type RegistrationSuccessPayload = {
+  id?: number;
+  email?: string;
+  detail?: string;
+  email_verification_required?: boolean;
+  verification_token?: string;
+};
+
 export type RegisterPartyPayload = {
   email: string;
   password: string;
@@ -65,12 +73,12 @@ export async function verifyEmail(payload: VerifyEmailPayload): Promise<void> {
   await http.post("/accounts/auth/verify-email/", payload);
 }
 
-export async function registerParty(payload: RegisterPartyPayload): Promise<{ detail: string }> {
-  const { data } = await http.post<{ detail: string }>("/accounts/auth/register/party/", payload);
+export async function registerParty(payload: RegisterPartyPayload): Promise<RegistrationSuccessPayload> {
+  const { data } = await http.post<RegistrationSuccessPayload>("/accounts/auth/register/party/", payload);
   return data;
 }
 
-export async function registerAdvocate(payload: RegisterAdvocatePayload): Promise<{ detail: string }> {
+export async function registerAdvocate(payload: RegisterAdvocatePayload): Promise<RegistrationSuccessPayload> {
   const formData = new FormData();
   formData.append("email", payload.email);
   formData.append("password", payload.password);
@@ -83,8 +91,12 @@ export async function registerAdvocate(payload: RegisterAdvocatePayload): Promis
   formData.append("bar_id", payload.bar_id);
   if (payload.bar_id_file) formData.append("bar_id_file", payload.bar_id_file);
 
-  const { data } = await http.post<{ detail: string }>("/accounts/auth/register/advocate/", formData);
+  const { data } = await http.post<RegistrationSuccessPayload>("/accounts/auth/register/advocate/", formData);
   return data;
+}
+
+export async function logout(): Promise<void> {
+  await http.post("/accounts/users/logout", {});
 }
 
 function mapGroupsToRole(groups: string[]): UserRole {
