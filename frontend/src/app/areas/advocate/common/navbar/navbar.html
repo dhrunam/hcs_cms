@@ -1,4 +1,4 @@
-<nav class="navbar navbar-light bg-white shadow-sm pe-2 ps-md-3">
+<nav class="navbar advocate-topbar pe-2 ps-md-3">
   <div class="d-flex align-items-center flex-nowrap">
     <button
       class="btn d-md-none me-1 text-dark"
@@ -9,44 +9,27 @@
       <i class="fa-solid fa-bars"></i>
     </button>
 
-    <a
-      class="navbar-brand fw-bold mb-0 d-flex align-items-center"
-      routerLink="/advocate/dashboard/home"
-    >
+    <a class="navbar-brand advocate-brand mb-0 d-flex align-items-center" routerLink="/advocate/dashboard/home">
       <img src="assets/icons/advocate-logo.png" height="40" class="me-2" />
-      <span class="brand-text text-dark fs-3">Advocate</span>
+      <span class="brand-text fs-3">Advocate</span>
     </a>
   </div>
 
-  <div class="d-flex align-items-center">
+  <div class="d-flex align-items-center advocate-topbar__actions">
     <!-- CLOCK -->
     <div class="clock me-4">
       <div class="clock-date">{{ currentDate }}</div>
       <div class="clock-time">{{ currentTime }}</div>
     </div>
 
-    <!-- COURTROOM MODE -->
-    <a
-      class="btn btn-sm btn-outline-primary me-4 d-flex align-items-center gap-2"
-      routerLink="/advocate/dashboard/cause-list"
-      style="border-radius: 8px; font-weight: 600; border-width: 2px;"
-    >
-      <i class="fa-solid fa-gavel"></i>
-      <span class="d-none d-md-inline">Courtroom Mode</span>
-    </a>
-
     <!-- NOTIFICATION -->
-    <div class="me-4 text-dark fs-5">
+    <div class="me-4 fs-5 advocate-notify-icon">
       <i class="fa-solid fa-bell"></i>
     </div>
 
     <!-- USER DROPDOWN -->
     <div class="dropdown pe-3">
-      <a
-        class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark"
-        href="#"
-        data-bs-toggle="dropdown"
-      >
+      <a class="d-flex align-items-center text-decoration-none dropdown-toggle advocate-profile-toggle" href="#" data-bs-toggle="dropdown">
         <i class="fa-solid fa-user-circle fs-5"></i>
       </a>
 

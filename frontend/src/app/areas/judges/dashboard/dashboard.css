@@ -1,12 +1,31 @@
 .judge-content {
-  background: rgb(249, 249, 249);
+  background: #f3f7ff;
   min-height: calc(100vh - 58px);
+}
+
+.judge-topbar {
+  background: #ffffff;
+  border-bottom: 1px solid #dbe7ff;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+}
+
+.judge-brand .brand-text {
+  color: #1e3a8a;
+  font-weight: 700;
+}
+
+.judge-profile-toggle {
+  color: #334155;
+}
+
+.judge-profile-toggle:hover {
+  color: #1e40af;
 }
 
 .sidebar {
   height: calc(100vh - 58px);
   background: #fff;
-  border-right: 1px solid #edf2f7;
+  border-right: 1px solid #dbe7ff;
   width: 290px;
 }
 
@@ -25,27 +44,27 @@
 }
 
 .sidebar .nav-item {
-  color: #475569;
+  color: #334155;
   padding: 4px 8px;
   margin: 4px;
   border-radius: 10px;
-  font-weight: 300;
+  font-weight: 500;
   transition: all 0.2s ease;
 }
 
 .sidebar .nav-item:hover {
-  background: #4338ca;
+  background: #eff6ff;
 }
 
 .sidebar .nav-item.active {
-  background: #1d4ed8;
+  background: #dbeafe;
 }
 
 .sidebar .nav-link {
-  color: #1e293b;
+  color: #334155;
 }
 
 .sidebar .nav-item:hover .nav-link,
 .sidebar .nav-item.active .nav-link {
-  color: #fff;
+  color: #1e40af;
 }

@@ -2,8 +2,6 @@ import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { forkJoin, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
 
 import { CourtroomService } from '../../../../services/judge/courtroom.service';
 import { benchLabel } from '../../../listing-officers/shared/bench-labels';
@@ -32,9 +30,6 @@ export class JudgePendingCasesPage {
     judge_decision: boolean | null;
     forwarded_for_date?: string;
   }[] = [];
-  publishedCauseLists: { id: number; bench_key: string; included_count: number; pdf_url: string | null }[] =
-    [];
-
   pendingForCauseList: {
     efiling_id: number;
     e_filing_number?: string | null;
@@ -67,27 +62,24 @@ export class JudgePendingCasesPage {
     this.load();
   }
 
+  openCourtviewMode(): void {
+    this.router.navigate(['/judges/dashboard/courtview']);
+  }
+
   private load(): void {
     this.isLoading = true;
     this.loadError = '';
 
-    forkJoin({
-      pending: this.courtroomService.getPendingCases(this.forwardedForDate),
-      published: this.courtroomService
-        .getPublishedCauseListsForSeatedJudge(this.forwardedForDate)
-        .pipe(catchError(() => of({ items: [] }))),
-    }).subscribe({
-      next: ({ pending, published }) => {
+    this.courtroomService.getPendingCases(this.forwardedForDate).subscribe({
+      next: (pending) => {
         this.pendingForListing = pending?.pending_for_listing ?? [];
         this.pendingForCauseList = pending?.pending_for_causelist ?? [];
-        this.publishedCauseLists = published?.items ?? [];
         this.loadCalendar();
         this.isLoading = false;
       },
       error: (err) => {
         console.warn('Failed to load judge dashboard', err);
         this.loadError = 'Failed to load pending cases.';
-        this.publishedCauseLists = [];
         this.isLoading = false;
       },
     });
