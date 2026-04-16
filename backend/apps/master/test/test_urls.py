@@ -7,6 +7,7 @@ from apps.master.views.court_views import CourtListView
 from apps.master.views.district_views import DistrictListView
 from apps.master.views.orgname_t_views import OrgnameTListView
 from apps.master.views.orgtype_t_views import OrgtypeTListView
+from apps.master.views.purpose_t_views import PurposeTListView
 from apps.master.views.state_views import StateListView
 
 
@@ -40,6 +41,11 @@ class MasterUrlsTest(SimpleTestCase):
         url = reverse("master:act-list")
         self.assertEqual(url, "/api/v1/master/acts/")
         self.assertEqual(resolve(url).func.view_class, ActTListView)
+
+    def test_purpose_url(self):
+        url = reverse("master:purpose-list")
+        self.assertEqual(url, "/api/v1/master/purposes/")
+        self.assertEqual(resolve(url).func.view_class, PurposeTListView)
 
     def test_orgname_url(self):
         url = reverse("master:org-name-list")

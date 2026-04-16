@@ -4,4 +4,5 @@ from .court_views import CourtListView
 from .district_views import DistrictListView
 from .orgname_t_views import OrgnameTListView
 from .orgtype_t_views import OrgtypeTListView
+from .purpose_t_views import PurposeTListView
 from .state_views import StateListView

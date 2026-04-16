@@ -79,6 +79,7 @@
             </div>
           </div>
 
+<<<<<<< HEAD
           <div class="filing-summary-section mt-4">
             <div class="filing-summary-section-title">
               <i class="fa-solid fa-file-pdf me-2"></i>
@@ -99,10 +100,36 @@
                       <span class="doc-preview-name">{{ documentName(d) }}</span>
                       <span
                         *ngIf="isRequestedDocument(d.id)"
+=======
+        <div class="filing-summary-section mt-4">
+          <div class="filing-summary-section-title">
+            <i class="fa-solid fa-file-pdf me-2"></i>
+            Pleadings
+          </div>
+          <div *ngIf="documents.length > 0; else noDocs" class="row g-3">
+            <div class="col-lg-4">
+              <div class="border rounded p-3 docs-list-panel bg-white">
+                <div class="small text-muted mb-2">
+                  <!-- Click a document to preview -->
+                </div>
+                <div class="d-flex flex-column gap-2">
+                  <ng-container *ngFor="let section of documentDisplaySections">
+                    <button
+                      *ngIf="section.kind === 'doc'"
+                      type="button"
+                      class="doc-preview-item text-start"
+                      [class.active]="isSelectedDocument(section.doc.id)"
+                      (click)="selectDocument(section.doc)"
+                    >
+                      <span class="doc-preview-name">{{ section.doc.display_index_label || '-' }}. {{ documentName(section.doc) }}</span>
+                      <span
+                        *ngIf="isRequestedDocument(section.doc.id)"
+>>>>>>> fc1a630956f2185b28559fad92417cfad62b239b
                         class="badge rounded-pill text-bg-info"
                         >Requested</span
                       >
                     </button>
+<<<<<<< HEAD
                   </div>
                 </div>
 
@@ -206,6 +233,31 @@
                     <i class="fa-solid fa-paper-plane me-2"></i>
                     {{ approvalListingDate ? 'Forwarded to Listing' : (canAssignListingDate ? 'Forward for Cause List' : 'Awaiting Higher Bench Reader') }}
                   </button>
+=======
+                    <div *ngIf="section.kind === 'vakalatGroup'" class="vakalat-collapse">
+                      <button type="button" class="vakalat-collapse__trigger" (click)="toggleVakalatGroup(section.id)">
+                        <i class="fa" [class.fa-chevron-right]="!isVakalatGroupExpanded(section.id)" [class.fa-chevron-down]="isVakalatGroupExpanded(section.id)"></i>
+                        <span>{{ section.label }}</span>
+                      </button>
+                      <div class="d-flex flex-column gap-2 mt-2" *ngIf="isVakalatGroupExpanded(section.id)">
+                        <button
+                          type="button"
+                          class="doc-preview-item text-start doc-sub-item"
+                          *ngFor="let d of section.items"
+                          [class.active]="isSelectedDocument(d.id)"
+                          (click)="selectDocument(d)"
+                        >
+                          <span class="doc-preview-name">{{ d.display_index_label || '-' }}. {{ documentName(d) }}</span>
+                          <span
+                            *ngIf="isRequestedDocument(d.id)"
+                            class="badge rounded-pill text-bg-info"
+                            >Requested</span
+                          >
+                        </button>
+                      </div>
+                    </div>
+                  </ng-container>
+>>>>>>> fc1a630956f2185b28559fad92417cfad62b239b
                 </div>
               </div>
 

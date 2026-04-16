@@ -12,6 +12,7 @@
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  overflow: hidden;
 }
 
 .courtview-main {
@@ -117,6 +118,7 @@
   overscroll-behavior: contain;
   margin: 0 -10px;
   padding: 0 10px;
+  padding-bottom: 80px;
 }
 
 ::ng-deep .vs-circle {
@@ -157,6 +159,11 @@
   transition: all 0.15s ease-in-out;
   background-color: #ffffff;
   color: #475569;
+}
+
+.doc-sub-item {
+  margin-left: 16px;
+  border-left: 2px solid #cbd5e1;
 }
 
 .doc-list-item:hover {

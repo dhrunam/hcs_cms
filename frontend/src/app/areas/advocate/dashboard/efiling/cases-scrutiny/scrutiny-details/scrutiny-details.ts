@@ -21,7 +21,11 @@ import {
   trackByEfilingDocumentIndexRowId,
 } from "../../../../../../utils/efiling-document-index-tree";
 import { EfilingChatComponent } from "../../../../../../shared/efiling-chat/efiling-chat";
+<<<<<<< HEAD
 import { OfficeNoteEditor } from "../../../../../office-note-sheet/note-editor/note-editor";
+=======
+import { orderDocumentsForDisplay } from "../../../../../../shared/document-groups";
+>>>>>>> fc1a630956f2185b28559fad92417cfad62b239b
 
 @Component({
   selector: "app-scrutiny-details",
@@ -136,9 +140,9 @@ export class ScrutinyDetails {
         payment,
       }) => {
         this.filing = filing;
-        this.documents = documents?.results ?? [];
+        this.documents = orderDocumentsForDisplay(documents?.results ?? [], "");
         this.groupedDocuments = this.groupDocumentsByType(this.documents);
-        this.iaDocuments = iaDocuments?.results ?? [];
+        this.iaDocuments = orderDocumentsForDisplay(iaDocuments?.results ?? [], "");
         this.litigantList = litigants?.results ?? [];
         this.caseDetails = caseDetails?.results?.[0] ?? null;
         this.actList = acts?.results ?? [];

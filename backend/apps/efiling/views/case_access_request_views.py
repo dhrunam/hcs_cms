@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from django.db import transaction
+from django.db import models, transaction
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -8,7 +8,14 @@ from rest_framework.generics import ListCreateAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.models import CaseAccessRequest, Efiling, EfilerDocumentAccess, Vakalatnama
+from apps.core.models import (
+    CaseAccessRequest,
+    Efiling,
+    EfilingDocuments,
+    EfilingDocumentsIndex,
+    EfilerDocumentAccess,
+    Vakalatnama,
+)
 from apps.efiling.notification_utils import create_notification
 from apps.efiling.serializers.case_access_request_serializers import CaseAccessRequestSerializer
 
@@ -37,6 +44,86 @@ def _is_scrutiny_officer(user) -> bool:
     if getattr(user, "is_superuser", False) or getattr(user, "is_staff", False):
         return True
     return bool(_group_names(user) & SCRUTINY_GROUPS)
+
+
+def _advocate_display_name(user) -> str:
+    full_name = ""
+    if user is not None and hasattr(user, "get_full_name"):
+        full_name = (user.get_full_name() or "").strip()
+    if full_name:
+        return full_name
+    email = (getattr(user, "email", "") or "").strip()
+    if email:
+        return email
+    username = (getattr(user, "username", "") or "").strip()
+    if username:
+        return username
+    return "Advocate"
+
+
+def _resolve_vakalatnama_anchor(e_filing: Efiling) -> tuple[int, int | None]:
+    indexes = EfilingDocumentsIndex.objects.filter(
+        document__e_filing=e_filing,
+        is_active=True,
+    ).select_related("document")
+    vakalat_qs = indexes.filter(
+        document_sequence__isnull=False,
+    ).filter(
+        models.Q(document__document_type__icontains="vakalat")
+        | models.Q(document_part_name__icontains="vakalat")
+    )
+    anchor = vakalat_qs.exclude(
+        document_part_name__istartswith="Vakalatnama - "
+    ).order_by("document_sequence", "id").first()
+    if anchor is None:
+        anchor = vakalat_qs.order_by("document_sequence", "id").first()
+    if anchor and anchor.document_sequence:
+        return int(anchor.document_sequence), int(anchor.id)
+
+    max_seq = (
+        indexes.exclude(document_sequence__isnull=True)
+        .order_by("-document_sequence")
+        .values_list("document_sequence", flat=True)
+        .first()
+    )
+    return (int(max_seq) if max_seq else 0) + 1, None
+
+
+def _append_case_access_vakalatnama_to_case_files(
+    *,
+    req: CaseAccessRequest,
+    approved_by,
+) -> None:
+    advocate_name = _advocate_display_name(req.advocate)
+    sequence, parent_index_id = _resolve_vakalatnama_anchor(req.e_filing)
+    part_name = f"Vakalatnama - {advocate_name}"
+
+    document = EfilingDocuments.objects.create(
+        e_filing=req.e_filing,
+        e_filing_number=req.e_filing.e_filing_number,
+        document_type="VAKALATNAMA",
+        final_document=req.vakalatnama_document,
+        filed_by=advocate_name,
+    )
+    EfilingDocumentsIndex.objects.create(
+        document=document,
+        document_part_name=part_name,
+        file_part_path=req.vakalatnama_document,
+        document_sequence=sequence,
+        parent_document_index_id=parent_index_id,
+        is_active=True,
+        is_compliant=True,
+        comments="Vakalatnama uploaded via approved case access request.",
+        scrutiny_status=EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED,
+        draft_scrutiny_status=None,
+        draft_comments=None,
+        draft_reviewed_at=None,
+        is_new_for_scrutiny=False,
+        last_resubmitted_at=None,
+        last_reviewed_at=timezone.now(),
+        created_by=approved_by if getattr(approved_by, "is_authenticated", False) else None,
+        updated_by=approved_by if getattr(approved_by, "is_authenticated", False) else None,
+    )
 
 
 class CaseAccessRequestListCreateView(ListCreateAPIView):
@@ -102,6 +189,7 @@ class CaseAccessRequestReviewView(APIView):
                     accces_allowed_from=now,
                     access_provided_by=user,
                 )
+                _append_case_access_vakalatnama_to_case_files(req=req, approved_by=user)
                 req.status = CaseAccessRequest.Status.APPROVED
                 req.rejection_reason = ""
                 req.approved_access = access

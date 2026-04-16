@@ -8,7 +8,11 @@ import { CourtroomService } from "../../../../services/judge/courtroom.service";
 import { benchLabel } from "../../../listing-officers/shared/bench-labels";
 import { PdfAnnotatorComponent } from "../courtroom/pdf-annotator.component";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
+<<<<<<< HEAD
 import { OfficeNoteEditor } from "../../../office-note-sheet/note-editor/note-editor";
+=======
+import { buildCollapsedDisplaySections, DocumentDisplaySection, orderDocumentsForDisplay } from "../../../../shared/document-groups";
+>>>>>>> fc1a630956f2185b28559fad92417cfad62b239b
 
 @Component({
   selector: "app-judge-courtview-case",
@@ -46,6 +50,7 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
   private lastAppliedSyncKey: string | null = null;
   /** Target page index until the PDF viewer has pages and can scroll. */
   private pendingSyncPage: number | null = null;
+  private expandedVakalatGroupIds = new Set<string>();
 
   constructor(
     private route: ActivatedRoute,
@@ -328,15 +333,133 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
   }
 
   get filteredCaseDocuments(): any[] {
-    if (!this.documentSearchQuery.trim()) {
-      return this.allCaseDocuments;
+    return orderDocumentsForDisplay(this.allCaseDocuments, this.documentSearchQuery);
+  }
+
+  get documentDisplaySections(): DocumentDisplaySection[] {
+    return buildCollapsedDisplaySections(this.filteredCaseDocuments);
+  }
+
+  isVakalatGroupExpanded(id: string): boolean {
+    return this.expandedVakalatGroupIds.has(id);
+  }
+
+  toggleVakalatGroup(id: string): void {
+    if (this.expandedVakalatGroupIds.has(id)) {
+      this.expandedVakalatGroupIds.delete(id);
+      return;
     }
-    const q = this.documentSearchQuery.toLowerCase().trim();
-    return this.allCaseDocuments.filter((doc, idx) => {
-      const name = (doc.document_part_name || "").toLowerCase();
-      const type = (doc.document_type || "").toLowerCase();
-      const indexStr = String(idx + 1);
-      return name.includes(q) || type.includes(q) || indexStr === q;
+    this.expandedVakalatGroupIds.add(id);
+  }
+
+  private isPetitioner(value: any): boolean {
+    return value === true || value === 1 || value === "1" || value === "true";
+  }
+
+  private toSequence(value: any): number | null {
+    const n = Number(value);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+
+  get petitionerLitigants(): any[] {
+    const list = Array.isArray(this.caseSummary?.litigants)
+      ? this.caseSummary.litigants
+      : [];
+    return list.filter((item: any) => this.isPetitioner(item?.is_petitioner));
+  }
+
+  get respondentLitigants(): any[] {
+    const list = Array.isArray(this.caseSummary?.litigants)
+      ? this.caseSummary.litigants
+      : [];
+    return list.filter((item: any) => !this.isPetitioner(item?.is_petitioner));
+  }
+
+  private normalizeLitigants(list: any[], side: "petitioner" | "respondent"): any[] {
+    const safeList = Array.isArray(list) ? list : [];
+    return safeList
+      .map((item: any) => {
+        const name = String(item?.name ?? "").trim();
+        return {
+          id: Number(item?.id || 0),
+          name,
+          sequence: this.toSequence(item?.sequence_number),
+          roleLabel: side === "petitioner" ? "Petitioner" : "Respondent",
+        };
+      })
+      .filter((item: any) => !!item.name)
+      .sort((a: any, b: any) => {
+        if (a.sequence === null && b.sequence === null) return 0;
+        if (a.sequence === null) return 1;
+        if (b.sequence === null) return -1;
+        return a.sequence - b.sequence;
+      });
+  }
+
+  private escapeHtml(value: string): string {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  private litigantsSectionHtml(title: string, rows: any[]): string {
+    if (!rows.length) {
+      return `
+        <section class="litigants-modal__section">
+          <h4 class="litigants-modal__heading">${title} (0)</h4>
+          <div class="litigants-modal__empty">No entries available.</div>
+        </section>
+      `;
+    }
+
+    const items = rows
+      .map(
+        (row: any) => `
+          <li class="litigants-modal__row">
+            <span class="litigants-modal__name">${this.escapeHtml(row.name)}</span>
+            <span class="litigants-modal__meta">${row.roleLabel}${row.sequence ? ` \u2022 Seq ${row.sequence}` : ""}</span>
+          </li>
+        `,
+      )
+      .join("");
+
+    return `
+      <section class="litigants-modal__section">
+        <h4 class="litigants-modal__heading">${title} (${rows.length})</h4>
+        <ul class="litigants-modal__list">${items}</ul>
+      </section>
+    `;
+  }
+
+  openLitigantsModal(): void {
+    const caseNumber = this.caseSummary?.case_number || "Unnumbered case";
+    const petitioners = this.normalizeLitigants(
+      this.petitionerLitigants,
+      "petitioner",
+    );
+    const respondents = this.normalizeLitigants(
+      this.respondentLitigants,
+      "respondent",
+    );
+    const total = petitioners.length + respondents.length;
+
+    Swal.fire({
+      title: `Litigants for Case ${caseNumber}`,
+      html: `
+        <div class="litigants-modal">
+          <p class="litigants-modal__subtitle">Total parties: ${total}</p>
+          ${this.litigantsSectionHtml("Petitioners", petitioners)}
+          ${this.litigantsSectionHtml("Respondents", respondents)}
+        </div>
+      `,
+      width: 760,
+      confirmButtonText: "Close",
+      customClass: {
+        popup: "litigants-modal-popup",
+      },
     });
   }
 

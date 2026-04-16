@@ -31,8 +31,21 @@
       <div class="case-title-row">
         <div class="text-end d-flex flex-column justify-content-center align-items-start">
           <h5 class="caseh font-weight-bold fs-6">
+<<<<<<< HEAD
             case no: WP(C) / 1/ 2023
+=======
+          Case no: {{ caseSummary.case_number || 'No Case Number' }}
+            <!-- case no: WP(C) / 1/ 2023 -->
+>>>>>>> fc1a630956f2185b28559fad92417cfad62b239b
           </h5>
+          <button
+            type="button"
+            class="btn btn-sm litigants-trigger mt-2"
+            (click)="openLitigantsModal()"
+          >
+            <i class="fa fa-users me-2"></i>
+            View Litigants
+          </button>
         <div class="text-center text-dark fw-bold col-12"
        [innerHTML]="formatVs(caseSummary.petitioner_name)">
 
@@ -123,6 +136,7 @@
               </p>
             </div>
 
+<<<<<<< HEAD
             <div class="elegant-panel pb-2 pleadings-panel">
               <div class="panel-title d-flex justify-content-between align-items-center mb-2">
                 <span>Pleadings</span>
@@ -164,6 +178,74 @@
                   No files appended.
                 </div>
               </div>
+=======
+          <!-- Modern Search Bar -->
+          <div class="search-wrapper mb-3">
+            <i class="fa fa-search search-icon"></i>
+            <input
+              type="text"
+              class="search-input"
+              placeholder="Search documents..."
+              [(ngModel)]="documentSearchQuery"
+            />
+            <i
+              *ngIf="documentSearchQuery"
+              class="fa fa-times clear-search"
+              (click)="documentSearchQuery = ''"
+            ></i>
+          </div>
+
+          <div class="doc-list-wrapper">
+            <div *ngIf="documentDisplaySections.length > 0" class="doc-list">
+              <ng-container *ngFor="let section of documentDisplaySections; let i = index">
+                <div
+                  *ngIf="section.kind === 'doc'"
+                  class="doc-list-item"
+                  [class.active-doc]="previewDocument?.id === section.doc.id"
+                  (click)="selectPreviewDocument(section.doc)"
+                >
+                  <i class="fa fa-file-pdf doc-icon"></i>
+                  <div class="text-truncate">
+                    <div style="font-size: 13px; font-weight: 500">
+                      {{ section.doc.document_part_name || section.doc.document_type || 'Document' }}
+                    </div>
+                    <div style="font-size: 11px; opacity: 0.7; margin-top: 2px">
+                      Index #{{ section.doc.display_index_label || (i + 1) }}
+                    </div>
+                  </div>
+                </div>
+                <div *ngIf="section.kind === 'vakalatGroup'" class="vakalat-collapse mb-2">
+                  <button type="button" class="vakalat-collapse__trigger" (click)="toggleVakalatGroup(section.id)">
+                    <i class="fa" [class.fa-chevron-right]="!isVakalatGroupExpanded(section.id)" [class.fa-chevron-down]="isVakalatGroupExpanded(section.id)"></i>
+                    <span>{{ section.label }}</span>
+                  </button>
+                  <div class="doc-list mt-2" *ngIf="isVakalatGroupExpanded(section.id)">
+                    <div
+                      *ngFor="let doc of section.items"
+                      class="doc-list-item doc-sub-item"
+                      [class.active-doc]="previewDocument?.id === doc.id"
+                      (click)="selectPreviewDocument(doc)"
+                    >
+                      <i class="fa fa-file-pdf doc-icon"></i>
+                      <div class="text-truncate">
+                        <div style="font-size: 13px; font-weight: 500">
+                          {{ doc.document_part_name || doc.document_type || 'Document' }}
+                        </div>
+                        <div style="font-size: 11px; opacity: 0.7; margin-top: 2px">
+                          Index #{{ doc.display_index_label }}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </ng-container>
+            </div>
+            <div
+              *ngIf="filteredCaseDocuments.length === 0 && allCaseDocuments.length > 0"
+              class="text-muted small text-center py-4"
+            >
+              No matching files.
+>>>>>>> fc1a630956f2185b28559fad92417cfad62b239b
             </div>
           </div>
 

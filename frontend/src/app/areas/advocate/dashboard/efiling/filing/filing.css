@@ -8,10 +8,11 @@
 
 .filing-hero {
   padding: 20px;
-  border-radius: 12px;
+  border-radius: 14px;
   background: #ffffff;
-  border: 1px solid var(--border);
+  border: 1px solid #dbe7ff;
   margin-bottom: 16px;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.06);
 }
 
 .filing-eyebrow {
@@ -23,7 +24,7 @@
 
 .filing-title {
   margin: 0 0 6px;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
 }
 
@@ -50,7 +51,7 @@
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  border: 1px solid var(--border);
+  border: 1px solid #dbe7ff;
   border-radius: 10px;
   background: #f9fafb;
   font-size: 14px;
@@ -59,26 +60,33 @@
   cursor: pointer;
   transition:
     background-color 160ms ease,
-    border-color 160ms ease;
+    border-color 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .filing-radio input {
   width: 16px;
   height: 16px;
   margin: 0;
-  accent-color: #111827;
+  accent-color: #2563eb;
 }
 
 .filing-radio:has(input:checked) {
-  background: #ffffff;
-  border-color: #cbd5f5;
+  background: #eff6ff;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+.filing-radio:hover {
+  border-color: #60a5fa;
+  background: #f0f7ff;
 }
 
 .filing-panel {
   background: var(--surface);
   border-radius: 12px;
   padding: 16px;
-  border: 1px solid var(--border);
+  border: 1px solid #dbe7ff;
 }
 
 .filing-tab-placeholder {

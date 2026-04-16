@@ -723,12 +723,24 @@ class CourtroomCaseDocumentsView(APIView):
 
         doc_indexes_qs = EfilingDocumentsIndex.objects.filter(
             document__e_filing_id=efiling_id, is_active=True
-        ).select_related("document", "document__e_filing").order_by("id")
+        ).select_related("document", "document__e_filing").order_by(
+            "document_sequence",
+            "parent_document_index_id",
+            "id",
+        )
         
-        # SYNC MODIFICATION: Only show documents specifically selected for the hearing (Hearing Pack)
+        # SYNC MODIFICATION: Only show documents specifically selected for the hearing (Hearing Pack).
+        # Exception: approved case-access vakalatnamas should remain visible in case files.
         selected_ids = list(forward.selected_documents.values_list("efiling_document_index_id", flat=True))
         if selected_ids:
-            doc_indexes_qs = doc_indexes_qs.filter(id__in=selected_ids)
+            access_vakalat_ids = list(
+                doc_indexes_qs.filter(
+                    Q(document__document_type__icontains="vakalat")
+                    | Q(document_part_name__icontains="vakalatnama - ")
+                ).values_list("id", flat=True)
+            )
+            visible_ids = set(selected_ids) | set(access_vakalat_ids)
+            doc_indexes_qs = doc_indexes_qs.filter(id__in=visible_ids)
 
         if requested_only and is_judge:
             decision = (
