@@ -967,3 +967,20 @@ class BudgetHeadT(BaseModel):
     
     class Meta:
         db_table = 'budget_head_t'
+        
+class PurposeT(BaseModel):
+    purpose_code = models.SmallIntegerField(primary_key=True)
+    purpose_name = models.CharField(max_length=100, blank=True, null=True)
+    lpurpose_name = models.CharField(max_length=100, blank=True, null=True)
+    purpose_flag = models.SmallIntegerField(blank=True, null=True)
+    display = models.TextField()  # This field type is a guess.
+    purpose_priority = models.SmallIntegerField()
+    res_disp = models.SmallIntegerField()
+    national_code = models.BigIntegerField()
+    substage_id = models.CharField(max_length=1000, blank=True, null=True)
+    amd = models.CharField(max_length=1, blank=True, null=True)
+    create_modify = models.DateTimeField(blank=True, null=True)
+    est_code_src = models.CharField(max_length=6)
+
+    class Meta:
+        db_table = 'purpose_t'

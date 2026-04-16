@@ -26,6 +26,9 @@ class EfilingDocumentsIndexListCreateView(ListCreateAPIView):
         scrutiny_status = self.request.query_params.get("scrutiny_status")
         is_new_for_scrutiny = self.request.query_params.get("is_new_for_scrutiny")
         is_ia = self.request.query_params.get("is_ia")
+        include_steno = str(
+            self.request.query_params.get("include_steno", "")
+        ).strip().lower() in ["true", "1", "yes", "y"]
 
         if efiling_id is not None:
             filing = Efiling.objects.filter(pk=efiling_id).first()
@@ -33,6 +36,9 @@ class EfilingDocumentsIndexListCreateView(ListCreateAPIView):
                 ensure_document_indexes_for_filing(filing)
 
         qs = EfilingDocumentsIndex.objects.select_related("document", "document__e_filing").all()
+        if not include_steno:
+            # Steno workflow artifacts are shown in dedicated steno/order views only.
+            qs = qs.exclude(document__document_type__startswith="STENO_")
         if is_active is not None:
             qs = qs.filter(is_active=is_active.lower() in ["true", "1"])
         if efiling_id is not None:
