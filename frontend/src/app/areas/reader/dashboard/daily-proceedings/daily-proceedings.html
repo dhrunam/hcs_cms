@@ -12,6 +12,7 @@
 
 <div *ngIf="isLoading" class="text-muted">Loading...</div>
 <div *ngIf="loadError" class="alert alert-warning">{{ loadError }}</div>
+<div *ngIf="purposesLoadError" class="alert alert-warning">{{ purposesLoadError }}</div>
 <div *ngIf="!isLoading && !loadError && items.length === 0" class="alert alert-info">
   No published cause-list cases found for the selected date.
 </div>
@@ -37,8 +38,13 @@
           <input class="form-control" type="date" [(ngModel)]="formState[item.efiling_id].next_listing_date" />
         </div>
         <div class="col-md-3">
-          <label class="form-label small">Remark For Stenographer</label>
-          <textarea class="form-control" rows="2" [(ngModel)]="formState[item.efiling_id].steno_remark"></textarea>
+          <label class="form-label small">Purpose For Stenographer</label>
+          <select class="form-select" [(ngModel)]="formState[item.efiling_id].steno_purpose_code">
+            <option [ngValue]="null">Select purpose</option>
+            <option *ngFor="let purpose of purposeOptions" [ngValue]="purpose.purpose_code">
+              {{ purposeLabel(purpose) }}
+            </option>
+          </select>
         </div>
         <div class="col-md-3">
           <label class="form-label small">Remark For Listing Officer</label>

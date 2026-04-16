@@ -3,7 +3,7 @@ import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import Swal from 'sweetalert2';
 
-import { ReaderDailyProceedingCase, ReaderService } from '../../../../services/reader/reader.service';
+import { PurposeOption, ReaderDailyProceedingCase, ReaderService } from '../../../../services/reader/reader.service';
 
 @Component({
   selector: 'app-reader-daily-proceedings',
@@ -13,22 +13,38 @@ import { ReaderDailyProceedingCase, ReaderService } from '../../../../services/r
 })
 export class ReaderDailyProceedingsPage {
   items: ReaderDailyProceedingCase[] = [];
+  purposeOptions: PurposeOption[] = [];
   isLoading = false;
   loadError = '';
+  purposesLoadError = '';
   selectedCauseListDate = new Date().toISOString().slice(0, 10);
   saveState: Record<number, boolean> = {};
   formState: Record<number, {
     hearing_date: string;
     next_listing_date: string;
     proceedings_text: string;
-    steno_remark: string;
+    steno_purpose_code: number | null;
     listing_remark: string;
   }> = {};
 
   constructor(private readerService: ReaderService) {}
 
   ngOnInit(): void {
+    this.loadPurposes();
     this.load();
+  }
+
+  loadPurposes(): void {
+    this.purposesLoadError = '';
+    this.readerService.getPurposes().subscribe({
+      next: (purposes) => {
+        this.purposeOptions = purposes ?? [];
+      },
+      error: () => {
+        this.purposeOptions = [];
+        this.purposesLoadError = 'Failed to load purpose options.';
+      },
+    });
   }
 
   load(): void {
@@ -45,7 +61,7 @@ export class ReaderDailyProceedingsPage {
             hearing_date: item.last_hearing_date || new Date().toISOString().slice(0, 10),
             next_listing_date: item.last_next_listing_date || new Date().toISOString().slice(0, 10),
             proceedings_text: item.latest_proceedings_text || '',
-            steno_remark: '',
+            steno_purpose_code: item.latest_steno_purpose_code ?? null,
             listing_remark: '',
           };
         }
@@ -68,7 +84,7 @@ export class ReaderDailyProceedingsPage {
         hearing_date: state.hearing_date,
         next_listing_date: state.next_listing_date,
         proceedings_text: state.proceedings_text,
-        steno_remark: state.steno_remark,
+        steno_purpose_code: state.steno_purpose_code,
         listing_remark: state.listing_remark,
       })
       .subscribe({
@@ -82,5 +98,9 @@ export class ReaderDailyProceedingsPage {
           Swal.fire('Error', err?.error?.detail || 'Failed to submit proceedings', 'error');
         },
       });
+  }
+
+  purposeLabel(purpose: PurposeOption): string {
+    return purpose.purpose_name || purpose.lpurpose_name || `Purpose #${purpose.purpose_code}`;
   }
 }
