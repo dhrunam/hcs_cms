@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import Swal from 'sweetalert2';
 
 import { CourtroomService } from '../../../../services/judge/courtroom.service';
@@ -24,7 +25,10 @@ export class JudgeStenoReviewPage {
   selectedWorkflowId: number | null = null;
   notes: Record<number, string> = {};
 
-  constructor(private courtroomService: CourtroomService) {}
+  constructor(
+    private courtroomService: CourtroomService,
+    private sanitizer: DomSanitizer,
+  ) {}
 
   ngOnInit(): void {
     this.load();
@@ -157,6 +161,12 @@ export class JudgeStenoReviewPage {
     const raw = item?.draft_preview_url;
     if (!raw) return '';
     return this.courtroomService.resolveDocumentUrl(raw);
+  }
+
+  pdfFrameUrlFor(item: any): SafeResourceUrl {
+    return this.sanitizer.bypassSecurityTrustResourceUrl(
+      this.pdfUrlFor(item),
+    );
   }
 
   decide(item: any, decision: 'APPROVED' | 'REJECTED'): void {
