@@ -15,11 +15,38 @@
   overflow: hidden;
 }
 
-.courtview-main {
-  flex: 1;
+/* Fill space below header so Details row gets a bounded height (enables sidebar scroll). */
+.courtview-shell > .courtview-content-card {
+  flex: 1 1 auto;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  height: 100%;
+}
+
+.courtview-card-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.courtview-details-wrap {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.courtview-main {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  align-items: stretch;
 }
 
 .courtview-sidebar,
@@ -28,15 +55,21 @@
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  height: 100%;
+  align-self: stretch;
+  max-height: 100%;
 }
 
 .pleadings-panel {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  flex: 1;
-  height: 100%;
+  flex: 1 1 0;
+  overflow: hidden;
+}
+
+.pleadings-panel > .panel-title,
+.pleadings-panel > .search-wrapper {
+  flex-shrink: 0;
 }
 
 .elegant-header {
@@ -111,14 +144,13 @@
 }
 
 .doc-list-wrapper {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
-  height: 100%;
   overflow-y: auto;
   overscroll-behavior: contain;
   margin: 0 -10px;
-  padding: 0 10px;
   padding-bottom: 80px;
+  -webkit-overflow-scrolling: touch;
 }
 
 ::ng-deep .vs-circle {
