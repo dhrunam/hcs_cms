@@ -170,7 +170,7 @@ class CaseTypeT(BaseModel):
     est_code_src = models.CharField(max_length=6)
     reg_no = models.IntegerField()
     reg_year = models.SmallIntegerField()
-
+    annexure_type = models.CharField(max_length=1, blank=True, null=True)
     class Meta:
       
         db_table = 'case_type_t'
