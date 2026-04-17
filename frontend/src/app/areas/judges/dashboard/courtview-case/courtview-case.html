@@ -26,7 +26,7 @@
     *ngIf="!isLoading && !loadError && caseSummary"
     class="animate__animated animate__fadeIn courtview-shell"
   >
-  <div class="d-flex justify-content-between gap-2">
+  <div class="d-flex justify-content-between gap-2 courtview-shell-header flex-shrink-0">
     <div class="elegant-header w-100">
       <div class="case-title-row">
         <div class="text-end d-flex flex-column justify-content-center align-items-start">
@@ -42,8 +42,10 @@
             <i class="fa fa-users me-2"></i>
             View Litigants
           </button>
-        <div class="text-center text-dark fw-bold col-12"
-       [innerHTML]="formatVs(caseSummary.petitioner_name)">
+        <div
+          class="text-center text-dark fw-bold col-12 w-100 d-flex justify-content-center"
+          [innerHTML]="formatVs(caseSummary.petitioner_name)"
+        >
 
         </div>
       </div>
@@ -88,8 +90,8 @@
     </div>
   </div>
 
-  <div class="card border-0 shadow-sm mt-3">
-    <div class="card-header p-0">
+  <div class="card border-0 shadow-sm mt-3 courtview-content-card">
+    <div class="card-header p-0 flex-shrink-0">
       <ul class="nav scrutiny-nav-tabs">
         <li class="nav-item">
           <button
@@ -115,13 +117,13 @@
         </li>
       </ul>
     </div>
-    <div class="card-body p-0">
-      <div *ngIf="activeTab === 'details'">
-        <div class="row g-4 h-100 courtview-main">
+    <div class="card-body p-0 courtview-card-body">
+      <div *ngIf="activeTab === 'details'" class="courtview-details-wrap">
+        <div class="row g-4 courtview-main">
           <div class="col-xl-2 col-lg-2 courtview-sidebar">
             <div
               *ngIf="!caseSummary.is_published"
-              class="elegant-panel mb-4"
+              class="elegant-panel mb-4 courtview-sidebar-banner flex-shrink-0"
               style="border-left: 4px solid #f59e0b; background: rgba(251, 191, 36, 0.05);"
             >
               <div class="panel-title d-flex align-items-center" style="color: #d97706; font-size: 11px">

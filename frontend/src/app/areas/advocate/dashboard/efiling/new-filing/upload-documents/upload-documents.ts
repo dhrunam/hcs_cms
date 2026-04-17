@@ -115,6 +115,11 @@ export class UploadDocuments implements OnInit, OnChanges {
    * then upload indexes/annexures as children linked in the database.
    */
   @Input() useParentIndexGroup = false;
+  /**
+   * With useTextIndexName + useParentIndexGroup: show multiple Index + PDF rows
+   * and "Add index" instead of a single staged row + annexures.
+   */
+  @Input() multiManualIndexRows = false;
   /** Optional memo-of-appeal upload (separate document type); does not affect mandatory indexes. */
   @Input() enableMemoOfAppeal = false;
   /** When true, main filing already has a "Memo of Appeal" document — hide duplicate upload. */
@@ -123,6 +128,10 @@ export class UploadDocuments implements OnInit, OnChanges {
   stagedFile: File | null = null;
   /** Parent EfilingDocumentsIndex.document_part_name (header row, no file) when useParentIndexGroup. */
   parentGroupName = "";
+  /** Per-row manual index + file when {@link multiManualIndexRows} is true. */
+  manualIndexRows: Array<{ id: number; indexName: string; file: File | null }> =
+    [{ id: 1, indexName: "", file: null }];
+  private nextManualRowId = 2;
   memoAppealFile: File | null = null;
 
   entries: DocumentUploadEntry[] = [];
@@ -174,6 +183,8 @@ export class UploadDocuments implements OnInit, OnChanges {
       this.annexureRows = [];
       this.memoAppealFile = null;
       this.parentGroupName = "";
+      this.manualIndexRows = [{ id: 1, indexName: "", file: null }];
+      this.nextManualRowId = 2;
       this.initializeStructuredRows();
     }
     if (
@@ -530,6 +541,56 @@ export class UploadDocuments implements OnInit, OnChanges {
 
   clearStagedFile() {
     this.stagedFile = null;
+  }
+
+  trackByManualRowId(
+    _: number,
+    row: { id: number; indexName: string; file: File | null },
+  ): number {
+    return row.id;
+  }
+
+  addManualIndexRow(): void {
+    if (this.isUploading) return;
+    this.manualIndexRows = [
+      ...this.manualIndexRows,
+      { id: this.nextManualRowId++, indexName: "", file: null },
+    ];
+    this.cdr.markForCheck();
+  }
+
+  removeManualIndexRow(rowId: number): void {
+    if (this.isUploading || this.manualIndexRows.length <= 1) return;
+    this.manualIndexRows = this.manualIndexRows.filter((r) => r.id !== rowId);
+    this.cdr.markForCheck();
+  }
+
+  onManualRowFileChange(
+    row: { id: number; indexName: string; file: File | null },
+    event: Event,
+  ): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] || null;
+    if (!file) return;
+    const { valid, errors } = validatePdfFiles([file]);
+    if (errors.length > 0) {
+      this.toastr.error(errors.join(" "));
+      input.value = "";
+      return;
+    }
+    const picked = valid[0] || null;
+    this.manualIndexRows = this.manualIndexRows.map((r) =>
+      r.id === row.id ? { ...r, file: picked } : r,
+    );
+    input.value = "";
+    this.cdr.markForCheck();
+  }
+
+  clearManualRowFile(row: { id: number; indexName: string; file: File | null }): void {
+    this.manualIndexRows = this.manualIndexRows.map((r) =>
+      r.id === row.id ? { ...r, file: null } : r,
+    );
+    this.cdr.markForCheck();
   }
 
   onStructuredFileChange(rowIndex: number, event: Event) {
@@ -986,6 +1047,20 @@ export class UploadDocuments implements OnInit, OnChanges {
       const hasParentName =
         !this.useParentIndexGroup ||
         !!String(this.parentGroupName || "").trim();
+      if (this.multiManualIndexRows) {
+        if (!hasParentName || this.isUploading) return false;
+        const rows = this.manualIndexRows;
+        const partial = rows.some((r) => {
+          const hasN = !!String(r.indexName || "").trim();
+          const hasF = !!r.file;
+          return hasN !== hasF;
+        });
+        if (partial) return false;
+        const complete = rows.filter(
+          (r) => r.file && String(r.indexName || "").trim(),
+        );
+        return complete.length >= 1;
+      }
       return (
         !this.isUploading &&
         !!this.stagedFile &&
@@ -1083,6 +1158,27 @@ export class UploadDocuments implements OnInit, OnChanges {
   }
 
   private getTextModeItems(): UploadDocumentsPayloadItem[] {
+    if (this.multiManualIndexRows) {
+      const manualItems = this.manualIndexRows
+        .filter((r) => r.file && String(r.indexName || "").trim())
+        .map((r) => {
+          const name = String(r.indexName).trim();
+          const matched = this.indexMasters.find(
+            (item) => item.name.toLowerCase() === name.toLowerCase(),
+          );
+          return {
+            file: r.file as File,
+            index_name: name,
+            index_id: matched ? matched.id : null,
+          };
+        });
+      const annexures = this.getAnnexureEntries().map((entry) => ({
+        file: entry.file,
+        index_name: entry.index_name.trim(),
+        index_id: entry.index_id,
+      }));
+      return [...manualItems, ...annexures];
+    }
     const mainIndexName = String(this.stagedIndexName || "").trim();
     const mainFile = this.stagedFile;
     const mainMatched = this.indexMasters.find(

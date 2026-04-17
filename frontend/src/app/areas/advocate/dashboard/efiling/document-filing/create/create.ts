@@ -89,7 +89,6 @@ export class Create implements OnInit {
   documentTypeSearchQuery = "";
   selectedDocumentType = "";
 
-  readonly litigantTypeOptions = EXISTING_CASE_LITIGANT_OPTIONS;
   litigantType: ExistingCaseLitigantType = "PETITIONER";
 
   constructor(
@@ -201,8 +200,34 @@ export class Create implements OnInit {
     );
   }
 
+  /**
+   * From selected filing's `case_type.annexure_type`: A → Appellant/Respondent;
+   * P or default → Petitioner/Respondent. Values stay PETITIONER|RESPONDENT|APPELLANT.
+   */
+  get litigantTypeOptions(): ReadonlyArray<{
+    value: ExistingCaseLitigantType;
+    label: string;
+  }> {
+    if (!this.selectedFiling) {
+      return EXISTING_CASE_LITIGANT_OPTIONS;
+    }
+    const at = String(this.selectedFiling?.case_type?.annexure_type ?? "")
+      .trim()
+      .toUpperCase();
+    if (at === "A") {
+      return [
+        { value: "APPELLANT", label: "Appellant" },
+        { value: "RESPONDENT", label: "Respondent" },
+      ];
+    }
+    return [
+      { value: "PETITIONER", label: "Petitioner" },
+      { value: "RESPONDENT", label: "Respondent" },
+    ];
+  }
+
   litigantTypeLabel(): string {
-    const row = EXISTING_CASE_LITIGANT_OPTIONS.find(
+    const row = this.litigantTypeOptions.find(
       (o) => o.value === this.litigantType,
     );
     return row?.label ?? "Petitioner";
@@ -228,7 +253,12 @@ export class Create implements OnInit {
     this.isDropdownOpen = false;
     this.searchQuery = "";
     this.selectedIa = null;
-    this.litigantType = "PETITIONER";
+    {
+      const at = String(item.filing?.case_type?.annexure_type ?? "")
+        .trim()
+        .toUpperCase();
+      this.litigantType = at === "A" ? "APPELLANT" : "PETITIONER";
+    }
     this.uploadedDocList = [];
     this.selectedDocumentType = "";
     this.documentTypeSearchQuery = "";
