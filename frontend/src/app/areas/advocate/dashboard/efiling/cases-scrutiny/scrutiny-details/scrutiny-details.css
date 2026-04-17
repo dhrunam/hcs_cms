@@ -11,6 +11,9 @@
 .scrutiny-tabs-card {
   overflow: hidden;
   background: #ffffff;
+  border: 1px solid #dbe7ff;
+  border-radius: 16px;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.06);
 }
 
 /* .scrutiny-tabs-header {
@@ -48,8 +51,8 @@
 }
 
 .scrutiny-nav-tabs .nav-link.active {
-  color: #1e293b;
-  border-bottom-color: #1e293b;
+  color: #1d4ed8;
+  border-bottom-color: #2563eb;
   background: #ffffff;
 }
 
@@ -120,8 +123,8 @@
 
 .document-item-interactive:hover,
 .document-item-interactive.document-item-active {
-  border-color: #6366f1;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.15);
+  border-color: #60a5fa;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.15);
 }
 
 .document-title {
@@ -266,8 +269,8 @@
 }
 
 .document-type-header {
-  background: #1e293b;
-  border: 1px solid #1e293b;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  border: 1px solid #1d4ed8;
   border-radius: 12px;
   color: white;
   font-weight: 700;
@@ -515,7 +518,7 @@
 }
 
 .ia-tab-content .accordion-button:not(.collapsed) {
-  background: linear-gradient(135deg, #f8fbff 0%, #eef2ff 100%);
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
   border-bottom-color: #e0e7ff;
 }
 

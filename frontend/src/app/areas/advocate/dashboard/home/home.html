@@ -1,128 +1,95 @@
-<div
-  class="dashboard-header mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2"
->
-  <div>
-    <h5 class="mb-1 fw-semibold text-dark">Hi, {{ advocateName }}</h5>
-    <p class="text-muted small mb-0">Manage your advocate filings easily</p>
-  </div>
+<section class="adv-home">
+  <header class="adv-home__header">
+    <div>
+      <p class="adv-home__greeting">Good day,</p>
+      <h2 class="adv-home__title">{{ advocateName || "Advocate" }}</h2>
+      <p class="adv-home__subtitle">Manage filings, track scrutiny, and jump into courtroom mode quickly.</p>
+    </div>
+    <button class="adv-home__primary-btn" routerLink="/advocate/dashboard/efiling/filing/">
+      <i class="fa-solid fa-plus"></i>
+      New Filing
+    </button>
+  </header>
 
-  <button
-    class="btn btn-sm px-3 py-2 d-flex align-items-center gap-2"
-    style="background: #111827; color: #fff; border-radius: 8px"
-    routerLink="/advocate/dashboard/efiling/filing/"
-  >
-    <i class="fa-solid fa-plus" style="font-size: 12px"></i>
-    <span class="small">New Filing</span>
-  </button>
-</div>
-
-<!-- COURTROOM HERO CARD -->
-<div class="row g-3 mt-1 mb-4">
-  <div class="col-12">
-    <div class="card border-0 shadow-sm courtroom-hero" style="border-radius: 12px; background: linear-gradient(135deg, #1e293b 0%, #334155 100%); color: white;">
-      <div class="card-body d-flex justify-content-between align-items-center p-4 flex-wrap gap-3">
-        <div class="d-flex align-items-center gap-4">
-          <div class="hero-icon-box">
-            <i class="fa fa-gavel fs-1"></i>
+  <div class="adv-home__top-grid">
+    <div class="adv-home__hero-card">
+      <div class="adv-home__hero-icon">
+        <i class="fa-solid fa-gavel"></i>
+      </div>
+      <div>
+        <div class="adv-home__hero-activity" aria-hidden="true">
+          <div class="adv-home__hero-avatar">
+            <i class="fa-solid fa-user-tie"></i>
           </div>
-          <div>
-            <h4 class="mb-1 fw-bold">Live Courtroom Synchronizer</h4>
-            <p class="mb-0 text-white-50">View your scheduled hearings and sync with the judge for real-time arguments.</p>
+          <div class="adv-home__hero-wave">
+            <span></span>
+            <span></span>
+            <span></span>
           </div>
-        </div>
-        <button class="btn btn-primary btn-lg px-5 fw-bold shadow-sm" routerLink="/advocate/dashboard/cause-list" style="border-radius: 10px;">
-          View Today's Hearings
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<section class="advocate-dashboard-section">
-  <!-- SUMMARY CARDS -->
-  <div class="row g-3">
-    <div class="col-md-3">
-      <div class="card border-0 shadow-sm h-100" style="border-radius: 12px">
-        <div class="card-body py-3 px-3">
-          <i class="fa-regular fa-folder-open text-primary mb-2"></i>
-          <div class="text-muted small">Total Filings</div>
-          <h5 class="mb-0 fw-semibold">{{ isLoading ? '-' : totalFilings }}</h5>
+          <span class="adv-home__hero-status">Advocate preparing arguments...</span>
         </div>
       </div>
     </div>
 
-    <div class="col-md-3">
-      <div class="card border-0 shadow-sm h-100" style="border-radius: 12px">
-        <div class="card-body py-3 px-3">
-          <i class="fa-regular fa-clock text-warning mb-2"></i>
-          <div class="text-muted small">Pending</div>
-          <h5 class="mb-0 fw-semibold">
-            {{ isLoading ? '-' : pendingFilings }}
-          </h5>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-md-3">
-      <div class="card border-0 shadow-sm h-100" style="border-radius: 12px">
-        <div class="card-body py-3 px-3">
-          <i class="fa-regular fa-circle-check text-success mb-2"></i>
-          <div class="text-muted small">Approved</div>
-          <h5 class="mb-0 fw-semibold">
-            {{ isLoading ? '-' : approvedFilings }}
-          </h5>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-md-3">
-      <div class="card border-0 shadow-sm h-100" style="border-radius: 12px">
-        <div class="card-body py-3 px-3">
-          <i class="fa-regular fa-circle-xmark text-danger mb-2"></i>
-          <div class="text-muted small">Objections</div>
-          <h5 class="mb-0 fw-semibold">{{ isLoading ? '-' : objections }}</h5>
-        </div>
-      </div>
+    <div class="adv-home__quick-actions">
+      <a class="adv-home__quick-action" routerLink="/advocate/dashboard/cause-list">
+        <span><i class="fa-solid fa-video me-2"></i>Courtroom Mode</span>
+        <i class="fa-solid fa-angle-right"></i>
+      </a>
+      <a class="adv-home__quick-action" routerLink="/advocate/dashboard/efiling/approved-cases">
+        <span><i class="fa-solid fa-briefcase me-2"></i>My Cases</span>
+        <i class="fa-solid fa-angle-right"></i>
+      </a>
+      <a class="adv-home__quick-action" routerLink="/advocate/dashboard/efiling/pending-scrutiny">
+        <span><i class="fa-solid fa-folder-open me-2"></i>Review pending filings</span>
+        <i class="fa-solid fa-angle-right"></i>
+      </a>
+      <a class="adv-home__quick-action" routerLink="/advocate/dashboard/efiling/case-access-requests">
+        <span><i class="fa-solid fa-calendar-plus me-2"></i>Request case access</span>
+        <i class="fa-solid fa-angle-right"></i>
+      </a>
     </div>
   </div>
 
-  <!-- Notifications -->
-  <div class="card border-0 shadow-sm mt-4" style="border-radius: 12px">
-    <div
-      class="card-header bg-dark text-white fw-semibold border-0"
-      style="border-radius: 12px 12px 0 0"
-    >
-      <i class="fa-regular fa-bell me-2"></i>Notifications
+  <div class="adv-home__stats-grid">
+    <article class="adv-home__stat-card">
+      <div class="adv-home__stat-label">Total Filings</div>
+      <div class="adv-home__stat-value">{{ isLoading ? "-" : totalFilings }}</div>
+    </article>
+    <article class="adv-home__stat-card">
+      <div class="adv-home__stat-label">Pending</div>
+      <div class="adv-home__stat-value">{{ isLoading ? "-" : pendingFilings }}</div>
+    </article>
+    <article class="adv-home__stat-card">
+      <div class="adv-home__stat-label">Approved</div>
+      <div class="adv-home__stat-value">{{ isLoading ? "-" : approvedFilings }}</div>
+    </article>
+    <article class="adv-home__stat-card">
+      <div class="adv-home__stat-label">Objections</div>
+      <div class="adv-home__stat-value">{{ isLoading ? "-" : objections }}</div>
+    </article>
+  </div>
+
+  <section class="adv-home__notifications">
+    <div class="adv-home__notifications-head">
+      <h5><i class="fa-regular fa-bell me-2"></i>Notifications</h5>
     </div>
-    <div class="card-body p-0">
-      <div *ngIf="isLoadingNotifications" class="text-muted small py-4 px-3">
-        Loading...
-      </div>
-      <div
-        *ngIf="!isLoadingNotifications && notifications.length === 0"
-        class="text-muted small py-4 px-3"
-      >
+    <div class="adv-home__notifications-body">
+      <div *ngIf="isLoadingNotifications" class="adv-home__empty">Loading...</div>
+      <div *ngIf="!isLoadingNotifications && notifications.length === 0" class="adv-home__empty">
         No new notifications.
       </div>
-      <div
-        *ngIf="!isLoadingNotifications && notifications.length > 0"
-        class="list-group list-group-flush"
-      >
+      <div *ngIf="!isLoadingNotifications && notifications.length > 0" class="adv-home__notification-list">
         <a
           *ngFor="let n of notifications"
           [routerLink]="n.link_url ? [n.link_url] : null"
           [routerLinkActive]="'active'"
-          class="list-group-item list-group-item-action d-flex justify-content-between align-items-start py-2 px-3"
-          style="cursor: pointer"
+          class="adv-home__notification-item"
         >
-          <div class="ms-2 me-auto">
-            <div class="small text-dark">{{ n.message }}</div>
-            <span class="badge bg-secondary rounded-pill mt-1"
-              >{{ formatNotificationDate(n.created_at) }}</span
-            >
-          </div>
+          <div class="adv-home__notification-message">{{ n.message }}</div>
+          <span class="adv-home__notification-time">{{ formatNotificationDate(n.created_at) }}</span>
         </a>
       </div>
     </div>
-  </div>
+  </section>
 </section>

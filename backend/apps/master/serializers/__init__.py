@@ -4,4 +4,5 @@ from .court_serializers import CourtSerializer
 from .district_serializers import DistrictSerializer
 from .orgname_t_serializers import OrgnameTSerializer
 from .orgtype_t_serializers import OrgtypeTSerializer
+from .purpose_t_serializers import PurposeTSerializer
 from .state_serializers import StateSerializer

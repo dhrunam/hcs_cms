@@ -1,47 +1,228 @@
-.judge-header {
-  padding: 8px 2px;
+.judge-home {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100%;
 }
 
-.card-header {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+.judge-home__hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 18px 20px;
+  border-radius: 16px;
+  border: 1px solid #dbe7ff;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.08);
 }
 
+.judge-home__eyebrow {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.judge-home__title {
+  margin: 2px 0;
+  color: #0f172a;
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.judge-home__subtitle {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.judge-home__date-wrap {
+  min-width: 210px;
+}
+
+.judge-home__date {
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  background: #eff6ff;
+}
+
+.judge-home__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.judge-home__courtroom-hero {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: center;
+  padding: 20px 22px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 55%, #3b82f6 100%);
+  color: #ffffff;
+  box-shadow: 0 16px 36px rgba(37, 99, 235, 0.3);
+}
+
+.judge-home__courtroom-icon {
+  width: 58px;
+  height: 58px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 28px;
+}
+
+.judge-home__courtroom-copy h4 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.judge-home__courtroom-copy p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+}
+
+.judge-home__courtroom-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #1e3a8a;
+  background: #ffffff;
+  border: none;
+  text-decoration: none;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.judge-home__courtroom-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.24);
+}
+
+.judge-home__stat {
+  background: #ffffff;
+  border: 1px solid #dbe7ff;
+  border-radius: 14px;
+  padding: 12px 14px;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.05);
+}
+
+.judge-home__stat-label {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.judge-home__stat-value {
+  color: #0f172a;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.judge-home__panel {
+  background: #ffffff;
+  border: 1px solid #dbe7ff;
+  border-radius: 16px;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.06);
+  overflow: hidden;
+}
+
+.judge-home__panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fbff;
+}
+
+.judge-home__panel-head h5 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.judge-home__panel-head p {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.judge-home__count-pill {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.judge-home__table-wrap {
+  padding: 8px 10px 12px;
+}
+
+.judge-home .table th {
+  border-bottom: 1px solid #e9ecef;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.judge-home .table td {
+  vertical-align: middle;
+  font-size: 13px;
+}
 
 .table-row-hover:hover {
-  background-color: #f8f9fa;
+  background-color: #eff6ff;
   transition: 0.2s ease;
 }
-
-.card {
-  transition: 0.2s ease;
-}
-
-/* .card:hover {
-  transform: translateY(-2px);
-} */
 
 .badge {
   font-weight: 500;
   letter-spacing: 0.3px;
 }
 
-.judge-header input {
-  min-width: 180px;
-}
-
-.table th {
-  border-bottom: 1px solid #e9ecef;
-}
-
-.table td {
-  vertical-align: middle;
-}
-
 .btn-primary {
-  background: linear-gradient(135deg, #4e73df, #224abe);
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   border: none;
 }
 
 .btn-primary:hover {
-  background: linear-gradient(135deg, #2e59d9, #1b3ea8);
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+}
+
+@media (max-width: 992px) {
+  .judge-home__stats {
+    grid-template-columns: 1fr;
+  }
+
+  .judge-home__courtroom-hero {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .judge-home__courtroom-icon {
+    margin: 0 auto;
+  }
+
+  .judge-home__courtroom-btn {
+    justify-content: center;
+  }
 }

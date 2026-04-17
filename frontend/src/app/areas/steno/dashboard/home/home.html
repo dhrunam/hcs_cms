@@ -22,6 +22,7 @@
         </div>
 
         <div class="small text-muted mb-2">
+          <span *ngIf="item.steno_purpose_name">Purpose: {{ item.steno_purpose_name }}</span>
           <span *ngIf="item.judge_approval_status"> | Judge: {{ item.judge_approval_status }}</span>
         </div>
 

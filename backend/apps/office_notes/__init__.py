@@ -1,0 +1,1 @@
+default_app_config = 'apps.office_notes.apps.OfficeNotesConfig'

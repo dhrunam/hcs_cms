@@ -27,22 +27,21 @@
     class="animate__animated animate__fadeIn courtview-shell"
   >
   <div class="d-flex justify-content-between gap-2">
-    <!-- Clean Minimal Header -->
     <div class="elegant-header w-100">
       <div class="case-title-row">
-        <!-- <div style="border: 1px solid #e2e8f0;border-radius: 7px;padding: 10px;">
-          
-          <div class="case-meta mt-1">
-            Filing Date: {{ caseSummary.filing_date ? (caseSummary.filing_date |
-            date:'dd MMM yyyy') : '-' }}
-          </div>
-          
-       </div> -->
-       <div class="text-end d-flex flex-column justify-content-center align-items-start">
+        <div class="text-end d-flex flex-column justify-content-center align-items-start">
           <h5 class="caseh font-weight-bold fs-6">
           Case No: {{ caseSummary.case_number || 'No Case Number' }}
             <!-- case no: WP(C) / 1/ 2023 -->
           </h5>
+          <button
+            type="button"
+            class="btn btn-sm litigants-trigger mt-2"
+            (click)="openLitigantsModal()"
+          >
+            <i class="fa fa-users me-2"></i>
+            View Litigants
+          </button>
         <div class="text-center text-dark fw-bold col-12"
        [innerHTML]="formatVs(caseSummary.petitioner_name)">
 
@@ -53,42 +52,24 @@
   class="elegant-panel share-panel d-flex justify-content-between align-items-center flex-wrap gap-2"
   [class.share-active]="activeShare"
 >
-
-  <!-- Left: Title -->
   <div class="d-flex align-items-center gap-2">
     <i class="fa fa-broadcast-tower text-muted"></i>
     <span class="panel-title mb-0">Live View</span>
-
     <span *ngIf="activeShare" class="live-indicator">LIVE</span>
   </div>
-
-  <!-- Middle: Status -->
   <div class="d-flex align-items-center text-muted small flex-grow-1 justify-content-center text-truncate">
-
     <ng-container *ngIf="!activeShare">
       <i class="fa fa-podcast me-1"></i>
       Waiting...
     </ng-container>
-
     <ng-container *ngIf="activeShare">
       <i class="fa fa-user-circle me-1"></i>
       <span class="text-truncate">
         {{ activeShare.advocate_name }}
       </span>
-
-      <span *ngIf="isSyncEnabled" class="mx-2">•</span>
-
-      <!-- <span *ngIf="isSyncEnabled" class="text-primary d-flex align-items-center">
-        <i class="fa fa-file-text-o me-1"></i>
-        Pg {{ activeShare.page_index + 1 }}
-      </span> -->
     </ng-container>
-
   </div>
-
-  <!-- Right: Action -->
   <div *ngIf="activeShare" class="d-flex align-items-center">
-
     <button
       class="btn btn-sm btn-sync d-flex align-items-center gap-1"
       [class.btn-sync-active]="isSyncEnabled"
@@ -99,138 +80,165 @@
         [class.fa-link]="!isSyncEnabled"
         [class.fa-unlink]="isSyncEnabled"
       ></i>
-
       {{ isSyncEnabled ? 'Following' : 'Follow' }}
     </button>
-
+  </div>
+</div>
+      </div>
+    </div>
   </div>
 
-</div>
-        
-        
-        
-      </div>
-    </div>
-     
-    </div>
-   
-
-    <!-- Unified Single Column Layout for Extreme Simplicity -->
-    <div class="row g-4 h-100 courtview-main">
-      <!-- Left Sidebar: Summary + Nav -->
-      <div class="col-xl-2 col-lg-2 courtview-sidebar">
-        <!-- Advocate Shared View Box (ONLY if published) -->
-        
-
-        <!-- Pre-Listing Alert (if not published) -->
-        <div
-          *ngIf="!caseSummary.is_published"
-          class="elegant-panel mb-4"
-          style="
-            border-left: 4px solid #f59e0b;
-            background: rgba(251, 191, 36, 0.05);
-          "
-        >
-          <div
-            class="panel-title d-flex align-items-center"
-            style="color: #d97706; font-size: 11px"
+  <div class="card border-0 shadow-sm mt-3">
+    <div class="card-header p-0">
+      <ul class="nav scrutiny-nav-tabs">
+        <li class="nav-item">
+          <button
+            type="button"
+            class="nav-link"
+            [class.active]="activeTab === 'details'"
+            (click)="setActiveTab('details')"
           >
-            <i class="fa fa-info-circle me-1"></i> PRE-HEARING REVIEW
-          </div>
-          <p class="small mb-0" style="color: #92400e; line-height: 1.4">
-            This case is forwarded for your review. Live synchronization will
-            activate once the Listing Officer publishes the cause-list.
-          </p>
-        </div>
-
-        <!-- Documents Box -->
-        <div class="elegant-panel pb-2 pleadings-panel">
-          <div
-            class="panel-title d-flex justify-content-between align-items-center mb-2"
+            <i class="fa-solid fa-file-lines me-2"></i>
+            Details
+          </button>
+        </li>
+        <li class="nav-item">
+          <button
+            type="button"
+            class="nav-link"
+            [class.active]="activeTab === 'notes'"
+            (click)="setActiveTab('notes')"
           >
-            <span>Pleadings</span>
-            <span class="badge bg-light text-secondary border"
-              >{{ filteredCaseDocuments.length }}</span
+            <i class="fa-solid fa-file-alt me-2"></i>
+            Case Notes
+          </button>
+        </li>
+      </ul>
+    </div>
+    <div class="card-body p-0">
+      <div *ngIf="activeTab === 'details'">
+        <div class="row g-4 h-100 courtview-main">
+          <div class="col-xl-2 col-lg-2 courtview-sidebar">
+            <div
+              *ngIf="!caseSummary.is_published"
+              class="elegant-panel mb-4"
+              style="border-left: 4px solid #f59e0b; background: rgba(251, 191, 36, 0.05);"
             >
-          </div>
+              <div class="panel-title d-flex align-items-center" style="color: #d97706; font-size: 11px">
+                <i class="fa fa-info-circle me-1"></i> PRE-HEARING REVIEW
+              </div>
+              <p class="small mb-0" style="color: #92400e; line-height: 1.4">
+                This case is forwarded for your review. Live synchronization will activate once the Listing Officer publishes the cause-list.
+              </p>
+            </div>
 
-          <!-- Modern Search Bar -->
-          <div class="search-wrapper mb-3">
-            <i class="fa fa-search search-icon"></i>
-            <input
-              type="text"
-              class="search-input"
-              placeholder="Search documents..."
-              [(ngModel)]="documentSearchQuery"
-            />
-            <i
-              *ngIf="documentSearchQuery"
-              class="fa fa-times clear-search"
-              (click)="documentSearchQuery = ''"
-            ></i>
-          </div>
+            <div class="elegant-panel pb-2 pleadings-panel">
+              <div class="panel-title d-flex justify-content-between align-items-center mb-2">
+                <span>Pleadings</span>
+                <span class="badge bg-light text-secondary border">{{ filteredCaseDocuments.length }}</span>
+              </div>
+              <div class="search-wrapper mb-3">
+                <i class="fa fa-search search-icon"></i>
+                <input
+                  type="text"
+                  class="search-input"
+                  placeholder="Search documents..."
+                  [(ngModel)]="documentSearchQuery"
+                />
+                <i
+                  *ngIf="documentSearchQuery"
+                  class="fa fa-times clear-search"
+                  (click)="documentSearchQuery = ''"
+                ></i>
+              </div>
 
-          <div class="doc-list-wrapper">
-            <ul class="doc-list" *ngIf="filteredCaseDocuments.length > 0">
-              <li
-                *ngFor="let doc of filteredCaseDocuments; let i = index"
-                class="doc-list-item"
-                [class.active-doc]="previewDocument?.id === doc.id"
-                (click)="selectPreviewDocument(doc)"
-              >
-                <i class="fa fa-file-pdf doc-icon"></i>
-                <div class="text-truncate">
-                  <div style="font-size: 13px; font-weight: 500">
-                    {{ doc.document_part_name || doc.document_type || 'Document'
-                    }}
-                  </div>
-                  <div style="font-size: 11px; opacity: 0.7; margin-top: 2px">
-                    Index #{{i + 1}}
-                  </div>
+              <div class="doc-list-wrapper">
+                <div *ngIf="documentDisplaySections.length > 0" class="doc-list">
+                  <ng-container *ngFor="let section of documentDisplaySections; let i = index">
+                    <div
+                      *ngIf="section.kind === 'doc'"
+                      class="doc-list-item"
+                      [class.active-doc]="previewDocument?.id === section.doc.id"
+                      (click)="selectPreviewDocument(section.doc)"
+                    >
+                      <i class="fa fa-file-pdf doc-icon"></i>
+                      <div class="text-truncate">
+                        <div style="font-size: 13px; font-weight: 500">
+                          {{ section.doc.document_part_name || section.doc.document_type || 'Document' }}
+                        </div>
+                        <div style="font-size: 11px; opacity: 0.7; margin-top: 2px">
+                          Index #{{ section.doc.display_index_label || (i + 1) }}
+                        </div>
+                      </div>
+                    </div>
+                    <div *ngIf="section.kind === 'vakalatGroup'" class="vakalat-collapse mb-2">
+                      <button type="button" class="vakalat-collapse__trigger" (click)="toggleVakalatGroup(section.id)">
+                        <i class="fa" [class.fa-chevron-right]="!isVakalatGroupExpanded(section.id)" [class.fa-chevron-down]="isVakalatGroupExpanded(section.id)"></i>
+                        <span>{{ section.label }}</span>
+                      </button>
+                      <div class="doc-list mt-2" *ngIf="isVakalatGroupExpanded(section.id)">
+                        <div
+                          *ngFor="let doc of section.items"
+                          class="doc-list-item doc-sub-item"
+                          [class.active-doc]="previewDocument?.id === doc.id"
+                          (click)="selectPreviewDocument(doc)"
+                        >
+                          <i class="fa fa-file-pdf doc-icon"></i>
+                          <div class="text-truncate">
+                            <div style="font-size: 13px; font-weight: 500">
+                              {{ doc.document_part_name || doc.document_type || 'Document' }}
+                            </div>
+                            <div style="font-size: 11px; opacity: 0.7; margin-top: 2px">
+                              Index #{{ doc.display_index_label }}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </ng-container>
                 </div>
-              </li>
-            </ul>
-            <div
-              *ngIf="filteredCaseDocuments.length === 0 && allCaseDocuments.length > 0"
-              class="text-muted small text-center py-4"
-            >
-              No matching files.
+                <div
+                  *ngIf="filteredCaseDocuments.length === 0 && allCaseDocuments.length > 0"
+                  class="text-muted small text-center py-4"
+                >
+                  No matching files.
+                </div>
+                <div *ngIf="allCaseDocuments.length === 0" class="text-muted small text-center py-4">
+                  No files appended.
+                </div>
+              </div>
             </div>
-            <div
-              *ngIf="allCaseDocuments.length === 0"
-              class="text-muted small text-center py-4"
-            >
-              No files appended.
+          </div>
+
+          <div class="col-xl-10 col-lg-10 courtview-viewer">
+            <div class="annotator-container">
+              <app-pdf-annotator
+                *ngIf="previewDocumentBlobUrl; else noDocPreview"
+                [pdfUrl]="previewDocumentBlobUrl"
+                [annotationData]="previewDocument?.annotation_data"
+                [canWrite]="canWrite"
+                (save)="onSaveAnnotations($event)"
+                (pdfReady)="onAnnotatorPdfReady()"
+                class="d-block w-100 h-100"
+              ></app-pdf-annotator>
+
+              <ng-template #noDocPreview>
+                <div class="d-flex flex-column justify-content-center align-items-center h-100 bg-light text-muted">
+                  <i class="fa fa-folder-open fs-1 mb-3 opacity-25"></i>
+                  <span class="opacity-75">{{ previewLoadError || 'Document viewer ready. Select a file.' }}</span>
+                </div>
+              </ng-template>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Right Main: Minimalist PDF Annotator Surface -->
-      <div class="col-xl-10 col-lg-10 courtview-viewer">
-        <div class="annotator-container">
-          <app-pdf-annotator
-            *ngIf="previewDocumentBlobUrl; else noDocPreview"
-            [pdfUrl]="previewDocumentBlobUrl"
-            [annotationData]="previewDocument?.annotation_data"
-            [canWrite]="canWrite"
-            (save)="onSaveAnnotations($event)"
-            (pdfReady)="onAnnotatorPdfReady()"
-            class="d-block w-100 h-100"
-          ></app-pdf-annotator>
-
-          <ng-template #noDocPreview>
-            <div
-              class="d-flex flex-column justify-content-center align-items-center h-100 bg-light text-muted"
-            >
-              <i class="fa fa-folder-open fs-1 mb-3 opacity-25"></i>
-              <span class="opacity-75"
-                >{{ previewLoadError || 'Document viewer ready. Select a file.'
-                }}</span
-              >
-            </div>
-          </ng-template>
-        </div>
+      <div *ngIf="activeTab === 'notes'" class="p-4">
+        <app-office-note-editor
+          [caseId]="efilingId"
+          [showHeader]="false"
+          *ngIf="efilingId"
+        ></app-office-note-editor>
       </div>
     </div>
   </div>

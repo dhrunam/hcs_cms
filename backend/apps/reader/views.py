@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.models import Efiling, EfilingCaseDetails, EfilingDocuments, EfilingDocumentsIndex
-from apps.core.models import ReaderJudgeAssignment, JudgeT
+from apps.core.models import ReaderJudgeAssignment, JudgeT, PurposeT
 from apps.core.bench_config import (
     get_accessible_bench_codes_for_reader,
     get_accessible_bench_keys_for_reader,
@@ -1174,7 +1174,7 @@ class ReaderDailyProceedingsListView(APIView):
         ids = [x.id for x in efilings]
 
         latest_proceedings = {}
-        for row in ReaderDailyProceeding.objects.filter(efiling_id__in=ids).order_by(
+        for row in ReaderDailyProceeding.objects.filter(efiling_id__in=ids).select_related("steno_purpose").order_by(
             "efiling_id", "-hearing_date", "-id"
         ):
             latest_proceedings.setdefault(row.efiling_id, row)
@@ -1210,6 +1210,14 @@ class ReaderDailyProceedingsListView(APIView):
                     "latest_proceedings_text": (
                         proceeding.proceedings_text if proceeding else None
                     ),
+                    "latest_steno_purpose_code": (
+                        proceeding.steno_purpose_id if proceeding else None
+                    ),
+                    "latest_steno_purpose_name": (
+                        proceeding.steno_purpose.purpose_name
+                        if proceeding and proceeding.steno_purpose
+                        else None
+                    ),
                     "listing_sync_status": (
                         proceeding.listing_sync_status if proceeding else None
                     ),
@@ -1232,11 +1240,28 @@ class ReaderDailyProceedingsSubmitView(APIView):
         hearing_date = payload.validated_data["hearing_date"]
         next_listing_date = payload.validated_data["next_listing_date"]
         proceedings_text = payload.validated_data["proceedings_text"]
+        steno_purpose_code = payload.validated_data.get("steno_purpose_code")
         legacy_reader_remark = payload.validated_data.get("reader_remark")
         steno_remark = payload.validated_data.get("steno_remark")
         listing_remark = payload.validated_data.get("listing_remark")
-        if steno_remark in (None, "") and legacy_reader_remark not in (None, ""):
-            steno_remark = legacy_reader_remark
+        steno_purpose = None
+        if steno_purpose_code is not None:
+            steno_purpose = PurposeT.objects.filter(
+                purpose_code=steno_purpose_code,
+                is_active=True,
+            ).first()
+            if steno_purpose is None:
+                raise ValidationError({"steno_purpose_code": "Invalid purpose."})
+
+        if steno_purpose is not None:
+            resolved_steno_remark = steno_purpose.purpose_name or str(steno_purpose.purpose_code)
+        elif steno_remark not in (None, ""):
+            resolved_steno_remark = steno_remark
+        elif legacy_reader_remark not in (None, ""):
+            resolved_steno_remark = legacy_reader_remark
+        else:
+            resolved_steno_remark = None
+
         if listing_remark in (None, "") and legacy_reader_remark not in (None, ""):
             listing_remark = legacy_reader_remark
         document_type = payload.validated_data.get("document_type") or "ORDER"
@@ -1263,8 +1288,9 @@ class ReaderDailyProceedingsSubmitView(APIView):
             defaults={
                 "next_listing_date": next_listing_date,
                 "proceedings_text": proceedings_text,
-                "reader_remark": legacy_reader_remark or steno_remark,
-                "steno_remark": steno_remark,
+                "reader_remark": legacy_reader_remark or resolved_steno_remark,
+                "steno_remark": resolved_steno_remark,
+                "steno_purpose": steno_purpose,
                 "listing_remark": listing_remark,
                 "listing_sync_status": ReaderDailyProceeding.ListingSyncStatus.SYNCED,
                 "submitted_by": user,
@@ -1331,6 +1357,7 @@ class StenoQueueListView(APIView):
                 is_active=True,
             )
             .select_related("efiling", "proceeding", "draft_document_index")
+            .select_related("proceeding__steno_purpose")
             .prefetch_related(
                 Prefetch("judge_annotations", queryset=ann_qs),
                 Prefetch("efiling__litigants"),
@@ -1390,6 +1417,12 @@ class StenoQueueListView(APIView):
                     "hearing_date": row.proceeding.hearing_date.isoformat(),
                     "next_listing_date": row.proceeding.next_listing_date.isoformat(),
                     "proceedings_text": row.proceeding.proceedings_text,
+                    "steno_purpose_code": row.proceeding.steno_purpose_id,
+                    "steno_purpose_name": (
+                        row.proceeding.steno_purpose.purpose_name
+                        if row.proceeding.steno_purpose
+                        else None
+                    ),
                 }
             )
         return Response({"items": items}, status=drf_status.HTTP_200_OK)

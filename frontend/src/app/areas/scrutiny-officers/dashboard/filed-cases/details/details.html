@@ -126,6 +126,17 @@
               Chat
             </button>
           </li>
+          <li class="nav-item">
+            <button
+              type="button"
+              class="nav-link"
+              [class.active]="activeTab === 'notes'"
+              (click)="setActiveTab('notes')"
+            >
+              <i class="fa-solid fa-file-alt me-2"></i>
+              Notes
+            </button>
+          </li>
         </ul>
         <div
           (click)="toogleScreen()"
@@ -402,6 +413,13 @@
           roleScope="scrutiny_officer"
         ></app-efiling-chat>
       </div>
+      <div *ngIf="activeTab === 'notes'" class="document-summary-section">
+        <app-office-note-editor
+          [caseId]="filingId"
+          [showHeader]="false"
+          *ngIf="filingId"
+        ></app-office-note-editor>
+      </div>
       <div *ngIf="activeTab === 'documents'" class="document-summary-section">
         <div class="row g-4">
           <div class="col-xl-3 p-0">
@@ -426,14 +444,13 @@
                   class="document-list bg-white"
                   *ngIf="groupedDocuments.length > 0"
                 >
-                  <div
+                  <details
                     class="document-group bg-white"
                     *ngFor="let group of groupedDocuments;let i=index; trackBy: trackByGroupIndex"
+                    [open]="!(group.document_type || '').toLowerCase().includes('vakalat')"
                   >
-                    <div class="document-type-header">
-                      <span>
-                        {{ group.document_type || 'Main Document' }}
-                      </span>
+                    <summary class="document-type-header">
+                      <span>{{ group.document_type || 'Main Document' }}</span>
 
                       <ng-container
                         *ngIf="i === 0 && getDocumentDate(group.rows[0]?.document) as d0"
@@ -444,7 +461,7 @@
                           date: 'hh:mm a' }}
                         </span>
                       </ng-container>
-                    </div>
+                    </summary>
 
                     <div
                       *ngFor="let row of group.rows; trackBy: trackByRowDocumentId"
@@ -469,7 +486,7 @@
                         >
                           <div>
                             <div class="document-title fw-normal">
-                              {{ row.document.document_part_name ||
+                              {{ row.document.display_index_label || '-' }}. {{ row.document.document_part_name ||
                               getDocumentTitle(row.document) }}
 
                               <span
@@ -516,7 +533,7 @@
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </details>
                 </div>
               </div>
             </div>
@@ -749,13 +766,14 @@
                             >
                           </div>
                           <div class="document-list">
-                            <div
+                            <details
                               class="document-group"
                               *ngFor="let group of item.groupedDocs; trackBy: trackByGroupIndex"
+                              [open]="!(group.document_type || '').toLowerCase().includes('vakalat')"
                             >
-                              <div class="document-type-header">
+                              <summary class="document-type-header">
                                 {{ group.document_type || 'Main Document' }}
-                              </div>
+                              </summary>
                               <div
                                 *ngFor="let row of group.rows; trackBy: trackByRowDocumentId"
                                 class="document-index-row"
@@ -778,7 +796,7 @@
                                     class="d-flex justify-content-between align-items-start gap-2"
                                   >
                                     <div class="document-title">
-                                      {{ row.document.document_part_name ||
+                                      {{ row.document.display_index_label || '-' }}. {{ row.document.document_part_name ||
                                       getDocumentFileLabel(row.document) }}
                                     </div>
                                     <span
@@ -797,7 +815,7 @@
                                   </div>
                                 </div>
                               </div>
-                            </div>
+                            </details>
                           </div>
                         </div>
                       </div>

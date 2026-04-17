@@ -22,6 +22,18 @@ export const ScrutinyOfficerDashboardRoutes: Routes = [
           import('./grant-case-access/grant-case-access').then((c) => c.GrantCaseAccess),
         title: 'Grant Case Access | CMS',
       },
+      {
+        path: 'office-note-sheet',
+        loadComponent: () =>
+          import('../../office-note-sheet/list/list').then((c) => c.OfficeNoteSheetList),
+        title: 'Office Note Sheet | CMS',
+      },
+      {
+        path: 'office-note-sheet/note/:caseId',
+        loadComponent: () =>
+          import('../../office-note-sheet/note-editor/note-editor').then((c) => c.OfficeNoteEditor),
+        title: 'Case Notes | CMS',
+      },
     ],
   },
 ];

@@ -21,11 +21,13 @@ import {
   trackByEfilingDocumentIndexRowId,
 } from "../../../../../../utils/efiling-document-index-tree";
 import { EfilingChatComponent } from "../../../../../../shared/efiling-chat/efiling-chat";
+import { OfficeNoteEditor } from "../../../../../office-note-sheet/note-editor/note-editor";
+import { orderDocumentsForDisplay } from "../../../../../../shared/document-groups";
 
 @Component({
   selector: "app-scrutiny-details",
   standalone: true,
-  imports: [CommonModule, EfilingChatComponent],
+  imports: [CommonModule, EfilingChatComponent, OfficeNoteEditor],
   templateUrl: "./scrutiny-details.html",
   styleUrl: "./scrutiny-details.css",
 })
@@ -58,7 +60,7 @@ export class ScrutinyDetails {
     document: any;
     file: File;
   }> = [];
-  activeTab: "filing" | "documents" | "ia" | "chat" = "filing";
+  activeTab: "filing" | "documents" | "ia" | "chat" | "notes" = "filing";
   iaList: any[] = [];
   iaDocuments: any[] = [];
   selectedIaDocument: any = null;
@@ -91,7 +93,7 @@ export class ScrutinyDetails {
     this.notesPopupOpen = false;
   }
 
-  setActiveTab(tab: "filing" | "documents" | "ia" | "chat"): void {
+  setActiveTab(tab: "filing" | "documents" | "ia" | "chat" | "notes"): void {
     this.activeTab = tab;
   }
 
@@ -135,9 +137,9 @@ export class ScrutinyDetails {
         payment,
       }) => {
         this.filing = filing;
-        this.documents = documents?.results ?? [];
+        this.documents = orderDocumentsForDisplay(documents?.results ?? [], "");
         this.groupedDocuments = this.groupDocumentsByType(this.documents);
-        this.iaDocuments = iaDocuments?.results ?? [];
+        this.iaDocuments = orderDocumentsForDisplay(iaDocuments?.results ?? [], "");
         this.litigantList = litigants?.results ?? [];
         this.caseDetails = caseDetails?.results?.[0] ?? null;
         this.actList = acts?.results ?? [];
