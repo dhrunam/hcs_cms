@@ -95,7 +95,17 @@ export class ReaderDailyProceedingsPage {
         },
         error: (err) => {
           this.saveState[item.efiling_id] = false;
-          Swal.fire('Error', err?.error?.detail || 'Failed to submit proceedings', 'error');
+          const detail = String(err?.error?.detail || '').trim();
+          const isMappingIssue =
+            detail.includes('No active steno mapping found') ||
+            detail.toLowerCase().includes('judge-steno mapping');
+          Swal.fire(
+            'Error',
+            isMappingIssue
+              ? 'No active Judge-Steno mapping found for this bench. Please configure mapping, then submit proceedings again.'
+              : (detail || 'Failed to submit proceedings'),
+            'error',
+          );
         },
       });
   }

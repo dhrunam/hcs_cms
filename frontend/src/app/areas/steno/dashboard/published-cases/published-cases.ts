@@ -17,6 +17,7 @@ export class PublishedCases {
   selectedFiles: Record<number, File | null> = {};
   signedFiles: Record<number, File | null> = {};
   selectedDate = new Date().toISOString().slice(0, 10);
+  usedDateFallback = false;
 
   constructor(private readerService: ReaderService) {}
 
@@ -26,11 +27,30 @@ export class PublishedCases {
 
   load(): void {
     this.isLoading = true;
+    this.usedDateFallback = false;
     this.readerService.getStenoQueue(this.selectedDate).subscribe({
       next: (resp) => {
-        this.items = resp?.items ?? [];
-        this.items = this.items.filter(item => item.workflow_status === 'SIGNED_AND_PUBLISHED');
-        this.isLoading = false;
+        const dateItems = (resp?.items ?? []).filter(
+          (item) => item.workflow_status === 'SIGNED_AND_PUBLISHED',
+        );
+        if (dateItems.length > 0) {
+          this.items = dateItems;
+          this.isLoading = false;
+          return;
+        }
+        this.readerService.getStenoQueue().subscribe({
+          next: (fallbackResp) => {
+            this.items = (fallbackResp?.items ?? []).filter(
+              (item) => item.workflow_status === 'SIGNED_AND_PUBLISHED',
+            );
+            this.usedDateFallback = this.items.length > 0;
+            this.isLoading = false;
+          },
+          error: () => {
+            this.items = [];
+            this.isLoading = false;
+          },
+        });
       },
       error: () => {
         this.items = [];

@@ -19,6 +19,9 @@
       <button class="btn btn-outline-primary btn-sm" type="button" (click)="load()">Refresh</button>
     </div>
     <div *ngIf="isLoading" class="text-muted">Loading...</div>
+    <div *ngIf="!isLoading && usedDateFallback" class="alert alert-warning py-2 small">
+      No published workflows found for selected date. Showing published workflows across dates.
+    </div>
     <div *ngIf="!isLoading">
       <div class="card mb-3 steno-card" *ngFor="let item of items">
         <div class="card-body">

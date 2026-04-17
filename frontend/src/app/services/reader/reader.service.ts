@@ -111,12 +111,20 @@ export type StenoQueueItem = {
     judge_user_id: number;
     steno_user_id: number;
     signature_status: string;
+    forwarded_to_judge?: boolean;
+    forwarded_at?: string | null;
     signed_at?: string | null;
   }[];
   all_required_signatures_done?: boolean;
   is_primary_steno?: boolean;
   can_mark_signature_complete?: boolean;
+  can_forward_to_judge_optional?: boolean;
   assigned_steno_id?: number | null;
+  can_upload_draft?: boolean;
+  can_submit_to_judge?: boolean;
+  can_share_approved_draft?: boolean;
+  can_upload_signed_publish?: boolean;
+  is_read_only_view?: boolean;
 };
 
 export function resolveBenchConfiguration(
@@ -337,5 +345,13 @@ export class ReaderService {
     all_required_signatures_done: boolean;
   }> {
     return this.http.post<any>(`${app_url}/api/v1/reader/steno/signature-complete/`, payload);
+  }
+
+  forwardToJudgeOptional(payload: { workflow_id: number; note?: string | null }): Observable<{
+    forwarded_to_judge: boolean;
+    forwarded_at?: string | null;
+    workflow_status: string;
+  }> {
+    return this.http.post<any>(`${app_url}/api/v1/reader/steno/forward-to-judge-optional/`, payload);
   }
 }

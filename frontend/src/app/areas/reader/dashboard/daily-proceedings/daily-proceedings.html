@@ -76,10 +76,11 @@
     class="badge ms-1"
     [ngClass]="{
       'bg-success text-white': item.steno_workflow_status === 'JUDGE_APPROVED',
-      'bg-warning text-white': item.steno_workflow_status === 'PENDING_UPLOAD'
+      'bg-warning text-white': item.steno_workflow_status === 'PENDING_UPLOAD',
+      'bg-secondary text-white': !item.steno_workflow_status
     }"
   >
-    {{ (item.steno_workflow_status || 'PENDING_UPLOAD').replaceAll('_', ' ') }}
+    {{ item.steno_workflow_status ? item.steno_workflow_status.replaceAll('_', ' ') : 'NOT_ASSIGNED' }}
   </span>
 </div>
         </div>

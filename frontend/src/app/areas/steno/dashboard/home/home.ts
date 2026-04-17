@@ -18,6 +18,7 @@ export class StenoHomePage {
   selectedFiles: Record<number, File | null> = {};
   signedFiles: Record<number, File | null> = {};
   selectedDate = new Date().toISOString().slice(0, 10);
+  usedDateFallback = false;
 
   constructor(private readerService: ReaderService) {}
 
@@ -27,11 +28,30 @@ export class StenoHomePage {
 
   load(): void {
     this.isLoading = true;
+    this.usedDateFallback = false;
     this.readerService.getStenoQueue(this.selectedDate).subscribe({
       next: (resp) => {
-        this.items = resp?.items ?? [];
-        this.items = this.items.filter(item => item.workflow_status !== 'SIGNED_AND_PUBLISHED');
-        this.isLoading = false;
+        const dateItems = (resp?.items ?? []).filter(
+          (item) => item.workflow_status !== 'SIGNED_AND_PUBLISHED',
+        );
+        if (dateItems.length > 0) {
+          this.items = dateItems;
+          this.isLoading = false;
+          return;
+        }
+        this.readerService.getStenoQueue().subscribe({
+          next: (fallbackResp) => {
+            this.items = (fallbackResp?.items ?? []).filter(
+              (item) => item.workflow_status !== 'SIGNED_AND_PUBLISHED',
+            );
+            this.usedDateFallback = this.items.length > 0;
+            this.isLoading = false;
+          },
+          error: () => {
+            this.items = [];
+            this.isLoading = false;
+          },
+        });
       },
       error: () => {
         this.items = [];
@@ -93,12 +113,37 @@ export class StenoHomePage {
   shareApprovedDraft(item: any): void {
     this.readerService.shareApprovedDraft({ workflow_id: item.workflow_id }).subscribe({
       next: () => {
-        Swal.fire({ title: 'Shared', text: 'Approved draft shared for other steno signatures.', icon: 'success', timer: 1200, showConfirmButton: false });
+        Swal.fire({
+          title: 'Shared',
+          text: 'Approved draft shared. Other steno can now review, optionally forward to judge, and sign.',
+          icon: 'success',
+          timer: 1400,
+          showConfirmButton: false,
+        });
         this.load();
       },
       error: (err) => {
         const msg = err?.error?.detail || 'Failed to share approved draft.';
         Swal.fire('Error', typeof msg === 'string' ? msg : 'Failed to share approved draft.', 'error');
+      },
+    });
+  }
+
+  forwardToJudgeOptional(item: any): void {
+    this.readerService.forwardToJudgeOptional({ workflow_id: item.workflow_id }).subscribe({
+      next: () => {
+        Swal.fire({
+          title: 'Forwarded',
+          text: 'Draft forwarded to your judge for reference. You can still sign when ready.',
+          icon: 'success',
+          timer: 1300,
+          showConfirmButton: false,
+        });
+        this.load();
+      },
+      error: (err) => {
+        const msg = err?.error?.detail || 'Failed to forward draft to judge.';
+        Swal.fire('Error', typeof msg === 'string' ? msg : 'Failed to forward draft to judge.', 'error');
       },
     });
   }
@@ -169,6 +214,9 @@ export class StenoHomePage {
   }
 
   canUploadDraft(item: any): boolean {
+    if (typeof item?.can_upload_draft === 'boolean') {
+      return item.can_upload_draft;
+    }
     const status = item?.workflow_status;
     return (
       status === 'PENDING_UPLOAD' ||
@@ -179,6 +227,9 @@ export class StenoHomePage {
   }
 
   canSubmitToJudge(item: any): boolean {
+    if (typeof item?.can_submit_to_judge === 'boolean') {
+      return item.can_submit_to_judge;
+    }
     return !!item?.draft_preview_url && this.canUploadDraft(item);
   }
 
@@ -190,6 +241,9 @@ export class StenoHomePage {
   }
 
   canPublishSigned(item: any): boolean {
+    if (typeof item?.can_upload_signed_publish === 'boolean') {
+      return item.can_upload_signed_publish;
+    }
     return (
       (item?.workflow_status === 'JUDGE_APPROVED' ||
         item?.workflow_status === 'SHARED_FOR_SIGNATURE' ||
@@ -199,10 +253,74 @@ export class StenoHomePage {
   }
 
   canShareApprovedDraft(item: any): boolean {
+    if (typeof item?.can_share_approved_draft === 'boolean') {
+      return item.can_share_approved_draft;
+    }
     return (
       item?.is_primary_steno &&
       item?.workflow_status === 'JUDGE_APPROVED' &&
       item?.judge_approval_status === 'APPROVED'
     );
+  }
+
+  isReadOnlyBeforeShare(item: any): boolean {
+    return !!item?.is_read_only_view;
+  }
+
+  hasCurrentStenoForwardedToJudge(item: any): boolean {
+    if (item?.is_primary_steno) {
+      return false;
+    }
+    const rows = Array.isArray(item?.signature_rows) ? item.signature_rows : [];
+    if (item?.can_mark_signature_complete || item?.can_forward_to_judge_optional) {
+      return rows.some((sr: any) => sr?.signature_status !== 'SIGNED' && !!sr?.forwarded_to_judge);
+    }
+    return false;
+  }
+
+  canForwardToJudgeOptional(item: any): boolean {
+    return !!item?.can_forward_to_judge_optional;
+  }
+
+  collaborationStatus(item: any): string | null {
+    const status = String(item?.workflow_status || '');
+    const isPrimary = !!item?.is_primary_steno;
+    const canSignNow = !!item?.can_mark_signature_complete;
+    const hasForwardedOptional = this.hasCurrentStenoForwardedToJudge(item);
+    if (canSignNow && !isPrimary) {
+      if (hasForwardedOptional) {
+        return 'Forwarded To Judge; Ready To Sign';
+      }
+      return 'Shared Draft Received; Forward Optional, Then Sign';
+    }
+    if (canSignNow && isPrimary) {
+      return 'Primary Signature Pending';
+    }
+    if (isPrimary) {
+      if (status === 'JUDGE_APPROVED' && item?.judge_approval_status === 'APPROVED') {
+        return 'Ready To Share With Junior Steno';
+      }
+      if (
+        (status === 'SHARED_FOR_SIGNATURE' || status === 'SIGNATURES_IN_PROGRESS') &&
+        !item?.all_required_signatures_done
+      ) {
+        return 'Shared For Signature; Waiting For Remaining Signatures';
+      }
+      if (item?.all_required_signatures_done) {
+        return 'All Signatures Complete; Ready To Upload & Publish';
+      }
+      return null;
+    }
+    if (item?.is_read_only_view) {
+      if (
+        status === 'JUDGE_APPROVED' ||
+        status === 'SHARED_FOR_SIGNATURE' ||
+        status === 'SIGNATURES_IN_PROGRESS'
+      ) {
+        return 'Awaiting Primary Share For Signature';
+      }
+      return 'Awaiting Primary Draft/Approval';
+    }
+    return null;
   }
 }
