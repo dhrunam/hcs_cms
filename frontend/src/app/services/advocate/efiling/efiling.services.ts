@@ -96,6 +96,14 @@ export class EfilingService {
     );
   }
 
+  /** After court fee is paid for an uploaded document, finalize document filing (server verifies payment). */
+  submitDocumentFilingAfterPayment(documentId: number): Observable<any> {
+    return this.http.post<any>(
+      `${app_url}/api/v1/efiling/efiling-documents/${documentId}/submit-filing/`,
+      {},
+    );
+  }
+
   final_submit_efiling(id: number): Observable<any> {
     var fd = new FormData();
     fd.append("is_draft", "false");

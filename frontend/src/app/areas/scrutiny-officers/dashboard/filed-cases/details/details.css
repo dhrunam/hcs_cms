@@ -661,3 +661,120 @@ body.fullscreen-mode app-sidebar {
 :host-context(body.fullscreen-mode) .page-header {
   display: none !important;
 }
+
+/* Payment history table */
+.payment-history-empty {
+  padding: 0.85rem 1rem;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+}
+
+.payment-history-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 24px rgba(79, 70, 229, 0.08);
+}
+
+.payment-history-table thead th {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #475569;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 2px solid #e2e8f0;
+  padding: 0.75rem 0.85rem;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.payment-history-table tbody td {
+  padding: 0.8rem 0.85rem;
+  font-size: 0.875rem;
+  color: #1e293b;
+  border-color: #f1f5f9;
+  vertical-align: middle;
+}
+
+.payment-history-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.payment-history-table .payment-col-num {
+  width: 2.75rem;
+  text-align: center;
+}
+
+.payment-history-table .payment-col-action {
+  width: 7.5rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.payment-history-table .payment-col-datetime {
+  font-size: 0.82rem;
+  color: #334155;
+  min-width: 9.5rem;
+}
+
+.payment-history-table .payment-amount {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #0f172a;
+}
+
+.payment-history-table .payment-mono {
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    "SF Mono",
+    Menlo,
+    Consolas,
+    monospace;
+  font-size: 0.78rem;
+  color: #475569;
+  max-width: 8rem;
+  word-break: break-all;
+}
+
+.payment-history-table .payment-mode-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.35em 0.65em;
+  text-transform: capitalize;
+}
+
+.payment-history-table .payment-status-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.35em 0.65em;
+  max-width: 10rem;
+  white-space: normal;
+  text-align: left;
+  line-height: 1.25;
+}
+
+.payment-history-table .btn-download-receipt {
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.78rem;
+  padding: 0.35rem 0.65rem;
+  color: #4338ca;
+  border: 1px solid #a5b4fc;
+  background: linear-gradient(180deg, #eef2ff 0%, #e0e7ff 100%);
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.payment-history-table .btn-download-receipt:hover {
+  background: linear-gradient(180deg, #e0e7ff 0%, #c7d2fe 100%);
+  border-color: #818cf8;
+  color: #312e81;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.18);
+}

@@ -13,7 +13,17 @@ import {
 import { EfilingChatComponent } from "../../../../../shared/efiling-chat/efiling-chat";
 import { orderDocumentsForDisplay } from "../../../../../shared/document-groups";
 import { catchError, of } from "rxjs";
-import { PaymentService } from "../../../../../services/payment/payment.service";
+import {
+  PaymentLatestResponse,
+  PaymentService,
+} from "../../../../../services/payment/payment.service";
+import { downloadOnlineCourtFeeReceiptPdf } from "../../../../../utils/payment-receipt-pdf";
+import {
+  EfilingPaymentTableRow,
+  mapPaymentListToTableRows,
+  paymentRowHasReceiptAction,
+  paymentStatusBadgeClass,
+} from "../../../../../utils/efiling-payment-table";
 import {
   EfilingDocumentIndexGroup,
   firstClickableEfilingDocumentIndexInGrouped,
@@ -93,16 +103,8 @@ export class FiledCaseDetails {
   selectedIaDocumentUrl: SafeResourceUrl | null = null;
   selectedIaDocumentBlobUrl: string | null = null;
   isVerifyingIaId: number | null = null;
-  paymentOutcome: "success" | "failed" | null = null;
-  paymentDetails: {
-    txnId?: string;
-    paidAt?: string;
-    referenceNo?: string;
-    amount?: string;
-    paymentMode?: "online" | "offline";
-    bankReceipt?: string;
-    paymentDate?: string;
-  } | null = null;
+  paymentTransactions: EfilingPaymentTableRow[] = [];
+  readonly paymentStatusBadgeClass = paymentStatusBadgeClass;
 
   constructor(
     private route: ActivatedRoute,
@@ -156,7 +158,9 @@ export class FiledCaseDetails {
         true,
       ),
       ias: this.efilingService.get_ias_by_efiling_id(id),
-      payment: this.paymentService.latest(id).pipe(catchError(() => of(null))),
+      payment: this.paymentService
+        .list(id)
+        .pipe(catchError(() => of({ results: [] }))),
     }).subscribe({
       next: ({
         filing,
@@ -177,7 +181,7 @@ export class FiledCaseDetails {
         this.iaDocuments = orderDocumentsForDisplay(iaDocuments?.results ?? [], "");
         this.groupedIaDocuments = this.groupDocumentsByType(this.iaDocuments);
         this.iaList = Array.isArray(ias) ? ias : (ias?.results ?? []);
-        this.updatePaymentDetails(payment);
+        this.refreshPaymentTransactions(payment);
         const firstIaWithDocs = this.iaWithDocuments.find(
           (i) => i.documents.length > 0,
         );
@@ -205,40 +209,43 @@ export class FiledCaseDetails {
     });
   }
 
-  private updatePaymentDetails(tx: any): void {
-    if (!tx || (!tx.txn_id && !tx.reference_no && !tx.status)) {
-      this.paymentOutcome = null;
-      this.paymentDetails = null;
+  private refreshPaymentTransactions(payload: { results?: unknown[] } | null): void {
+    const results = Array.isArray(payload?.results) ? payload!.results : [];
+    this.paymentTransactions = mapPaymentListToTableRows(
+      results as PaymentLatestResponse[],
+    );
+  }
+
+  trackByPaymentRowId(_index: number, row: EfilingPaymentTableRow): number {
+    return row.id;
+  }
+
+  paymentRowCanDownloadReceipt(row: EfilingPaymentTableRow): boolean {
+    return paymentRowHasReceiptAction(row);
+  }
+
+  downloadPaymentReceipt(row: EfilingPaymentTableRow): void {
+    if (!this.filingId || !this.paymentRowCanDownloadReceipt(row)) {
       return;
     }
-    const statusRaw = String(tx.status || "").toLowerCase();
-    const paymentMode =
-      String(tx.payment_mode || "").toLowerCase() === "offline"
-        ? "offline"
-        : "online";
-    if (
-      /(success|paid|complete|ok)/i.test(statusRaw) ||
-      (paymentMode === "offline" &&
-        !!tx.bank_receipt &&
-        /(offline_submitted|submitted|pending|success|paid|complete|ok)/i.test(
-          statusRaw,
-        ))
-    ) {
-      this.paymentOutcome = "success";
-    } else if (statusRaw) {
-      this.paymentOutcome = "failed";
-    } else {
-      this.paymentOutcome = null;
+    if (row.paymentMode === "offline" && row.bankReceipt) {
+      window.open(row.bankReceipt, "_blank", "noopener");
+      return;
     }
-    this.paymentDetails = {
-      txnId: tx.txn_id || undefined,
-      paidAt: tx.payment_datetime || tx.paid_at || undefined,
-      referenceNo: tx.reference_no || undefined,
-      amount: tx.amount || tx.court_fees || undefined,
-      paymentMode,
-      bankReceipt: tx.bank_receipt || undefined,
-      paymentDate: tx.payment_date || undefined,
-    };
+    const ct = this.filing?.case_type;
+    const caseTypeLabel =
+      ct?.type_name?.trim() || ct?.full_form?.trim() || "-";
+    downloadOnlineCourtFeeReceiptPdf({
+      courtLabel: "High Court Of Sikkim",
+      caseTypeLabel,
+      eFilingNumber: String(this.filing?.e_filing_number || "").trim() || "-",
+      amountStr: row.amount === "-" ? "0" : row.amount,
+      courtFeesStr: row.courtFees || row.amount,
+      txnId: row.txnId,
+      referenceNo: row.referenceNo,
+      paidAtIso: row.paidAt,
+      paymentDate: row.paymentDate,
+    });
   }
 
   loadChecklist(): void {
@@ -365,6 +372,34 @@ export class FiledCaseDetails {
     this.submitReview("REJECTED");
   }
 
+  /** Matches backend `review_utils._is_caveat_petition_case` (all case-type labels). */
+  get isCaveatPetitionCase(): boolean {
+    const ct = this.filing?.case_type;
+    if (!ct) {
+      return false;
+    }
+    for (const raw of [
+      ct.type_name,
+      ct.ltype_name,
+      ct.full_form,
+      ct.lfull_form,
+    ]) {
+      const label = String(raw ?? "")
+        .trim()
+        .toLowerCase();
+      if (!label) {
+        continue;
+      }
+      if (label === "caveat petition") {
+        return true;
+      }
+      if (label.includes("caveat") && label.includes("petition")) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   async onRegisterCaseClick(): Promise<void> {
     if (
       !this.canSubmitApprovedFiling ||
@@ -372,6 +407,22 @@ export class FiledCaseDetails {
       !this.allDocumentsAccepted
     )
       return;
+
+    if (this.isCaveatPetitionCase) {
+      const result = await Swal.fire({
+        title: "Register case?",
+        text: "Caveat petitions are registered without bench assignment.",
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonText: "Register Case",
+        cancelButtonText: "Cancel",
+        confirmButtonColor: "#0d6efd",
+      });
+      if (result.isConfirmed) {
+        this.submitApprovedFiling();
+      }
+      return;
+    }
 
     const benchOptions = await this.getBenchInputOptions();
     if (!benchOptions) {

@@ -117,7 +117,7 @@ export class UploadDocuments implements OnInit, OnChanges {
   @Input() useParentIndexGroup = false;
   /**
    * With useTextIndexName + useParentIndexGroup: show multiple Index + PDF rows
-   * and "Add index" instead of a single staged row + annexures.
+   * and "Add More Indexes" instead of a single staged row + annexures.
    */
   @Input() multiManualIndexRows = false;
   /** Optional memo-of-appeal upload (separate document type); does not affect mandatory indexes. */

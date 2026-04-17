@@ -6,7 +6,17 @@ import { catchError, forkJoin, of } from "rxjs";
 import { ToastrService } from "ngx-toastr";
 import Swal from "sweetalert2";
 import { EfilingService } from "../../../../../../services/advocate/efiling/efiling.services";
-import { PaymentService } from "../../../../../../services/payment/payment.service";
+import {
+  PaymentLatestResponse,
+  PaymentService,
+} from "../../../../../../services/payment/payment.service";
+import { downloadOnlineCourtFeeReceiptPdf } from "../../../../../../utils/payment-receipt-pdf";
+import {
+  EfilingPaymentTableRow,
+  mapPaymentListToTableRows,
+  paymentRowHasReceiptAction,
+  paymentStatusBadgeClass,
+} from "../../../../../../utils/efiling-payment-table";
 import {
   getValidationErrorMessage,
   validatePdfOcr,
@@ -65,16 +75,8 @@ export class ScrutinyDetails {
   selectedIaDocument: any = null;
   selectedIaDocumentUrl: SafeResourceUrl | null = null;
   selectedIaDocumentBlobUrl: string | null = null;
-  paymentOutcome: "success" | "failed" | null = null;
-  paymentDetails: {
-    txnId?: string;
-    paidAt?: string;
-    referenceNo?: string;
-    amount?: string;
-    paymentMode?: "online" | "offline";
-    bankReceipt?: string;
-    paymentDate?: string;
-  } | null = null;
+  paymentTransactions: EfilingPaymentTableRow[] = [];
+  readonly paymentStatusBadgeClass = paymentStatusBadgeClass;
 
   constructor(
     private route: ActivatedRoute,
@@ -123,7 +125,9 @@ export class ScrutinyDetails {
       caseDetails: this.efilingService.get_case_details_by_filing_id(id),
       acts: this.efilingService.get_acts_by_filing_id(id),
       ias: this.efilingService.get_ias_by_efiling_id(id),
-      payment: this.paymentService.latest(id).pipe(catchError(() => of(null))),
+      payment: this.paymentService
+        .list(id)
+        .pipe(catchError(() => of({ results: [] }))),
     }).subscribe({
       next: ({
         filing,
@@ -144,7 +148,7 @@ export class ScrutinyDetails {
         this.actList = acts?.results ?? [];
         console.log("Act llist is", this.actList);
         this.iaList = Array.isArray(ias) ? ias : (ias?.results ?? []);
-        this.updatePaymentDetails(payment);
+        this.refreshPaymentTransactions(payment);
         const firstWithDocs = this.iaWithDocuments.find(
           (i) => i.documents.length > 0,
         );
@@ -171,40 +175,43 @@ export class ScrutinyDetails {
     });
   }
 
-  private updatePaymentDetails(tx: any): void {
-    if (!tx || (!tx.txn_id && !tx.reference_no && !tx.status)) {
-      this.paymentOutcome = null;
-      this.paymentDetails = null;
+  private refreshPaymentTransactions(payload: { results?: unknown[] } | null): void {
+    const results = Array.isArray(payload?.results) ? payload!.results : [];
+    this.paymentTransactions = mapPaymentListToTableRows(
+      results as PaymentLatestResponse[],
+    );
+  }
+
+  trackByPaymentRowId(_index: number, row: EfilingPaymentTableRow): number {
+    return row.id;
+  }
+
+  paymentRowCanDownloadReceipt(row: EfilingPaymentTableRow): boolean {
+    return paymentRowHasReceiptAction(row);
+  }
+
+  downloadPaymentReceipt(row: EfilingPaymentTableRow): void {
+    if (!this.filingId || !this.paymentRowCanDownloadReceipt(row)) {
       return;
     }
-    const statusRaw = String(tx.status || "").toLowerCase();
-    const paymentMode =
-      String(tx.payment_mode || "").toLowerCase() === "offline"
-        ? "offline"
-        : "online";
-    if (
-      /(success|paid|complete|ok)/i.test(statusRaw) ||
-      (paymentMode === "offline" &&
-        !!tx.bank_receipt &&
-        /(offline_submitted|submitted|pending|success|paid|complete|ok)/i.test(
-          statusRaw,
-        ))
-    ) {
-      this.paymentOutcome = "success";
-    } else if (statusRaw) {
-      this.paymentOutcome = "failed";
-    } else {
-      this.paymentOutcome = null;
+    if (row.paymentMode === "offline" && row.bankReceipt) {
+      window.open(row.bankReceipt, "_blank", "noopener");
+      return;
     }
-    this.paymentDetails = {
-      txnId: tx.txn_id || undefined,
-      paidAt: tx.payment_datetime || tx.paid_at || undefined,
-      referenceNo: tx.reference_no || undefined,
-      amount: tx.amount || tx.court_fees || undefined,
-      paymentMode,
-      bankReceipt: tx.bank_receipt || undefined,
-      paymentDate: tx.payment_date || undefined,
-    };
+    const ct = this.filing?.case_type;
+    const caseTypeLabel =
+      ct?.type_name?.trim() || ct?.full_form?.trim() || "-";
+    downloadOnlineCourtFeeReceiptPdf({
+      courtLabel: "High Court Of Sikkim",
+      caseTypeLabel,
+      eFilingNumber: String(this.filing?.e_filing_number || "").trim() || "-",
+      amountStr: row.amount === "-" ? "0" : row.amount,
+      courtFeesStr: row.courtFees || row.amount,
+      txnId: row.txnId,
+      referenceNo: row.referenceNo,
+      paidAtIso: row.paidAt,
+      paymentDate: row.paymentDate,
+    });
   }
 
   groupDocumentsByType(docs: any[]): EfilingDocumentIndexGroup[] {

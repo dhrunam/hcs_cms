@@ -96,6 +96,16 @@
         >
       </div>
     </div>
+    <div class="mb-2 text-end" *ngIf="multiManualIndexRows">
+      <button
+        type="button"
+        class="btn btn-outline-secondary btn-sm"
+        [disabled]="isUploading"
+        (click)="addManualIndexRow()"
+      >
+        Add More Indexes
+      </button>
+    </div>
     <div class="table-responsive" *ngIf="multiManualIndexRows">
       <table class="table table-sm align-middle mb-0">
         <thead>
@@ -165,7 +175,7 @@
                   [disabled]="isUploading"
                   (click)="removeManualIndexRow(row.id)"
                 >
-                  Remove row
+                  Remove
                 </button>
               </div>
             </td>
@@ -206,16 +216,6 @@
           </tr>
         </tbody>
       </table>
-    </div>
-    <div class="mt-2" *ngIf="multiManualIndexRows">
-      <button
-        type="button"
-        class="btn btn-outline-secondary btn-sm"
-        [disabled]="isUploading"
-        (click)="addManualIndexRow()"
-      >
-        Add index
-      </button>
     </div>
     <div class="table-responsive" *ngIf="!multiManualIndexRows">
       <table class="table table-sm align-middle mb-0">
