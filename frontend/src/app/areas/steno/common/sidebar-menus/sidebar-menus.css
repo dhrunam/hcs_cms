@@ -1,0 +1,44 @@
+ul.nav {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+li {
+  list-style: none;
+}
+
+li::marker {
+  content: none;
+}
+
+.nav-link {
+  color: #374151;
+  border-radius: 10px;
+  font-weight: 500;
+  padding: 8px 10px;
+}
+
+.nav-link:hover {
+  color: #5b21b6;
+  background: #f5f3ff;
+}
+
+.nav-item.active .nav-link {
+  color: #6d28d9;
+  background: #ede9fe;
+}
+
+.nav-item {
+  color: #4b5563;
+  padding: 2px 8px;
+  margin: 4px 0;
+  border-radius: 10px;
+  font-weight: 500;
+  transition: all 0.25s ease;
+}
+
+.nav-item i {
+  margin-right: 10px;
+  width: 18px;
+}

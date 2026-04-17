@@ -135,6 +135,8 @@ class StenoOrderWorkflow(BaseModel):
         SENT_FOR_JUDGE_APPROVAL = "SENT_FOR_JUDGE_APPROVAL", "Sent for Judge Approval"
         CHANGES_REQUESTED = "CHANGES_REQUESTED", "Changes Requested"
         JUDGE_APPROVED = "JUDGE_APPROVED", "Judge Approved"
+        SHARED_FOR_SIGNATURE = "SHARED_FOR_SIGNATURE", "Shared For Signature"
+        SIGNATURES_IN_PROGRESS = "SIGNATURES_IN_PROGRESS", "Signatures In Progress"
         SIGNED_AND_PUBLISHED = "SIGNED_AND_PUBLISHED", "Signed and Published"
 
     class JudgeApprovalStatus(models.TextChoices):
@@ -228,6 +230,49 @@ class StenoOrderWorkflow(BaseModel):
         indexes = [
             models.Index(fields=["assigned_steno", "workflow_status"]),
             models.Index(fields=["judge_approval_status"]),
+        ]
+
+
+class StenoWorkflowSignature(BaseModel):
+    class SignatureStatus(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        SIGNED = "SIGNED", "Signed"
+
+    workflow = models.ForeignKey(
+        StenoOrderWorkflow,
+        on_delete=models.CASCADE,
+        related_name="signature_rows",
+    )
+    judge_user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="steno_workflow_signatures",
+    )
+    steno_user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="steno_signature_assignments",
+    )
+    bench_role_group = models.CharField(max_length=32, blank=True, null=True)
+    signature_status = models.CharField(
+        max_length=20,
+        choices=SignatureStatus.choices,
+        default=SignatureStatus.PENDING,
+    )
+    signed_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        db_table = "steno_workflow_signature"
+        app_label = "reader"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["workflow", "judge_user"],
+                name="steno_workflow_signature_unique_workflow_judge",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["workflow", "signature_status"]),
+            models.Index(fields=["steno_user"]),
         ]
 
 

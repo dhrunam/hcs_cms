@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../../auth.service';
@@ -9,8 +9,21 @@ import { AuthService } from '../../../auth.service';
   templateUrl: "./dashboard.html",
   styleUrl: "./dashboard.css",
 })
-export class JudgeDashboard {
+export class JudgeDashboard implements OnInit {
+  judgeDisplayName = '';
+
   constructor(private authService: AuthService) {}
+
+  async ngOnInit(): Promise<void> {
+    await this.authService.initializeAuth().catch(() => undefined);
+    this.judgeDisplayName = this.authService.getSessionProfile()?.displayName?.trim() ?? '';
+  }
+
+  get judgeHeaderTitle(): string {
+    return this.judgeDisplayName
+      ? `Hon'ble Judge, ${this.judgeDisplayName}`
+      : "Hon'ble Judge";
+  }
 
   async onLogout(event?: Event): Promise<void> {
     event?.preventDefault();

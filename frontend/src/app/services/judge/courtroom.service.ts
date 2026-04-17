@@ -64,6 +64,12 @@ export class CourtroomService {
     requested_only: boolean = false,
   ): Observable<{
     items: any[];
+    orders?: {
+      order_no: number;
+      status: string;
+      uploaded_at: string | null;
+      file_url: string | null;
+    }[];
   }> {
     const benchPart = forward_bench_key
       ? `&forward_bench_key=${encodeURIComponent(String(forward_bench_key))}`
@@ -94,6 +100,12 @@ export class CourtroomService {
       document_index_id: number;
       document_part_name: string | null;
       document_type: string | null;
+      file_url: string | null;
+    }[];
+    orders?: {
+      order_no: number;
+      status: string;
+      uploaded_at: string | null;
       file_url: string | null;
     }[];
     judge_decision?: {

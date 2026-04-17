@@ -155,6 +155,22 @@
                     </div>
                   </ng-container>
                 </div>
+                <div class="p-2 border rounded mt-2" *ngIf="orderEntries.length > 0">
+                  <div class="small mb-2 fw-semibold">Orders</div>
+                  <div
+                    class="form-check mb-1 px-2 py-2 shadow-sm mb-2"
+                    style="cursor: pointer; border: 1px solid rgb(232, 232, 232); color: rgb(5, 3, 78); border-radius: 6px;"
+                    *ngFor="let order of orderEntries"
+                    (click)="openOrderFile(order.file_url)"
+                  >
+                    <label class="form-check-label small me-2">
+                      #{{ order.order_no }} - {{ order.status }}
+                    </label>
+                    <div class="small text-muted">
+                      {{ order.uploaded_at ? (order.uploaded_at | date:'dd MMM yyyy, hh:mm a') : '-' }}
+                    </div>
+                  </div>
+                </div>
               </div>
               <div class="col-lg-9">
                 <div class="border rounded p-2 judge-preview-wrap">

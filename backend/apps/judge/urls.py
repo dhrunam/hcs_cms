@@ -15,6 +15,7 @@ from apps.judge.views import (
     JudgeStenoWorkflowAnnotationView,
     JudgeStenoWorkflowAnnotationsSnapshotView,
     JudgeStenoWorkflowDecisionView,
+    JudgeBenchAccessDebugView,
 )
 
 app_name = "judge"
@@ -80,6 +81,11 @@ urlpatterns = [
         "steno-workflows/decision/",
         JudgeStenoWorkflowDecisionView.as_view(),
         name="judge-steno-workflow-decision",
+    ),
+    path(
+        "debug/bench-access/",
+        JudgeBenchAccessDebugView.as_view(),
+        name="judge-debug-bench-access",
     ),
 
 ]

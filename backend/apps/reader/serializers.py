@@ -81,3 +81,11 @@ class StenoSubmitForJudgeSerializer(serializers.Serializer):
 
 class StenoResolveAnnotationSerializer(serializers.Serializer):
     annotation_id = serializers.IntegerField()
+
+
+class StenoShareForSignatureSerializer(serializers.Serializer):
+    workflow_id = serializers.IntegerField()
+
+
+class StenoMarkSignatureSerializer(serializers.Serializer):
+    workflow_id = serializers.IntegerField()

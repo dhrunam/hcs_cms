@@ -27,6 +27,7 @@
           class="judge-courtview__day"
           [class.is-current-month]="day.isCurrentMonth"
           [class.is-selected]="day.isSelected"
+          [class]="day.isSelected ? 'text-dark' : ''"
           [class.is-today]="day.isToday"
           [class.has-cases]="day.hasCases"
           (click)="selectCalendarDate(day.dateIso)"

@@ -90,8 +90,12 @@ export type StenoQueueItem = {
   judge_annotations?: any[];
   draft_document_index_id?: number | null;
   draft_preview_url?: string | null;
+  draft_order_no?: number | null;
+  draft_uploaded_at?: string | null;
   signed_document_index_id?: number | null;
   signed_preview_url?: string | null;
+  signed_order_no?: number | null;
+  signed_uploaded_at?: string | null;
   digitally_signed_at?: string | null;
   digital_signature_provider?: string | null;
   digital_signature_certificate_serial?: string | null;
@@ -103,6 +107,16 @@ export type StenoQueueItem = {
   proceedings_text: string;
   steno_purpose_code?: number | null;
   steno_purpose_name?: string | null;
+  signature_rows?: {
+    judge_user_id: number;
+    steno_user_id: number;
+    signature_status: string;
+    signed_at?: string | null;
+  }[];
+  all_required_signatures_done?: boolean;
+  is_primary_steno?: boolean;
+  can_mark_signature_complete?: boolean;
+  assigned_steno_id?: number | null;
 };
 
 export function resolveBenchConfiguration(
@@ -264,8 +278,12 @@ export class ReaderService {
     return this.http.post<any>(url, payload);
   }
 
-  getStenoQueue(): Observable<{ items: StenoQueueItem[] }> {
-    return this.http.get<{ items: StenoQueueItem[] }>(`${app_url}/api/v1/reader/steno/queue/`);
+  getStenoQueue(hearing_date?: string ): Observable<{ items: StenoQueueItem[] }> {
+    let url = `${app_url}/api/v1/reader/steno/queue/`;
+    if (hearing_date) {
+      url += `?hearing_date=${encodeURIComponent(hearing_date)}`;
+    }
+    return this.http.get<{ items: StenoQueueItem[] }>(url);
   }
 
   uploadStenoDraft(payload: {
@@ -294,13 +312,6 @@ export class ReaderService {
   uploadSignedAndPublish(
     workflowId: number,
     file: File,
-    signature?: {
-      signature_provider?: string | null;
-      certificate_serial?: string | null;
-      signer_name?: string | null;
-      signature_reason?: string | null;
-      signature_txn_id?: string | null;
-    },
   ): Observable<{
     workflow_status: string;
     signed_document_index_id: number;
@@ -311,11 +322,20 @@ export class ReaderService {
     const fd = new FormData();
     fd.append('workflow_id', String(workflowId));
     fd.append('file', file, file.name);
-    if (signature?.signature_provider) fd.append('signature_provider', signature.signature_provider);
-    if (signature?.certificate_serial) fd.append('certificate_serial', signature.certificate_serial);
-    if (signature?.signer_name) fd.append('signer_name', signature.signer_name);
-    if (signature?.signature_reason) fd.append('signature_reason', signature.signature_reason);
-    if (signature?.signature_txn_id) fd.append('signature_txn_id', signature.signature_txn_id);
     return this.http.post<any>(`${app_url}/api/v1/reader/steno/upload-signed-publish/`, fd);
+  }
+
+  shareApprovedDraft(payload: { workflow_id: number }): Observable<{
+    workflow_status: string;
+    signature_rows_created: number;
+  }> {
+    return this.http.post<any>(`${app_url}/api/v1/reader/steno/share-approved-draft/`, payload);
+  }
+
+  markSignatureComplete(payload: { workflow_id: number }): Observable<{
+    workflow_status: string;
+    all_required_signatures_done: boolean;
+  }> {
+    return this.http.post<any>(`${app_url}/api/v1/reader/steno/signature-complete/`, payload);
   }
 }

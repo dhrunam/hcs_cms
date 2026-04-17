@@ -1,0 +1,68 @@
+.navbar {
+  height: 60px;
+  position: sticky;
+  top: 0;
+  z-index: 1020;
+}
+
+.steno-topbar {
+  background: #ffffff;
+  border-bottom: 1px solid #ddd6fe;
+  box-shadow: 0 2px 10px rgba(67, 56, 202, 0.08);
+}
+
+.steno-brand .brand-text {
+  color: #5b21b6;
+  letter-spacing: 0.2px;
+  font-weight: 700;
+}
+
+.clock {
+  background: #f5f3ff;
+  padding: 6px 14px;
+  border-radius: 10px;
+  text-align: center;
+  line-height: 1.2;
+  border: 1px solid #ddd6fe;
+}
+
+.clock-date {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #5b21b6;
+}
+
+.clock-time {
+  font-size: 0.87rem;
+  font-weight: 400;
+  color: #4b5563;
+}
+
+.steno-notify-icon {
+  color: #7c3aed;
+}
+
+.steno-profile-toggle {
+  color: #4b5563;
+}
+
+.steno-profile-toggle:hover {
+  color: #6d28d9;
+}
+
+.dropdown-menu {
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.dropdown-item {
+  padding: 8px 14px;
+}
+
+.dropdown-item:hover {
+  background: #f5f3ff;
+}
+
+li {
+  cursor: pointer;
+}

@@ -1,18 +1,17 @@
+import { Component } from "@angular/core";
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import Swal from 'sweetalert2';
-
 import { ReaderService, StenoQueueItem } from '../../../../services/reader/reader.service';
 import { app_url } from '../../../../environment';
 
 @Component({
-  selector: 'app-steno-home',
+  selector: "app-published-cases",
   imports: [CommonModule, FormsModule],
-  templateUrl: './home.html',
-  styleUrl: './home.css',
+  templateUrl: "./published-cases.html",
+  styleUrl: "./published-cases.css",
 })
-export class StenoHomePage {
+export class PublishedCases {
   isLoading = false;
   items: StenoQueueItem[] = [];
   selectedFiles: Record<number, File | null> = {};
@@ -30,7 +29,7 @@ export class StenoHomePage {
     this.readerService.getStenoQueue(this.selectedDate).subscribe({
       next: (resp) => {
         this.items = resp?.items ?? [];
-        this.items = this.items.filter(item => item.workflow_status !== 'SIGNED_AND_PUBLISHED');
+        this.items = this.items.filter(item => item.workflow_status === 'SIGNED_AND_PUBLISHED');
         this.isLoading = false;
       },
       error: () => {
@@ -87,32 +86,6 @@ export class StenoHomePage {
         this.load();
       },
       error: () => Swal.fire('Error', 'Failed to send to judge.', 'error'),
-    });
-  }
-
-  shareApprovedDraft(item: any): void {
-    this.readerService.shareApprovedDraft({ workflow_id: item.workflow_id }).subscribe({
-      next: () => {
-        Swal.fire({ title: 'Shared', text: 'Approved draft shared for other steno signatures.', icon: 'success', timer: 1200, showConfirmButton: false });
-        this.load();
-      },
-      error: (err) => {
-        const msg = err?.error?.detail || 'Failed to share approved draft.';
-        Swal.fire('Error', typeof msg === 'string' ? msg : 'Failed to share approved draft.', 'error');
-      },
-    });
-  }
-
-  markSignatureComplete(item: any): void {
-    this.readerService.markSignatureComplete({ workflow_id: item.workflow_id }).subscribe({
-      next: () => {
-        Swal.fire({ title: 'Updated', text: 'Signature marked complete.', icon: 'success', timer: 1000, showConfirmButton: false });
-        this.load();
-      },
-      error: (err) => {
-        const msg = err?.error?.detail || 'Failed to mark signature.';
-        Swal.fire('Error', typeof msg === 'string' ? msg : 'Failed to mark signature.', 'error');
-      },
     });
   }
 
@@ -197,12 +170,5 @@ export class StenoHomePage {
       item?.judge_approval_status === 'APPROVED'
     );
   }
-
-  canShareApprovedDraft(item: any): boolean {
-    return (
-      item?.is_primary_steno &&
-      item?.workflow_status === 'JUDGE_APPROVED' &&
-      item?.judge_approval_status === 'APPROVED'
-    );
-  }
 }
+

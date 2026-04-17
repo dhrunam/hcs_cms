@@ -1,0 +1,12 @@
+<ul class="nav flex-column steno-menu-list px-2 ">
+  <li class="nav-item" routerLink="/steno/dashboard/home" [routerLinkActive]="'active'" [routerLinkActiveOptions]="{ exact: true }">
+    <a class="nav-link cursor-pointer"><i class="fa-solid fa-list-check"></i> Steno Queue</a>
+  </li>
+
+  <!-- <li class="nav-item" routerLink="/judges/dashboard/steno-review" [routerLinkActive]="'active'">
+    <a class="nav-link cursor-pointer"><i class="fa-solid fa-file-signature"></i> Judge Review Board</a>
+  </li> -->
+  <li class="nav-item" routerLink="/steno/dashboard/published-cases" [routerLinkActive]="'active'">
+    <a class="nav-link cursor-pointer"><i class="fa-solid fa-file-signature"></i> Published Cases</a>
+  </li>
+</ul>

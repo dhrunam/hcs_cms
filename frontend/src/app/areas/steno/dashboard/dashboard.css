@@ -1,0 +1,44 @@
+:root {
+  --steno-bg: #f6f5ff;
+  --steno-panel: #ffffff;
+  --steno-border: #ddd6fe;
+  --steno-text: #312e81;
+  --steno-muted: #6b7280;
+  --steno-primary: #7c3aed;
+}
+
+body {
+  background: var(--steno-bg);
+  font-family: "Inter", sans-serif;
+}
+
+.steno-dashboard {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--steno-bg);
+  overflow: hidden;
+}
+
+.steno-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.steno-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 18px;
+  background: var(--steno-bg);
+}
+
+.steno-content::-webkit-scrollbar {
+  width: 10px;
+}
+
+.steno-content::-webkit-scrollbar-thumb {
+  background: #c4b5fd;
+  border-radius: 999px;
+}

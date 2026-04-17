@@ -1,0 +1,22 @@
+.sidebar {
+  height: 100%;
+  background: #ffffff;
+  border-right: 1px solid #ddd6fe;
+  padding-top: 12px;
+  width: 260px;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  overflow: hidden;
+}
+
+.sidebar-mobile {
+  width: 260px;
+  z-index: 1055;
+}
+
+@media (max-width: 767px) {
+  .sidebar {
+    display: none !important;
+  }
+}

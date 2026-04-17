@@ -28,6 +28,7 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
 
   caseSummary: any = null;
   allCaseDocuments: any[] = [];
+  orderEntries: any[] = [];
 
   previewDocument: any = null;
   previewDocumentBlobUrl: string | null = null;
@@ -221,6 +222,7 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
       .subscribe({
         next: (resp) => {
           this.caseSummary = resp ?? null;
+          this.orderEntries = Array.isArray(resp?.orders) ? resp.orders : [];
           this.forwardedForDate =
             resp?.forwarded_for_date ?? this.forwardedForDate;
           this.loadCaseDocuments();
@@ -241,6 +243,9 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
       .subscribe({
         next: (resp) => {
           this.allCaseDocuments = resp?.items ?? [];
+          if (!this.orderEntries.length) {
+            this.orderEntries = Array.isArray(resp?.orders) ? resp.orders : [];
+          }
           if (this.allCaseDocuments.length && !this.previewDocument) {
             this.selectPreviewDocument(this.allCaseDocuments[0]);
           }
@@ -470,5 +475,10 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
       /v\/s/i,
     );
     return parts.length > 1 ? (parts[1] || "").trim() : "Respondent";
+  }
+
+  openOrderFile(url: string | null | undefined): void {
+    if (!url) return;
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 }

@@ -30,6 +30,7 @@ export class JudgeCourtroomPage {
   caseSummary: any = null;
   decisionNotes = "";
   allCaseDocuments: any[] = [];
+  orderEntries: any[] = [];
   docSearch = "";
   previewDocument: any = null;
   previewDocumentUrl: SafeResourceUrl | null = null;
@@ -82,6 +83,7 @@ export class JudgeCourtroomPage {
       .subscribe({
         next: (resp) => {
           this.caseSummary = resp ?? null;
+          this.orderEntries = Array.isArray(resp?.orders) ? resp.orders : [];
           this.forwardedForDate =
             resp?.forwarded_for_date ?? this.forwardedForDate;
           this.forwardBenchKey =
@@ -169,6 +171,9 @@ export class JudgeCourtroomPage {
       .subscribe({
         next: (resp) => {
           this.allCaseDocuments = resp?.items ?? [];
+          if (!this.orderEntries.length) {
+            this.orderEntries = Array.isArray(resp?.orders) ? resp.orders : [];
+          }
           if (this.allCaseDocuments.length && !this.previewDocument) {
             this.selectPreviewDocument(this.allCaseDocuments[0]);
           }
@@ -383,5 +388,10 @@ export class JudgeCourtroomPage {
 
   get respondentNamesLabel(): string {
     return this.formatLitigantNames(this.respondentLitigants);
+  }
+
+  openOrderFile(url: string | null | undefined): void {
+    if (!url) return;
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 }

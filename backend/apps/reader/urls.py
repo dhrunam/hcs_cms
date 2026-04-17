@@ -14,6 +14,8 @@ from .views import (
     StenoDraftUploadView,
     StenoSignedUploadPublishView,
     StenoSubmitForJudgeApprovalView,
+    StenoShareApprovedDraftView,
+    StenoMarkSignatureCompleteView,
 )
 
 app_name = "reader"
@@ -33,4 +35,6 @@ urlpatterns = [
     path("steno/upload-draft/", StenoDraftUploadView.as_view(), name="steno-upload-draft"),
     path("steno/upload-signed-publish/", StenoSignedUploadPublishView.as_view(), name="steno-upload-signed-publish"),
     path("steno/submit-judge/", StenoSubmitForJudgeApprovalView.as_view(), name="steno-submit-judge"),
+    path("steno/share-approved-draft/", StenoShareApprovedDraftView.as_view(), name="steno-share-approved-draft"),
+    path("steno/signature-complete/", StenoMarkSignatureCompleteView.as_view(), name="steno-signature-complete"),
 ]

@@ -23,6 +23,7 @@ from apps.core.bench_config import (
     judge_user_seated_on_bench_key,
 )
 from apps.core.models import (
+    CivilT,
     Efiling,
     EfilingCaseDetails,
     EfilingDocumentsIndex,
@@ -31,6 +32,7 @@ from apps.core.models import (
     JudgeT,
     ReaderJudgeAssignment,
 )
+from apps.cis.models import OrderDetailsA
 from apps.efiling.party_display import build_petitioner_vs_respondent
 from apps.efiling.serializers.efiling_document_index import EfilingDocumentsIndexSerializer
 
@@ -240,6 +242,60 @@ def _get_display_bench_for_efiling(
     return fallback_bench_key, fallback_bench_key
 
 
+def _resolve_efiling_cino(efiling: Efiling) -> str | None:
+    case_number = (getattr(efiling, "case_number", None) or "").strip()
+    if case_number:
+        row = CivilT.objects.filter(case_no=case_number).values("cino").first()
+        cino = (row or {}).get("cino")
+        if cino:
+            return str(cino)
+    fallback = (case_number or (getattr(efiling, "e_filing_number", None) or "")).strip()
+    return fallback[:16] if fallback else None
+
+
+def _order_upload_url(request, value: str | None) -> str | None:
+    raw = (value or "").strip()
+    if not raw:
+        return None
+    if raw.startswith("http://") or raw.startswith("https://"):
+        return raw
+    if raw.startswith("/"):
+        return request.build_absolute_uri(raw)
+    return request.build_absolute_uri(f"/{raw}")
+
+
+def _orders_for_efiling(request, efiling: Efiling) -> list[dict]:
+    cino = _resolve_efiling_cino(efiling)
+    if not cino:
+        return []
+    rows = (
+        OrderDetailsA.objects.filter(cino=cino)
+        .order_by("-timestamp", "-order_no")[:100]
+    )
+    items: list[dict] = []
+    for row in rows:
+        phase = (row.download or "").strip().upper()
+        if phase == "DRAFT":
+            label = "Draft"
+        elif phase == "APPROVED_DRAFT":
+            label = "Approved Draft"
+        elif phase == "SIGNED_FINAL":
+            label = "Final Signed"
+        elif phase == "PUBLISHED":
+            label = "Published"
+        else:
+            label = phase or "Order"
+        items.append(
+            {
+                "order_no": row.order_no,
+                "status": label,
+                "uploaded_at": row.timestamp.isoformat() if row.timestamp else None,
+                "file_url": _order_upload_url(request, row.upload),
+            }
+        )
+    return items
+
+
 def _courtroom_forward_matches_judge_slot(user: User, forward: CourtroomForward) -> bool:
     """
     Whether this forward row is the one this judge should see (per bench_role_group / legacy RJA).
@@ -247,13 +303,30 @@ def _courtroom_forward_matches_judge_slot(user: User, forward: CourtroomForward)
     if not _judge_can_view_forward(user, forward.bench_key):
         return False
     brg = (getattr(forward, "bench_role_group", None) or "").strip()
+    required_groups = tuple(get_required_judge_groups(forward.bench_key))
+    try:
+        role = resolve_bench_role_group_for_forward(user, forward.bench_key)
+    except ValueError:
+        return False
     if brg:
-        try:
-            role = resolve_bench_role_group_for_forward(user, forward.bench_key)
-        except ValueError:
-            return False
         return brg == str(role)
-    return _listing_summary_visible_to_judge(user, forward) is not None
+    # Legacy rows may not carry bench_role_group. For single-seat benches,
+    # bench access + resolved slot is sufficient and must not depend on summary text.
+    if len(required_groups) <= 1:
+        return True
+    # Division-bench legacy fallback: map reader->judge seating through RJA.
+    fwd_uid = getattr(getattr(forward, "forwarded_by", None), "id", None)
+    if fwd_uid is None:
+        return False
+    judge_ids = list(JudgeT.objects.filter(user_id=user.id).values_list("id", flat=True))
+    if not judge_ids:
+        return False
+    reader_ids = set(
+        ReaderJudgeAssignment.objects.filter(judge_id__in=judge_ids).values_list(
+            "reader_user_id", flat=True
+        )
+    )
+    return int(fwd_uid) in reader_ids
 
 
 def _listing_summary_visible_to_judge(user: User, forward: CourtroomForward) -> str | None:
@@ -310,7 +383,7 @@ def _pick_forward_row_for_efiling_bench(
     matches = [x for x in fs if _courtroom_forward_matches_judge_slot(user, x)]
     if matches:
         return max(matches, key=lambda x: x.id)
-    return fs[0]
+    return None
 
 
 def _forwards_from_published_cause_lists_for_date(
@@ -369,11 +442,7 @@ def _pick_courtroom_forward_for_user(
     for cand in ordered:
         if _courtroom_forward_matches_judge_slot(user, cand):
             return cand
-    if len(ordered) == 1:
-        return ordered[0]
-    # Multiple forwards and no slot match (misconfigured groups): still show a row like
-    # _pick_forward_row_for_efiling_bench so summary/documents do not 404.
-    return ordered[0]
+    return None
 
 
 def _resolve_courtroom_forward_for_hearing_day(
@@ -539,8 +608,6 @@ class CourtroomPendingCasesView(APIView):
                 matches = [x for x in fs if _courtroom_forward_matches_judge_slot(user, x)]
                 if matches:
                     forwards_pre.append(max(matches, key=lambda x: x.id))
-                else:
-                    forwards_pre.append(max(fs, key=lambda x: x.id))
             forwards_pre.sort(key=lambda x: -x.id)
             forwards = forwards_published + forwards_pre
         else:
@@ -781,7 +848,14 @@ class CourtroomCaseDocumentsView(APIView):
                 item["draft_comments"] = None
                 item["comments"] = None
 
-        return Response({"items": doc_items}, status=drf_status.HTTP_200_OK)
+        filing = Efiling.objects.filter(id=efiling_id).only("id", "case_number", "e_filing_number").first()
+        return Response(
+            {
+                "items": doc_items,
+                "orders": _orders_for_efiling(request, filing) if filing else [],
+            },
+            status=drf_status.HTTP_200_OK,
+        )
 
 
 class CourtroomCaseSummaryView(APIView):
@@ -892,6 +966,7 @@ class CourtroomCaseSummaryView(APIView):
                     for d in selected_documents
                 ],
                 "judge_decision": latest_decision_data,
+                "orders": _orders_for_efiling(request, filing),
                 "litigants": litigants,
                 "case_details": (
                     {
@@ -1288,7 +1363,7 @@ class CourtroomSharedViewAPIView(APIView):
 
 class JudgeStenoWorkflowListView(APIView):
     def get(self, request, *args, **kwargs):
-        _assert_judge(request)
+        judge_user = _assert_judge(request)
         ann_qs = JudgeDraftAnnotation.objects.filter(is_active=True).order_by("id")
         rows = (
             StenoOrderWorkflow.objects.filter(
@@ -1306,6 +1381,8 @@ class JudgeStenoWorkflowListView(APIView):
         )
         items = []
         for row in rows:
+            if not _judge_can_view_forward(judge_user, getattr(row.proceeding, "bench_key", None)):
+                continue
             draft_id = row.draft_document_index_id
             ann_list = [
                 {
@@ -1353,6 +1430,8 @@ class JudgeStenoWorkflowAnnotationView(APIView):
         ).first()
         if not workflow:
             raise ValidationError({"workflow_id": "Invalid workflow_id."})
+        if not _judge_can_view_forward(judge_user, getattr(workflow.proceeding, "bench_key", None)):
+            raise ValidationError({"detail": "Not authorized for this workflow."})
         annotation = JudgeDraftAnnotation.objects.create(
             workflow=workflow,
             page_number=payload.validated_data.get("page_number"),
@@ -1386,6 +1465,8 @@ class JudgeStenoWorkflowAnnotationsSnapshotView(APIView):
         ).first()
         if not workflow:
             raise ValidationError({"workflow_id": "Invalid workflow_id."})
+        if not _judge_can_view_forward(judge_user, getattr(workflow.proceeding, "bench_key", None)):
+            raise ValidationError({"detail": "Not authorized for this workflow."})
         positional = (
             Q(page_number__isnull=False)
             | Q(x__isnull=False)
@@ -1422,6 +1503,8 @@ class JudgeStenoWorkflowDecisionView(APIView):
         ).first()
         if not workflow:
             raise ValidationError({"workflow_id": "Invalid workflow_id."})
+        if not _judge_can_view_forward(judge_user, getattr(workflow.proceeding, "bench_key", None)):
+            raise ValidationError({"detail": "Not authorized for this workflow."})
         status = payload.validated_data["judge_approval_status"]
         notes = payload.validated_data.get("judge_approval_notes")
         if status == "APPROVED":
@@ -1449,6 +1532,61 @@ class JudgeStenoWorkflowDecisionView(APIView):
             {
                 "workflow_status": workflow.workflow_status,
                 "judge_approval_status": workflow.judge_approval_status,
+            },
+            status=drf_status.HTTP_200_OK,
+        )
+
+
+class JudgeBenchAccessDebugView(APIView):
+    """
+    Judge-only diagnostics to verify bench seating/slot resolution.
+    Useful when validating cross-visibility issues in live roster data.
+    """
+
+    def get(self, request, *args, **kwargs):
+        user = _assert_judge(request)
+
+        aliases = _bench_key_aliases_list_for_judge(user)
+        forwards = (
+            CourtroomForward.objects.filter(bench_key__in=aliases, is_active=True)
+            .values_list("bench_key", flat=True)
+            .distinct()
+        )
+        bench_keys = sorted(set(aliases) | {str(x) for x in forwards if x})
+
+        seat_resolution: list[dict[str, Any]] = []
+        for bench_key in bench_keys:
+            required = list(get_required_judge_groups(bench_key))
+            try:
+                resolved = resolve_bench_role_group_for_forward(user, bench_key)
+                seat_resolution.append(
+                    {
+                        "bench_key": bench_key,
+                        "required_groups": required,
+                        "resolved_group": resolved,
+                        "can_view_forward": _judge_can_view_forward(user, bench_key),
+                    }
+                )
+            except ValueError as exc:
+                seat_resolution.append(
+                    {
+                        "bench_key": bench_key,
+                        "required_groups": required,
+                        "resolved_group": None,
+                        "can_view_forward": _judge_can_view_forward(user, bench_key),
+                        "resolution_error": str(exc),
+                    }
+                )
+
+        return Response(
+            {
+                "judge_user_id": user.id,
+                "judge_email": user.email,
+                "judge_groups": sorted(
+                    list(user.groups.values_list("name", flat=True))
+                ),
+                "bench_key_aliases": aliases,
+                "seat_resolution": seat_resolution,
             },
             status=drf_status.HTTP_200_OK,
         )

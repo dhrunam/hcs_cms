@@ -3,14 +3,15 @@ import { Routes } from '@angular/router';
 export const StenoRoutes: Routes = [
   {
     path: '',
-    redirectTo: 'dashboard/home',
+    redirectTo: 'dashboard',
     pathMatch: 'full',
   },
   {
-    path: 'dashboard/home',
-    loadComponent: () =>
-      import('./dashboard/home/home').then((m) => m.StenoHomePage),
-    title: 'Steno | Queue',
+    path: 'dashboard',
+    loadChildren: () =>
+      import('./dashboard/dashboard.routing.module').then(
+        (m) => m.StenoDashboardRoutes,
+      ),
   },
 ];
 

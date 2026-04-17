@@ -5,17 +5,20 @@ from datetime import date as date_type
 import logging
 
 from django.db import transaction
+from django.db import connection
 from django.db.models import Prefetch
 from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
+from django.core.files.storage import default_storage
 from rest_framework import status as drf_status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.models import Efiling, EfilingCaseDetails, EfilingDocuments, EfilingDocumentsIndex
+from apps.core.models import Efiling, EfilingCaseDetails, EfilingDocumentsIndex, CivilT
 from apps.core.models import ReaderJudgeAssignment, JudgeT, PurposeT
+from apps.cis.models import OrderDetailsA
 from apps.core.bench_config import (
     get_accessible_bench_codes_for_reader,
     get_accessible_bench_keys_for_reader,
@@ -31,7 +34,6 @@ from apps.core.bench_config import (
 )
 from apps.efiling.party_display import build_petitioner_vs_respondent
 from apps.efiling.pdf_validators import validate_pdf_file
-from apps.efiling.review_utils import create_scrutiny_history
 from apps.judge.models import (
     CourtroomDecisionRequestedDocument,
     CourtroomJudgeDecision,
@@ -49,6 +51,7 @@ from .models import (
     CourtroomForwardDocument,
     ReaderDailyProceeding,
     StenoOrderWorkflow,
+    StenoWorkflowSignature,
 )
 from .workflow_state import (
     apply_reader_assign_date,
@@ -61,6 +64,8 @@ from .serializers import (
     StenoDraftUploadSerializer,
     StenoSubmitForJudgeSerializer,
     StenoResolveAnnotationSerializer,
+    StenoShareForSignatureSerializer,
+    StenoMarkSignatureSerializer,
 )
 
 
@@ -82,6 +87,151 @@ def _steno_signed_preview_url(request, document_index_id: int | None) -> str | N
         kwargs={"document_index_id": int(document_index_id)},
     )
     return request.build_absolute_uri(path)
+
+
+def _resolve_efiling_cino(efiling: Efiling) -> str:
+    case_number = (getattr(efiling, "case_number", None) or "").strip()
+    if case_number:
+        row = CivilT.objects.filter(case_no=case_number).values("cino").first()
+        cino = (row or {}).get("cino")
+        if cino:
+            return str(cino)
+    # Fallback for environments where civil_t bridge is incomplete.
+    fallback = (case_number or (getattr(efiling, "e_filing_number", None) or "")).strip()
+    if not fallback:
+        raise ValidationError({"detail": "Unable to resolve CINO for this case."})
+    return fallback[:16]
+
+
+def _ensure_order_details_a_table_available() -> None:
+    table_name = OrderDetailsA._meta.db_table
+    with connection.cursor() as cursor:
+        names = connection.introspection.table_names(cursor)
+    if table_name not in names:
+        raise ValidationError(
+            {
+                "detail": (
+                    "CIS order table is unavailable (`order_details_a`). "
+                    "Please provision the table before using steno order upload."
+                )
+            }
+        )
+
+
+def _next_order_no_for_cino(cino: str) -> int:
+    latest = (
+        OrderDetailsA.objects.filter(cino=cino)
+        .order_by("-order_no")
+        .values_list("order_no", flat=True)
+        .first()
+    )
+    return int(latest or 0) + 1
+
+
+def _store_steno_order_file(
+    *,
+    upload,
+    efiling: Efiling,
+    workflow_id: int,
+    phase: str,
+) -> str:
+    efiling_folder = (
+        (getattr(efiling, "e_filing_number", None) or getattr(efiling, "case_number", None) or "unknown")
+        .strip()
+        .replace("/", "_")
+    )
+    suffix = timezone.now().strftime("%Y%m%d%H%M%S")
+    rel_path = f"efile/{efiling_folder}/orders/wf_{workflow_id}_{phase.lower()}_{suffix}.pdf"
+    saved = default_storage.save(rel_path, upload)
+    return default_storage.url(saved)
+
+
+def _create_order_details_a_entry(
+    *,
+    efiling: Efiling,
+    workflow_id: int,
+    upload_url: str,
+    phase: str,
+    actor_login: str | None,
+) -> OrderDetailsA:
+    _ensure_order_details_a_table_available()
+    cino = _resolve_efiling_cino(efiling)
+    order_no = _next_order_no_for_cino(cino)
+    now = timezone.now()
+    case_no = (getattr(efiling, "case_number", None) or "")[:15] or None
+    marker = f"STENO_WF_{workflow_id}_{phase.upper()}"
+    return OrderDetailsA.objects.create(
+        case_no=case_no,
+        order_no=order_no,
+        order_dt=now.date(),
+        download=phase.upper(),
+        upload=upload_url,
+        doc_type=0,
+        ordloc_lang="EN",
+        timestamp=now,
+        userlogin=actor_login,
+        disp_nature=0,
+        hashkey=marker,
+        court_no=0,
+        cino=cino,
+        filing_no=(getattr(efiling, "e_filing_number", None) or "")[:15] or None,
+        create_modify=now,
+    )
+
+
+def _latest_workflow_order_entry(efiling: Efiling, workflow_id: int, phase: str) -> OrderDetailsA | None:
+    table_name = OrderDetailsA._meta.db_table
+    with connection.cursor() as cursor:
+        names = connection.introspection.table_names(cursor)
+    if table_name not in names:
+        return None
+    cino = _resolve_efiling_cino(efiling)
+    marker = f"STENO_WF_{workflow_id}_{phase.upper()}"
+    return (
+        OrderDetailsA.objects.filter(cino=cino, hashkey=marker)
+        .order_by("-timestamp", "-order_no")
+        .first()
+    )
+
+
+def _order_upload_preview_url(request, upload_value: str | None) -> str | None:
+    raw = (upload_value or "").strip()
+    if not raw:
+        return None
+    if raw.startswith("http://") or raw.startswith("https://"):
+        return raw
+    if raw.startswith("/"):
+        return request.build_absolute_uri(raw)
+    return request.build_absolute_uri(f"/{raw}")
+
+
+def _primary_steno_user_id_for_workflow(workflow: StenoOrderWorkflow) -> int | None:
+    return workflow.assigned_steno_id
+
+
+def _required_judge_user_ids_for_workflow(workflow: StenoOrderWorkflow) -> list[int]:
+    cfg = get_bench_configuration_for_stored_value(getattr(workflow.efiling, "bench", None))
+    if not cfg:
+        return []
+    return [int(uid) for uid in (cfg.judge_user_ids or ()) if uid]
+
+
+def _all_required_signatures_done(workflow: StenoOrderWorkflow) -> bool:
+    required = set(_required_judge_user_ids_for_workflow(workflow))
+    if len(required) <= 1:
+        return True
+    rows = list(
+        StenoWorkflowSignature.objects.filter(workflow=workflow, judge_user_id__in=required)
+        .values("judge_user_id", "signature_status")
+    )
+    if len(rows) < len(required):
+        return False
+    signed = {
+        int(r["judge_user_id"])
+        for r in rows
+        if r["signature_status"] == StenoWorkflowSignature.SignatureStatus.SIGNED
+    }
+    return required.issubset(signed)
 
 
 _STENO_UPLOAD_ALLOWED = frozenset(
@@ -1280,6 +1430,23 @@ class ReaderDailyProceedingsSubmitView(APIView):
             reader_group=reader_group,
         ):
             raise ValidationError({"detail": "Not authorized to submit proceedings for this case."})
+        if (
+            assigned_bench
+            and len(tuple(assigned_bench.judge_groups or ())) > 1
+            and not is_reader_date_authority_for_bench(
+                assigned_bench.bench_key,
+                user,
+                reader_group=reader_group,
+            )
+        ):
+            raise ValidationError(
+                {
+                    "detail": (
+                        "Only the primary bench reader can submit proceedings "
+                        "for division-bench cases."
+                    )
+                }
+            )
 
         proceeding, _ = ReaderDailyProceeding.objects.update_or_create(
             efiling=efiling,
@@ -1350,24 +1517,44 @@ class StenoQueueListView(APIView):
         user = request.user if getattr(request.user, "is_authenticated", False) else None
         if not user:
             raise ValidationError({"detail": "Authentication required."})
+
+        hearing_date = request.GET.get("hearing_date")
+        print(f"hearing_date: {hearing_date}")
+        if hearing_date:
+            try:
+                hearing_date = timezone.datetime.fromisoformat(hearing_date).date()
+            except (TypeError, ValueError):
+                raise ValidationError({"hearing_date": "Invalid date format. Use YYYY-MM-DD."})
         ann_qs = JudgeDraftAnnotation.objects.filter(is_active=True).order_by("id")
         rows = (
             StenoOrderWorkflow.objects.filter(
-                assigned_steno=user,
-                is_active=True,
+                # assigned_steno=user,
+                # is_active=True,
+                proceeding__hearing_date=hearing_date,
             )
             .select_related("efiling", "proceeding", "draft_document_index")
             .select_related("proceeding__steno_purpose")
             .prefetch_related(
                 Prefetch("judge_annotations", queryset=ann_qs),
                 Prefetch("efiling__litigants"),
+                "signature_rows",
             )
             .order_by("-updated_at", "-id")
         )
         items = []
         for row in rows:
+            draft_entry = _latest_workflow_order_entry(row.efiling, row.id, "DRAFT")
+            signed_entry = _latest_workflow_order_entry(row.efiling, row.id, "SIGNED_FINAL")
             draft_id = row.draft_document_index_id
             signed_id = row.signed_document_index_id
+            signature_rows = list(
+                row.signature_rows.values(
+                    "judge_user_id",
+                    "steno_user_id",
+                    "signature_status",
+                    "signed_at",
+                )
+            )
             ann_list = [
                 {
                     "id": a.id,
@@ -1390,6 +1577,8 @@ class StenoQueueListView(APIView):
                 {
                     "workflow_id": row.id,
                     "efiling_id": row.efiling_id,
+                    "assigned_steno_id": row.assigned_steno_id,
+                    "is_primary_steno": row.assigned_steno_id == getattr(user, "id", None),
                     "case_number": row.efiling.case_number,
                     "e_filing_number": row.efiling.e_filing_number,
                     "petitioner_vs_respondent": petitioner_vs_respondent,
@@ -1398,9 +1587,38 @@ class StenoQueueListView(APIView):
                     "judge_approval_status": row.judge_approval_status,
                     "judge_approval_notes": row.judge_approval_notes,
                     "draft_document_index_id": draft_id,
-                    "draft_preview_url": _steno_draft_preview_url(request, draft_id),
+                    "draft_preview_url": (
+                        _order_upload_preview_url(request, getattr(draft_entry, "upload", None))
+                        or _steno_draft_preview_url(request, draft_id)
+                    ),
                     "signed_document_index_id": signed_id,
-                    "signed_preview_url": _steno_signed_preview_url(request, signed_id),
+                    "signed_preview_url": (
+                        _order_upload_preview_url(request, getattr(signed_entry, "upload", None))
+                        or _steno_signed_preview_url(request, signed_id)
+                    ),
+                    "draft_order_no": getattr(draft_entry, "order_no", None),
+                    "signed_order_no": getattr(signed_entry, "order_no", None),
+                    "draft_uploaded_at": (
+                        draft_entry.timestamp.isoformat() if draft_entry and draft_entry.timestamp else None
+                    ),
+                    "signed_uploaded_at": (
+                        signed_entry.timestamp.isoformat() if signed_entry and signed_entry.timestamp else None
+                    ),
+                    "signature_rows": [
+                        {
+                            "judge_user_id": int(sr["judge_user_id"]),
+                            "steno_user_id": int(sr["steno_user_id"]),
+                            "signature_status": sr["signature_status"],
+                            "signed_at": sr["signed_at"].isoformat() if sr["signed_at"] else None,
+                        }
+                        for sr in signature_rows
+                    ],
+                    "all_required_signatures_done": _all_required_signatures_done(row),
+                    "can_mark_signature_complete": any(
+                        int(sr["steno_user_id"]) == getattr(user, "id", None)
+                        and sr["signature_status"] != StenoWorkflowSignature.SignatureStatus.SIGNED
+                        for sr in signature_rows
+                    ),
                     "digitally_signed_at": (
                         row.digitally_signed_at.isoformat()
                         if row.digitally_signed_at
@@ -1429,7 +1647,7 @@ class StenoQueueListView(APIView):
 
 
 class StenoDraftFileUploadView(APIView):
-    """Multipart PDF upload: creates EfilingDocumentsIndex on the case and links workflow."""
+    """Multipart PDF upload: stores draft into CIS order_details_a."""
 
     def post(self, request, *args, **kwargs):
         user = request.user if getattr(request.user, "is_authenticated", False) else None
@@ -1461,57 +1679,28 @@ class StenoDraftFileUploadView(APIView):
         validate_pdf_file(upload, "file")
         if hasattr(upload, "seek"):
             upload.seek(0)
-        signature_provider = str(request.data.get("signature_provider") or "").strip() or None
-        signature_serial = str(request.data.get("certificate_serial") or "").strip() or None
-        signature_signer = str(request.data.get("signer_name") or "").strip() or None
-        signature_reason = str(request.data.get("signature_reason") or "").strip() or None
-        signature_txn = str(request.data.get("signature_txn_id") or "").strip() or None
-
         efiling = workflow.efiling
         had_changes_requested = (
             workflow.workflow_status == StenoOrderWorkflow.WorkflowStatus.CHANGES_REQUESTED
         )
 
         with transaction.atomic():
-            doc_parent, _ = EfilingDocuments.objects.get_or_create(
-                e_filing=efiling,
-                document_type=f"STENO_WF_{workflow.id}",
-                defaults={
-                    "e_filing_number": efiling.e_filing_number,
-                    "is_ia": False,
-                },
+            upload_url = _store_steno_order_file(
+                upload=upload,
+                efiling=efiling,
+                workflow_id=workflow.id,
+                phase="DRAFT",
             )
-            last_sequence = (
-                EfilingDocumentsIndex.objects.filter(document__e_filing=efiling)
-                .exclude(document_sequence__isnull=True)
-                .order_by("-document_sequence")
-                .values_list("document_sequence", flat=True)
-                .first()
+            order_entry = _create_order_details_a_entry(
+                efiling=efiling,
+                workflow_id=workflow.id,
+                upload_url=upload_url,
+                phase="DRAFT",
+                actor_login=getattr(user, "email", None),
             )
-            next_sequence = (last_sequence or 0) + 1
-            index = EfilingDocumentsIndex.objects.create(
-                document=doc_parent,
-                document_part_name=f"Steno draft wf{workflow.id} seq{next_sequence}",
-                file_part_path=upload,
-                document_sequence=next_sequence,
-                scrutiny_status=EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED,
-                is_new_for_scrutiny=False,
-                created_by=user,
-                updated_by=user,
-                comments="Steno draft",
-            )
-            create_scrutiny_history(
-                index,
-                comments="Steno draft uploaded.",
-                user=user,
-                scrutiny_status=EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED,
-            )
-
-            workflow.draft_document_index = index
             workflow.workflow_status = StenoOrderWorkflow.WorkflowStatus.UPLOADED_BY_STENO
             workflow.updated_by = user
             update_fields = [
-                "draft_document_index",
                 "workflow_status",
                 "updated_by",
                 "updated_at",
@@ -1524,8 +1713,8 @@ class StenoDraftFileUploadView(APIView):
         return Response(
             {
                 "workflow_status": workflow.workflow_status,
-                "draft_document_index_id": index.id,
-                "draft_preview_url": _steno_draft_preview_url(request, index.id),
+                "draft_order_no": order_entry.order_no,
+                "draft_preview_url": _order_upload_preview_url(request, order_entry.upload),
             },
             status=drf_status.HTTP_200_OK,
         )
@@ -1533,38 +1722,14 @@ class StenoDraftFileUploadView(APIView):
 
 class StenoDraftUploadView(APIView):
     def post(self, request, *args, **kwargs):
-        payload = StenoDraftUploadSerializer(data=request.data)
-        payload.is_valid(raise_exception=True)
-        user = request.user if getattr(request.user, "is_authenticated", False) else None
-        workflow = StenoOrderWorkflow.objects.filter(
-            id=payload.validated_data["workflow_id"],
-            is_active=True,
-        ).first()
-        if not workflow:
-            raise ValidationError({"workflow_id": "Invalid workflow_id."})
-        if workflow.assigned_steno_id != getattr(user, "id", None):
-            raise ValidationError({"detail": "Not authorized for this workflow."})
-        if workflow.workflow_status not in _STENO_UPLOAD_ALLOWED:
-            raise ValidationError(
-                {"detail": "Cannot link a draft in the current workflow state."}
-            )
-        draft_id = payload.validated_data["draft_document_index_id"]
-        if not EfilingDocumentsIndex.objects.filter(
-            id=draft_id, document__e_filing_id=workflow.efiling_id
-        ).exists():
-            raise ValidationError({"draft_document_index_id": "Invalid draft document for case."})
-        had_changes_requested = (
-            workflow.workflow_status == StenoOrderWorkflow.WorkflowStatus.CHANGES_REQUESTED
+        raise ValidationError(
+            {
+                "detail": (
+                    "Link-by-document-index is disabled. "
+                    "Upload draft via file upload so it is stored in order_details_a."
+                )
+            }
         )
-        workflow.draft_document_index_id = draft_id
-        workflow.workflow_status = StenoOrderWorkflow.WorkflowStatus.UPLOADED_BY_STENO
-        workflow.updated_by = user
-        save_fields = ["draft_document_index", "workflow_status", "updated_by", "updated_at"]
-        if had_changes_requested:
-            workflow.judge_approval_status = StenoOrderWorkflow.JudgeApprovalStatus.PENDING
-            save_fields.append("judge_approval_status")
-        workflow.save(update_fields=save_fields)
-        return Response({"workflow_status": workflow.workflow_status}, status=drf_status.HTTP_200_OK)
 
 
 class StenoSignedUploadPublishView(APIView):
@@ -1594,83 +1759,59 @@ class StenoSignedUploadPublishView(APIView):
             raise ValidationError({"workflow_id": "Invalid workflow_id."})
         if workflow.assigned_steno_id != getattr(user, "id", None):
             raise ValidationError({"detail": "Not authorized for this workflow."})
+        if _primary_steno_user_id_for_workflow(workflow) != getattr(user, "id", None):
+            raise ValidationError({"detail": "Only primary steno can publish final order."})
         if workflow.workflow_status != StenoOrderWorkflow.WorkflowStatus.JUDGE_APPROVED:
-            raise ValidationError(
-                {"detail": "Signed publish is allowed only after judge approval."}
-            )
+            if workflow.workflow_status not in (
+                StenoOrderWorkflow.WorkflowStatus.SHARED_FOR_SIGNATURE,
+                StenoOrderWorkflow.WorkflowStatus.SIGNATURES_IN_PROGRESS,
+            ):
+                raise ValidationError(
+                    {"detail": "Signed publish is allowed only after judge approval."}
+                )
         if workflow.judge_approval_status != StenoOrderWorkflow.JudgeApprovalStatus.APPROVED:
             raise ValidationError({"detail": "Judge approval is required before publish."})
-        if not workflow.draft_document_index_id:
+        draft_entry = _latest_workflow_order_entry(workflow.efiling, workflow.id, "DRAFT")
+        if not draft_entry:
             raise ValidationError({"detail": "Draft document missing for this workflow."})
+        if not _all_required_signatures_done(workflow):
+            raise ValidationError({"detail": "All required judge signatures are not complete yet."})
 
         validate_pdf_file(upload, "file")
         if hasattr(upload, "seek"):
             upload.seek(0)
-        signature_provider = str(request.data.get("signature_provider") or "").strip() or None
-        signature_serial = str(request.data.get("certificate_serial") or "").strip() or None
-        signature_signer = str(request.data.get("signer_name") or "").strip() or None
-        signature_reason = str(request.data.get("signature_reason") or "").strip() or None
-        signature_txn = str(request.data.get("signature_txn_id") or "").strip() or None
-
         efiling = workflow.efiling
         with transaction.atomic():
-            doc_parent, _ = EfilingDocuments.objects.get_or_create(
-                e_filing=efiling,
-                document_type=f"STENO_SIGNED_WF_{workflow.id}",
-                defaults={
-                    "e_filing_number": efiling.e_filing_number,
-                    "is_ia": False,
-                },
+            upload_url = _store_steno_order_file(
+                upload=upload,
+                efiling=efiling,
+                workflow_id=workflow.id,
+                phase="SIGNED_FINAL",
             )
-            last_sequence = (
-                EfilingDocumentsIndex.objects.filter(document__e_filing=efiling)
-                .exclude(document_sequence__isnull=True)
-                .order_by("-document_sequence")
-                .values_list("document_sequence", flat=True)
-                .first()
+            order_entry = _create_order_details_a_entry(
+                efiling=efiling,
+                workflow_id=workflow.id,
+                upload_url=upload_url,
+                phase="SIGNED_FINAL",
+                actor_login=getattr(user, "email", None),
             )
-            next_sequence = (last_sequence or 0) + 1
-            index = EfilingDocumentsIndex.objects.create(
-                document=doc_parent,
-                document_part_name=f"Steno signed wf{workflow.id} seq{next_sequence}",
-                file_part_path=upload,
-                document_sequence=next_sequence,
-                scrutiny_status=EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED,
-                is_new_for_scrutiny=False,
-                created_by=user,
-                updated_by=user,
-                comments="Steno signed order",
-            )
-            create_scrutiny_history(
-                index,
-                comments="Steno uploaded signed order and published.",
-                user=user,
-                scrutiny_status=EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED,
-            )
-            workflow.signed_document_index = index
             workflow.workflow_status = StenoOrderWorkflow.WorkflowStatus.SIGNED_AND_PUBLISHED
             workflow.digitally_signed_by = user
             workflow.digitally_signed_at = timezone.now()
-            workflow.digital_signature_provider = signature_provider
-            workflow.digital_signature_certificate_serial = signature_serial
-            workflow.digital_signature_signer_name = signature_signer
-            workflow.digital_signature_reason = signature_reason
             workflow.digital_signature_metadata = {
-                "signature_txn_id": signature_txn,
+                "order_details_a": {
+                    "cino": order_entry.cino,
+                    "order_no": order_entry.order_no,
+                },
                 "captured_at": timezone.now().isoformat(),
             }
             workflow.published_at = timezone.now()
             workflow.updated_by = user
             workflow.save(
                 update_fields=[
-                    "signed_document_index",
                     "workflow_status",
                     "digitally_signed_by",
                     "digitally_signed_at",
-                    "digital_signature_provider",
-                    "digital_signature_certificate_serial",
-                    "digital_signature_signer_name",
-                    "digital_signature_reason",
                     "digital_signature_metadata",
                     "published_at",
                     "updated_by",
@@ -1680,14 +1821,106 @@ class StenoSignedUploadPublishView(APIView):
         return Response(
             {
                 "workflow_status": workflow.workflow_status,
-                "signed_document_index_id": index.id,
-                "signed_preview_url": _steno_signed_preview_url(request, index.id),
+                "signed_order_no": order_entry.order_no,
+                "signed_preview_url": _order_upload_preview_url(request, order_entry.upload),
                 "digitally_signed_at": workflow.digitally_signed_at.isoformat()
                 if workflow.digitally_signed_at
                 else None,
                 "published_at": workflow.published_at.isoformat()
                 if workflow.published_at
                 else None,
+            },
+            status=drf_status.HTTP_200_OK,
+        )
+
+
+class StenoShareApprovedDraftView(APIView):
+    def post(self, request, *args, **kwargs):
+        payload = StenoShareForSignatureSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        user = request.user if getattr(request.user, "is_authenticated", False) else None
+        workflow = (
+            StenoOrderWorkflow.objects.select_related("efiling")
+            .filter(id=payload.validated_data["workflow_id"], is_active=True)
+            .first()
+        )
+        if not workflow:
+            raise ValidationError({"workflow_id": "Invalid workflow_id."})
+        if _primary_steno_user_id_for_workflow(workflow) != getattr(user, "id", None):
+            raise ValidationError({"detail": "Only primary steno can share approved draft."})
+        if workflow.workflow_status != StenoOrderWorkflow.WorkflowStatus.JUDGE_APPROVED:
+            raise ValidationError({"detail": "Draft can be shared only after judge approval."})
+
+        required_judges = _required_judge_user_ids_for_workflow(workflow)
+        if len(required_judges) <= 1:
+            return Response(
+                {"detail": "Single-judge bench does not require steno sharing."},
+                status=drf_status.HTTP_200_OK,
+            )
+        bench_key = (
+            get_bench_configuration_for_stored_value(getattr(workflow.efiling, "bench", None)).bench_key
+            if get_bench_configuration_for_stored_value(getattr(workflow.efiling, "bench", None))
+            else None
+        )
+        created = 0
+        for judge_user_id in required_judges:
+            judge_t = JudgeT.objects.filter(user_id=judge_user_id).first()
+            if not judge_t:
+                continue
+            mapping_qs = JudgeStenoMapping.objects.filter(judge_id=judge_t.id, is_active=True)
+            if bench_key:
+                mapping_qs = mapping_qs.filter(Q(bench_key=bench_key) | Q(bench_key__isnull=True))
+            mapping = mapping_qs.order_by("-effective_from", "-id").first()
+            if not mapping:
+                continue
+            _, was_created = StenoWorkflowSignature.objects.get_or_create(
+                workflow=workflow,
+                judge_user_id=judge_user_id,
+                defaults={
+                    "steno_user_id": mapping.steno_user_id,
+                    "signature_status": StenoWorkflowSignature.SignatureStatus.PENDING,
+                },
+            )
+            if was_created:
+                created += 1
+        workflow.workflow_status = StenoOrderWorkflow.WorkflowStatus.SHARED_FOR_SIGNATURE
+        workflow.updated_by = user
+        workflow.save(update_fields=["workflow_status", "updated_by", "updated_at"])
+        return Response(
+            {"workflow_status": workflow.workflow_status, "signature_rows_created": created},
+            status=drf_status.HTTP_200_OK,
+        )
+
+
+class StenoMarkSignatureCompleteView(APIView):
+    def post(self, request, *args, **kwargs):
+        payload = StenoMarkSignatureSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        user = request.user if getattr(request.user, "is_authenticated", False) else None
+        workflow = StenoOrderWorkflow.objects.filter(
+            id=payload.validated_data["workflow_id"], is_active=True
+        ).first()
+        if not workflow:
+            raise ValidationError({"workflow_id": "Invalid workflow_id."})
+        row = StenoWorkflowSignature.objects.filter(
+            workflow=workflow,
+            steno_user=user,
+            is_active=True,
+        ).first()
+        if not row:
+            raise ValidationError({"detail": "No signature assignment found for this steno/workflow."})
+        row.signature_status = StenoWorkflowSignature.SignatureStatus.SIGNED
+        row.signed_at = timezone.now()
+        row.updated_by = user
+        row.save(update_fields=["signature_status", "signed_at", "updated_by", "updated_at"])
+        if workflow.workflow_status == StenoOrderWorkflow.WorkflowStatus.SHARED_FOR_SIGNATURE:
+            workflow.workflow_status = StenoOrderWorkflow.WorkflowStatus.SIGNATURES_IN_PROGRESS
+            workflow.updated_by = user
+            workflow.save(update_fields=["workflow_status", "updated_by", "updated_at"])
+        return Response(
+            {
+                "workflow_status": workflow.workflow_status,
+                "all_required_signatures_done": _all_required_signatures_done(workflow),
             },
             status=drf_status.HTTP_200_OK,
         )
@@ -1706,7 +1939,8 @@ class StenoSubmitForJudgeApprovalView(APIView):
             raise ValidationError({"workflow_id": "Invalid workflow_id."})
         if workflow.assigned_steno_id != getattr(user, "id", None):
             raise ValidationError({"detail": "Not authorized for this workflow."})
-        if not workflow.draft_document_index_id:
+        draft_entry = _latest_workflow_order_entry(workflow.efiling, workflow.id, "DRAFT")
+        if not draft_entry:
             raise ValidationError({"detail": "Upload draft document before sending to judge."})
         workflow.workflow_status = StenoOrderWorkflow.WorkflowStatus.SENT_FOR_JUDGE_APPROVAL
         workflow.updated_by = user
