@@ -7,7 +7,7 @@ from apps.efiling.party_display import build_petitioner_vs_respondent
 class EfilingCaseTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = CaseTypeT
-        fields = ['id', 'case_type', 'type_name', 'full_form']
+        fields = ['id', 'case_type', 'type_name', 'full_form', 'annexure_type']
 
 
 class EfilingSerializer(serializers.ModelSerializer):
