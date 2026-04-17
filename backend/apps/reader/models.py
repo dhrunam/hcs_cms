@@ -269,6 +269,16 @@ class StenoWorkflowSignature(BaseModel):
         related_name="steno_forwarded_signature_rows",
     )
     forwarded_note = models.TextField(blank=True, null=True)
+    signed_upload = models.TextField(blank=True, null=True)
+    signed_upload_at = models.DateTimeField(blank=True, null=True)
+    signed_upload_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="steno_signed_upload_signature_rows",
+    )
+    signed_upload_note = models.TextField(blank=True, null=True)
     signed_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:

@@ -17,6 +17,7 @@ export class StenoHomePage {
   items: StenoQueueItem[] = [];
   selectedFiles: Record<number, File | null> = {};
   signedFiles: Record<number, File | null> = {};
+  signatureCopyFiles: Record<number, File | null> = {};
   selectedDate = new Date().toISOString().slice(0, 10);
   usedDateFallback = false;
 
@@ -70,6 +71,12 @@ export class StenoHomePage {
     const input = event.target as HTMLInputElement;
     const f = input.files?.[0] ?? null;
     this.signedFiles[workflowId] = f;
+  }
+
+  onSignatureCopyFileSelected(workflowId: number, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const f = input.files?.[0] ?? null;
+    this.signatureCopyFiles[workflowId] = f;
   }
 
   uploadDraftFile(item: any): void {
@@ -148,6 +155,35 @@ export class StenoHomePage {
     });
   }
 
+  uploadSignatureCopy(item: any): void {
+    const file = this.signatureCopyFiles[item.workflow_id] ?? null;
+    if (!file) {
+      Swal.fire('No file', 'Choose signed copy PDF first.', 'warning');
+      return;
+    }
+    if (file.type && file.type !== 'application/pdf') {
+      Swal.fire('Invalid type', 'Please choose a PDF file.', 'warning');
+      return;
+    }
+    this.readerService.uploadSignatureCopy(item.workflow_id, file).subscribe({
+      next: () => {
+        Swal.fire({
+          title: 'Uploaded',
+          text: 'Signed copy shared with primary steno.',
+          icon: 'success',
+          timer: 1200,
+          showConfirmButton: false,
+        });
+        this.signatureCopyFiles[item.workflow_id] = null;
+        this.load();
+      },
+      error: (err) => {
+        const msg = err?.error?.detail || err?.error?.file?.[0] || 'Failed to upload signed copy.';
+        Swal.fire('Error', typeof msg === 'string' ? msg : 'Failed to upload signed copy.', 'error');
+      },
+    });
+  }
+
   markSignatureComplete(item: any): void {
     this.readerService.markSignatureComplete({ workflow_id: item.workflow_id }).subscribe({
       next: () => {
@@ -200,6 +236,19 @@ export class StenoHomePage {
 
   statusLabel(status: string | null | undefined): string {
     return String(status || 'PENDING_UPLOAD').replaceAll('_', ' ');
+  }
+
+  roleLabel(item: any): string {
+    return item?.is_primary_steno ? 'Primary Steno Flow' : 'Junior Steno Flow';
+  }
+
+  isDivisionBenchFlow(item: any): boolean {
+    const rows = Array.isArray(item?.signature_rows) ? item.signature_rows : [];
+    if (rows.length > 1) {
+      return true;
+    }
+    const st = String(item?.workflow_status || '');
+    return st === 'SHARED_FOR_SIGNATURE' || st === 'SIGNATURES_IN_PROGRESS';
   }
 
   statusBadgeClass(status: string | null | undefined): string {
@@ -282,6 +331,19 @@ export class StenoHomePage {
     return !!item?.can_forward_to_judge_optional;
   }
 
+  canUploadSignatureCopy(item: any): boolean {
+    return !!item?.can_upload_signature_copy;
+  }
+
+  isSingleBenchFlow(item: any): boolean {
+    return !this.isDivisionBenchFlow(item);
+  }
+
+  juniorSignedCopyRows(item: any): any[] {
+    const rows = Array.isArray(item?.signature_rows) ? item.signature_rows : [];
+    return rows.filter((sr: any) => !!sr?.signed_upload_url);
+  }
+
   collaborationStatus(item: any): string | null {
     const status = String(item?.workflow_status || '');
     const isPrimary = !!item?.is_primary_steno;
@@ -289,9 +351,12 @@ export class StenoHomePage {
     const hasForwardedOptional = this.hasCurrentStenoForwardedToJudge(item);
     if (canSignNow && !isPrimary) {
       if (hasForwardedOptional) {
-        return 'Forwarded To Judge; Ready To Sign';
+        return 'Forwarded To Judge; Upload Signed Copy And Sign';
       }
-      return 'Shared Draft Received; Forward Optional, Then Sign';
+      if (this.canUploadSignatureCopy(item)) {
+        return 'Shared Draft Received; Upload Signed Copy For Primary';
+      }
+      return 'Shared Draft Received; Sign Pending';
     }
     if (canSignNow && isPrimary) {
       return 'Primary Signature Pending';
@@ -305,6 +370,9 @@ export class StenoHomePage {
         !item?.all_required_signatures_done
       ) {
         return 'Shared For Signature; Waiting For Remaining Signatures';
+      }
+      if (item?.all_required_signatures_done && !item?.all_junior_signature_copies_uploaded) {
+        return 'Waiting For Junior Signed Copy Upload';
       }
       if (item?.all_required_signatures_done) {
         return 'All Signatures Complete; Ready To Upload & Publish';
@@ -322,5 +390,61 @@ export class StenoHomePage {
       return 'Awaiting Primary Draft/Approval';
     }
     return null;
+  }
+
+  actionHint(item: any): string | null {
+    if (this.isSingleBenchFlow(item)) {
+      return 'Single bench: upload draft, send to your judge, then upload final signed order.';
+    }
+    if (item?.is_primary_steno) {
+      if (this.canShareApprovedDraft(item)) {
+        return 'Step 1: Share approved draft with junior steno for the same order file.';
+      }
+      if (!item?.all_required_signatures_done) {
+        return 'Waiting for all assigned stenographers to complete signatures.';
+      }
+      if (!item?.all_junior_signature_copies_uploaded) {
+        return 'Waiting for junior signed copy upload back to primary.';
+      }
+      return 'Step 2: Upload the final fully-signed shared PDF to publish.';
+    }
+    if (this.canUploadSignatureCopy(item)) {
+      return 'Step 1: Upload your signed copy for primary steno.';
+    }
+    if (item?.can_mark_signature_complete) {
+      return 'Step 2: Mark signature complete after signing.';
+    }
+    if (item?.is_read_only_view) {
+      return 'Waiting for primary steno to share approved draft.';
+    }
+    return null;
+  }
+
+  showJuniorMarkSignature(item: any): boolean {
+    return !!item?.can_mark_signature_complete && !this.canUploadSignatureCopy(item);
+  }
+
+  isPrimaryDivisionBench(item: any): boolean {
+    return this.isDivisionBenchFlow(item) && !!item?.is_primary_steno;
+  }
+
+  canPrimarySendToJunior(item: any): boolean {
+    return this.isPrimaryDivisionBench(item) && this.canShareApprovedDraft(item);
+  }
+
+  canJuniorDownloadFromPrimary(item: any): boolean {
+    return this.isDivisionBenchFlow(item) && !item?.is_primary_steno && !!item?.draft_preview_url;
+  }
+
+  canJuniorSendToJudge(item: any): boolean {
+    return this.isDivisionBenchFlow(item) && !item?.is_primary_steno && !!item?.draft_preview_url;
+  }
+
+  canJuniorUploadBackToPrimary(item: any): boolean {
+    return this.isDivisionBenchFlow(item) && !item?.is_primary_steno && this.canUploadSignatureCopy(item);
+  }
+
+  canPrimaryDownloadJuniorPdf(item: any): boolean {
+    return this.isPrimaryDivisionBench(item) && this.juniorSignedCopyRows(item).length > 0;
   }
 }

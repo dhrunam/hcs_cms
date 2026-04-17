@@ -113,12 +113,16 @@ export type StenoQueueItem = {
     signature_status: string;
     forwarded_to_judge?: boolean;
     forwarded_at?: string | null;
+    signed_upload_url?: string | null;
+    signed_upload_at?: string | null;
     signed_at?: string | null;
   }[];
   all_required_signatures_done?: boolean;
+  all_junior_signature_copies_uploaded?: boolean;
   is_primary_steno?: boolean;
   can_mark_signature_complete?: boolean;
   can_forward_to_judge_optional?: boolean;
+  can_upload_signature_copy?: boolean;
   assigned_steno_id?: number | null;
   can_upload_draft?: boolean;
   can_submit_to_judge?: boolean;
@@ -353,5 +357,16 @@ export class ReaderService {
     workflow_status: string;
   }> {
     return this.http.post<any>(`${app_url}/api/v1/reader/steno/forward-to-judge-optional/`, payload);
+  }
+
+  uploadSignatureCopy(workflowId: number, file: File): Observable<{
+    workflow_status: string;
+    signed_upload_url?: string | null;
+    signed_upload_at?: string | null;
+  }> {
+    const fd = new FormData();
+    fd.append('workflow_id', String(workflowId));
+    fd.append('file', file, file.name);
+    return this.http.post<any>(`${app_url}/api/v1/reader/steno/upload-signature-copy/`, fd);
   }
 }

@@ -1425,6 +1425,7 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
         self.assertFalse(item["can_mark_signature_complete"])
         self.assertFalse(item.get("can_forward_to_judge_optional"))
 
+    @override_settings(EFILING_VALIDATE_PDF_UPLOAD=False)
     def test_share_then_lower_steno_can_mark_signature_complete(self):
         other_steno = User.objects.create_user(
             email="share.lower.steno@example.com",
@@ -1472,8 +1473,9 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
             f"/api/v1/reader/steno/queue/?hearing_date={self.forwarded_for_date.isoformat()}"
         )
         item = next(x for x in queue.data["items"] if int(x["workflow_id"]) == workflow.id)
-        self.assertTrue(item["can_mark_signature_complete"])
+        self.assertFalse(item["can_mark_signature_complete"])
         self.assertTrue(item.get("can_forward_to_judge_optional"))
+        self.assertTrue(item.get("can_upload_signature_copy"))
 
         forward = lower_client.post(
             "/api/v1/reader/steno/forward-to-judge-optional/",
@@ -1494,13 +1496,25 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
         self.assertIsNotNone(signature_row.forwarded_at)
         self.assertEqual(signature_row.forwarded_note, "Shared with my judge.")
 
-        mark = lower_client.post(
-            "/api/v1/reader/steno/signature-complete/",
-            {"workflow_id": workflow.id},
-            format="json",
+        signed_copy_pdf = SimpleUploadedFile(
+            "junior_signed.pdf",
+            b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n" * 4,
+            content_type="application/pdf",
         )
-        self.assertEqual(mark.status_code, 200, mark.data)
+        upload_copy = lower_client.post(
+            "/api/v1/reader/steno/upload-signature-copy/",
+            {"workflow_id": workflow.id, "file": signed_copy_pdf},
+            format="multipart",
+        )
+        self.assertEqual(upload_copy.status_code, 200, upload_copy.data)
+        signature_row.refresh_from_db()
+        self.assertEqual(
+            signature_row.signature_status,
+            StenoWorkflowSignature.SignatureStatus.SIGNED,
+        )
+        self.assertIsNotNone(signature_row.signed_at)
 
+    @override_settings(EFILING_VALIDATE_PDF_UPLOAD=False)
     def test_primary_can_sign_before_junior_but_publish_waits_for_all(self):
         other_steno = User.objects.create_user(
             email="order.lower.steno@example.com",
@@ -1598,6 +1612,12 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
             detail = detail[0]
         self.assertIn("All required judge signatures are not complete yet", str(detail))
 
+        still_blocked = primary_client.post(
+            "/api/v1/reader/steno/upload-signed-publish/",
+            {"workflow_id": str(workflow.id), "file": signed_pdf},
+            format="multipart",
+        )
+        self.assertEqual(still_blocked.status_code, 400, still_blocked.data)
         lower_sign = lower_client.post(
             "/api/v1/reader/steno/signature-complete/",
             {"workflow_id": workflow.id},
@@ -1605,6 +1625,31 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
         )
         self.assertEqual(lower_sign.status_code, 200, lower_sign.data)
         self.assertTrue(lower_sign.data["all_required_signatures_done"])
+
+        blocked_for_copy = primary_client.post(
+            "/api/v1/reader/steno/upload-signed-publish/",
+            {"workflow_id": str(workflow.id), "file": signed_pdf},
+            format="multipart",
+        )
+        self.assertEqual(blocked_for_copy.status_code, 400, blocked_for_copy.data)
+        detail2 = blocked_for_copy.data.get("detail")
+        if isinstance(detail2, list):
+            detail2 = detail2[0]
+        self.assertIn("Junior steno signed copy is pending", str(detail2))
+
+        upload_copy = lower_client.post(
+            "/api/v1/reader/steno/upload-signature-copy/",
+            {"workflow_id": workflow.id, "file": signed_pdf},
+            format="multipart",
+        )
+        self.assertEqual(upload_copy.status_code, 200, upload_copy.data)
+
+        published = primary_client.post(
+            "/api/v1/reader/steno/upload-signed-publish/",
+            {"workflow_id": str(workflow.id), "file": signed_pdf},
+            format="multipart",
+        )
+        self.assertEqual(published.status_code, 200, published.data)
 
     def test_non_primary_steno_cannot_publish_signed_document(self):
         other_steno = User.objects.create_user(

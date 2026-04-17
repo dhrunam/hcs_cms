@@ -98,3 +98,12 @@ class StenoForwardToJudgeOptionalSerializer(serializers.Serializer):
         allow_blank=True,
         allow_null=True,
     )
+
+
+class StenoUploadSignatureCopySerializer(serializers.Serializer):
+    workflow_id = serializers.IntegerField()
+    note = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )

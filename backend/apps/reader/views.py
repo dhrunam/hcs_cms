@@ -66,6 +66,7 @@ from .serializers import (
     StenoShareForSignatureSerializer,
     StenoMarkSignatureSerializer,
     StenoForwardToJudgeOptionalSerializer,
+    StenoUploadSignatureCopySerializer,
 )
 
 
@@ -256,6 +257,34 @@ def _all_required_signatures_done(workflow: StenoOrderWorkflow) -> bool:
         if r["signature_status"] == StenoWorkflowSignature.SignatureStatus.SIGNED
     }
     return required.issubset(signed)
+
+
+def _all_required_junior_signature_copies_uploaded(workflow: StenoOrderWorkflow) -> bool:
+    required = set(_required_judge_user_ids_for_workflow(workflow))
+    if len(required) <= 1:
+        return True
+    if not _table_exists_on_default_db(StenoWorkflowSignature._meta.db_table):
+        return False
+    if not _columns_exist_on_default_db(
+        StenoWorkflowSignature._meta.db_table,
+        {"signed_upload", "signed_upload_at"},
+    ):
+        return False
+    primary_steno_id = _primary_steno_user_id_for_workflow(workflow)
+    rows = list(
+        StenoWorkflowSignature.objects.filter(workflow=workflow, judge_user_id__in=required)
+        .values("judge_user_id", "steno_user_id", "signed_upload")
+    )
+    if not rows:
+        return False
+    junior_rows = [
+        r
+        for r in rows
+        if int(r.get("steno_user_id") or 0) != int(primary_steno_id or 0)
+    ]
+    if not junior_rows:
+        return True
+    return all(bool((r.get("signed_upload") or "").strip()) for r in junior_rows)
 
 
 _STENO_UPLOAD_ALLOWED = frozenset(
@@ -1645,6 +1674,10 @@ class StenoQueueListView(APIView):
             StenoWorkflowSignature._meta.db_table,
             {"forwarded_to_judge", "forwarded_at"},
         )
+        signature_copy_columns_available = _columns_exist_on_default_db(
+            StenoWorkflowSignature._meta.db_table,
+            {"signed_upload", "signed_upload_at"},
+        )
         base_filters = Q(is_active=True)
         if hearing_date:
             base_filters &= Q(proceeding__hearing_date=hearing_date)
@@ -1676,6 +1709,8 @@ class StenoQueueListView(APIView):
                                 "signature_status",
                                 "forwarded_to_judge",
                                 "forwarded_at",
+                                "signed_upload",
+                                "signed_upload_at",
                                 "signed_at",
                             ]
                             if signature_forward_columns_available
@@ -1761,6 +1796,16 @@ class StenoQueueListView(APIView):
                                 if sr.get("forwarded_at")
                                 else None
                             ),
+                            "signed_upload_url": (
+                                _order_upload_preview_url(request, sr.get("signed_upload"))
+                                if signature_copy_columns_available
+                                else None
+                            ),
+                            "signed_upload_at": (
+                                sr["signed_upload_at"].isoformat()
+                                if sr.get("signed_upload_at")
+                                else None
+                            ),
                             "signed_at": sr["signed_at"].isoformat() if sr["signed_at"] else None,
                         }
                         for sr in signature_rows
@@ -1770,6 +1815,8 @@ class StenoQueueListView(APIView):
                         sr.get("steno_user_id") is not None
                         and int(sr["steno_user_id"]) == current_uid
                         and sr["signature_status"] != StenoWorkflowSignature.SignatureStatus.SIGNED
+                        and int(sr.get("steno_user_id") or 0)
+                        == int(_primary_steno_user_id_for_workflow(row) or 0)
                         for sr in signature_rows
                     ),
                     "can_forward_to_judge_optional": any(
@@ -1781,6 +1828,14 @@ class StenoQueueListView(APIView):
                         and not bool(sr.get("forwarded_to_judge"))
                         for sr in signature_rows
                     ),
+                    "can_upload_signature_copy": any(
+                        (not is_primary_steno)
+                        and sr.get("steno_user_id") is not None
+                        and int(sr["steno_user_id"]) == current_uid
+                        and signature_copy_columns_available
+                        for sr in signature_rows
+                    ),
+                    "all_junior_signature_copies_uploaded": _all_required_junior_signature_copies_uploaded(row),
                     "can_upload_draft": is_primary_steno and row.workflow_status in _STENO_UPLOAD_ALLOWED,
                     "can_submit_to_judge": (
                         is_primary_steno
@@ -1804,6 +1859,7 @@ class StenoQueueListView(APIView):
                             StenoOrderWorkflow.WorkflowStatus.SIGNATURES_IN_PROGRESS,
                         }
                         and row.judge_approval_status == StenoOrderWorkflow.JudgeApprovalStatus.APPROVED
+                        and _all_required_junior_signature_copies_uploaded(row)
                     ),
                     "is_read_only_view": (
                         (not is_primary_steno)
@@ -1973,6 +2029,8 @@ class StenoSignedUploadPublishView(APIView):
             raise ValidationError({"detail": "Draft document missing for this workflow."})
         if not _all_required_signatures_done(workflow):
             raise ValidationError({"detail": "All required judge signatures are not complete yet."})
+        if not _all_required_junior_signature_copies_uploaded(workflow):
+            raise ValidationError({"detail": "Junior steno signed copy is pending for this shared order."})
 
         validate_pdf_file(upload, "file")
         if hasattr(upload, "seek"):
@@ -2209,6 +2267,100 @@ class StenoForwardToJudgeOptionalView(APIView):
                 "forwarded_to_judge": bool(row.forwarded_to_judge),
                 "forwarded_at": row.forwarded_at.isoformat() if row.forwarded_at else None,
                 "workflow_status": workflow.workflow_status,
+            },
+            status=drf_status.HTTP_200_OK,
+        )
+
+
+class StenoUploadSignatureCopyView(APIView):
+    def post(self, request, *args, **kwargs):
+        if not _table_exists_on_default_db(StenoWorkflowSignature._meta.db_table):
+            raise ValidationError(
+                {
+                    "detail": (
+                        "Signature workflow table is unavailable (`steno_workflow_signature`). "
+                        "Please run migrations before uploading signature copy."
+                    )
+                }
+            )
+        if not _columns_exist_on_default_db(
+            StenoWorkflowSignature._meta.db_table,
+            {"signed_upload", "signed_upload_at", "signed_upload_by_id", "signed_upload_note"},
+        ):
+            raise ValidationError(
+                {
+                    "detail": (
+                        "Signature copy fields are unavailable in `steno_workflow_signature`. "
+                        "Please run migrations before using this action."
+                    )
+                }
+            )
+        payload = StenoUploadSignatureCopySerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        upload = request.FILES.get("file")
+        if not upload:
+            raise ValidationError({"file": "Signed PDF file is required."})
+        validate_pdf_file(upload, "file")
+        if hasattr(upload, "seek"):
+            upload.seek(0)
+
+        user = request.user if getattr(request.user, "is_authenticated", False) else None
+        workflow = StenoOrderWorkflow.objects.filter(
+            id=payload.validated_data["workflow_id"], is_active=True
+        ).first()
+        if not workflow:
+            raise ValidationError({"workflow_id": "Invalid workflow_id."})
+        if workflow.workflow_status not in (
+            StenoOrderWorkflow.WorkflowStatus.SHARED_FOR_SIGNATURE,
+            StenoOrderWorkflow.WorkflowStatus.SIGNATURES_IN_PROGRESS,
+        ):
+            raise ValidationError({"detail": "Signed copy upload is available after primary share step."})
+        row = StenoWorkflowSignature.objects.filter(
+            workflow=workflow,
+            steno_user=user,
+            is_active=True,
+        ).first()
+        if not row:
+            raise ValidationError({"detail": "No signature assignment found for this steno/workflow."})
+        if _primary_steno_user_id_for_workflow(workflow) == getattr(user, "id", None):
+            raise ValidationError({"detail": "Primary steno does not upload junior signature copy."})
+
+        rel = _store_steno_order_file(
+            upload=upload,
+            efiling=workflow.efiling,
+            workflow_id=workflow.id,
+            phase=f"SIGNED_COPY_{int(getattr(user, 'id', 0))}",
+        )
+        row.signed_upload = rel
+        row.signed_upload_at = timezone.now()
+        row.signed_upload_by = user
+        row.signature_status = StenoWorkflowSignature.SignatureStatus.SIGNED
+        row.signed_at = timezone.now()
+        note = payload.validated_data.get("note")
+        if note is not None:
+            row.signed_upload_note = note
+        row.updated_by = user
+        row.save(
+            update_fields=[
+                "signed_upload",
+                "signed_upload_at",
+                "signed_upload_by",
+                "signed_upload_note",
+                "signature_status",
+                "signed_at",
+                "updated_by",
+                "updated_at",
+            ]
+        )
+        if workflow.workflow_status == StenoOrderWorkflow.WorkflowStatus.SHARED_FOR_SIGNATURE:
+            workflow.workflow_status = StenoOrderWorkflow.WorkflowStatus.SIGNATURES_IN_PROGRESS
+            workflow.updated_by = user
+            workflow.save(update_fields=["workflow_status", "updated_by", "updated_at"])
+        return Response(
+            {
+                "workflow_status": workflow.workflow_status,
+                "signed_upload_url": _order_upload_preview_url(request, row.signed_upload),
+                "signed_upload_at": row.signed_upload_at.isoformat() if row.signed_upload_at else None,
             },
             status=drf_status.HTTP_200_OK,
         )

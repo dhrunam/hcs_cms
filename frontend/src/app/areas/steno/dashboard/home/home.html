@@ -30,6 +30,11 @@
             <div class="fw-bold fs-6">{{ item.case_number || '-' }}</div>
             <div class="small mb-1 text-muted">{{ item.petitioner_vs_respondent || '-' }}</div>
             <div class="small text-muted">{{ item.document_type }} | WF #{{ item.workflow_id }} | E-file: {{ item.e_filing_number || '-' }}</div>
+            <div class="small mt-1">
+              <span class="badge rounded-pill role-pill">
+                {{ roleLabel(item) }}
+              </span>
+            </div>
           </div>
           <span [class]="statusBadgeClass(item.workflow_status)">
             {{ statusLabel(item.workflow_status) }}
@@ -40,10 +45,19 @@
           <span *ngIf="item.steno_purpose_name">Purpose: {{ item.steno_purpose_name }}</span>
           <span *ngIf="item.judge_approval_status"> | Judge: {{ item.judge_approval_status }}</span>
         </div>
-        <div class="small mb-2" *ngIf="collaborationStatus(item) as collabStatus">
+        <div class="flow-banner division" *ngIf="isDivisionBenchFlow(item)">
+          Division Bench Collaboration Flow
+        </div>
+        <div class="flow-banner single" *ngIf="!isDivisionBenchFlow(item)">
+          Single Bench Flow (Own Judge)
+        </div>
+        <div class="small mb-2" *ngIf="isDivisionBenchFlow(item) && collaborationStatus(item) as collabStatus">
           <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border">
             {{ collabStatus }}
           </span>
+        </div>
+        <div class="step-hint" *ngIf="actionHint(item) as hint">
+          {{ hint }}
         </div>
         <div class="small text-warning-emphasis mb-2" *ngIf="isReadOnlyBeforeShare(item)">
           Read-only for this workflow until primary steno shares approved draft for signature.
@@ -60,7 +74,7 @@
           </ul>
         </div>
 
-        <div class="mb-2" *ngIf="item.draft_preview_url">
+        <div class="mb-2" *ngIf="item.draft_preview_url && (item.is_primary_steno || !isDivisionBenchFlow(item))">
           <button type="button" class="btn btn-outline-secondary btn-sm" (click)="openDraftUrl(item.draft_preview_url)">
             View draft PDF
           </button>
@@ -77,7 +91,7 @@
           </div>
         </div>
 
-        <div class="row g-2 align-items-end mb-2">
+        <div class="row g-2 align-items-end mb-2" *ngIf="isSingleBenchFlow(item)">
           <div class="col-md-6">
             <label class="form-label small">Upload draft PDF</label>
             <input
@@ -100,7 +114,7 @@
           </div>
         </div>
 
-        <div class="d-flex gap-2 align-items-center flex-wrap">
+        <div class="d-flex gap-2 align-items-center flex-wrap" *ngIf="isSingleBenchFlow(item) || item.is_primary_steno">
           <button
             class="btn btn-success btn-sm"
             type="button"
@@ -110,55 +124,118 @@
             Send To Judge
           </button>
           <span class="small text-muted" *ngIf="!item.draft_preview_url">Upload a draft first to enable sending.</span>
-        </div>
-
-        <div class="mt-2 d-flex gap-2 align-items-center flex-wrap">
-          <button
-            class="btn btn-outline-primary btn-sm"
-            type="button"
-            (click)="shareApprovedDraft(item)"
-            *ngIf="canShareApprovedDraft(item)"
-          >
-            Share Approved Draft For Signature
-          </button>
-          <button
-            class="btn btn-outline-info btn-sm"
-            type="button"
-            (click)="forwardToJudgeOptional(item)"
-            *ngIf="canForwardToJudgeOptional(item)"
-          >
-            Forward To My Judge (Optional)
-          </button>
-          <button
-            class="btn btn-outline-secondary btn-sm"
-            type="button"
-            (click)="markSignatureComplete(item)"
-            *ngIf="item.can_mark_signature_complete"
-          >
-            Mark Signature Complete
-          </button>
-          <span class="small text-success-emphasis" *ngIf="hasCurrentStenoForwardedToJudge(item)">
-            Optional forward to judge completed.
+          <span class="small text-muted" *ngIf="isPrimaryDivisionBench(item) && item.draft_preview_url && !canSubmitToJudge(item)">
+            Send to judge is available before judge approval stage.
           </span>
         </div>
 
-        <div class="mt-3 p-2 border rounded bg-light" *ngIf="canPublishSigned(item)">
-          <div class="small fw-semibold mb-2">Primary steno final step: upload fully signed shared PDF to publish.</div>
-          <div class="row g-2 align-items-end">
-            <div class="col-md-6">
-              <input
-                class="form-control form-control-sm"
-                type="file"
-                accept="application/pdf,.pdf"
-                (change)="onSignedFileSelected(item.workflow_id, $event)"
-              />
+        <div class="share-panel mt-3" *ngIf="isPrimaryDivisionBench(item)">
+          <div class="step-title">Primary Steno - 4 Step Flow</div>
+          <div class="step-row">
+            <div class="step-item">
+              <div class="step-name">Step 1: Send PDF to Junior Steno</div>
+              <div class="d-flex gap-2 flex-wrap mt-2">
+                <input
+                  class="form-control form-control-sm"
+                  style="max-width: 260px;"
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  (change)="onDraftFileSelected(item.workflow_id, $event)"
+                  [disabled]="!canUploadDraft(item)"
+                />
+                <button
+                  class="btn btn-primary btn-sm"
+                  type="button"
+                  (click)="uploadDraftFile(item)"
+                  [disabled]="!canUploadDraft(item)"
+                >
+                  Upload PDF
+                </button>
+                <button
+                  class="btn btn-outline-primary btn-sm"
+                  type="button"
+                  (click)="shareApprovedDraft(item)"
+                  [disabled]="!canPrimarySendToJunior(item)"
+                >
+                  Send To Junior Steno
+                </button>
+              </div>
             </div>
-            <div class="col-md-6">
-              <button class="btn btn-dark btn-sm" type="button" (click)="uploadSignedAndPublish(item)" [disabled]="item.is_primary_steno && !item.all_required_signatures_done">
-                Upload Signed & Publish
+            <div class="step-item">
+              <div class="step-name">Step 2: Download Junior Signed PDF</div>
+              <div class="d-flex gap-2 flex-wrap mt-2">
+                <button
+                  class="btn btn-outline-secondary btn-sm"
+                  type="button"
+                  (click)="openDraftUrl(juniorSignedCopyRows(item)[0]?.signed_upload_url)"
+                  [disabled]="!canPrimaryDownloadJuniorPdf(item)"
+                >
+                  Download Junior Signed PDF
+                </button>
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-name">Step 3: Upload Final Signed PDF & Publish</div>
+              <div class="d-flex gap-2 flex-wrap mt-2">
+                <input
+                  class="form-control form-control-sm"
+                  style="max-width: 260px;"
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  (change)="onSignedFileSelected(item.workflow_id, $event)"
+                />
+                <button class="btn btn-dark btn-sm" type="button" (click)="uploadSignedAndPublish(item)" [disabled]="!canPublishSigned(item) || !item.all_required_signatures_done || !item.all_junior_signature_copies_uploaded">
+                  Upload Final & Publish
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="share-panel mt-3" *ngIf="isDivisionBenchFlow(item) && !item.is_primary_steno">
+          <div class="step-title">Junior Steno - 4 Step Flow</div>
+          <div class="step-row">
+            <div class="step-item">
+              <div class="step-name">Step 1: Download PDF from Primary</div>
+              <button
+                class="btn btn-outline-secondary btn-sm mt-2"
+                type="button"
+                (click)="openDraftUrl(item.draft_preview_url)"
+                [disabled]="!canJuniorDownloadFromPrimary(item)"
+              >
+                Download Shared PDF
               </button>
-              <div class="small text-muted mt-1" *ngIf="item.is_primary_steno && !item.all_required_signatures_done">
-                Publish stays locked until all required steno signatures are marked complete.
+            </div>
+            <div class="step-item">
+              <div class="step-name">Step 2: Send PDF to My Judge</div>
+              <button
+                class="btn btn-outline-info btn-sm mt-2"
+                type="button"
+                (click)="forwardToJudgeOptional(item)"
+                [disabled]="!canJuniorSendToJudge(item)"
+              >
+                Send To My Judge
+              </button>
+            </div>
+            <div class="step-item">
+              <div class="step-name">Step 3: Sign and Upload Back to Primary</div>
+              <div class="d-flex gap-2 flex-wrap mt-2">
+                <input
+                  class="form-control form-control-sm"
+                  style="max-width: 260px;"
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  (change)="onSignatureCopyFileSelected(item.workflow_id, $event)"
+                  [disabled]="!canJuniorUploadBackToPrimary(item)"
+                />
+                <button
+                  class="btn btn-outline-warning btn-sm"
+                  type="button"
+                  (click)="uploadSignatureCopy(item)"
+                  [disabled]="!canJuniorUploadBackToPrimary(item)"
+                >
+                  Upload Signed Copy
+                </button>
               </div>
             </div>
           </div>
