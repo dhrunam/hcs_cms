@@ -76,4 +76,12 @@ export const routes: Routes = [
     loadChildren: () =>
       import('./areas/steno/steno-routing-module').then((m) => m.StenoRoutes),
   },
+  {
+    path: 'office-note-sheet',
+    canMatch: [authGuard],
+    loadChildren: () =>
+      import('./areas/office-note-sheet/office-note-sheet.routing.module').then(
+        (m) => m.OfficeNoteSheetRoutes,
+      ),
+  },
 ];

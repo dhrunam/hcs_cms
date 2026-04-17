@@ -7,6 +7,26 @@ from apps.core.models import CaseTypeT, Efiling, EfilingDocuments, EfilingDocume
 from apps.efiling.notification_utils import create_notification
 
 
+def reviewable_document_indexes_for_filing(filing):
+    """
+    Scrutiny workflow must evaluate only real uploaded document rows.
+    Name-only header rows (without file_part_path) are UI grouping metadata and
+    must not influence case approval/rejection state transitions.
+    """
+    qs = EfilingDocumentsIndex.objects.filter(
+        document__e_filing=filing,
+        is_active=True,
+    ).exclude(
+        models.Q(file_part_path__isnull=True) | models.Q(file_part_path__exact="")
+    )
+    if qs.exists():
+        return qs
+    # Backward-compatible fallback when rows were accidentally saved inactive.
+    return EfilingDocumentsIndex.objects.filter(document__e_filing=filing).exclude(
+        models.Q(file_part_path__isnull=True) | models.Q(file_part_path__exact="")
+    )
+
+
 def create_scrutiny_history(document_index, comments=None, user=None, scrutiny_status=None):
     history = EfilingDocumentsScrutinyHistory.objects.create(
         efiling_document_index=document_index,
@@ -177,13 +197,7 @@ def ensure_document_indexes_for_filing(filing, user=None):
 
 
 def derive_filing_status(filing):
-    document_indexes = EfilingDocumentsIndex.objects.filter(
-        document__e_filing=filing,
-        is_active=True,
-    )
-    if not document_indexes.exists():
-        # Backward-compatible fallback for rows that were accidentally stored inactive.
-        document_indexes = EfilingDocumentsIndex.objects.filter(document__e_filing=filing)
+    document_indexes = reviewable_document_indexes_for_filing(filing)
 
     if filing.is_draft:
         filing.status = "DRAFT"
@@ -227,12 +241,7 @@ def finalize_approved_filing(filing, user=None, bench=None):
     with transaction.atomic():
         filing = Efiling.objects.select_for_update().get(pk=filing.pk)
         filing = derive_filing_status(filing)
-        active_document_indexes = EfilingDocumentsIndex.objects.filter(
-            document__e_filing=filing,
-            is_active=True,
-        )
-        if not active_document_indexes.exists():
-            active_document_indexes = EfilingDocumentsIndex.objects.filter(document__e_filing=filing)
+        active_document_indexes = reviewable_document_indexes_for_filing(filing)
 
         if filing.is_draft:
             raise ValidationError("Draft filings cannot be submitted as approved cases.")
@@ -295,12 +304,7 @@ def finalize_scrutiny_submission(filing, user=None, bench=None):
     if filing.is_draft:
         raise ValidationError("Draft filings cannot be submitted for scrutiny finalization.")
 
-    document_indexes = EfilingDocumentsIndex.objects.filter(
-        document__e_filing=filing,
-        is_active=True,
-    ).order_by("id")
-    if not document_indexes.exists():
-        document_indexes = EfilingDocumentsIndex.objects.filter(document__e_filing=filing).order_by("id")
+    document_indexes = reviewable_document_indexes_for_filing(filing).order_by("id")
     if not document_indexes.exists():
         raise ValidationError("At least one document is required before final submit.")
 
@@ -388,9 +392,10 @@ def can_replace_document(document, document_index_id=None):
     if document.e_filing.is_draft:
         return True
 
-    document_indexes = (
-        EfilingDocumentsIndex.objects.filter(document=document, is_active=True)
-    )
+    document_indexes = EfilingDocumentsIndex.objects.filter(
+        document=document,
+        is_active=True,
+    ).exclude(models.Q(file_part_path__isnull=True) | models.Q(file_part_path__exact=""))
     if document_index_id is not None:
         document_indexes = document_indexes.filter(id=document_index_id)
 

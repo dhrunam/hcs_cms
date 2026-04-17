@@ -6,6 +6,7 @@ import { Subject } from 'rxjs';
 
 import { CourtroomService } from '../../../../services/judge/courtroom.service';
 import { PdfAnnotatorComponent } from '../../../judges/dashboard/courtroom/pdf-annotator.component';
+import { buildCollapsedDisplaySections, DocumentDisplaySection, orderDocumentsForDisplay } from '../../../../shared/document-groups';
 
 @Component({
   selector: 'app-advocate-courtview',
@@ -34,6 +35,7 @@ export class AdvocateCourtviewPage implements OnInit, OnDestroy {
   currentPageIndex = 0;
 
   private destroy$ = new Subject<void>();
+  private expandedVakalatGroupIds = new Set<string>();
 
   constructor(
     private route: ActivatedRoute,
@@ -164,13 +166,23 @@ export class AdvocateCourtviewPage implements OnInit, OnDestroy {
   }
 
   get filteredCaseDocuments(): any[] {
-    if (!this.documentSearchQuery.trim()) return this.allCaseDocuments;
-    const q = this.documentSearchQuery.toLowerCase().trim();
-    return this.allCaseDocuments.filter((doc, idx) => {
-      const name = (doc.document_part_name || '').toLowerCase();
-      const type = (doc.document_type || '').toLowerCase();
-      return name.includes(q) || type.includes(q) || String(idx + 1) === q;
-    });
+    return orderDocumentsForDisplay(this.allCaseDocuments, this.documentSearchQuery);
+  }
+
+  get documentDisplaySections(): DocumentDisplaySection[] {
+    return buildCollapsedDisplaySections(this.filteredCaseDocuments);
+  }
+
+  isVakalatGroupExpanded(id: string): boolean {
+    return this.expandedVakalatGroupIds.has(id);
+  }
+
+  toggleVakalatGroup(id: string): void {
+    if (this.expandedVakalatGroupIds.has(id)) {
+      this.expandedVakalatGroupIds.delete(id);
+      return;
+    }
+    this.expandedVakalatGroupIds.add(id);
   }
 
   get petitionerNamesLabel(): string {

@@ -170,7 +170,7 @@ class CaseTypeT(BaseModel):
     est_code_src = models.CharField(max_length=6)
     reg_no = models.IntegerField()
     reg_year = models.SmallIntegerField()
-
+    annexure_type = models.CharField(max_length=1, blank=True, null=True)
     class Meta:
       
         db_table = 'case_type_t'
@@ -600,6 +600,62 @@ class EfilerDocumentAccess(BaseModel):
       
         db_table = 'efiler_document_access'
 
+
+class CaseAccessRequest(BaseModel):
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        APPROVED = "APPROVED", "Approved"
+        REJECTED = "REJECTED", "Rejected"
+
+    advocate = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="case_access_requests",
+    )
+    e_filing = models.ForeignKey(
+        Efiling,
+        on_delete=models.CASCADE,
+        related_name="case_access_requests",
+    )
+    case_number = models.CharField(max_length=120)
+    vakalatnama_document = models.FileField(
+        upload_to="media/efile/case-access-requests/",
+        max_length=512,
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+    rejection_reason = models.TextField(blank=True, null=True)
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_case_access_requests",
+    )
+    reviewed_at = models.DateTimeField(blank=True, null=True)
+    resubmission_of = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reapplications",
+    )
+    approved_access = models.ForeignKey(
+        EfilerDocumentAccess,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="source_requests",
+    )
+
+    class Meta:
+        db_table = "case_access_request"
+        ordering = ["-id"]
+
         
 class CivilT(BaseModel):
     case_no = models.CharField(max_length=15, blank=True, null=True)
@@ -911,3 +967,20 @@ class BudgetHeadT(BaseModel):
     
     class Meta:
         db_table = 'budget_head_t'
+        
+class PurposeT(BaseModel):
+    purpose_code = models.SmallIntegerField(primary_key=True)
+    purpose_name = models.CharField(max_length=100, blank=True, null=True)
+    lpurpose_name = models.CharField(max_length=100, blank=True, null=True)
+    purpose_flag = models.SmallIntegerField(blank=True, null=True)
+    display = models.TextField()  # This field type is a guess.
+    purpose_priority = models.SmallIntegerField()
+    res_disp = models.SmallIntegerField()
+    national_code = models.BigIntegerField()
+    substage_id = models.CharField(max_length=1000, blank=True, null=True)
+    amd = models.CharField(max_length=1, blank=True, null=True)
+    create_modify = models.DateTimeField(blank=True, null=True)
+    est_code_src = models.CharField(max_length=6)
+
+    class Meta:
+        db_table = 'purpose_t'

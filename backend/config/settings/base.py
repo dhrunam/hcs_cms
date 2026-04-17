@@ -62,8 +62,8 @@ INSTALLED_APPS = [
     "apps.listing",
     "apps.judge",
     "apps.master",
-    "apps.reader",
-   
+"apps.reader",
+    "apps.office_notes",
 ]
 
 MIDDLEWARE = [
@@ -76,10 +76,9 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "apps.core.middleware.AuditUserMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-X_FRAME_OPTIONS = "SAMEORIGIN"
+X_FRAME_OPTIONS = "ALLOWALL"
 
 
 ROOT_URLCONF = "config.urls"
@@ -117,7 +116,7 @@ DATABASES = {
     "default": dj_database_url.config(
         env="DATABASE_URL",
         # default="postgresql://postgres:postgres@localhost:5435/hcs_cms_db",
-        default=os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@10.182.144.23:5433/hcs_cms_db"),
+        default=os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@10.182.144.24:5433/hcs_cms_db_1"),
         conn_max_age=600,
         conn_health_checks=True,
     ),

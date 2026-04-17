@@ -1,0 +1,79 @@
+<div class="dashboard-header mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2" *ngIf="showHeader">
+  <div class="d-flex align-items-center gap-3">
+    <button class="btn btn-light btn-sm" (click)="goBack()">
+      <i class="fa-solid fa-arrow-left me-1"></i> Back
+    </button>
+    <div>
+      <h2 class="fw-semibold mb-0">Case Notes</h2>
+      <p class="text-muted small mb-0">Add and manage office notes for this case.</p>
+    </div>
+  </div>
+</div>
+<hr *ngIf="showHeader" />
+
+<div *ngIf="isLoading" class="text-center py-4 text-muted">
+  <i class="fa-solid fa-spinner fa-spin me-2"></i> Loading notes...
+</div>
+
+<div *ngIf="!isLoading" class="content">
+  <div class="note-editor-section">
+    <div class="d-flex align-items-center mb-3">
+      <div class="editor-icon">
+        <i class="fa-solid fa-pen-to-square"></i>
+      </div>
+      <h4 class="mb-0">Add New Note</h4>
+    </div>
+    <textarea
+      class="note-textarea form-control"
+      [(ngModel)]="newNoteContent"
+      placeholder="Type your note here... (max 200 words)"
+      rows="4"
+      maxlength="1000"
+    ></textarea>
+    <div class="word-counter small mt-1 text-end" [class.text-danger]="wordCount > 200" [class.text-muted]="wordCount <= 200">
+      <span *ngIf="newNoteContent.trim().length > 0">{{ wordCount }} / 200 words</span>
+    </div>
+    <div class="editor-actions mt-3">
+      <span *ngIf="isSaving" class="text-muted">
+        <i class="fa-solid fa-spinner fa-spin me-1"></i> Saving...
+      </span>
+      <button class="btn btn-primary" (click)="saveNote()" [disabled]="!isValidNote() || isSaving">
+        <i class="fa-solid fa-save me-1"></i> Save Note
+      </button>
+    </div>
+  </div>
+
+  <div class="notes-history mt-4">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <div class="history-icon">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+      </div>
+      <h4 class="mb-0">Previous Notes</h4>
+      <span class="badge bg-secondary rounded-pill ms-2" *ngIf="notes.length > 0">{{ notes.length }}</span>
+    </div>
+
+    <div *ngIf="notes.length === 0" class="empty-state">
+      <i class="fa-solid fa-note-sticky"></i>
+      <p class="text-muted mb-0">No notes yet for this case.</p>
+    </div>
+
+    <div class="notes-timeline">
+      <div *ngFor="let note of notes; trackBy: trackByNoteId" class="note-card">
+        <div class="note-header">
+          <div class="note-author-info">
+            <div class="author-avatar">
+              {{ note.created_by_name ? note.created_by_name.charAt(0).toUpperCase() : '?' }}
+            </div>
+            <div>
+              <div class="author-name">{{ note.created_by_name || 'Unknown' }}</div>
+              <div class="note-date text-muted small">{{ formatDate(note.created_at) }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="note-body">
+          <p class="mb-0">{{ note.note_content }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

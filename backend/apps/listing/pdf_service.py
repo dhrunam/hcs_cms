@@ -154,6 +154,7 @@ def generate_cause_list_pdf_bytes(
     *,
     cause_list_date,
     bench_key: str,
+    cause_list_type: str = "DAILY",
     rows: Iterable[CauseListRow],
 ) -> bytes:
     buf = io.BytesIO()
@@ -224,7 +225,8 @@ def generate_cause_list_pdf_bytes(
 
     story.append(Paragraph("THE HIGH COURT OF SIKKIM", header_center_bold))
     story.append(Paragraph("GANGTOK", header_center_bold))
-    story.append(Paragraph("DAILY CAUSELIST", header_center_bold))
+    title = "SUPPLEMENTARY CAUSELIST" if str(cause_list_type).upper() == "SUPPLEMENTARY" else "DAILY CAUSELIST"
+    story.append(Paragraph(title, header_center_bold))
     story.append(Paragraph(_format_cause_list_date(cause_list_date), small_center))
     story.append(
         Paragraph(

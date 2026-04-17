@@ -1,0 +1,87 @@
+<section class="case-access-section">
+  <header>
+    <h4 class="page-title mb-1">Request Case Access</h4>
+    <hr />
+  </header>
+
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label">Case Number</label>
+          <input
+            class="form-control"
+            [(ngModel)]="caseNumber"
+            (ngModelChange)="onCaseNumberInput()"
+            placeholder="Type case number (smart search)"
+          />
+          <div *ngIf="suggestions.length > 0" class="list-group mt-1 suggestion-list">
+            <button
+              type="button"
+              class="list-group-item list-group-item-action"
+              *ngFor="let s of suggestions"
+              (click)="pickSuggestion(s)"
+            >
+              <div class="fw-semibold">{{ s.case_number }}</div>
+              <div class="small text-muted">
+                Filing: {{ s.e_filing_number || "-" }} | {{ s.petitioner_name || "-" }}
+              </div>
+            </button>
+          </div>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">Vakalatnama</label>
+          <input class="form-control" type="file" (change)="onFileChange($event)" />
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-primary w-100" [disabled]="isSubmitting" (click)="submitRequest()">
+            {{ isSubmitting ? "Submitting..." : "Submit Request" }}
+          </button>
+        </div>
+      </div>
+      <div *ngIf="errorMessage" class="text-danger small mt-2">{{ errorMessage }}</div>
+      <div *ngIf="successMessage" class="text-success small mt-2">{{ successMessage }}</div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive" *ngIf="items.length > 0; else noRequests">
+        <table class="table table-hover align-middle mb-0">
+          <thead style="background-color: #f8fafc">
+            <tr class="text-secondary small fw-normal">
+              <th>#</th>
+              <th>Case Number</th>
+              <th>Requested At</th>
+              <th>Status</th>
+              <th>Reason</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody class="text-muted small">
+            <tr *ngFor="let item of items; let i = index">
+              <td>{{ i + 1 }}</td>
+              <td class="text-dark">{{ item.case_number }}</td>
+              <td>{{ item.created_at | date: 'dd MMM yyyy, hh:mm a' }}</td>
+              <td>{{ item.status }}</td>
+              <td>{{ item.rejection_reason || "-" }}</td>
+              <td>
+                <button
+                  *ngIf="item.status === 'REJECTED'"
+                  class="btn btn-sm btn-outline-primary"
+                  (click)="reapply(item)"
+                >
+                  Reapply
+                </button>
+                <span *ngIf="item.status !== 'REJECTED'" class="text-muted">-</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <ng-template #noRequests>
+        <div class="text-muted small py-5 px-4 text-center">No case access requests yet.</div>
+      </ng-template>
+    </div>
+  </div>
+</section>

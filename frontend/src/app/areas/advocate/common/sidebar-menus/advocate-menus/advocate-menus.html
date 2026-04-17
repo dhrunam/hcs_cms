@@ -1,10 +1,17 @@
-<ul class="nav flex-column">
+<ul class="nav flex-column advocate-menu-list">
   <li
     class="nav-item"
     routerLink="/advocate/dashboard/home"
     [routerLinkActive]="'active'"
   >
     <a class="nav-link"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+  </li>
+  <li
+    class="nav-item"
+    routerLink="/advocate/dashboard/efiling/case-access-requests"
+    [routerLinkActive]="'active'"
+  >
+    <a class="nav-link"><i class="fa-solid fa-key"></i> Request Case Access</a>
   </li>
   <!-- Filing main menu as a dropdown -->
   <li class="nav-item nav-item-has-submenu">
@@ -19,11 +26,7 @@
       <span><i class="fa-solid fa-file"></i> Filing</span>
       <i class="fa-solid fa-chevron-down small filing-chevron"></i>
     </a>
-    <ul
-      style="list-style: disc; padding-left: 20px"
-      class="nav flex-column ms-3 collapse small"
-      id="filingSubmenu"
-    >
+    <ul class="nav flex-column ms-3 collapse small advocate-submenu" id="filingSubmenu">
       <li
         class="nav-item"
         routerLink="/advocate/dashboard/efiling/filing"
@@ -75,11 +78,7 @@
       <span><i class="fa-solid fa-suitcase"></i> My Filings</span>
       <i class="fa-solid fa-chevron-down small filing-chevron"></i>
     </a>
-    <ul
-      style="list-style: disc; padding-left: 20px"
-      class="nav flex-column ms-3 collapse small"
-      id="myCasesSubmenu"
-    >
+    <ul class="nav flex-column ms-3 collapse small advocate-submenu" id="myCasesSubmenu">
       <li
         class="nav-item"
         routerLink="/advocate/dashboard/efiling/pending-scrutiny"
@@ -101,6 +100,6 @@
     routerLink="/advocate/dashboard/cause-list"
     [routerLinkActive]="'active'"
   >
-    <a class="nav-link text-primary fw-bold"><i class="fa-solid fa-gavel"></i> Courtroom Mode</a>
+    <a class="nav-link advocate-courtroom-link"><i class="fa-solid fa-gavel"></i> Courtroom Mode</a>
   </li>
 </ul>

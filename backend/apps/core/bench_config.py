@@ -226,8 +226,12 @@ def _build_active_bench_configurations(
     as_of_date=None,
 ) -> list[BenchConfiguration]:
     """
-    One configuration per bench_t bucket (bench_code). Judge order follows seniority
-    within the bucket. Slots use opaque names BENCH_S0, BENCH_S1, …
+    One configuration per bench_t bucket (bench_code).
+
+    Slot order (BENCH_S0, BENCH_S1, …) follows **BenchT row id** within the bucket —
+    the order bench composition rows were created in the system (roster / seating order).
+    Sorting by judge seniority alone was unreliable: puisne judges could appear in the
+    wrong slot relative to chamber labels (e.g. “Judge 1” vs “Judge 2”).
     """
     by_code: dict[str, list] = defaultdict(list)
     for bench_row in _active_bench_rows(as_of_date=as_of_date):
@@ -243,13 +247,8 @@ def _build_active_bench_configurations(
             ju = getattr(br.judge, 'user', None)
             if _judge_user_eligible_for_bench(ju):
                 eligible.append(br)
-        eligible.sort(
-            key=lambda br: (
-                br.judge.seniority is None,
-                br.judge.seniority if br.judge.seniority is not None else 0,
-                br.judge_id,
-            ),
-        )
+        # Roster order: preserve seating order as recorded on bench_t (creation / row id).
+        eligible.sort(key=lambda br: int(br.id))
         eligible = eligible[:MAX_BENCH_JUDGES]
         if not eligible:
             continue

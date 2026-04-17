@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.models import Efiling, EfilingCaseDetails, EfilingDocuments, EfilingDocumentsIndex
-from apps.core.models import ReaderJudgeAssignment, JudgeT
+from apps.core.models import ReaderJudgeAssignment, JudgeT, PurposeT
 from apps.core.bench_config import (
     get_accessible_bench_codes_for_reader,
     get_accessible_bench_keys_for_reader,
@@ -88,6 +88,8 @@ _STENO_UPLOAD_ALLOWED = frozenset(
     {
         StenoOrderWorkflow.WorkflowStatus.PENDING_UPLOAD,
         StenoOrderWorkflow.WorkflowStatus.UPLOADED_BY_STENO,
+        # Allow steno to replace draft while judge review is pending.
+        StenoOrderWorkflow.WorkflowStatus.SENT_FOR_JUDGE_APPROVAL,
         StenoOrderWorkflow.WorkflowStatus.CHANGES_REQUESTED,
     }
 )
@@ -178,13 +180,14 @@ def _is_forward_relevant_to_bench(
     reader_user=None,
 ) -> bool:
     if reader_slot_group:
-        if (
-            bench_config
-            and forward.bench_key == bench_config.bench_key
-            and reader_user
-            and getattr(forward.forwarded_by, "id", None) == reader_user.id
-        ):
-            return True
+        if bench_config and forward.bench_key == bench_config.bench_key:
+            if reader_user and getattr(forward.forwarded_by, "id", None) == reader_user.id:
+                return True
+            # Slot row is unique per (efiling, date, bench_key, bench_role_group). Match the
+            # reader's slot even when forwarded_by is null or points at a different user id
+            # (e.g. after DB restore / user id remap).
+            if (forward.bench_role_group or "").strip() == (reader_slot_group or "").strip():
+                return True
         forward_groups = tuple(get_required_judge_groups(forward.bench_key))
         return len(forward_groups) == 1 and forward_groups[0] == reader_slot_group
     forward_groups = set(get_required_judge_groups(forward.bench_key))
@@ -444,28 +447,12 @@ def _get_effective_forwarded_for_date(
     efiling: Efiling,
     requested_forwarded_for_date,
 ) -> date_type:
-    assigned_bench = get_bench_configuration_for_stored_value(efiling.bench)
-    if not assigned_bench:
-        return requested_forwarded_for_date
+    """
+    Use the reader's chosen calendar day for the CourtroomForward row.
 
-    existing_forwards = list(
-        CourtroomForward.objects.filter(efiling_id=efiling.id)
-        .order_by("-forwarded_for_date", "-id")
-        .all()
-    )
-    relevant_forwards = _get_relevant_forwards_for_bench(
-        existing_forwards,
-        assigned_bench,
-    )
-    for forward in relevant_forwards:
-        has_listing_date = CourtroomJudgeDecision.objects.filter(
-            efiling_id=efiling.id,
-            forwarded_for_date=forward.forwarded_for_date,
-            listing_date__isnull=False,
-        ).exists()
-        if not has_listing_date:
-            return forward.forwarded_for_date
-
+    Reusing an older forward date caused the case to disappear from the judge dashboard
+    for the selected day and broke courtroom APIs that matched URL date to forwarded_for_date.
+    """
     return requested_forwarded_for_date
 
 
@@ -1187,7 +1174,7 @@ class ReaderDailyProceedingsListView(APIView):
         ids = [x.id for x in efilings]
 
         latest_proceedings = {}
-        for row in ReaderDailyProceeding.objects.filter(efiling_id__in=ids).order_by(
+        for row in ReaderDailyProceeding.objects.filter(efiling_id__in=ids).select_related("steno_purpose").order_by(
             "efiling_id", "-hearing_date", "-id"
         ):
             latest_proceedings.setdefault(row.efiling_id, row)
@@ -1223,6 +1210,14 @@ class ReaderDailyProceedingsListView(APIView):
                     "latest_proceedings_text": (
                         proceeding.proceedings_text if proceeding else None
                     ),
+                    "latest_steno_purpose_code": (
+                        proceeding.steno_purpose_id if proceeding else None
+                    ),
+                    "latest_steno_purpose_name": (
+                        proceeding.steno_purpose.purpose_name
+                        if proceeding and proceeding.steno_purpose
+                        else None
+                    ),
                     "listing_sync_status": (
                         proceeding.listing_sync_status if proceeding else None
                     ),
@@ -1245,7 +1240,30 @@ class ReaderDailyProceedingsSubmitView(APIView):
         hearing_date = payload.validated_data["hearing_date"]
         next_listing_date = payload.validated_data["next_listing_date"]
         proceedings_text = payload.validated_data["proceedings_text"]
-        reader_remark = payload.validated_data.get("reader_remark")
+        steno_purpose_code = payload.validated_data.get("steno_purpose_code")
+        legacy_reader_remark = payload.validated_data.get("reader_remark")
+        steno_remark = payload.validated_data.get("steno_remark")
+        listing_remark = payload.validated_data.get("listing_remark")
+        steno_purpose = None
+        if steno_purpose_code is not None:
+            steno_purpose = PurposeT.objects.filter(
+                purpose_code=steno_purpose_code,
+                is_active=True,
+            ).first()
+            if steno_purpose is None:
+                raise ValidationError({"steno_purpose_code": "Invalid purpose."})
+
+        if steno_purpose is not None:
+            resolved_steno_remark = steno_purpose.purpose_name or str(steno_purpose.purpose_code)
+        elif steno_remark not in (None, ""):
+            resolved_steno_remark = steno_remark
+        elif legacy_reader_remark not in (None, ""):
+            resolved_steno_remark = legacy_reader_remark
+        else:
+            resolved_steno_remark = None
+
+        if listing_remark in (None, "") and legacy_reader_remark not in (None, ""):
+            listing_remark = legacy_reader_remark
         document_type = payload.validated_data.get("document_type") or "ORDER"
 
         efiling = Efiling.objects.filter(
@@ -1270,7 +1288,10 @@ class ReaderDailyProceedingsSubmitView(APIView):
             defaults={
                 "next_listing_date": next_listing_date,
                 "proceedings_text": proceedings_text,
-                "reader_remark": reader_remark,
+                "reader_remark": legacy_reader_remark or resolved_steno_remark,
+                "steno_remark": resolved_steno_remark,
+                "steno_purpose": steno_purpose,
+                "listing_remark": listing_remark,
                 "listing_sync_status": ReaderDailyProceeding.ListingSyncStatus.SYNCED,
                 "submitted_by": user,
                 "updated_by": user,
@@ -1282,7 +1303,7 @@ class ReaderDailyProceedingsSubmitView(APIView):
             forwarded_for_date=hearing_date,
         ).update(
             listing_date=next_listing_date,
-            reader_listing_remark=reader_remark or proceedings_text,
+            reader_listing_remark=listing_remark or proceedings_text,
             updated_by=user,
             updated_at=timezone.now(),
         )
@@ -1291,7 +1312,7 @@ class ReaderDailyProceedingsSubmitView(APIView):
                 efiling_ids=[int(efiling_id)],
                 forwarded_for_date=hearing_date,
                 listing_date=next_listing_date,
-                listing_remark=reader_remark or proceedings_text,
+                listing_remark=listing_remark or proceedings_text,
                 assigned_by=user,
             )
         except Exception:
@@ -1336,6 +1357,7 @@ class StenoQueueListView(APIView):
                 is_active=True,
             )
             .select_related("efiling", "proceeding", "draft_document_index")
+            .select_related("proceeding__steno_purpose")
             .prefetch_related(
                 Prefetch("judge_annotations", queryset=ann_qs),
                 Prefetch("efiling__litigants"),
@@ -1395,6 +1417,12 @@ class StenoQueueListView(APIView):
                     "hearing_date": row.proceeding.hearing_date.isoformat(),
                     "next_listing_date": row.proceeding.next_listing_date.isoformat(),
                     "proceedings_text": row.proceeding.proceedings_text,
+                    "steno_purpose_code": row.proceeding.steno_purpose_id,
+                    "steno_purpose_name": (
+                        row.proceeding.steno_purpose.purpose_name
+                        if row.proceeding.steno_purpose
+                        else None
+                    ),
                 }
             )
         return Response({"items": items}, status=drf_status.HTTP_200_OK)

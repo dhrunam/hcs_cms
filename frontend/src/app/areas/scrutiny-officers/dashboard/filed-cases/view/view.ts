@@ -52,9 +52,10 @@ export class FiledCasesView {
 
   getFiledCases(): void {
     this.isLoading = true;
+    const pageSize = 9999; // fetch all so uploaded existing-case filings are visible
     forkJoin({
-      filings: this.eFilingService.get_scrutiny_cases(),
-      incoming: this.eFilingService.get_new_scrutiny_documents().pipe(
+      filings: this.eFilingService.get_scrutiny_cases({ page_size: pageSize }),
+      incoming: this.eFilingService.get_new_scrutiny_documents({ page_size: pageSize }).pipe(
         catchError((error) => {
           console.warn('Failed to load new scrutiny documents', error);
           return of([]);

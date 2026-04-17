@@ -1,114 +1,167 @@
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h3 class="mb-0">Steno Draft Review</h3>
-</div>
+<section class="steno-review" [class.steno-review--focus]="isDistractionFree">
+  <header class="steno-review__hero">
+    <div>
+      <p class="steno-review__eyebrow">Judicial Workspace</p>
+      <h3>Steno Draft Review</h3>
+      <p>Review draft orders and finalize decisions in one workflow.</p>
+    </div>
+    <div class="d-flex gap-2 steno-review__hero-actions">
+      <div class="steno-review__draft-picker">
+        <label class="form-label mb-1">Select Draft</label>
+        <select class="form-select steno-review__draft-select" [(ngModel)]="selectedWorkflowId">
+          <option [ngValue]="null" disabled>Choose draft</option>
+          <option *ngFor="let draft of filteredItems" [ngValue]="draft.workflow_id">
+            {{ draftOptionLabel(draft) }}
+          </option>
+        </select>
+        <div class="steno-review__draft-helper" *ngIf="selectedItem as selected">
+          {{ selected.petitioner_vs_respondent || '-' }}
+        </div>
+      </div>
+      <button
+        class="btn btn-sm steno-review__focus-btn"
+        type="button"
+        (click)="toggleDistractionFree()"
+      >
+        <i class="fa-solid" [ngClass]="isDistractionFree ? 'fa-compress' : 'fa-expand'"></i>
+        {{ isDistractionFree ? 'Exit Full Screen Mode' : 'Full Screen Mode' }}
+      </button>
+      <button class="btn steno-review__refresh-btn" (click)="load()">
+        <i class="fa fa-rotate-right me-2"></i>
+        Refresh
+      </button>
+    </div>
+  </header>
 
-<div *ngIf="isLoading" class="text-muted">Loading...</div>
-<div *ngIf="!isLoading">
-  <div class="row g-2 mb-3">
-    <div class="col-md-2 col-6">
-      <div class="card summary-card">
-        <div class="card-body py-2">
-          <div class="small text-muted">Total</div>
-          <div class="h5 mb-0">{{ totalCount }}</div>
-        </div>
-      </div>
+  <div *ngIf="isLoading" class="steno-review__loading">Loading workflow queue...</div>
+
+  <div *ngIf="!isLoading" class="steno-review__body">
+    <div class="steno-review__summary-grid" *ngIf="!isDistractionFree">
+      <article class="summary-card">
+        <p>Total</p>
+        <h4>{{ totalCount }}</h4>
+      </article>
+      <article class="summary-card">
+        <p>Pending</p>
+        <h4 class="text-primary">{{ pendingCount }}</h4>
+      </article>
+      <article class="summary-card">
+        <p>Changes Requested</p>
+        <h4 class="text-warning">{{ changesRequestedCount }}</h4>
+      </article>
+      <article class="summary-card">
+        <p>Approved</p>
+        <h4 class="text-success">{{ approvedCount }}</h4>
+      </article>
+      <article class="summary-card">
+        <p>Signed & Published</p>
+        <h4 class="text-secondary">{{ publishedCount }}</h4>
+      </article>
     </div>
-    <div class="col-md-2 col-6">
-      <div class="card summary-card">
-        <div class="card-body py-2">
-          <div class="small text-muted">Pending</div>
-          <div class="h5 mb-0">{{ pendingCount }}</div>
-        </div>
-      </div>
+
+    <div class="filter-strip" *ngIf="!isDistractionFree">
+      <button class="btn btn-sm" [class.btn-primary]="statusFilter==='SENT_FOR_JUDGE_APPROVAL'" [class.btn-outline-primary]="statusFilter!=='SENT_FOR_JUDGE_APPROVAL'" (click)="setFilter('SENT_FOR_JUDGE_APPROVAL')">Pending ({{ pendingCount }})</button>
+      <button class="btn btn-sm" [class.btn-primary]="statusFilter==='CHANGES_REQUESTED'" [class.btn-outline-primary]="statusFilter!=='CHANGES_REQUESTED'" (click)="setFilter('CHANGES_REQUESTED')">Changes Requested ({{ changesRequestedCount }})</button>
+      <button class="btn btn-sm" [class.btn-primary]="statusFilter==='JUDGE_APPROVED'" [class.btn-outline-primary]="statusFilter!=='JUDGE_APPROVED'" (click)="setFilter('JUDGE_APPROVED')">Approved ({{ approvedCount }})</button>
+      <button class="btn btn-sm" [class.btn-primary]="statusFilter==='SIGNED_AND_PUBLISHED'" [class.btn-outline-primary]="statusFilter!=='SIGNED_AND_PUBLISHED'" (click)="setFilter('SIGNED_AND_PUBLISHED')">Published ({{ publishedCount }})</button>
+      <button class="btn btn-sm" [class.btn-primary]="statusFilter==='ALL'" [class.btn-outline-primary]="statusFilter!=='ALL'" (click)="setFilter('ALL')">All ({{ totalCount }})</button>
     </div>
-    <div class="col-md-3 col-6">
-      <div class="card summary-card">
-        <div class="card-body py-2">
-          <div class="small text-muted">Changes Requested</div>
-          <div class="h5 mb-0">{{ changesRequestedCount }}</div>
+
+    <section class="steno-review__workspace">
+      <main class="detail-pane" *ngIf="selectedItem as item; else noSelection">
+        <div class="detail-pane__head">
+          <div class="small text-muted">{{ item.document_type }} | Draft Doc ID: {{ item.draft_document_index_id || '-' }} | Status: {{ statusLabel(item.workflow_status) }}</div>
         </div>
-      </div>
-    </div>
-    <div class="col-md-2 col-6">
-      <div class="card summary-card">
-        <div class="card-body py-2">
-          <div class="small text-muted">Approved</div>
-          <div class="h5 mb-0">{{ approvedCount }}</div>
+
+        <div class="detail-pane__body">
+          <div class="small mb-3 steno-review__proceedings">{{ item.proceedings_text || '-' }}</div>
+
+          <div class="draft-order-block mb-3" *ngIf="pdfUrlFor(item)">
+            <div class="draft-order-block__head">
+              <div>
+                <p class="draft-order-block__eyebrow">Draft Order</p>
+                <h5>{{ item.case_number || '-' }}</h5>
+                <p class="draft-order-block__parties">{{ item.petitioner_vs_respondent || '-' }}</p>
+              </div>
+              <span class="badge" [ngClass]="statusBadgeClass(item.workflow_status)">
+                {{ statusLabel(item.workflow_status) }}
+              </span>
+            </div>
+            <div class="steno-draft-pdf">
+              <iframe
+                class="steno-draft-pdf__frame"
+                [src]="pdfUrlFor(item)"
+                title="Steno Draft PDF"
+              ></iframe>
+            </div>
+          </div>
+
+          <div
+            class="steno-review__tool-grid"
+            [class.steno-review__tool-grid--focus]="isDistractionFree"
+          >
+            <section class="list-pane" *ngIf="!isDistractionFree">
+              <div class="list-pane__head">
+                <h5>Orders Queue</h5>
+                <span>{{ filteredItems.length }}</span>
+              </div>
+              <div class="order-list">
+                <button
+                  *ngFor="let item of filteredItems"
+                  class="btn text-start w-100 order-item"
+                  [class.order-item-active]="isSelected(item)"
+                  (click)="selectItem(item)"
+                  type="button"
+                >
+                  <div class="fw-semibold">{{ item.case_number || '-' }}</div>
+                  <div class="small text-muted">{{ item.document_type }} | WF #{{ item.workflow_id }} | E-file: {{ item.e_filing_number || '-' }}</div>
+                  <div class="small text-muted">{{ item.petitioner_vs_respondent || '-' }}</div>
+                  <span class="badge mt-2" [ngClass]="statusBadgeClass(item.workflow_status)">{{ statusLabel(item.workflow_status) }}</span>
+                </button>
+                <div *ngIf="filteredItems.length === 0" class="text-muted small p-2">No orders in this status.</div>
+              </div>
+            </section>
+
+            <section class="steno-review__actions-pane">
+              <div class="mb-3">
+                <label class="form-label small">Notes to Steno</label>
+                <div class="small text-muted mb-2">
+                  These notes are sent to steno when you Approve or Send Back for Changes.
+                </div>
+                <textarea class="form-control" rows="3" [(ngModel)]="notes[item.workflow_id]"></textarea>
+              </div>
+
+              <div class="decision-bar">
+                <div class="d-flex gap-2">
+                  <button
+                    class="btn btn-success btn-sm"
+                    [disabled]="!canDecide(item)"
+                    (click)="decide(item, 'APPROVED')"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    class="btn btn-warning btn-sm"
+                    [disabled]="!canDecide(item)"
+                    (click)="decide(item, 'REJECTED')"
+                  >
+                    Send Back for Changes
+                  </button>
+                </div>
+                <div class="small mt-2 steno-review__decision-hint" [class.steno-review__decision-hint--blocked]="!canDecide(item)">
+                  {{ decisionHint(item) }}
+                </div>
+              </div>
+            </section>
+          </div>
         </div>
-      </div>
-    </div>
-    <div class="col-md-3 col-6">
-      <div class="card summary-card">
-        <div class="card-body py-2">
-          <div class="small text-muted">Signed & Published</div>
-          <div class="h5 mb-0">{{ publishedCount }}</div>
-        </div>
-      </div>
-    </div>
+      </main>
+
+      <ng-template #noSelection>
+        <section class="detail-pane detail-pane--empty">
+          <div class="detail-pane__empty">Select an order from the queue to start review.</div>
+        </section>
+      </ng-template>
+    </section>
   </div>
-
-  <div class="status-heading">Pending Judge Action ({{ pendingCount }})</div>
-  <div class="card mb-3" *ngFor="let item of groupedItems('SENT_FOR_JUDGE_APPROVAL')">
-    <div class="card-body">
-      <div class="fw-bold">{{ item.case_number || '-' }}</div>
-      <div class="small text-muted mb-2">{{ item.document_type }} | Draft Doc ID: {{ item.draft_document_index_id || '-' }}</div>
-      <div class="small mb-2">{{ item.proceedings_text }}</div>
-
-      <div class="steno-draft-pdf mb-2" *ngIf="pdfUrlFor(item)">
-        <div class="small text-muted mb-1">
-          Use the toolbar on the draft: pen, highlighter, sticky notes — then <strong>Save Annotations</strong>.
-          Coordinates are stored for the steno.
-        </div>
-        <app-pdf-annotator
-          [pdfUrl]="pdfUrlFor(item)"
-          [annotationData]="annotationPayloadFor(item)"
-          [canWrite]="true"
-          (save)="onAnnotatorSave(item, $event)"
-        ></app-pdf-annotator>
-      </div>
-
-      <div class="mb-2">
-        <label class="form-label small">Quick note (no position on PDF)</label>
-        <input class="form-control" [(ngModel)]="annotationText[item.workflow_id]" />
-        <button class="btn btn-outline-secondary btn-sm mt-2" type="button" (click)="addAnnotation(item)">
-          Add text-only note
-        </button>
-      </div>
-
-      <div class="mb-2">
-        <label class="form-label small">Decision Notes</label>
-        <textarea class="form-control" rows="2" [(ngModel)]="notes[item.workflow_id]"></textarea>
-      </div>
-
-      <div class="d-flex gap-2">
-        <button class="btn btn-success btn-sm" (click)="decide(item, 'APPROVED')">Approve</button>
-        <button class="btn btn-warning btn-sm" (click)="decide(item, 'REJECTED')">Request Changes</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="status-heading mt-3">Changes Requested ({{ changesRequestedCount }})</div>
-  <div class="card mb-2 border-warning" *ngFor="let item of groupedItems('CHANGES_REQUESTED')">
-    <div class="card-body py-2">
-      <div class="fw-semibold">{{ item.case_number || '-' }}</div>
-      <div class="small text-muted">{{ item.document_type }} | {{ item.workflow_status }}</div>
-      <div class="small" *ngIf="item.judge_approval_notes">{{ item.judge_approval_notes }}</div>
-    </div>
-  </div>
-
-  <div class="status-heading mt-3">Approved ({{ approvedCount }})</div>
-  <div class="card mb-2 border-success" *ngFor="let item of groupedItems('JUDGE_APPROVED')">
-    <div class="card-body py-2">
-      <div class="fw-semibold">{{ item.case_number || '-' }}</div>
-      <div class="small text-muted">{{ item.document_type }} | {{ item.workflow_status }}</div>
-    </div>
-  </div>
-
-  <div class="status-heading mt-3">Signed & Published ({{ publishedCount }})</div>
-  <div class="card mb-2 border-secondary" *ngFor="let item of groupedItems('SIGNED_AND_PUBLISHED')">
-    <div class="card-body py-2">
-      <div class="fw-semibold">{{ item.case_number || '-' }}</div>
-      <div class="small text-muted">{{ item.document_type }} | {{ item.workflow_status }}</div>
-    </div>
-  </div>
-</div>
+</section>

@@ -63,9 +63,46 @@ export type ReaderDailyProceedingCase = {
   last_hearing_date?: string | null;
   last_next_listing_date?: string | null;
   latest_proceedings_text?: string | null;
+  latest_steno_purpose_code?: number | null;
+  latest_steno_purpose_name?: string | null;
   listing_sync_status?: string | null;
   steno_workflow_status?: string | null;
   can_assign_listing_date: boolean;
+};
+
+export type PurposeOption = {
+  purpose_code: number;
+  purpose_name: string | null;
+  lpurpose_name?: string | null;
+  purpose_priority?: number | null;
+};
+
+export type StenoQueueItem = {
+  workflow_id: number;
+  efiling_id: number;
+  case_number: string | null;
+  e_filing_number?: string | null;
+  petitioner_vs_respondent?: string | null;
+  document_type: string;
+  workflow_status: string;
+  judge_approval_status?: string | null;
+  judge_approval_notes?: string | null;
+  judge_annotations?: any[];
+  draft_document_index_id?: number | null;
+  draft_preview_url?: string | null;
+  signed_document_index_id?: number | null;
+  signed_preview_url?: string | null;
+  digitally_signed_at?: string | null;
+  digital_signature_provider?: string | null;
+  digital_signature_certificate_serial?: string | null;
+  digital_signature_signer_name?: string | null;
+  digital_signature_reason?: string | null;
+  judge_approved_at?: string | null;
+  hearing_date: string;
+  next_listing_date: string;
+  proceedings_text: string;
+  steno_purpose_code?: number | null;
+  steno_purpose_name?: string | null;
 };
 
 export function resolveBenchConfiguration(
@@ -204,12 +241,19 @@ export class ReaderService {
     return this.http.get<{ total: number; items: ReaderDailyProceedingCase[] }>(url);
   }
 
+  getPurposes(): Observable<PurposeOption[]> {
+    return this.http.get<PurposeOption[]>(`${app_url}/api/v1/master/purposes/`);
+  }
+
   submitDailyProceeding(payload: {
     efiling_id: number;
     hearing_date: string;
     next_listing_date: string;
     proceedings_text: string;
+    steno_purpose_code?: number | null;
     reader_remark?: string | null;
+    steno_remark?: string | null;
+    listing_remark?: string | null;
     document_type?: 'ORDER' | 'JUDGMENT';
   }): Observable<any> {
     const readerGroup = this.readerGroupForQuery();
@@ -220,8 +264,8 @@ export class ReaderService {
     return this.http.post<any>(url, payload);
   }
 
-  getStenoQueue(): Observable<{ items: any[] }> {
-    return this.http.get<{ items: any[] }>(`${app_url}/api/v1/reader/steno/queue/`);
+  getStenoQueue(): Observable<{ items: StenoQueueItem[] }> {
+    return this.http.get<{ items: StenoQueueItem[] }>(`${app_url}/api/v1/reader/steno/queue/`);
   }
 
   uploadStenoDraft(payload: {

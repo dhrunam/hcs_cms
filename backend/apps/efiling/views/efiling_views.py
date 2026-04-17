@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from django.db.models import Q
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -93,7 +94,13 @@ class EfilingListCreateView(ListCreateAPIView):
                 # all non-accepted records for any other status value.
                 qs = qs.filter(status=status)
         if should_scope_efilings_to_creator(self.request.user):
-            qs = qs.filter(created_by=self.request.user)
+            qs = qs.filter(
+                Q(created_by=self.request.user)
+                | Q(
+                    assigned_advocates__efiler=self.request.user,
+                    assigned_advocates__is_active=True,
+                )
+            ).distinct()
         return qs
 
 
@@ -112,7 +119,13 @@ class EfilingRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
         if is_active is not None:
             qs = qs.filter(is_active=is_active)
         if should_scope_efilings_to_creator(self.request.user):
-            qs = qs.filter(created_by=self.request.user)
+            qs = qs.filter(
+                Q(created_by=self.request.user)
+                | Q(
+                    assigned_advocates__efiler=self.request.user,
+                    assigned_advocates__is_active=True,
+                )
+            ).distinct()
         return qs
 
     def partial_update(self, request, *args, **kwargs):

@@ -57,132 +57,167 @@
     </div>
 
     <div class="card border-0 shadow-sm">
-      <div class="card-body p-4">
-        <div class="filing-summary-section">
-          <div class="filing-summary-section-title">
-            <i class="fa-solid fa-file-lines me-2"></i>
-            Filing Information
+      <div class="card-header p-0">
+        <ul class="nav scrutiny-nav-tabs">
+          <li class="nav-item">
+            <button
+              type="button"
+              class="nav-link"
+              [class.active]="activeTab === 'details'"
+              (click)="setActiveTab('details')"
+            >
+              <i class="fa-solid fa-file-lines me-2"></i>
+              Details
+            </button>
+          </li>
+          <li class="nav-item">
+            <button
+              type="button"
+              class="nav-link"
+              [class.active]="activeTab === 'notes'"
+              (click)="setActiveTab('notes')"
+            >
+              <i class="fa-solid fa-file-alt me-2"></i>
+              Case Notes
+            </button>
+          </li>
+        </ul>
+      </div>
+      <div class="card-body p-0">
+        <div *ngIf="activeTab === 'details'" class="p-4">
+          <div class="filing-summary-section">
+            <div class="filing-summary-section-title">
+              <i class="fa-solid fa-file-lines me-2"></i>
+              Filing Information
+            </div>
+            <div class="filing-summary-grid">
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Bench</span>
+                <span class="filing-summary-value">{{ benchLabel(filing.bench) }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Case Type</span>
+                <span class="filing-summary-value">{{ filing.case_type?.type_name || filing.case_type?.full_form || '-' }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Petitioner</span>
+                <span class="filing-summary-value">{{ petitionerName }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Respondent</span>
+                <span class="filing-summary-value">{{ respondentName }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Petitioner Contact</span>
+                <span class="filing-summary-value">{{ filing.petitioner_contact || '-' }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Accepted At</span>
+                <span class="filing-summary-value">{{ filing.accepted_at | date: 'dd MMM yyyy, hh:mm a' }}</span>
+              </div>
+            </div>
           </div>
-          <div class="filing-summary-grid">
-            <div class="filing-summary-item">
-              <span class="filing-summary-label">Bench</span>
-              <span class="filing-summary-value">{{ benchLabel(filing.bench) }}</span>
-            </div>
-            <div class="filing-summary-item">
-              <span class="filing-summary-label">Case Type</span>
-              <span class="filing-summary-value">{{ filing.case_type?.type_name || filing.case_type?.full_form || '-' }}</span>
-            </div>
-            <div class="filing-summary-item">
-              <span class="filing-summary-label">Petitioner</span>
-              <span class="filing-summary-value">{{ petitionerName }}</span>
-            </div>
-            <div class="filing-summary-item">
-              <span class="filing-summary-label">Respondent</span>
-              <span class="filing-summary-value">{{ respondentName }}</span>
-            </div>
-            <div class="filing-summary-item">
-              <span class="filing-summary-label">Petitioner Contact</span>
-              <span class="filing-summary-value">{{ filing.petitioner_contact || '-' }}</span>
-            </div>
-            <div class="filing-summary-item">
-              <span class="filing-summary-label">Accepted At</span>
-              <span class="filing-summary-value">{{ filing.accepted_at | date: 'dd MMM yyyy, hh:mm a' }}</span>
-            </div>
-          </div>
-        </div>
 
-        <div class="filing-summary-section mt-4" *ngIf="caseDetails">
-          <div class="filing-summary-section-title">
-            <i class="fa-solid fa-scale-balanced me-2"></i>
-            Case Details
+          <div class="filing-summary-section mt-4" *ngIf="caseDetails">
+            <div class="filing-summary-section-title">
+              <i class="fa-solid fa-scale-balanced me-2"></i>
+              Case Details
+            </div>
+            <div class="filing-summary-grid">
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Cause of Action</span>
+                <span class="filing-summary-value">{{ caseDetails.cause_of_action || '-' }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Date of Cause</span>
+                <span class="filing-summary-value">{{ caseDetails.date_of_cause_of_action | date: 'dd MMM yyyy' }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Dispute State</span>
+                <span class="filing-summary-value">{{ caseDetails.dispute_state?.state || caseDetails.dispute_state || '-' }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Dispute District</span>
+                <span class="filing-summary-value">{{ caseDetails.dispute_district?.district || caseDetails.dispute_district || '-' }}</span>
+              </div>
+              <div class="filing-summary-item">
+                <span class="filing-summary-label">Dispute Taluka</span>
+                <span class="filing-summary-value">{{ caseDetails.dispute_taluka || '-' }}</span>
+              </div>
+            </div>
           </div>
-          <div class="filing-summary-grid">
-            <div class="filing-summary-item">
-              <span class="filing-summary-label">Cause of Action</span>
-              <span class="filing-summary-value">{{ caseDetails.cause_of_action || '-' }}</span>
-            </div>
-            <div class="filing-summary-item">
-              <span class="filing-summary-label">Date of Cause</span>
-              <span class="filing-summary-value">{{ caseDetails.date_of_cause_of_action | date: 'dd MMM yyyy' }}</span>
-            </div>
-            <div class="filing-summary-item">
-              <span class="filing-summary-label">Dispute State</span>
-              <span class="filing-summary-value">{{ caseDetails.dispute_state?.state || caseDetails.dispute_state || '-' }}</span>
-            </div>
-            <div class="filing-summary-item">
-              <span class="filing-summary-label">Dispute District</span>
-              <span class="filing-summary-value">{{ caseDetails.dispute_district?.district || caseDetails.dispute_district || '-' }}</span>
-            </div>
-            <div class="filing-summary-item">
-              <span class="filing-summary-label">Dispute Taluka</span>
-              <span class="filing-summary-value">{{ caseDetails.dispute_taluka || '-' }}</span>
-            </div>
-          </div>
-        </div>
 
-        <div class="filing-summary-section mt-4">
-          <div class="filing-summary-section-title">
-            <i class="fa-solid fa-file-pdf me-2"></i>
-            Documents
-          </div>
-          <div *ngIf="documents.length > 0; else noDocs" class="row g-3">
-            <div class="col-lg-4">
-              <div class="border rounded p-3 docs-list-panel">
-                <div class="small text-muted mb-2">Select documents to forward</div>
-                <div class="d-flex flex-column gap-2">
-                  <label class="doc-select-item" *ngFor="let d of documents">
-                    <div class="d-flex align-items-start gap-2">
-                      <input
-                        class="form-check-input mt-1"
-                        type="checkbox"
-                        [checked]="isDocSelected(d.id)"
-                        (change)="toggleDocSelection(d.id, $any($event.target).checked)"
-                      />
-                      <button
-                        type="button"
-                        class="btn btn-link p-0 text-start text-decoration-none"
-                        (click)="selectDocument(d)"
-                      >
-                        {{ documentName(d) }}
-                      </button>
-                    </div>
-                  </label>
+          <div class="filing-summary-section mt-4">
+            <div class="filing-summary-section-title">
+              <i class="fa-solid fa-file-pdf me-2"></i>
+              Documents
+            </div>
+            <div *ngIf="documents.length > 0; else noDocs" class="row g-3">
+              <div class="col-lg-4">
+                <div class="border rounded p-3 docs-list-panel">
+                  <div class="small text-muted mb-2">Select documents to forward</div>
+                  <div class="d-flex flex-column gap-2">
+                    <label class="doc-select-item" *ngFor="let d of documents">
+                      <div class="d-flex align-items-start gap-2">
+                        <input
+                          class="form-check-input mt-1"
+                          type="checkbox"
+                          [checked]="isDocSelected(d.id)"
+                          (change)="toggleDocSelection(d.id, $any($event.target).checked)"
+                        />
+                        <button
+                          type="button"
+                          class="btn btn-link p-0 text-start text-decoration-none"
+                          (click)="selectDocument(d)"
+                        >
+                          {{ documentName(d) }}
+                        </button>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div class="col-lg-8">
+                <div class="border rounded p-2 preview-panel">
+                  <iframe *ngIf="selectedDocumentUrl; else noPreview" [src]="selectedDocumentUrl" title="Document preview"></iframe>
+                  <ng-template #noPreview>
+                    <div class="text-muted small p-3">Select a document to preview.</div>
+                  </ng-template>
                 </div>
               </div>
             </div>
-            <div class="col-lg-8">
-              <div class="border rounded p-2 preview-panel">
-                <iframe *ngIf="selectedDocumentUrl; else noPreview" [src]="selectedDocumentUrl" title="Document preview"></iframe>
-                <ng-template #noPreview>
-                  <div class="text-muted small p-3">Select a document to preview.</div>
-                </ng-template>
-              </div>
+            <div class="mt-3">
+              <label class="form-label fw-semibold">Listing Officer Case Summary</label>
+              <textarea
+                class="form-control"
+                rows="4"
+                [(ngModel)]="listingSummary"
+                [ngModelOptions]="{ standalone: true }"
+                placeholder="Write concise case summary for judge review..."
+              ></textarea>
             </div>
+            <div class="d-flex justify-content-end mt-3">
+              <button class="btn btn-primary" [disabled]="isForwarding || !selectedBench" (click)="forwardToJudge()">
+                {{ isForwarding ? 'Forwarding...' : 'Forward / Re-forward To Judge(s)' }}
+              </button>
+            </div>
+            <div class="mt-2 text-muted small" *ngIf="approvalNotes.length">
+              <div *ngFor="let n of approvalNotes">{{ n }}</div>
+            </div>
+            <ng-template #noDocs>
+              <div class="text-muted small">No documents available.</div>
+            </ng-template>
           </div>
-          <div class="mt-3">
-            <label class="form-label fw-semibold">Listing Officer Case Summary</label>
-            <textarea
-              class="form-control"
-              rows="4"
-              [(ngModel)]="listingSummary"
-              [ngModelOptions]="{ standalone: true }"
-              placeholder="Write concise case summary for judge review..."
-            ></textarea>
-          </div>
-          <div class="d-flex justify-content-end mt-3">
-            <button class="btn btn-primary" [disabled]="isForwarding || !selectedBench" (click)="forwardToJudge()">
-              {{ isForwarding ? 'Forwarding...' : 'Forward / Re-forward To Judge(s)' }}
-            </button>
-          </div>
-          <div class="mt-2 text-muted small" *ngIf="approvalNotes.length">
-            <div *ngFor="let n of approvalNotes">{{ n }}</div>
-          </div>
-          <ng-template #noDocs>
-            <div class="text-muted small">No documents available.</div>
-          </ng-template>
+        </div>
+
+        <div *ngIf="activeTab === 'notes'" class="p-4">
+          <app-office-note-editor
+            [caseId]="filingId"
+            [showHeader]="false"
+            *ngIf="filingId"
+          ></app-office-note-editor>
         </div>
       </div>
     </div>
   </ng-container>
 </div>
-

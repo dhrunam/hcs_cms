@@ -7,13 +7,14 @@
 .pending-cases-section .card {
   border: none;
   border-radius: 18px;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+  border: 1px solid #dbe7ff;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.06);
   overflow: hidden;
 }
 
 .pending-cases-section thead th {
-  background: #f9fafb;
-  color: black;
+  background: #f8fbff;
+  color: #0f172a;
   border-bottom: 1px solid var(--clean-border);
   font-weight: bold;
   font-size: 0.85rem;
@@ -33,7 +34,7 @@
 }
 
 .pending-cases-section tbody tr:hover {
-  background: #f8fafc;
+  background: #eff6ff;
 }
 
 /* Status badges - Accepted: green, Rejected: red, Under scrutiny: yellow */

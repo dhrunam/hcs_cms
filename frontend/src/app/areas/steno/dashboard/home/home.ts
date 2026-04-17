@@ -3,7 +3,7 @@ import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import Swal from 'sweetalert2';
 
-import { ReaderService } from '../../../../services/reader/reader.service';
+import { ReaderService, StenoQueueItem } from '../../../../services/reader/reader.service';
 import { app_url } from '../../../../environment';
 
 @Component({
@@ -14,7 +14,7 @@ import { app_url } from '../../../../environment';
 })
 export class StenoHomePage {
   isLoading = false;
-  items: any[] = [];
+  items: StenoQueueItem[] = [];
   draftDocIds: Record<number, number> = {};
   selectedFiles: Record<number, File | null> = {};
   signedFiles: Record<number, File | null> = {};
@@ -147,6 +147,35 @@ export class StenoHomePage {
     if (!url) return;
     const abs = url.startsWith('http') ? url : `${app_url}${url.startsWith('/') ? '' : '/'}${url}`;
     window.open(abs, '_blank', 'noopener,noreferrer');
+  }
+
+  statusLabel(status: string | null | undefined): string {
+    return String(status || 'PENDING_UPLOAD').replaceAll('_', ' ');
+  }
+
+  statusBadgeClass(status: string | null | undefined): string {
+    const value = String(status || '');
+    if (value === 'PENDING_UPLOAD') return 'badge bg-secondary-subtle text-secondary-emphasis';
+    if (value === 'UPLOADED_BY_STENO') return 'badge bg-info-subtle text-info-emphasis';
+    if (value === 'SENT_FOR_JUDGE_APPROVAL') return 'badge bg-primary-subtle text-primary-emphasis';
+    if (value === 'CHANGES_REQUESTED') return 'badge bg-warning-subtle text-warning-emphasis';
+    if (value === 'JUDGE_APPROVED') return 'badge bg-success-subtle text-success-emphasis';
+    if (value === 'SIGNED_AND_PUBLISHED') return 'badge bg-dark-subtle text-dark-emphasis';
+    return 'badge bg-light text-dark';
+  }
+
+  canUploadDraft(item: any): boolean {
+    const status = item?.workflow_status;
+    return (
+      status === 'PENDING_UPLOAD' ||
+      status === 'UPLOADED_BY_STENO' ||
+      status === 'SENT_FOR_JUDGE_APPROVAL' ||
+      status === 'CHANGES_REQUESTED'
+    );
+  }
+
+  canSubmitToJudge(item: any): boolean {
+    return !!item?.draft_document_index_id && this.canUploadDraft(item);
   }
 
   showJudgeFeedback(item: any): boolean {

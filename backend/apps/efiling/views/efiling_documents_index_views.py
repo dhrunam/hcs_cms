@@ -12,6 +12,7 @@ from apps.efiling.review_utils import (
     derive_filing_status,
     ensure_document_indexes_for_filing,
 )
+from apps.efiling.notification_utils import create_notification
 from apps.efiling.serializers.efiling_document_index import EfilingDocumentsIndexSerializer
 
 
@@ -25,6 +26,9 @@ class EfilingDocumentsIndexListCreateView(ListCreateAPIView):
         scrutiny_status = self.request.query_params.get("scrutiny_status")
         is_new_for_scrutiny = self.request.query_params.get("is_new_for_scrutiny")
         is_ia = self.request.query_params.get("is_ia")
+        include_steno = str(
+            self.request.query_params.get("include_steno", "")
+        ).strip().lower() in ["true", "1", "yes", "y"]
 
         if efiling_id is not None:
             filing = Efiling.objects.filter(pk=efiling_id).first()
@@ -32,6 +36,9 @@ class EfilingDocumentsIndexListCreateView(ListCreateAPIView):
                 ensure_document_indexes_for_filing(filing)
 
         qs = EfilingDocumentsIndex.objects.select_related("document", "document__e_filing").all()
+        if not include_steno:
+            # Steno workflow artifacts are shown in dedicated steno/order views only.
+            qs = qs.exclude(document__document_type__startswith="STENO_")
         if is_active is not None:
             qs = qs.filter(is_active=is_active.lower() in ["true", "1"])
         if efiling_id is not None:
@@ -44,6 +51,9 @@ class EfilingDocumentsIndexListCreateView(ListCreateAPIView):
             qs = qs.filter(scrutiny_status=scrutiny_status)
         if is_new_for_scrutiny is not None:
             qs = qs.filter(is_new_for_scrutiny=is_new_for_scrutiny.lower() in ["true", "1"])
+            # Scrutiny queue should include only actual file rows, not header metadata rows.
+            if is_new_for_scrutiny.lower() in ["true", "1"]:
+                qs = qs.exclude(file_part_path__isnull=True).exclude(file_part_path__exact="")
         if efiling_id is not None:
             return qs.order_by("document_sequence", "id")
         return qs.order_by("-id")
@@ -82,6 +92,23 @@ class EfilingDocumentsIndexListCreateView(ListCreateAPIView):
                 user=self.request.user if self.request.user.is_authenticated else None,
                 scrutiny_status=instance.scrutiny_status,
             )
+            if (
+                has_file
+                and instance.is_new_for_scrutiny
+                and instance.document
+                and instance.document.e_filing
+            ):
+                filing = instance.document.e_filing
+                create_notification(
+                    role="scrutiny_officer",
+                    notification_type="documents_uploaded",
+                    message=(
+                        f"New documents uploaded for registered case "
+                        f"{filing.case_number or filing.e_filing_number or filing.id}."
+                    ),
+                    e_filing=filing,
+                    link_url=f"/scrutiny-officers/dashboard/filed-cases/registered",
+                )
             if instance.document and instance.document.e_filing:
                 derive_filing_status(instance.document.e_filing)
 
@@ -163,12 +190,28 @@ class EfilingDocumentsIndexRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIVie
                     user=request.user if request.user.is_authenticated else None,
                     scrutiny_status=instance.scrutiny_status,
                 )
+                if instance.is_new_for_scrutiny and filing:
+                    create_notification(
+                        role="scrutiny_officer",
+                        notification_type="documents_uploaded",
+                        message=(
+                            f"Updated documents uploaded for registered case "
+                            f"{filing.case_number or filing.e_filing_number or filing.id}."
+                        ),
+                        e_filing=filing,
+                        link_url=f"/scrutiny-officers/dashboard/filed-cases/registered",
+                    )
                 if filing:
                     derive_filing_status(filing)
                 serializer = self.get_serializer(instance)
                 return Response(serializer.data)
 
             if "scrutiny_status" in request.data or "comments" in request.data:
+                has_file = bool(instance.file_part_path and getattr(instance.file_part_path, "name", None))
+                if not has_file:
+                    raise ValidationError(
+                        {"detail": "Header rows without uploaded files cannot be reviewed."}
+                    )
                 review_status = request.data.get("scrutiny_status", instance.draft_scrutiny_status)
                 if review_status not in (
                     EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED,

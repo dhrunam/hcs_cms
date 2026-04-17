@@ -13,6 +13,11 @@ class CauseListDraftEntrySerializer(serializers.Serializer):
 class CauseListDraftSaveSerializer(serializers.Serializer):
     cause_list_date = serializers.DateField()
     bench_key = serializers.CharField(max_length=50)
+    cause_list_type = serializers.ChoiceField(
+        choices=[("DAILY", "Daily"), ("SUPPLEMENTARY", "Supplementary")],
+        required=False,
+        default="DAILY",
+    )
     entries = CauseListDraftEntrySerializer(many=True)
 
 
@@ -23,6 +28,11 @@ class CauseListPublishSerializer(serializers.Serializer):
 
     cause_list_date = serializers.DateField()
     bench_key = serializers.CharField(max_length=50)
+    cause_list_type = serializers.ChoiceField(
+        choices=[("DAILY", "Daily"), ("SUPPLEMENTARY", "Supplementary")],
+        required=False,
+        default="DAILY",
+    )
     entries = CauseListDraftEntrySerializer(many=True)
 
 

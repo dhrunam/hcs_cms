@@ -41,6 +41,18 @@ export const JudgeDashboardRoutes: Routes = [
           import('./steno-review/steno-review').then((c) => c.JudgeStenoReviewPage),
         title: 'Judge | Steno Review',
       },
+      {
+        path: 'office-note-sheet',
+        loadComponent: () =>
+          import('../../office-note-sheet/list/list').then((c) => c.OfficeNoteSheetList),
+        title: 'Office Note Sheet | CMS',
+      },
+      {
+        path: 'office-note-sheet/note/:caseId',
+        loadComponent: () =>
+          import('../../office-note-sheet/note-editor/note-editor').then((c) => c.OfficeNoteEditor),
+        title: 'Case Notes | CMS',
+      },
     ],
   },
 ];

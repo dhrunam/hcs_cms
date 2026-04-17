@@ -4,7 +4,7 @@ from django.db import models
 
 from apps.accounts.models import User
 from apps.core.models import BaseModel, Efiling
-from apps.core.models import EfilingDocumentsIndex
+from apps.core.models import EfilingDocumentsIndex, PurposeT
 
 class CourtroomForward(BaseModel):
     """
@@ -87,6 +87,15 @@ class ReaderDailyProceeding(BaseModel):
     next_listing_date = models.DateField()
     proceedings_text = models.TextField()
     reader_remark = models.TextField(blank=True, null=True)
+    steno_remark = models.TextField(blank=True, null=True)
+    steno_purpose = models.ForeignKey(
+        PurposeT,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reader_daily_proceedings",
+    )
+    listing_remark = models.TextField(blank=True, null=True)
     listing_sync_status = models.CharField(
         max_length=20,
         choices=ListingSyncStatus.choices,

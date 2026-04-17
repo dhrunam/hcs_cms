@@ -44,7 +44,21 @@ class ReaderDailyProceedingSubmitSerializer(serializers.Serializer):
     hearing_date = serializers.DateField()
     next_listing_date = serializers.DateField()
     proceedings_text = serializers.CharField(allow_blank=False)
+    steno_purpose_code = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+    )
     reader_remark = serializers.CharField(
+        allow_blank=True,
+        allow_null=True,
+        required=False,
+    )
+    steno_remark = serializers.CharField(
+        allow_blank=True,
+        allow_null=True,
+        required=False,
+    )
+    listing_remark = serializers.CharField(
         allow_blank=True,
         allow_null=True,
         required=False,
