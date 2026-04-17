@@ -259,6 +259,16 @@ class StenoWorkflowSignature(BaseModel):
         choices=SignatureStatus.choices,
         default=SignatureStatus.PENDING,
     )
+    forwarded_to_judge = models.BooleanField(default=False)
+    forwarded_at = models.DateTimeField(blank=True, null=True)
+    forwarded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="steno_forwarded_signature_rows",
+    )
+    forwarded_note = models.TextField(blank=True, null=True)
     signed_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:

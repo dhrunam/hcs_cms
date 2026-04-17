@@ -7,7 +7,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
-from apps.core.models import BenchT, Efiling, JudgeT, ReaderJudgeAssignment
+from apps.core.models import BenchT, Efiling, JudgeT, OrderDetailsA, ReaderJudgeAssignment
 from apps.judge.models import CourtroomJudgeDecision
 from apps.judge.models import JudgeStenoMapping
 from apps.listing.models import CauseList, CauseListEntry
@@ -18,7 +18,6 @@ from apps.reader.models import (
     StenoOrderWorkflow,
     StenoWorkflowSignature,
 )
-from apps.cis.models import OrderDetailsA
 from apps.reader.workflow_state import apply_judge_decision, upsert_state_on_forward
 from apps.core.bench_config import (
     BenchConfiguration,
@@ -900,6 +899,107 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
             "List this after two weeks.",
         )
 
+    def test_reader_submit_marks_listing_failed_when_workflow_state_update_is_missing(self):
+        BenchWorkflowState.objects.filter(
+            efiling=self.filing,
+            forwarded_for_date=self.forwarded_for_date,
+            bench_key="DB1",
+        ).delete()
+        client = self._auth_client(self.reader_cj)
+        response = client.post(
+            "/api/v1/reader/daily-proceedings/submit/?reader_group=READER",
+            {
+                "efiling_id": self.filing.id,
+                "hearing_date": self.forwarded_for_date.isoformat(),
+                "next_listing_date": self.listing_date.isoformat(),
+                "proceedings_text": "Matter heard.",
+                "reader_remark": "Submit with missing bench state.",
+                "document_type": "ORDER",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        self.assertEqual(
+            response.data.get("listing_sync_status"),
+            ReaderDailyProceeding.ListingSyncStatus.FAILED,
+        )
+        self.assertGreater(int(response.data.get("judge_decision_rows_updated", 0)), 0)
+        self.assertEqual(int(response.data.get("workflow_state_rows_updated", 0)), 0)
+        proceeding = ReaderDailyProceeding.objects.get(efiling=self.filing)
+        self.assertEqual(
+            proceeding.listing_sync_status,
+            ReaderDailyProceeding.ListingSyncStatus.FAILED,
+        )
+        workflow = StenoOrderWorkflow.objects.filter(proceeding=proceeding, document_type="ORDER").first()
+        self.assertIsNotNone(workflow)
+        self.assertEqual(workflow.workflow_status, StenoOrderWorkflow.WorkflowStatus.PENDING_UPLOAD)
+
+    def test_daily_proceedings_list_shows_none_when_steno_workflow_missing(self):
+        ReaderDailyProceeding.objects.update_or_create(
+            efiling=self.filing,
+            hearing_date=self.forwarded_for_date,
+            bench_key="DB1",
+            defaults={
+                "next_listing_date": self.listing_date,
+                "proceedings_text": "No workflow yet.",
+                "listing_sync_status": ReaderDailyProceeding.ListingSyncStatus.PENDING,
+            },
+        )
+        StenoOrderWorkflow.objects.filter(efiling=self.filing).delete()
+        client = self._auth_client(self.reader_cj)
+        response = client.get(
+            f"/api/v1/reader/daily-proceedings/?reader_group=READER&cause_list_date={self.listing_date.isoformat()}"
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        item = next(x for x in response.data["items"] if x["efiling_id"] == self.filing.id)
+        self.assertIsNone(item.get("steno_workflow_status"))
+
+    def test_daily_proceedings_list_prefers_selected_date_proceeding_for_steno_status(self):
+        cause_list = CauseList.objects.create(
+            cause_list_date=self.listing_date,
+            bench_key="DB1",
+            status=CauseList.CauseListStatus.PUBLISHED,
+        )
+        CauseListEntry.objects.create(
+            cause_list=cause_list,
+            efiling=self.filing,
+            included=True,
+            serial_no=1,
+        )
+        selected_date_proceeding = ReaderDailyProceeding.objects.create(
+            efiling=self.filing,
+            hearing_date=self.listing_date,
+            next_listing_date=self.listing_date + timedelta(days=7),
+            proceedings_text="Selected date proceeding with steno workflow.",
+            bench_key="DB1",
+            listing_sync_status=ReaderDailyProceeding.ListingSyncStatus.SYNCED,
+        )
+        StenoOrderWorkflow.objects.create(
+            proceeding=selected_date_proceeding,
+            efiling=self.filing,
+            assigned_steno=self.steno_user,
+            document_type="ORDER",
+            workflow_status=StenoOrderWorkflow.WorkflowStatus.PENDING_UPLOAD,
+        )
+        ReaderDailyProceeding.objects.create(
+            efiling=self.filing,
+            hearing_date=self.listing_date + timedelta(days=1),
+            next_listing_date=self.listing_date + timedelta(days=8),
+            proceedings_text="Newer proceeding without steno workflow.",
+            bench_key="DB1",
+            listing_sync_status=ReaderDailyProceeding.ListingSyncStatus.SYNCED,
+        )
+        client = self._auth_client(self.reader_cj)
+        response = client.get(
+            f"/api/v1/reader/daily-proceedings/?reader_group=READER&cause_list_date={self.listing_date.isoformat()}"
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        item = next(x for x in response.data["items"] if x["efiling_id"] == self.filing.id)
+        self.assertEqual(
+            item.get("steno_workflow_status"),
+            StenoOrderWorkflow.WorkflowStatus.PENDING_UPLOAD,
+        )
+
     def test_forward_creates_bench_workflow_state(self):
         state = BenchWorkflowState.objects.filter(
             efiling=self.filing,
@@ -1057,6 +1157,64 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
         self.assertTrue(item.get("draft_preview_url"))
 
     @override_settings(EFILING_VALIDATE_PDF_UPLOAD=False)
+    def test_judge_steno_workflow_list_uses_order_details_draft_preview_url(self):
+        reader_client = self._auth_client(self.reader_cj)
+        reader_client.post(
+            "/api/v1/reader/daily-proceedings/submit/?reader_group=READER",
+            {
+                "efiling_id": self.filing.id,
+                "hearing_date": self.forwarded_for_date.isoformat(),
+                "next_listing_date": self.listing_date.isoformat(),
+                "proceedings_text": "Matter heard.",
+                "reader_remark": "Send draft to judge.",
+                "document_type": "ORDER",
+            },
+            format="json",
+        )
+        workflow = StenoOrderWorkflow.objects.get(efiling=self.filing, document_type="ORDER")
+        steno_client = self._auth_client(self.steno_user)
+        draft_pdf = SimpleUploadedFile("draft.pdf", b"%PDF-1.4\n%", content_type="application/pdf")
+        upload_response = steno_client.post(
+            "/api/v1/reader/steno/upload-draft-file/",
+            {"workflow_id": str(workflow.id), "file": draft_pdf},
+            format="multipart",
+        )
+        self.assertEqual(upload_response.status_code, 200, upload_response.data)
+        submit_response = steno_client.post(
+            "/api/v1/reader/steno/submit-judge/",
+            {"workflow_id": workflow.id},
+            format="json",
+        )
+        self.assertEqual(submit_response.status_code, 200, submit_response.data)
+
+        judge_client = self._auth_client(self.judge_cj_user)
+        judge_list = judge_client.get("/api/v1/judge/steno-workflows/")
+        self.assertEqual(judge_list.status_code, 200, judge_list.data)
+        item = next(x for x in judge_list.data["items"] if x["workflow_id"] == workflow.id)
+        self.assertTrue(item.get("draft_preview_url"))
+
+    def test_steno_queue_without_date_includes_assigned_workflows(self):
+        reader_client = self._auth_client(self.reader_cj)
+        reader_client.post(
+            "/api/v1/reader/daily-proceedings/submit/?reader_group=READER",
+            {
+                "efiling_id": self.filing.id,
+                "hearing_date": self.forwarded_for_date.isoformat(),
+                "next_listing_date": self.listing_date.isoformat(),
+                "proceedings_text": "Matter heard.",
+                "reader_remark": "Queue visibility check.",
+                "document_type": "ORDER",
+            },
+            format="json",
+        )
+        workflow = StenoOrderWorkflow.objects.get(efiling=self.filing, document_type="ORDER")
+        steno_client = self._auth_client(self.steno_user)
+        queue_resp = steno_client.get("/api/v1/reader/steno/queue/")
+        self.assertEqual(queue_resp.status_code, 200, queue_resp.data)
+        ids = {int(item["workflow_id"]) for item in queue_resp.data.get("items", [])}
+        self.assertIn(workflow.id, ids)
+
+    @override_settings(EFILING_VALIDATE_PDF_UPLOAD=False)
     def test_steno_upload_signed_publish_after_judge_approval(self):
         reader_client = self._auth_client(self.reader_cj)
         reader_client.post(
@@ -1159,3 +1317,329 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
         self.assertTrue(
             StenoWorkflowSignature.objects.filter(workflow=workflow).exists()
         )
+
+    def test_division_submission_assigns_primary_steno_from_submitting_reader_seat(self):
+        other_steno = User.objects.create_user(
+            email="db.other.steno@example.com",
+            username="db_other_steno",
+            password="password123",
+        )
+        grp, _ = Group.objects.get_or_create(name="API_STENOGRAPHER")
+        other_steno.groups.add(grp)
+        JudgeStenoMapping.objects.create(
+            judge=self.judge_j1,
+            steno_user=other_steno,
+            bench_key="DB1",
+            effective_from=self.forwarded_for_date,
+        )
+        client = self._auth_client(self.reader_cj)
+        resp = client.post(
+            "/api/v1/reader/daily-proceedings/submit/?reader_group=READER",
+            {
+                "efiling_id": self.filing.id,
+                "hearing_date": self.forwarded_for_date.isoformat(),
+                "next_listing_date": self.listing_date.isoformat(),
+                "proceedings_text": "Division bench proceedings by higher reader.",
+                "reader_remark": "Send to primary steno.",
+                "document_type": "ORDER",
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.data)
+        workflow = StenoOrderWorkflow.objects.get(efiling=self.filing, document_type="ORDER")
+        self.assertEqual(workflow.assigned_steno_id, self.steno_user.id)
+
+    def test_division_submission_by_j1_still_routes_to_primary_steno(self):
+        other_steno = User.objects.create_user(
+            email="db.j1.steno@example.com",
+            username="db_j1_steno",
+            password="password123",
+        )
+        grp, _ = Group.objects.get_or_create(name="API_STENOGRAPHER")
+        other_steno.groups.add(grp)
+        JudgeStenoMapping.objects.create(
+            judge=self.judge_j1,
+            steno_user=other_steno,
+            bench_key="DB1",
+            effective_from=self.forwarded_for_date,
+        )
+        client = self._auth_client(self.reader_j1)
+        resp = client.post(
+            "/api/v1/reader/daily-proceedings/submit/?reader_group=READER",
+            {
+                "efiling_id": self.filing.id,
+                "hearing_date": self.forwarded_for_date.isoformat(),
+                "next_listing_date": self.listing_date.isoformat(),
+                "proceedings_text": "Division bench proceedings entered by J1.",
+                "reader_remark": "Should still route to primary steno.",
+                "document_type": "ORDER",
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.data)
+        workflow = StenoOrderWorkflow.objects.get(efiling=self.filing, document_type="ORDER")
+        self.assertEqual(workflow.assigned_steno_id, self.steno_user.id)
+
+    def test_lower_steno_sees_workflow_read_only_before_share(self):
+        other_steno = User.objects.create_user(
+            email="queue.lower.steno@example.com",
+            username="queue_lower_steno",
+            password="password123",
+        )
+        grp, _ = Group.objects.get_or_create(name="API_STENOGRAPHER")
+        other_steno.groups.add(grp)
+        JudgeStenoMapping.objects.create(
+            judge=self.judge_j1,
+            steno_user=other_steno,
+            bench_key="DB1",
+            effective_from=self.forwarded_for_date,
+        )
+        client = self._auth_client(self.reader_cj)
+        submit = client.post(
+            "/api/v1/reader/daily-proceedings/submit/?reader_group=READER",
+            {
+                "efiling_id": self.filing.id,
+                "hearing_date": self.forwarded_for_date.isoformat(),
+                "next_listing_date": self.listing_date.isoformat(),
+                "proceedings_text": "Proceedings submitted.",
+                "reader_remark": "Queue test",
+                "document_type": "ORDER",
+            },
+            format="json",
+        )
+        self.assertEqual(submit.status_code, 200, submit.data)
+        workflow_id = int(submit.data["workflow_id"])
+
+        lower_client = self._auth_client(other_steno)
+        queue = lower_client.get(
+            f"/api/v1/reader/steno/queue/?hearing_date={self.forwarded_for_date.isoformat()}"
+        )
+        self.assertEqual(queue.status_code, 200, queue.data)
+        item = next(x for x in queue.data["items"] if int(x["workflow_id"]) == workflow_id)
+        self.assertFalse(item["is_primary_steno"])
+        self.assertTrue(item["is_read_only_view"])
+        self.assertFalse(item["can_upload_draft"])
+        self.assertFalse(item["can_submit_to_judge"])
+        self.assertFalse(item["can_share_approved_draft"])
+        self.assertFalse(item["can_upload_signed_publish"])
+        self.assertFalse(item["can_mark_signature_complete"])
+        self.assertFalse(item.get("can_forward_to_judge_optional"))
+
+    def test_share_then_lower_steno_can_mark_signature_complete(self):
+        other_steno = User.objects.create_user(
+            email="share.lower.steno@example.com",
+            username="share_lower_steno",
+            password="password123",
+        )
+        grp, _ = Group.objects.get_or_create(name="API_STENOGRAPHER")
+        other_steno.groups.add(grp)
+        JudgeStenoMapping.objects.create(
+            judge=self.judge_cj,
+            steno_user=self.steno_user,
+            bench_key="DB1",
+            effective_from=self.forwarded_for_date,
+        )
+        JudgeStenoMapping.objects.create(
+            judge=self.judge_j1,
+            steno_user=other_steno,
+            bench_key="DB1",
+            effective_from=self.forwarded_for_date,
+        )
+        workflow = StenoOrderWorkflow.objects.create(
+            proceeding=ReaderDailyProceeding.objects.create(
+                efiling=self.filing,
+                bench_key="DB1",
+                hearing_date=self.forwarded_for_date,
+                next_listing_date=self.listing_date,
+                proceedings_text="Matter heard.",
+            ),
+            efiling=self.filing,
+            assigned_steno=self.steno_user,
+            workflow_status=StenoOrderWorkflow.WorkflowStatus.JUDGE_APPROVED,
+            judge_approval_status=StenoOrderWorkflow.JudgeApprovalStatus.APPROVED,
+            document_type="ORDER",
+        )
+        primary_client = self._auth_client(self.steno_user)
+        share = primary_client.post(
+            "/api/v1/reader/steno/share-approved-draft/",
+            {"workflow_id": workflow.id},
+            format="json",
+        )
+        self.assertEqual(share.status_code, 200, share.data)
+
+        lower_client = self._auth_client(other_steno)
+        queue = lower_client.get(
+            f"/api/v1/reader/steno/queue/?hearing_date={self.forwarded_for_date.isoformat()}"
+        )
+        item = next(x for x in queue.data["items"] if int(x["workflow_id"]) == workflow.id)
+        self.assertTrue(item["can_mark_signature_complete"])
+        self.assertTrue(item.get("can_forward_to_judge_optional"))
+
+        forward = lower_client.post(
+            "/api/v1/reader/steno/forward-to-judge-optional/",
+            {"workflow_id": workflow.id},
+            format="json",
+        )
+        self.assertEqual(forward.status_code, 200, forward.data)
+        forward_again = lower_client.post(
+            "/api/v1/reader/steno/forward-to-judge-optional/",
+            {"workflow_id": workflow.id, "note": "Shared with my judge."},
+            format="json",
+        )
+        self.assertEqual(forward_again.status_code, 200, forward_again.data)
+        signature_row = StenoWorkflowSignature.objects.get(
+            workflow=workflow, steno_user=other_steno
+        )
+        self.assertTrue(signature_row.forwarded_to_judge)
+        self.assertIsNotNone(signature_row.forwarded_at)
+        self.assertEqual(signature_row.forwarded_note, "Shared with my judge.")
+
+        mark = lower_client.post(
+            "/api/v1/reader/steno/signature-complete/",
+            {"workflow_id": workflow.id},
+            format="json",
+        )
+        self.assertEqual(mark.status_code, 200, mark.data)
+
+    def test_primary_can_sign_before_junior_but_publish_waits_for_all(self):
+        other_steno = User.objects.create_user(
+            email="order.lower.steno@example.com",
+            username="order_lower_steno",
+            password="password123",
+        )
+        grp, _ = Group.objects.get_or_create(name="API_STENOGRAPHER")
+        other_steno.groups.add(grp)
+        JudgeStenoMapping.objects.create(
+            judge=self.judge_cj,
+            steno_user=self.steno_user,
+            bench_key="DB1",
+            effective_from=self.forwarded_for_date,
+        )
+        JudgeStenoMapping.objects.create(
+            judge=self.judge_j1,
+            steno_user=other_steno,
+            bench_key="DB1",
+            effective_from=self.forwarded_for_date,
+        )
+        workflow = StenoOrderWorkflow.objects.create(
+            proceeding=ReaderDailyProceeding.objects.create(
+                efiling=self.filing,
+                bench_key="DB1",
+                hearing_date=self.forwarded_for_date,
+                next_listing_date=self.listing_date,
+                proceedings_text="Matter heard.",
+            ),
+            efiling=self.filing,
+            assigned_steno=self.steno_user,
+            workflow_status=StenoOrderWorkflow.WorkflowStatus.PENDING_UPLOAD,
+            judge_approval_status=StenoOrderWorkflow.JudgeApprovalStatus.PENDING,
+            document_type="ORDER",
+        )
+        primary_client = self._auth_client(self.steno_user)
+        lower_client = self._auth_client(other_steno)
+        cino = (getattr(self.filing, "case_number", "") or "").strip()[:16]
+        next_order_no = (
+            int(OrderDetailsA.objects.filter(cino=cino).order_by("-order_no").values_list("order_no", flat=True).first() or 0)
+            + 1
+        )
+        OrderDetailsA.objects.create(
+            case_no=(self.filing.case_number or "")[:15] or None,
+            order_no=next_order_no,
+            order_dt=timezone.localdate(),
+            download="",
+            upload=f"/media/steno/workflows/{workflow.id}/draft.pdf",
+            doc_type=1,
+            ordloc_lang="",
+            judgedecree=0,
+            timestamp=timezone.now(),
+            userlogin=self.steno_user.email,
+            jocode=None,
+            modify_flag="N",
+            disp_nature=0,
+            hashkey=f"STENO_WF_{workflow.id}_DRAFT",
+            court_no=0,
+            cino=cino,
+            filing_no=(self.filing.e_filing_number or "")[:15] or None,
+            create_modify=timezone.now(),
+        )
+        workflow.refresh_from_db()
+        workflow.workflow_status = StenoOrderWorkflow.WorkflowStatus.JUDGE_APPROVED
+        workflow.judge_approval_status = StenoOrderWorkflow.JudgeApprovalStatus.APPROVED
+        workflow.save(update_fields=["workflow_status", "judge_approval_status", "updated_at"])
+
+        share = primary_client.post(
+            "/api/v1/reader/steno/share-approved-draft/",
+            {"workflow_id": workflow.id},
+            format="json",
+        )
+        self.assertEqual(share.status_code, 200, share.data)
+
+        primary_sign = primary_client.post(
+            "/api/v1/reader/steno/signature-complete/",
+            {"workflow_id": workflow.id},
+            format="json",
+        )
+        self.assertEqual(primary_sign.status_code, 200, primary_sign.data)
+        self.assertFalse(primary_sign.data["all_required_signatures_done"])
+
+        signed_pdf = SimpleUploadedFile(
+            "signed.pdf",
+            b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n",
+            content_type="application/pdf",
+        )
+        blocked_publish = primary_client.post(
+            "/api/v1/reader/steno/upload-signed-publish/",
+            {"workflow_id": str(workflow.id), "file": signed_pdf},
+            format="multipart",
+        )
+        self.assertEqual(blocked_publish.status_code, 400, blocked_publish.data)
+        detail = blocked_publish.data.get("detail")
+        if isinstance(detail, list):
+            detail = detail[0]
+        self.assertIn("All required judge signatures are not complete yet", str(detail))
+
+        lower_sign = lower_client.post(
+            "/api/v1/reader/steno/signature-complete/",
+            {"workflow_id": workflow.id},
+            format="json",
+        )
+        self.assertEqual(lower_sign.status_code, 200, lower_sign.data)
+        self.assertTrue(lower_sign.data["all_required_signatures_done"])
+
+    def test_non_primary_steno_cannot_publish_signed_document(self):
+        other_steno = User.objects.create_user(
+            email="publish.lower.steno@example.com",
+            username="publish_lower_steno",
+            password="password123",
+        )
+        grp, _ = Group.objects.get_or_create(name="API_STENOGRAPHER")
+        other_steno.groups.add(grp)
+        workflow = StenoOrderWorkflow.objects.create(
+            proceeding=ReaderDailyProceeding.objects.create(
+                efiling=self.filing,
+                bench_key="DB1",
+                hearing_date=self.forwarded_for_date,
+                next_listing_date=self.listing_date,
+                proceedings_text="Matter heard.",
+            ),
+            efiling=self.filing,
+            assigned_steno=self.steno_user,
+            workflow_status=StenoOrderWorkflow.WorkflowStatus.JUDGE_APPROVED,
+            judge_approval_status=StenoOrderWorkflow.JudgeApprovalStatus.APPROVED,
+            document_type="ORDER",
+        )
+        lower_client = self._auth_client(other_steno)
+        signed_pdf = SimpleUploadedFile("signed.pdf", b"%PDF-1.4\n%", content_type="application/pdf")
+        denied = lower_client.post(
+            "/api/v1/reader/steno/upload-signed-publish/",
+            {
+                "workflow_id": str(workflow.id),
+                "file": signed_pdf,
+            },
+            format="multipart",
+        )
+        self.assertEqual(denied.status_code, 400)
+        detail = denied.data.get("detail")
+        if isinstance(detail, list):
+            detail = detail[0]
+        self.assertIn("Not authorized", str(detail))

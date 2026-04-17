@@ -89,3 +89,12 @@ class StenoShareForSignatureSerializer(serializers.Serializer):
 
 class StenoMarkSignatureSerializer(serializers.Serializer):
     workflow_id = serializers.IntegerField()
+
+
+class StenoForwardToJudgeOptionalSerializer(serializers.Serializer):
+    workflow_id = serializers.IntegerField()
+    note = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )

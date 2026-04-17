@@ -4,7 +4,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Set
 import logging
 
 from django.contrib.auth.models import Group, AnonymousUser
-from django.db import transaction
+from django.db import transaction, connections
 from django.db.models import Prefetch, Q
 
 from django.urls import reverse
@@ -23,16 +23,15 @@ from apps.core.bench_config import (
     judge_user_seated_on_bench_key,
 )
 from apps.core.models import (
-    CivilT,
     Efiling,
     EfilingCaseDetails,
     EfilingDocumentsIndex,
     EfilingLitigant,
     EfilerDocumentAccess,
     JudgeT,
+    OrderDetailsA,
     ReaderJudgeAssignment,
 )
-from apps.cis.models import OrderDetailsA
 from apps.efiling.party_display import build_petitioner_vs_respondent
 from apps.efiling.serializers.efiling_document_index import EfilingDocumentsIndexSerializer
 
@@ -68,6 +67,36 @@ def _steno_draft_stream_url(request, document_index_id: int | None) -> str | Non
         kwargs={"document_index_id": int(document_index_id)},
     )
     return request.build_absolute_uri(path)
+
+
+def _table_exists_on_default_db(table_name: str) -> bool:
+    db = connections["default"]
+    with db.cursor() as cursor:
+        names = db.introspection.table_names(cursor)
+    return table_name in names
+
+
+def _order_upload_url(request, value: str | None) -> str | None:
+    raw = (value or "").strip()
+    if not raw:
+        return None
+    if raw.startswith("http://") or raw.startswith("https://"):
+        return raw
+    if raw.startswith("/"):
+        return request.build_absolute_uri(raw)
+    return request.build_absolute_uri(f"/{raw}")
+
+
+def _latest_steno_order_entry(workflow_id: int, phase: str) -> OrderDetailsA | None:
+    table_name = OrderDetailsA._meta.db_table
+    if not _table_exists_on_default_db(table_name):
+        return None
+    marker = f"STENO_WF_{int(workflow_id)}_{str(phase).upper()}"
+    return (
+        OrderDetailsA.objects.filter(hashkey=marker)
+        .order_by("-timestamp", "-order_no")
+        .first()
+    )
 
 _DUMMY_TOKEN_TO_DUMMY_EMAIL: Dict[str, str] = {
     "judge_cj_dummy_token": "dummy_judge_cj@hcs.local",
@@ -240,60 +269,6 @@ def _get_display_bench_for_efiling(
     if bench_config:
         return bench_config.bench_key, bench_config.label
     return fallback_bench_key, fallback_bench_key
-
-
-def _resolve_efiling_cino(efiling: Efiling) -> str | None:
-    case_number = (getattr(efiling, "case_number", None) or "").strip()
-    if case_number:
-        row = CivilT.objects.filter(case_no=case_number).values("cino").first()
-        cino = (row or {}).get("cino")
-        if cino:
-            return str(cino)
-    fallback = (case_number or (getattr(efiling, "e_filing_number", None) or "")).strip()
-    return fallback[:16] if fallback else None
-
-
-def _order_upload_url(request, value: str | None) -> str | None:
-    raw = (value or "").strip()
-    if not raw:
-        return None
-    if raw.startswith("http://") or raw.startswith("https://"):
-        return raw
-    if raw.startswith("/"):
-        return request.build_absolute_uri(raw)
-    return request.build_absolute_uri(f"/{raw}")
-
-
-def _orders_for_efiling(request, efiling: Efiling) -> list[dict]:
-    cino = _resolve_efiling_cino(efiling)
-    if not cino:
-        return []
-    rows = (
-        OrderDetailsA.objects.filter(cino=cino)
-        .order_by("-timestamp", "-order_no")[:100]
-    )
-    items: list[dict] = []
-    for row in rows:
-        phase = (row.download or "").strip().upper()
-        if phase == "DRAFT":
-            label = "Draft"
-        elif phase == "APPROVED_DRAFT":
-            label = "Approved Draft"
-        elif phase == "SIGNED_FINAL":
-            label = "Final Signed"
-        elif phase == "PUBLISHED":
-            label = "Published"
-        else:
-            label = phase or "Order"
-        items.append(
-            {
-                "order_no": row.order_no,
-                "status": label,
-                "uploaded_at": row.timestamp.isoformat() if row.timestamp else None,
-                "file_url": _order_upload_url(request, row.upload),
-            }
-        )
-    return items
 
 
 def _courtroom_forward_matches_judge_slot(user: User, forward: CourtroomForward) -> bool:
@@ -852,7 +827,6 @@ class CourtroomCaseDocumentsView(APIView):
         return Response(
             {
                 "items": doc_items,
-                "orders": _orders_for_efiling(request, filing) if filing else [],
             },
             status=drf_status.HTTP_200_OK,
         )
@@ -966,7 +940,6 @@ class CourtroomCaseSummaryView(APIView):
                     for d in selected_documents
                 ],
                 "judge_decision": latest_decision_data,
-                "orders": _orders_for_efiling(request, filing),
                 "litigants": litigants,
                 "case_details": (
                     {
@@ -1384,6 +1357,7 @@ class JudgeStenoWorkflowListView(APIView):
             if not _judge_can_view_forward(judge_user, getattr(row.proceeding, "bench_key", None)):
                 continue
             draft_id = row.draft_document_index_id
+            draft_entry = _latest_steno_order_entry(row.id, "DRAFT")
             ann_list = [
                 {
                     "id": a.id,
@@ -1407,7 +1381,10 @@ class JudgeStenoWorkflowListView(APIView):
                     "e_filing_number": row.efiling.e_filing_number,
                     "document_type": row.document_type,
                     "draft_document_index_id": draft_id,
-                    "draft_preview_url": _steno_draft_stream_url(request, draft_id),
+                    "draft_preview_url": (
+                        _order_upload_url(request, getattr(draft_entry, "upload", None))
+                        or _steno_draft_stream_url(request, draft_id)
+                    ),
                     "workflow_status": row.workflow_status,
                     "judge_approval_status": row.judge_approval_status,
                     "proceedings_text": row.proceeding.proceedings_text,
