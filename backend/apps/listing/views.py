@@ -45,23 +45,11 @@ from django.db.models import Count
 
 def _cause_list_target_efiling_ids(cld_obj: date_type | None, bench_key: str) -> Set[int]:
     """
-    Cases available for this cause list calendar day: forwarded for that day, or
-    reader listing_date matches that day (same bench), so listing tracks assign-date flow.
-
-    Date alignment: the listing officer's ``cause_list_date`` should match
-    ``CourtroomForward.forwarded_for_date`` when using the forward-only path, unless the
-    reader has already tied the file to this calendar day via ``listing_date`` +
-    ``reader_listing_remark`` on a judge decision (see ``by_listing`` below). If those
-    dates diverge, the case may not appear under ``approved_only`` until dates or remarks align.
+    Cases available for this cause list calendar day:
+    only those explicitly assigned by Reader via listing_date for the same bench.
     """
     if not cld_obj:
         return set()
-    by_forward = set(
-        CourtroomForward.objects.filter(
-            bench_key=bench_key,
-            forwarded_for_date=cld_obj,
-        ).values_list("efiling_id", flat=True)
-    )
     on_bench = set(
         CourtroomForward.objects.filter(bench_key=bench_key).values_list(
             "efiling_id", flat=True
@@ -75,7 +63,7 @@ def _cause_list_target_efiling_ids(cld_obj: date_type | None, bench_key: str) ->
             reader_listing_remark__isnull=False,
         ).values_list("efiling_id", flat=True)
     )
-    return set(by_forward) | set(by_listing)
+    return set(by_listing)
 
 
 def _main_parties_for_filing(filing: Efiling) -> str:
