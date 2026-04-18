@@ -7,6 +7,10 @@ import {
   RegistrationService,
   formatRegistrationError,
 } from '../../../services/registration.service';
+import {
+  REGISTRATION_DEFAULT_OTP,
+  isValidRegistrationOtp,
+} from '../../../utils/registration-otp';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -41,6 +45,10 @@ export class RegisterAdvocate {
 
   submitted = false;
 
+  /** After the user passes client validation, require OTP before calling the API. */
+  showOtpStep = false;
+  otpInput = '';
+
   onBarFileChange(event: Event): void {
     const input = event.target as HTMLInputElement;
     const f = input.files?.[0];
@@ -62,12 +70,28 @@ export class RegisterAdvocate {
     return null;
   }
 
+  backFromOtpStep(): void {
+    this.showOtpStep = false;
+    this.formError = '';
+  }
+
   submit(): void {
     this.submitted = true;
     this.formError = '';
     const err = this.clientErrors();
     if (err) {
       this.formError = err;
+      return;
+    }
+
+    if (!this.showOtpStep) {
+      this.showOtpStep = true;
+      this.otpInput = REGISTRATION_DEFAULT_OTP;
+      return;
+    }
+
+    if (!isValidRegistrationOtp(this.otpInput)) {
+      this.formError = `Invalid OTP. Enter ${REGISTRATION_DEFAULT_OTP} to complete registration.`;
       return;
     }
 

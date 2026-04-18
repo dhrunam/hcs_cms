@@ -275,6 +275,10 @@ PG_PARAMS = {
         "PG_IA_COURT_FEE_REDIRECT_URL",
         "http://localhost:4200/advocate/dashboard/efiling/ia-filing/create",
     ),
+    "redirect_to_front_end_for_document_filing": os.getenv(
+        "PG_DOCUMENT_FILING_REDIRECT_URL",
+        "http://localhost:4200/advocate/dashboard/efiling/document-filing/create",
+    ),
     "salt": os.getenv(
         "PG_SALT",
         "31c6163218e5c8233ea9af089785bd3125b210cc995add2da23e36d0779d51d7",

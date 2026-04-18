@@ -7,6 +7,10 @@ import {
   RegistrationService,
   formatRegistrationError,
 } from '../../../services/registration.service';
+import {
+  REGISTRATION_DEFAULT_OTP,
+  isValidRegistrationOtp,
+} from '../../../utils/registration-otp';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -39,6 +43,9 @@ export class RegisterParty {
 
   submitted = false;
 
+  showOtpStep = false;
+  otpInput = '';
+
   private clientErrors(): string | null {
     if (!this.email.trim()) return 'Email is required.';
     if (!EMAIL_RE.test(this.email.trim())) return 'Enter a valid email address.';
@@ -52,12 +59,28 @@ export class RegisterParty {
     return null;
   }
 
+  backFromOtpStep(): void {
+    this.showOtpStep = false;
+    this.formError = '';
+  }
+
   submit(): void {
     this.submitted = true;
     this.formError = '';
     const err = this.clientErrors();
     if (err) {
       this.formError = err;
+      return;
+    }
+
+    if (!this.showOtpStep) {
+      this.showOtpStep = true;
+      this.otpInput = REGISTRATION_DEFAULT_OTP;
+      return;
+    }
+
+    if (!isValidRegistrationOtp(this.otpInput)) {
+      this.formError = `Invalid OTP. Enter ${REGISTRATION_DEFAULT_OTP} to complete registration.`;
       return;
     }
 
