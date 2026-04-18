@@ -21,6 +21,9 @@ from apps.efiling.views.document_index_views import (
     DocumentIndexListCreateView,
     DocumentIndexRetrieveUpdateDestroyView,
 )
+from apps.efiling.views.efiling_document_submit_filing_view import (
+    EfilingDocumentSubmitFilingView,
+)
 from apps.efiling.views.efiling_documents_views import (
     EfilingDocumentsListCreateView,
     EfilingDocumentsRetrieveUpdateDestroyView,
@@ -156,6 +159,11 @@ urlpatterns = [
         "efiling-documents/",
         EfilingDocumentsListCreateView.as_view(),
         name="efiling-documents-list-create",
+    ),
+    path(
+        "efiling-documents/<int:pk>/submit-filing/",
+        EfilingDocumentSubmitFilingView.as_view(),
+        name="efiling-documents-submit-filing",
     ),
     path(
         "efiling-documents/<int:pk>/",

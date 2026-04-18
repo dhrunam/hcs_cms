@@ -12,9 +12,12 @@ def reviewable_document_indexes_for_filing(filing):
     Scrutiny workflow must evaluate only real uploaded document rows.
     Name-only header rows (without file_part_path) are UI grouping metadata and
     must not influence case approval/rejection state transitions.
+    Pending existing-case uploads (is_active=False on EfilingDocuments) are excluded
+    until the advocate completes submit filing.
     """
     qs = EfilingDocumentsIndex.objects.filter(
         document__e_filing=filing,
+        document__is_active=True,
         is_active=True,
     ).exclude(
         models.Q(file_part_path__isnull=True) | models.Q(file_part_path__exact="")
@@ -22,8 +25,14 @@ def reviewable_document_indexes_for_filing(filing):
     if qs.exists():
         return qs
     # Backward-compatible fallback when rows were accidentally saved inactive.
-    return EfilingDocumentsIndex.objects.filter(document__e_filing=filing).exclude(
-        models.Q(file_part_path__isnull=True) | models.Q(file_part_path__exact="")
+    return (
+        EfilingDocumentsIndex.objects.filter(
+            document__e_filing=filing,
+            document__is_active=True,
+        )
+        .exclude(
+            models.Q(file_part_path__isnull=True) | models.Q(file_part_path__exact="")
+        )
     )
 
 
@@ -65,6 +74,7 @@ def sync_document_index_for_upload(document, user=None, document_index_id=None):
             .first()
         )
         next_sequence = (last_sequence or 0) + 1
+        doc_is_active = getattr(document, "is_active", True)
         document_index = EfilingDocumentsIndex.objects.create(
             document=document,
             document_part_name=document.document_type or "Uploaded document",
@@ -77,6 +87,7 @@ def sync_document_index_for_upload(document, user=None, document_index_id=None):
             draft_reviewed_at=None,
             is_new_for_scrutiny=is_new_for_scrutiny,
             last_resubmitted_at=now if is_new_for_scrutiny else None,
+            is_active=doc_is_active,
             created_by=user,
             updated_by=user,
         )
@@ -86,7 +97,7 @@ def sync_document_index_for_upload(document, user=None, document_index_id=None):
             user=user,
             scrutiny_status=status,
         )
-        if is_new_for_scrutiny and filing:
+        if is_new_for_scrutiny and filing and doc_is_active:
             create_notification(
                 role="scrutiny_officer",
                 notification_type="documents_uploaded",
@@ -128,7 +139,8 @@ def sync_document_index_for_upload(document, user=None, document_index_id=None):
             user=user,
             scrutiny_status=status,
         )
-    if is_new_for_scrutiny and filing:
+    doc_is_active = getattr(document, "is_active", True)
+    if is_new_for_scrutiny and filing and doc_is_active:
         create_notification(
             role="scrutiny_officer",
             notification_type="documents_uploaded",
@@ -137,6 +149,49 @@ def sync_document_index_for_upload(document, user=None, document_index_id=None):
             link_url=f"/scrutiny-officers/dashboard/filed-cases/details/{filing.id}",
         )
     return document_index if document_indexes else None
+
+
+def submit_document_filing_for_scrutiny(document: EfilingDocuments, user=None):
+    """
+    Existing-case document filing: after court fee payment, advocate submits filing.
+    Activates document and index rows and notifies scrutiny (deferred from upload).
+    """
+    now = timezone.now()
+    filing = document.e_filing
+    with transaction.atomic():
+        locked = EfilingDocuments.objects.select_for_update().get(pk=document.pk)
+        if locked.document_filing_submitted_at is not None:
+            return locked
+        locked.is_active = True
+        locked.document_filing_submitted_at = now
+        if user is not None:
+            locked.updated_by = user
+        locked.save(
+            update_fields=[
+                "is_active",
+                "document_filing_submitted_at",
+                "updated_by",
+                "updated_at",
+            ]
+        )
+        for idx in EfilingDocumentsIndex.objects.filter(document=locked):
+            idx.is_active = True
+            if user is not None:
+                idx.updated_by = user
+            idx.save(update_fields=["is_active", "updated_by", "updated_at"])
+
+    if filing and not filing.is_draft:
+        create_notification(
+            role="scrutiny_officer",
+            notification_type="documents_uploaded",
+            message=(
+                f"Document filing submitted for e-filing {filing.e_filing_number or filing.id}."
+            ),
+            e_filing=filing,
+            link_url=f"/scrutiny-officers/dashboard/filed-cases/details/{filing.id}",
+        )
+    derive_filing_status(locked.e_filing)
+    return locked
 
 
 def submit_documents_for_scrutiny(filing, user=None):
@@ -189,6 +244,8 @@ def ensure_document_indexes_for_filing(filing, user=None):
     documents = EfilingDocuments.objects.filter(e_filing=filing).order_by("id")
 
     for document in documents:
+        if not getattr(document, "is_active", True):
+            continue
         if not document.final_document:
             continue
         existing_index = EfilingDocumentsIndex.objects.filter(document=document).order_by("id").first()

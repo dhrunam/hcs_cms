@@ -430,10 +430,16 @@ class EfilingDocuments(BaseModel):
     document_type = models.CharField(max_length=512, blank=True, null=True) 
     parent_e_filing_document = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='child_documents')
     final_document = models.FileField(upload_to='media/efile/final_documents/', max_length=512, blank=True, null=True)
-    is_ia = models.BooleanField(default=False) 
+    is_ia = models.BooleanField(default=False)
     filed_by = models.CharField(max_length=100, blank=True, null=True)
+    document_filing_submitted_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="Set when advocate completes document filing (fee + submit) for existing-case uploads.",
+    )
+
     class Meta:
-      
+
         db_table = 'efiling_documents'
 
 

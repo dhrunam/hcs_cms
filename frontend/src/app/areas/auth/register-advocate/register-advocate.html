@@ -23,7 +23,7 @@
       </div>
 
       <form (ngSubmit)="submit()" novalidate>
-        <fieldset [disabled]="isLoading">
+        <fieldset [disabled]="isLoading || showOtpStep">
           <div class="row g-3">
             <div class="col-md-6">
               <label class="auth-label" for="adv-email">Email</label>
@@ -179,17 +179,53 @@
               </div>
             </div>
           </div>
+        </fieldset>
 
+        <div *ngIf="showOtpStep" class="mt-4 p-3 rounded border bg-light">
+          <label class="auth-label" for="adv-reg-otp">OTP verification</label>
+          <input
+            id="adv-reg-otp"
+            class="auth-input"
+            type="text"
+            name="registration_otp"
+            [(ngModel)]="otpInput"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            maxlength="8"
+            [disabled]="isLoading"
+            aria-describedby="adv-reg-otp-hint"
+          />
+          <p id="adv-reg-otp-hint" class="small text-muted mb-2 mt-2">
+            Enter the one-time password to confirm registration. For this environment the OTP is
+            <strong>0000</strong>.
+          </p>
+          <button
+            type="button"
+            class="btn btn-link btn-sm p-0"
+            (click)="backFromOtpStep()"
+            [disabled]="isLoading"
+          >
+            ← Edit registration details
+          </button>
+        </div>
+
+        <div class="mt-4">
           <button
             type="submit"
-            class="auth-btn-primary mt-4"
+            class="auth-btn-primary"
             [attr.aria-busy]="isLoading"
             [disabled]="isLoading"
           >
             <span *ngIf="isLoading" class="auth-spinner" aria-hidden="true"></span>
-            {{ isLoading ? 'Submitting…' : 'Create account' }}
+            {{
+              isLoading
+                ? 'Submitting…'
+                : showOtpStep
+                  ? 'Verify & register'
+                  : 'Register'
+            }}
           </button>
-        </fieldset>
+        </div>
       </form>
 
       <p class="text-center mt-3 mb-0 small">
