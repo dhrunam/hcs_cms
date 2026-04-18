@@ -614,11 +614,8 @@ class CourtroomPendingCasesView(APIView):
                 matches = [x for x in fs if _courtroom_forward_matches_judge_slot(user, x)]
                 if matches:
                     forwards_pre.append(max(matches, key=lambda x: x.id))
-<<<<<<< HEAD
-=======
                 elif not _forward_uses_multi_judge_bench(fs[0]):
                     forwards_pre.append(max(fs, key=lambda x: x.id))
->>>>>>> 46f4bd02f94c6b61cb733959a6c9088f80eaf8af
             forwards_pre.sort(key=lambda x: -x.id)
             forwards = forwards_published + forwards_pre
         else:
