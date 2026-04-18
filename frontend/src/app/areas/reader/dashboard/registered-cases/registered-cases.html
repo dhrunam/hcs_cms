@@ -49,6 +49,13 @@
                   <i class="fa-solid me-1" [ngClass]="approvalIcon(c)"></i>
                   {{ approvalStatusLabel(c) }}
                 </span>
+                <span
+                  *ngIf="hasReallocationHistory(c)"
+                  class="badge rounded-pill px-3 py-2 text-bg-warning"
+                >
+                  <i class="fa-solid fa-shuffle me-1"></i>
+                  Recused Case
+                </span>
                 <div
                   class="tiny text-success fw-bold"
                   *ngIf="c.approval_listing_date"
@@ -95,6 +102,15 @@
             <div class="summary-row" *ngIf="c.approval_listing_date">
               <div class="summary-label">Judge Listing Date</div>
               <div class="summary-value">{{ c.approval_listing_date }}</div>
+            </div>
+            <div class="summary-row" *ngIf="hasReallocationHistory(c)">
+              <div class="summary-label">Reallocation</div>
+              <div class="summary-value text-muted">
+                Reassigned from {{ c.latest_reallocation_previous_bench_label || c.latest_reallocation_previous_bench_key || '-' }}
+                <span *ngIf="c.latest_reallocation_at">
+                  on {{ c.latest_reallocation_at | date:'dd MMM yyyy, hh:mm a' }}
+                </span>
+              </div>
             </div>
           </div>
         </div>

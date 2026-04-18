@@ -37,6 +37,37 @@ export type RegisteredCase = {
   listing_summary?: string | null;
   can_assign_listing_date?: boolean;
   requested_documents?: { document_index_id: number; document_part_name: string | null; document_type: string | null }[];
+  is_reallocated_case?: boolean;
+  latest_reallocation_at?: string | null;
+  latest_reallocation_previous_bench_key?: string | null;
+  latest_reallocation_previous_bench_label?: string | null;
+  latest_reallocation_new_bench_key?: string | null;
+  latest_reallocation_new_bench_label?: string | null;
+};
+
+export type ReaderCaseReallocationResponse = {
+  detail: string;
+  reallocation_id: number;
+  previous_bench_key: string;
+  new_bench_key: string;
+  new_bench_label: string;
+  deleted_decisions?: number;
+  deleted_workflow_states?: number;
+  deleted_forwards?: number;
+};
+
+export type ReaderCaseReallocationHistoryItem = {
+  reallocation_id: number;
+  previous_bench_key: string;
+  previous_bench_label?: string | null;
+  new_bench_key: string;
+  new_bench_label?: string | null;
+  remarks: string;
+  reallocated_at?: string | null;
+  reallocated_by_name?: string | null;
+  has_uploaded_order?: boolean;
+  order_file_url?: string | null;
+  order_file_download_url?: string | null;
 };
 
 export type BenchConfiguration = {
@@ -217,6 +248,49 @@ export class ReaderService {
       url += `?reader_group=${encodeURIComponent(readerGroup)}`;
     }
     return this.http.post<any>(url, { efiling_id: efilingId });
+  }
+
+  reallocateCase(payload: {
+    efiling_id: number;
+    new_bench_key: string;
+    remarks: string;
+    order_file?: File | null;
+  }): Observable<ReaderCaseReallocationResponse> {
+    const readerGroup = this.readerGroupForQuery();
+    let url = `${app_url}/api/v1/reader/reallocate-case/`;
+    if (readerGroup) {
+      url += `?reader_group=${encodeURIComponent(readerGroup)}`;
+    }
+
+    const fd = new FormData();
+    fd.append('efiling_id', String(payload.efiling_id));
+    fd.append('new_bench_key', payload.new_bench_key);
+    fd.append('remarks', payload.remarks);
+    if (payload.order_file) {
+      fd.append('order_file', payload.order_file, payload.order_file.name);
+    }
+    return this.http.post<ReaderCaseReallocationResponse>(url, fd);
+  }
+
+  getCaseReallocationHistory(efilingId: number): Observable<{
+    efiling_id: number;
+    total: number;
+    items: ReaderCaseReallocationHistoryItem[];
+  }> {
+    const readerGroup = this.readerGroupForQuery();
+    let url = `${app_url}/api/v1/reader/cases/${efilingId}/reallocations/`;
+    if (readerGroup) {
+      url += `?reader_group=${encodeURIComponent(readerGroup)}`;
+    }
+    return this.http.get<{
+      efiling_id: number;
+      total: number;
+      items: ReaderCaseReallocationHistoryItem[];
+    }>(url);
+  }
+
+  fetchProtectedFile(fileUrl: string): Observable<Blob> {
+    return this.http.get(fileUrl, { responseType: 'blob' });
   }
 
   getDailyProceedings(params?: {

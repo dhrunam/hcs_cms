@@ -429,7 +429,7 @@ class CourtroomPendingCasesViewTest(TestCase):
 
 
 class DivisionBenchJudgeListingSummaryVisibilityTest(TestCase):
-    """Division bench: listing_summary from a forward is shown only to the judge served by that reader."""
+    """Division bench pre-publish forwards are visible only to the judge served by that reader."""
 
     def setUp(self):
         self.client = APIClient()
@@ -530,11 +530,10 @@ class DivisionBenchJudgeListingSummaryVisibilityTest(TestCase):
             resp.data.get("pending_for_causelist") or []
         )
 
-    def test_judge_sees_summary_only_when_forward_from_own_reader(self):
+    def test_pre_publish_forward_visible_only_to_reader_mapped_judge(self):
         items_a = self._pending_items(self.judge_a)
         self.assertEqual(len(items_a), 1)
         self.assertEqual(items_a[0].get("listing_summary"), "Reader A confidential summary")
 
         items_b = self._pending_items(self.judge_b)
-        self.assertEqual(len(items_b), 1)
-        self.assertIsNone(items_b[0].get("listing_summary"))
+        self.assertEqual(items_b, [])

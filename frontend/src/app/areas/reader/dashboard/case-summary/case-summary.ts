@@ -3,12 +3,13 @@ import { Component } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
-import { forkJoin } from "rxjs";
+import { catchError, forkJoin, of } from "rxjs";
 import Swal from "sweetalert2";
 
 import { EfilingService } from "../../../../services/advocate/efiling/efiling.services";
 import {
   BenchConfiguration,
+  ReaderCaseReallocationHistoryItem,
   ReaderService,
   resolveBenchConfiguration,
 } from "../../../../services/reader/reader.service";
@@ -58,6 +59,12 @@ export class ReaderCaseSummaryPage {
   approvalForwardedForDate: string | null = null;
   benchConfigurations: BenchConfiguration[] = [];
   listingRemark = "";
+  showReallocateModal = false;
+  reallocateTargetBenchKey = "";
+  reallocateRemarks = "";
+  reallocateOrderFile: File | null = null;
+  reallocationHistory: ReaderCaseReallocationHistoryItem[] = [];
+  private reallocationOrderObjectUrls = new Set<string>();
   private expandedVakalatGroupIds = new Set<string>();
 
   constructor(
@@ -78,6 +85,13 @@ export class ReaderCaseSummaryPage {
     this.load();
   }
 
+  ngOnDestroy(): void {
+    for (const objectUrl of this.reallocationOrderObjectUrls) {
+      URL.revokeObjectURL(objectUrl);
+    }
+    this.reallocationOrderObjectUrls.clear();
+  }
+
   setActiveTab(tab: 'details' | 'notes'): void {
     this.activeTab = tab;
   }
@@ -88,9 +102,7 @@ export class ReaderCaseSummaryPage {
     this.loadError = "";
 
     forkJoin({
-      benchConfigurations: this.readerService.getBenchConfigurations({
-        accessible_only: true,
-      }),
+      benchConfigurations: this.readerService.getBenchConfigurations(),
       filing: this.efilingService.get_filing_by_id(this.filingId),
       caseDetails: this.efilingService.get_case_details_by_filing_id(
         this.filingId,
@@ -106,6 +118,18 @@ export class ReaderCaseSummaryPage {
         this.filingId,
         true,
       ),
+      reallocationHistory: this.readerService
+        .getCaseReallocationHistory(this.filingId)
+        .pipe(
+          catchError((err) => {
+            console.warn("Failed to load reallocation history", err);
+            return of({
+              efiling_id: this.filingId as number,
+              total: 0,
+              items: [],
+            });
+          }),
+        ),
       registeredCases: this.readerService.getRegisteredCases({
         page_size: 500,
       }),
@@ -117,6 +141,7 @@ export class ReaderCaseSummaryPage {
         litigants,
         documents,
         iaDocuments,
+        reallocationHistory,
         registeredCases,
       }) => {
         this.benchConfigurations = benchConfigurations?.items ?? [];
@@ -165,6 +190,9 @@ export class ReaderCaseSummaryPage {
           ? currentCase.requested_documents
               .map((item: any) => Number(item?.document_index_id))
               .filter((item: number) => Number.isFinite(item))
+          : [];
+        this.reallocationHistory = Array.isArray(reallocationHistory?.items)
+          ? reallocationHistory.items
           : [];
         this.requestedDocumentIndexIds = requestedIds;
         this.listingSummary = (currentCase?.listing_summary || "").trim();
@@ -389,6 +417,134 @@ export class ReaderCaseSummaryPage {
     );
   }
 
+  get availableReallocationBenches(): BenchConfiguration[] {
+    const currentBenchKey = this.caseBenchConfiguration?.bench_key;
+    return this.benchConfigurations.filter(
+      (bench) => bench.bench_key !== currentBenchKey,
+    );
+  }
+
+  get canReallocateCase(): boolean {
+    return this.canSendBackToScrutiny && this.availableReallocationBenches.length > 0;
+  }
+
+  get hasReallocationHistory(): boolean {
+    return this.reallocationHistory.length > 0;
+  }
+
+  openReallocateModal(): void {
+    if (!this.canReallocateCase) return;
+    this.reallocateTargetBenchKey = this.availableReallocationBenches[0]?.bench_key || "";
+    this.reallocateRemarks = "";
+    this.reallocateOrderFile = null;
+    this.showReallocateModal = true;
+  }
+
+  closeReallocateModal(): void {
+    if (this.isSaving) return;
+    this.showReallocateModal = false;
+    this.reallocateTargetBenchKey = "";
+    this.reallocateRemarks = "";
+    this.reallocateOrderFile = null;
+  }
+
+  onReallocateFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    if (file && file.type && file.type !== 'application/pdf') {
+      Swal.fire('Invalid file', 'Please upload a PDF judicial order.', 'warning');
+      input.value = '';
+      return;
+    }
+    this.reallocateOrderFile = file;
+  }
+
+  submitReallocation(): void {
+    if (!this.filingId) return;
+
+    const remarks = this.reallocateRemarks.trim();
+    if (!this.reallocateTargetBenchKey) {
+      Swal.fire('Bench required', 'Select a new bench for reallocation.', 'warning');
+      return;
+    }
+    if (!remarks) {
+      Swal.fire('Remarks required', 'Please provide justification for the reallocation.', 'warning');
+      return;
+    }
+
+    this.isSaving = true;
+    this.readerService.reallocateCase({
+      efiling_id: this.filingId,
+      new_bench_key: this.reallocateTargetBenchKey,
+      remarks,
+      order_file: this.reallocateOrderFile,
+    }).subscribe({
+      next: (resp) => {
+        this.isSaving = false;
+        this.closeReallocateModal();
+        Swal.fire({
+          title: 'Reallocated',
+          text: resp?.detail || 'Case reallocated successfully.',
+          icon: 'success',
+          timer: 1800,
+          showConfirmButton: false,
+        });
+        this.router.navigate(['/reader/dashboard/registered-cases']);
+      },
+      error: (err) => {
+        this.isSaving = false;
+        Swal.fire({
+          title: 'Reallocation failed',
+          text: err?.error?.detail || err?.error?.remarks?.[0] || err?.error?.new_bench_key?.[0] || 'Unable to reallocate case.',
+          icon: 'error',
+        });
+      },
+    });
+  }
+
+  openReallocationOrder(url: string | null | undefined): void {
+    if (!url) return;
+    this.readerService.fetchProtectedFile(url).subscribe({
+      next: (blob) => {
+        const objectUrl = URL.createObjectURL(blob);
+        this.reallocationOrderObjectUrls.add(objectUrl);
+        window.open(objectUrl, '_blank', 'noopener');
+      },
+      error: (err) => {
+        console.warn('Failed to open reallocation order', err);
+        Swal.fire({
+          title: 'Unable to open order',
+          text: err?.error?.detail || 'The order file could not be opened.',
+          icon: 'error',
+        });
+      },
+    });
+  }
+
+  downloadReallocationOrder(url: string | null | undefined): void {
+    if (!url) return;
+    this.readerService.fetchProtectedFile(url).subscribe({
+      next: (blob) => {
+        const objectUrl = URL.createObjectURL(blob);
+        this.reallocationOrderObjectUrls.add(objectUrl);
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = 'reader-reallocation-order.pdf';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      },
+      error: (err) => {
+        console.warn('Failed to download reallocation order', err);
+        Swal.fire({
+          title: 'Unable to download order',
+          text: err?.error?.detail || 'The order file could not be downloaded.',
+          icon: 'error',
+        });
+      },
+    });
+  }
+
   forwardForListing(): void {
     if (
       !this.filingId ||
@@ -398,36 +554,59 @@ export class ReaderCaseSummaryPage {
     ) {
       return;
     }
-    this.isSaving = true;
-    this.readerService
-      .assignDate({
-        efiling_ids: [this.filingId],
-        listing_date: this.targetListingDate,
-        forwarded_for_date: this.approvalForwardedForDate,
-        listing_remark: this.listingRemark,
-      })
-      .subscribe({
-        next: () => {
-          this.isSaving = false;
-          this.approvalListingDate = this.targetListingDate;
-          Swal.fire({
-            title: "Forwarded for Listing",
-            text: `Case has been assigned listing date ${this.targetListingDate} and forwarded to Listing Officer.`,
-            icon: "success",
-            timer: 2000,
-            showConfirmButton: false,
-          });
-        },
-        error: (err) => {
-          console.warn("forwardForListing failed", err);
-          this.isSaving = false;
-          Swal.fire({
-            title: "Error",
-            text: "Failed to assign date.",
-            icon: "error",
-          });
-        },
+    const proceed = () => {
+      this.isSaving = true;
+      this.readerService
+        .assignDate({
+          efiling_ids: [this.filingId as number],
+          listing_date: this.targetListingDate,
+          forwarded_for_date: this.approvalForwardedForDate as string,
+          listing_remark: this.listingRemark,
+        })
+        .subscribe({
+          next: () => {
+            this.isSaving = false;
+            const wasUpdated = Boolean(this.approvalListingDate);
+            this.approvalListingDate = this.targetListingDate;
+            Swal.fire({
+              title: wasUpdated ? "Listing Date Updated" : "Forwarded for Listing",
+              text: wasUpdated
+                ? `Listing date updated to ${this.targetListingDate}.`
+                : `Case has been assigned listing date ${this.targetListingDate} and forwarded to Listing Officer.`,
+              icon: "success",
+              timer: 2000,
+              showConfirmButton: false,
+            });
+          },
+          error: (err) => {
+            console.warn("forwardForListing failed", err);
+            this.isSaving = false;
+            Swal.fire({
+              title: "Error",
+              text: "Failed to assign date.",
+              icon: "error",
+            });
+          },
+        });
+    };
+
+    if (this.approvalListingDate) {
+      Swal.fire({
+        title: "Change listing date?",
+        text: "A listing date is already set. Do you want to continue?",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Yes, update",
+        cancelButtonText: "Cancel",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          proceed();
+        }
       });
+      return;
+    }
+
+    proceed();
   }
 
   sendBackToScrutiny(): void {

@@ -290,6 +290,13 @@ def _listing_summary_visible_to_judge(user: User, forward: CourtroomForward) -> 
     return None
 
 
+def _forward_uses_multi_judge_bench(forward: CourtroomForward) -> bool:
+    cfg = get_bench_configuration_for_stored_value(getattr(forward.efiling, "bench", None))
+    if not cfg:
+        cfg = get_bench_configuration_for_stored_value(getattr(forward, "bench_key", None))
+    return bool(cfg and len(tuple(cfg.judge_groups or ())) > 1)
+
+
 def _pick_forward_row_for_efiling_bench(
     user: User,
     efiling_id: int,
@@ -487,7 +494,6 @@ class CourtroomPendingCasesView(APIView):
         user = _resolve_courtroom_user(request)
         user_groups = _user_judge_groups(user)
         is_judge = bool(user_groups)
-
         date_raw = request.query_params.get("cause_list_date") or request.query_params.get(
             "forwarded_for_date"
         )
@@ -539,7 +545,7 @@ class CourtroomPendingCasesView(APIView):
                 matches = [x for x in fs if _courtroom_forward_matches_judge_slot(user, x)]
                 if matches:
                     forwards_pre.append(max(matches, key=lambda x: x.id))
-                else:
+                elif not _forward_uses_multi_judge_bench(fs[0]):
                     forwards_pre.append(max(fs, key=lambda x: x.id))
             forwards_pre.sort(key=lambda x: -x.id)
             forwards = forwards_published + forwards_pre
