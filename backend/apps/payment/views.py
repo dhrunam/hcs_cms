@@ -77,6 +77,7 @@ class PaymentInitiateView(APIView):
                 "source": source,
                 "encdata": encdata,
             },
+            created_by=request.user if request.user.is_authenticated else None,
         )
 
         fields = {"encdata": encdata}
@@ -234,6 +235,7 @@ class PaymentOfflineSubmissionView(APIView):
             message="Offline court fee payment recorded.",
             callback_method="OFFLINE",
             callback_payload={"application": application, "e_filing_number": e_filing_number},
+            created_by=request.user if request.user.is_authenticated else None,
         )
         tx.bank_receipt.name = saved_path
         tx.save(update_fields=["bank_receipt", "updated_at"])

@@ -1,5 +1,7 @@
 from django.db import models
 
+from apps.accounts.models import User
+
 
 class PaymentTransaction(models.Model):
     payment_type = models.CharField(max_length=30, blank=True, null=True)
@@ -18,7 +20,8 @@ class PaymentTransaction(models.Model):
     redirect_url = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='%(class)s_created')
+    
     class Meta:
         db_table = "payment_transaction"
         ordering = ["-created_at"]
