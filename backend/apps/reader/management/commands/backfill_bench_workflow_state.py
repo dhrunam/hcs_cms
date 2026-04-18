@@ -57,6 +57,7 @@ class Command(BaseCommand):
                     listing_date=d.listing_date,
                     listing_remark=d.reader_listing_remark,
                     assigned_by=d.updated_by,
+                    bench_key=str(forward.bench_key),
                 )
             d_count += 1
 

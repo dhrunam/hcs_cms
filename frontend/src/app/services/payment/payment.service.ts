@@ -11,7 +11,9 @@ export interface PaymentInitiateResponse {
 }
 
 export interface PaymentLatestResponse {
+  id?: number;
   application?: string;
+  payment_type?: string;
   payment_mode?: string;
   txn_id?: string;
   reference_no?: string;
@@ -25,6 +27,10 @@ export interface PaymentLatestResponse {
   paid_at?: string;
 }
 
+export interface PaymentTransactionsListResponse {
+  results: PaymentLatestResponse[];
+}
+
 @Injectable({ providedIn: "root" })
 export class PaymentService {
   constructor(private http: HttpClient) {}
@@ -34,7 +40,9 @@ export class PaymentService {
     application: number | string;
     e_filing_number: string;
     payment_type?: string;
-    source?: "new_filing" | "draft" | "ia_filing";
+    source?: "new_filing" | "draft" | "ia_filing" | "document_filing";
+    /** Existing-case document filing: fee tied to this EfilingDocuments row after upload. */
+    efiling_document_id?: number;
   }): Observable<PaymentInitiateResponse> {
     return this.http.post<PaymentInitiateResponse>(
       `${app_url}/api/payment/initiate/`,
@@ -48,6 +56,12 @@ export class PaymentService {
     );
   }
 
+  list(application: string | number): Observable<PaymentTransactionsListResponse> {
+    return this.http.get<PaymentTransactionsListResponse>(
+      `${app_url}/api/payment/transactions/?application=${application}`,
+    );
+  }
+
   submitOffline(payload: {
     application: string | number;
     txn_id: string;
@@ -56,6 +70,8 @@ export class PaymentService {
     payment_type?: string;
     e_filing_number?: string;
     bank_receipt: File;
+    efiling_document_id?: number;
+    source?: string;
   }): Observable<any> {
     const fd = new FormData();
     fd.append("application", String(payload.application));
@@ -65,6 +81,12 @@ export class PaymentService {
     fd.append("payment_type", payload.payment_type || "Court Fees");
     if (payload.e_filing_number) {
       fd.append("e_filing_number", String(payload.e_filing_number).trim());
+    }
+    if (payload.efiling_document_id != null) {
+      fd.append("efiling_document_id", String(payload.efiling_document_id));
+    }
+    if (payload.source) {
+      fd.append("source", payload.source);
     }
     fd.append("bank_receipt", payload.bank_receipt);
     return this.http.post<any>(`${app_url}/api/payment/offline/`, fd);

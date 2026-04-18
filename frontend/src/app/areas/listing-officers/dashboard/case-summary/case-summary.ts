@@ -17,6 +17,7 @@ import {
   orderDocumentsForDisplay,
   sortCourtOrdersNewestFirst,
 } from '../../../../shared/document-groups';
+import { OfficeNoteEditor } from '../../../office-note-sheet/note-editor/note-editor';
 
 type Filing = any;
 type CaseDetails = any;
@@ -25,11 +26,12 @@ type FilingDoc = any;
 
 @Component({
   selector: 'app-listing-case-summary',
-  imports: [CommonModule, RouterLink, FormsModule],
+  imports: [CommonModule, RouterLink, FormsModule, OfficeNoteEditor],
   templateUrl: './case-summary.html',
   styleUrl: './case-summary.css',
 })
 export class ListingCaseSummaryPage {
+  activeTab: 'details' | 'notes' = 'details';
   isLoading = false;
   isSaving = false;
   loadError = '';
@@ -69,6 +71,10 @@ export class ListingCaseSummaryPage {
       return;
     }
     this.load();
+  }
+
+  setActiveTab(tab: 'details' | 'notes'): void {
+    this.activeTab = tab;
   }
 
   private load(): void {

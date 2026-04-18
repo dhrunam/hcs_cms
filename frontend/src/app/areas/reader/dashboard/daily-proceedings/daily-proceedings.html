@@ -28,18 +28,18 @@
         <div class="small text-muted">{{ item.bench_key || item.bench || '-' }}</div>
       </div>
 
-      <div class="row g-2">
+      <div class="row g-2" [class.opacity-75]="isProceedingsLocked(item)">
         <div class="col-md-3">
           <label class="form-label small">Hearing Date</label>
-          <input class="form-control" type="date" [(ngModel)]="formState[item.efiling_id].hearing_date" />
+          <input class="form-control" type="date" [(ngModel)]="formState[item.efiling_id].hearing_date" [disabled]="isProceedingsLocked(item)" />
         </div>
         <div class="col-md-3">
           <label class="form-label small">Next Listing Date</label>
-          <input class="form-control" type="date" [(ngModel)]="formState[item.efiling_id].next_listing_date" />
+          <input class="form-control" type="date" [(ngModel)]="formState[item.efiling_id].next_listing_date" [disabled]="isProceedingsLocked(item)" />
         </div>
         <div class="col-md-3">
           <label class="form-label small">Purpose For Stenographer</label>
-          <select class="form-select" [(ngModel)]="formState[item.efiling_id].steno_purpose_code">
+          <select class="form-select" [(ngModel)]="formState[item.efiling_id].steno_purpose_code" [disabled]="isProceedingsLocked(item)">
             <option [ngValue]="null">Select purpose</option>
             <option *ngFor="let purpose of purposeOptions" [ngValue]="purpose.purpose_code">
               {{ purposeLabel(purpose) }}
@@ -48,13 +48,13 @@
         </div>
         <div class="col-md-3">
           <label class="form-label small">Remark For Listing Officer</label>
-          <textarea class="form-control" rows="2" [(ngModel)]="formState[item.efiling_id].listing_remark"></textarea>
+          <textarea class="form-control" rows="2" [(ngModel)]="formState[item.efiling_id].listing_remark" [disabled]="isProceedingsLocked(item)"></textarea>
         </div>
       </div>
 
       <div class="mt-2">
         <label class="form-label small">Proceedings</label>
-        <textarea class="form-control" rows="3" [(ngModel)]="formState[item.efiling_id].proceedings_text"></textarea>
+        <textarea class="form-control" rows="3" [(ngModel)]="formState[item.efiling_id].proceedings_text" [disabled]="isProceedingsLocked(item)"></textarea>
       </div>
 
       <div class="d-flex justify-content-between align-items-center mt-3">
@@ -84,9 +84,18 @@
   </span>
 </div>
         </div>
-        <button class="btn btn-primary btn-sm" [disabled]="!!saveState[item.efiling_id] || !item.can_assign_listing_date" (click)="submit(item)">
-          {{ saveState[item.efiling_id] ? 'Saving...' : 'Submit' }}
-        </button>
+        <div class="d-flex flex-column align-items-end gap-1">
+          <button
+            class="btn btn-primary btn-sm"
+            [disabled]="!!saveState[item.efiling_id] || !item.can_assign_listing_date || isProceedingsLocked(item)"
+            (click)="submit(item)"
+          >
+            {{ saveState[item.efiling_id] ? 'Saving...' : isProceedingsLocked(item) ? 'Submitted' : 'Submit' }}
+          </button>
+          <span *ngIf="isProceedingsLocked(item)" class="small text-muted text-end" style="max-width: 16rem">
+            Proceedings for this hearing date were already sent to steno. Pick another hearing date to record a different sitting.
+          </span>
+        </div>
       </div>
     </div>
   </div>

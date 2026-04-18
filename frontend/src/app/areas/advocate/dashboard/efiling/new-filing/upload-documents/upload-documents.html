@@ -69,6 +69,7 @@
   </div>
 
   <div class="mb-3 mt-2" *ngIf="!structuredIndexUpload && useTextIndexName">
+    <!-- #textAnnexureInput: used by Add Annexures below and by the in-table Annexure(s) row when multiManualIndexRows -->
     <input
       #textAnnexureInput
       type="file"
@@ -95,7 +96,152 @@
         >
       </div>
     </div>
-    <div class="table-responsive">
+    <div class="mb-2 text-end" *ngIf="multiManualIndexRows">
+      <button
+        type="button"
+        class="btn btn-outline-secondary btn-sm"
+        [disabled]="isUploading"
+        (click)="addManualIndexRow()"
+      >
+        Add More Indexes
+      </button>
+    </div>
+    <div class="table-responsive" *ngIf="multiManualIndexRows">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th style="width: 34%">Index</th>
+            <th style="width: 30%">Select PDF</th>
+            <th style="width: 36%">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            *ngFor="let row of manualIndexRows; trackBy: trackByManualRowId"
+          >
+            <td>
+              <input
+                type="text"
+                class="form-control"
+                [(ngModel)]="row.indexName"
+                [ngModelOptions]="{ standalone: true }"
+                [disabled]="isUploading"
+                placeholder="Enter index name"
+              />
+            </td>
+            <td>
+              <input
+                #manualPdfInput
+                type="file"
+                class="form-control d-none"
+                accept="application/pdf"
+                (change)="onManualRowFileChange(row, $event)"
+              />
+              <button
+                *ngIf="!row.file"
+                type="button"
+                class="btn btn-outline-primary btn-sm"
+                [disabled]="isUploading"
+                (click)="manualPdfInput.click()"
+              >
+                Upload PDF
+              </button>
+              <span class="small text-muted" *ngIf="row.file">{{ row.file.name }}</span>
+            </td>
+            <td>
+              <div class="d-flex gap-2 flex-wrap align-items-center">
+                <button
+                  *ngIf="row.file"
+                  type="button"
+                  class="btn btn-outline-primary btn-sm"
+                  [disabled]="isUploading"
+                  (click)="previewLocalFile(row.file)"
+                >
+                  View
+                </button>
+                <button
+                  *ngIf="row.file"
+                  type="button"
+                  class="btn btn-outline-danger btn-sm"
+                  [disabled]="isUploading"
+                  (click)="clearManualRowFile(row)"
+                >
+                  Delete
+                </button>
+                <button
+                  *ngIf="manualIndexRows.length > 1"
+                  type="button"
+                  class="btn btn-outline-secondary btn-sm"
+                  [disabled]="isUploading"
+                  (click)="removeManualIndexRow(row.id)"
+                >
+                  Remove
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr
+            *ngIf="enableAnnexureSequence && multiManualIndexRows"
+            class="structured-annexure-slot-row"
+          >
+            <td class="index-col fw-semibold">Annexure(s)</td>
+            <td>
+              <span class="small text-muted" *ngIf="getAnnexureEntries().length === 0"
+                >No annexures added yet</span
+              >
+              <span class="small" *ngIf="getAnnexureEntries().length > 0"
+                >{{ getAnnexureEntries().length }} file(s)</span
+              >
+            </td>
+            <td>
+              <button
+                type="button"
+                class="btn btn-outline-secondary btn-sm"
+                [disabled]="isUploading"
+                (click)="textAnnexureInput.click()"
+              >
+                Add Annexures
+              </button>
+            </td>
+          </tr>
+          <tr
+            *ngFor="
+              let annexure of getAnnexureEntries();
+              let axIdx = index;
+              trackBy: trackByAnnexureEntry
+            "
+          >
+            <td>
+              <span class="fw-semibold">{{ annexure.index_name }}</span>
+            </td>
+            <td>
+              <span class="small text-muted">{{ annexure.file.name }}</span>
+            </td>
+            <td>
+              <div class="d-flex gap-2 flex-wrap">
+                <button
+                  type="button"
+                  class="btn btn-outline-primary btn-sm"
+                  [disabled]="isUploading"
+                  (click)="previewLocalFile(annexure.file)"
+                >
+                  View
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-danger btn-sm"
+                  [disabled]="isUploading"
+                  (click)="removeAnnexureEntryAt(axIdx)"
+                >
+                  Delete
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="table-responsive" *ngIf="!multiManualIndexRows">
       <table class="table table-sm align-middle mb-0">
         <thead>
           <tr>
@@ -195,7 +341,7 @@
         </tbody>
       </table>
     </div>
-    <div class="mt-2" *ngIf="enableAnnexureSequence">
+    <div class="mt-2" *ngIf="enableAnnexureSequence && !multiManualIndexRows">
       <button
         type="button"
         class="btn btn-outline-secondary btn-sm"

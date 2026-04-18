@@ -8,7 +8,7 @@ from apps.accounts.models import User
 from apps.core.models import BenchT, District, Efiling, EfilingCaseDetails, EfilingLitigant, JudgeT, State
 from apps.judge.models import CourtroomJudgeDecision
 from apps.listing.models import CauseList
-from apps.reader.models import CourtroomForward
+from apps.reader.models import BenchWorkflowState, CourtroomForward
 
 
 class CauseListFlowTest(TestCase):
@@ -190,6 +190,15 @@ class CauseListFlowTest(TestCase):
             bench_role_group="BENCH_S0",
             listing_summary="Reader forwarded after assign",
         )
+        BenchWorkflowState.objects.create(
+            efiling=self.filing,
+            forwarded_for_date=self.cause_date,
+            bench_key="CLTEST2",
+            required_role_groups=["BENCH_S0"],
+            decision_by_role={},
+            listing_date=self.cause_date,
+            listing_remark="Reader assign-date (no judge row required)",
+        )
 
         preview_resp = self.client.get(
             f"/api/v1/listing/cause-lists/draft/preview/?cause_list_date={self.cause_list_date}&bench_key=CLTEST2"
@@ -218,6 +227,15 @@ class CauseListFlowTest(TestCase):
             status=CourtroomJudgeDecision.DecisionStatus.APPROVED,
             bench_role_group="BENCH_S0",
         )
+        BenchWorkflowState.objects.create(
+            efiling=self.filing,
+            forwarded_for_date=self.cause_date,
+            bench_key="CLTEST",
+            required_role_groups=["BENCH_S0"],
+            decision_by_role={},
+            listing_date=self.cause_date,
+            listing_remark="Reader handoff before judge listing_date on decision row",
+        )
 
         preview_resp = self.client.get(
             f"/api/v1/listing/cause-lists/draft/preview/?cause_list_date={self.cause_list_date}&bench_key=CLTEST"
@@ -226,12 +244,10 @@ class CauseListFlowTest(TestCase):
         preview_items = preview_resp.data["items"]
         item = next((i for i in preview_items if i["efiling_id"] == self.filing.id), None)
         self.assertIsNotNone(item)
-        self.assertIsNone(item.get("judge_listing_date"))
+        self.assertEqual(item.get("judge_listing_date"), self.cause_date.isoformat())
 
     def test_draft_preview_falls_back_to_bench_workflow_state_listing_date(self):
         """When judge decision has no listing_date, listing officer still sees reader-synced date."""
-        from apps.reader.models import BenchWorkflowState
-
         self.filing.bench = "CLTEST"
         self.filing.save(update_fields=["bench"])
         CourtroomForward.objects.create(
@@ -241,14 +257,22 @@ class CauseListFlowTest(TestCase):
             bench_role_group="BENCH_S0",
             listing_summary="Reader forwarded",
         )
-        next_hearing = self.cause_date + timedelta(days=21)
+        CourtroomJudgeDecision.objects.create(
+            judge_user=self.judge_user,
+            efiling=self.filing,
+            forwarded_for_date=self.cause_date,
+            listing_date=None,
+            approved=True,
+            status=CourtroomJudgeDecision.DecisionStatus.APPROVED,
+            bench_role_group="BENCH_S0",
+        )
         BenchWorkflowState.objects.create(
             efiling=self.filing,
             forwarded_for_date=self.cause_date,
             bench_key="CLTEST",
             required_role_groups=["BENCH_S0"],
             decision_by_role={},
-            listing_date=next_hearing,
+            listing_date=self.cause_date,
             listing_remark="Reader proceedings next date",
         )
         preview_resp = self.client.get(
@@ -260,8 +284,38 @@ class CauseListFlowTest(TestCase):
             None,
         )
         self.assertIsNotNone(item)
-        self.assertEqual(item.get("judge_listing_date"), next_hearing.isoformat())
+        self.assertEqual(item.get("judge_listing_date"), self.cause_date.isoformat())
         self.assertEqual(item.get("reader_listing_remark"), "Reader proceedings next date")
+
+    def test_preview_includes_case_when_reader_listing_only_on_bench_workflow_state(self):
+        """Reader assign-date without any CourtroomJudgeDecision still surfaces on the cause list for that day."""
+        self.filing.bench = "CLTEST"
+        self.filing.save(update_fields=["bench"])
+        CourtroomForward.objects.create(
+            efiling=self.filing,
+            forwarded_for_date=self.cause_date,
+            bench_key="CLTEST",
+            bench_role_group="BENCH_S0",
+            listing_summary="Reader forwarded",
+        )
+        BenchWorkflowState.objects.create(
+            efiling=self.filing,
+            forwarded_for_date=self.cause_date,
+            bench_key="CLTEST",
+            required_role_groups=["BENCH_S0"],
+            decision_by_role={},
+            listing_date=self.cause_date,
+            listing_remark="No judge row yet",
+        )
+        preview_resp = self.client.get(
+            f"/api/v1/listing/cause-lists/draft/preview/?cause_list_date={self.cause_list_date}&bench_key=CLTEST"
+        )
+        self.assertEqual(preview_resp.status_code, 200)
+        preview_ids = {int(i["efiling_id"]) for i in (preview_resp.data.get("items") or [])}
+        self.assertIn(self.filing.id, preview_ids)
+        item = next(i for i in preview_resp.data["items"] if i["efiling_id"] == self.filing.id)
+        self.assertEqual(item.get("judge_listing_date"), self.cause_date.isoformat())
+        self.assertEqual(item.get("reader_listing_remark"), "No judge row yet")
 
     def test_draft_preview_includes_reader_next_listing_date_cases(self):
         other_day = self.cause_date + timedelta(days=1)

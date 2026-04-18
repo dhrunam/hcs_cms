@@ -75,6 +75,7 @@ export class ReaderDailyProceedingsPage {
   }
 
   submit(item: ReaderDailyProceedingCase): void {
+    if (this.isProceedingsLocked(item)) return;
     const state = this.formState[item.efiling_id];
     if (!state) return;
     this.saveState[item.efiling_id] = true;
@@ -112,5 +113,13 @@ export class ReaderDailyProceedingsPage {
 
   purposeLabel(purpose: PurposeOption): string {
     return purpose.purpose_name || purpose.lpurpose_name || `Purpose #${purpose.purpose_code}`;
+  }
+
+  /** Same hearing date cannot be submitted twice once steno has a workflow; other hearing dates stay open for the same case. */
+  isProceedingsLocked(item: ReaderDailyProceedingCase): boolean {
+    const h = this.formState[item.efiling_id]?.hearing_date;
+    if (!h) return false;
+    const locked = item.hearing_dates_with_steno ?? [];
+    return locked.includes(h);
   }
 }

@@ -899,7 +899,8 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
             "List this after two weeks.",
         )
 
-    def test_reader_submit_marks_listing_failed_when_workflow_state_update_is_missing(self):
+    def test_reader_submit_upserts_bench_workflow_when_row_was_missing(self):
+        """Daily proceedings next date must land on BenchWorkflowState so listing officer can see it."""
         BenchWorkflowState.objects.filter(
             efiling=self.filing,
             forwarded_for_date=self.forwarded_for_date,
@@ -913,7 +914,7 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
                 "hearing_date": self.forwarded_for_date.isoformat(),
                 "next_listing_date": self.listing_date.isoformat(),
                 "proceedings_text": "Matter heard.",
-                "reader_remark": "Submit with missing bench state.",
+                "reader_remark": "Submit after bench state row was removed.",
                 "document_type": "ORDER",
             },
             format="json",
@@ -921,14 +922,20 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.assertEqual(
             response.data.get("listing_sync_status"),
-            ReaderDailyProceeding.ListingSyncStatus.FAILED,
+            ReaderDailyProceeding.ListingSyncStatus.SYNCED,
         )
         self.assertGreater(int(response.data.get("judge_decision_rows_updated", 0)), 0)
-        self.assertEqual(int(response.data.get("workflow_state_rows_updated", 0)), 0)
+        self.assertGreater(int(response.data.get("workflow_state_rows_updated", 0)), 0)
+        state = BenchWorkflowState.objects.get(
+            efiling=self.filing,
+            forwarded_for_date=self.forwarded_for_date,
+            bench_key="DB1",
+        )
+        self.assertEqual(state.listing_date, self.listing_date)
         proceeding = ReaderDailyProceeding.objects.get(efiling=self.filing)
         self.assertEqual(
             proceeding.listing_sync_status,
-            ReaderDailyProceeding.ListingSyncStatus.FAILED,
+            ReaderDailyProceeding.ListingSyncStatus.SYNCED,
         )
         workflow = StenoOrderWorkflow.objects.filter(proceeding=proceeding, document_type="ORDER").first()
         self.assertIsNotNone(workflow)
@@ -953,6 +960,7 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
         self.assertEqual(response.status_code, 200, response.data)
         item = next(x for x in response.data["items"] if x["efiling_id"] == self.filing.id)
         self.assertIsNone(item.get("steno_workflow_status"))
+        self.assertEqual(list(item.get("hearing_dates_with_steno") or []), [])
 
     def test_daily_proceedings_list_prefers_selected_date_proceeding_for_steno_status(self):
         cause_list = CauseList.objects.create(
@@ -999,6 +1007,56 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
             item.get("steno_workflow_status"),
             StenoOrderWorkflow.WorkflowStatus.PENDING_UPLOAD,
         )
+        self.assertEqual(
+            list(item.get("hearing_dates_with_steno") or []),
+            [self.listing_date.isoformat()],
+        )
+
+    def test_daily_proceedings_list_hearing_dates_with_steno_only_locks_dates_that_have_steno(self):
+        """UI uses this to block re-submit for the same hearing date, not for other dates on the same case."""
+        cause_list = CauseList.objects.create(
+            cause_list_date=self.listing_date,
+            bench_key="DB1",
+            status=CauseList.CauseListStatus.PUBLISHED,
+        )
+        CauseListEntry.objects.create(
+            cause_list=cause_list,
+            efiling=self.filing,
+            included=True,
+            serial_no=1,
+        )
+        d1 = self.forwarded_for_date
+        d2 = self.forwarded_for_date + timedelta(days=14)
+        p1 = ReaderDailyProceeding.objects.create(
+            efiling=self.filing,
+            hearing_date=d1,
+            next_listing_date=self.listing_date,
+            proceedings_text="First sitting.",
+            bench_key="DB1",
+            listing_sync_status=ReaderDailyProceeding.ListingSyncStatus.SYNCED,
+        )
+        StenoOrderWorkflow.objects.create(
+            proceeding=p1,
+            efiling=self.filing,
+            assigned_steno=self.steno_user,
+            document_type="ORDER",
+            workflow_status=StenoOrderWorkflow.WorkflowStatus.PENDING_UPLOAD,
+        )
+        ReaderDailyProceeding.objects.create(
+            efiling=self.filing,
+            hearing_date=d2,
+            next_listing_date=self.listing_date + timedelta(days=7),
+            proceedings_text="Second sitting, no steno workflow yet.",
+            bench_key="DB1",
+            listing_sync_status=ReaderDailyProceeding.ListingSyncStatus.SYNCED,
+        )
+        client = self._auth_client(self.reader_cj)
+        response = client.get(
+            f"/api/v1/reader/daily-proceedings/?reader_group=READER&cause_list_date={self.listing_date.isoformat()}"
+        )
+        self.assertEqual(response.status_code, 200, response.data)
+        item = next(x for x in response.data["items"] if x["efiling_id"] == self.filing.id)
+        self.assertEqual(list(item.get("hearing_dates_with_steno") or []), [d1.isoformat()])
 
     def test_forward_creates_bench_workflow_state(self):
         state = BenchWorkflowState.objects.filter(

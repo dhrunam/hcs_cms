@@ -60,3 +60,42 @@
   border-radius: 8px;
 }
 
+.scrutiny-nav-tabs {
+  display: flex;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  gap: 4px;
+}
+
+.scrutiny-nav-tabs .nav-item {
+  list-style: none;
+}
+
+.scrutiny-nav-tabs .nav-link {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  color: #64748b;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+}
+
+.scrutiny-nav-tabs .nav-link:hover {
+  color: #0f172a;
+  border-bottom-color: #cbd5e1;
+}
+
+.scrutiny-nav-tabs .nav-link.active {
+  color: #6366f1;
+  border-bottom-color: #6366f1;
+  font-weight: 600;
+}
+

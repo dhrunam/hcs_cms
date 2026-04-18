@@ -8,17 +8,18 @@ import Swal from "sweetalert2";
 import { AuthService } from "../../../../auth.service";
 import { CourtroomService } from "../../../../services/judge/courtroom.service";
 import { benchLabel } from "../../../listing-officers/shared/bench-labels";
-import { PdfAnnotatorComponent } from "./pdf-annotator.component";
+import { OfficeNoteEditor } from "../../../office-note-sheet/note-editor/note-editor";
 import { buildCollapsedDisplaySections, DocumentDisplaySection, orderDocumentsForDisplay } from "../../../../shared/document-groups";
 
 @Component({
   selector: "app-judge-courtroom",
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, OfficeNoteEditor],
   templateUrl: "./courtroom.html",
   styleUrl: "./courtroom.css",
 })
 export class JudgeCourtroomPage {
   benchLabel = benchLabel;
+  activeTab: 'details' | 'notes' = 'details';
   efilingId: number | null = null;
   forwardedForDate: string | null = null;
   forwardBenchKey: string | null = null;
@@ -64,6 +65,10 @@ export class JudgeCourtroomPage {
     }
 
     this.loadCaseSummary();
+  }
+
+  setActiveTab(tab: 'details' | 'notes'): void {
+    this.activeTab = tab;
   }
 
   private readCanWrite(): boolean {

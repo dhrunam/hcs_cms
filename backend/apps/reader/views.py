@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import mimetypes
 from typing import List
 from datetime import date as date_type
 import logging
+from pathlib import Path
 
 from django.db import transaction
 from django.db import connections
-from django.db.models import Prefetch
+from django.db.models import Exists, OuterRef, Prefetch
 from django.db.models import Q
+from django.http import FileResponse
 from django.urls import reverse
 from django.utils import timezone
 from django.core.files.storage import default_storage
@@ -56,6 +59,7 @@ from .models import (
     CourtroomForward,
     CourtroomForwardDocument,
     ReaderDailyProceeding,
+    ReaderCaseReallocation,
     StenoOrderWorkflow,
     StenoWorkflowSignature,
 )
@@ -78,6 +82,7 @@ STENO_PUBLISHED_CASE_FILE_DOCUMENT_TYPE = "COURT_ORDER_SIGNED_FINAL"
 from .serializers import (
     CourtroomForwardSerializer,
     AssignBenchesSerializer,
+    ReaderCaseReallocationSerializer,
     ReaderDailyProceedingSubmitSerializer,
     StenoDraftUploadSerializer,
     StenoSubmitForJudgeSerializer,
@@ -456,6 +461,128 @@ def _get_reader_allowed_efiling_bench_filter(
 def _assert_known_bench_key(bench_key: str) -> None:
     if get_bench_configuration(bench_key) is None:
         raise ValidationError({"bench_key": f"Unknown bench_key={bench_key}."})
+
+
+def _assert_reader_can_access_case_for_current_bench(
+    *,
+    request,
+    efiling_id: int,
+    reader_group: str | None,
+) -> None:
+    if not getattr(request.user, "is_authenticated", False):
+        raise ValidationError({"detail": "Authentication required."})
+    allowed_bench_filter = _get_reader_allowed_efiling_bench_filter(
+        request,
+        reader_group=reader_group,
+    )
+    if allowed_bench_filter is None:
+        return
+    if not Efiling.objects.filter(allowed_bench_filter, id=efiling_id).exists():
+        raise ValidationError({"detail": "You do not have permission to modify this case."})
+
+
+def _delete_active_reader_bench_cycle(*, efiling: Efiling, bench_key: str) -> dict[str, int]:
+    forward_qs = CourtroomForward.objects.filter(
+        efiling=efiling,
+        bench_key=bench_key,
+    )
+    forwarded_dates = set(forward_qs.values_list("forwarded_for_date", flat=True))
+    forwarded_dates.update(
+        BenchWorkflowState.objects.filter(
+            efiling=efiling,
+            bench_key=bench_key,
+        ).values_list("forwarded_for_date", flat=True)
+    )
+
+    decision_count = 0
+    if forwarded_dates:
+        decision_count, _ = CourtroomJudgeDecision.objects.filter(
+            efiling=efiling,
+            forwarded_for_date__in=sorted(forwarded_dates),
+        ).delete()
+
+    workflow_count, _ = BenchWorkflowState.objects.filter(
+        efiling=efiling,
+        bench_key=bench_key,
+    ).delete()
+    forward_count, _ = forward_qs.delete()
+
+    return {
+        "deleted_decisions": int(decision_count),
+        "deleted_workflow_states": int(workflow_count),
+        "deleted_forwards": int(forward_count),
+    }
+
+
+def _reader_reallocation_user_name(user) -> str | None:
+    if not user:
+        return None
+    full_name = " ".join(
+        part.strip()
+        for part in [
+            getattr(user, "first_name", "") or "",
+            getattr(user, "last_name", "") or "",
+        ]
+        if part and part.strip()
+    ).strip()
+    return full_name or getattr(user, "username", None)
+
+
+def _reader_reallocation_bench_label(bench_key: str | None) -> str | None:
+    normalized_key = str(bench_key or "").strip()
+    if not normalized_key:
+        return None
+    bench = get_bench_configuration(normalized_key)
+    return bench.label if bench else normalized_key
+
+
+def _reader_reallocation_urls(request, reallocation: ReaderCaseReallocation) -> tuple[str | None, str | None]:
+    if not reallocation.uploaded_order:
+        return (None, None)
+    path = reverse(
+        "reader:reallocation-order-file",
+        kwargs={"reallocation_id": int(reallocation.id)},
+    )
+    reader_group = str(request.query_params.get("reader_group", "")).strip()
+    suffix = ""
+    if reader_group:
+        suffix = f"?reader_group={reader_group}"
+    inline_url = request.build_absolute_uri(f"{path}{suffix}")
+    download_url = request.build_absolute_uri(
+        f"{path}?download=1"
+        f"{'&reader_group=' + reader_group if reader_group else ''}"
+    )
+    return (inline_url, download_url)
+
+
+def _serialize_reader_case_reallocation(request, reallocation: ReaderCaseReallocation) -> dict:
+    order_file_url, order_file_download_url = _reader_reallocation_urls(
+        request,
+        reallocation,
+    )
+    return {
+        "reallocation_id": int(reallocation.id),
+        "previous_bench_key": reallocation.previous_bench_key,
+        "previous_bench_label": _reader_reallocation_bench_label(
+            reallocation.previous_bench_key,
+        ),
+        "new_bench_key": reallocation.new_bench_key,
+        "new_bench_label": _reader_reallocation_bench_label(
+            reallocation.new_bench_key,
+        ),
+        "remarks": reallocation.remarks,
+        "reallocated_at": (
+            reallocation.reallocated_at.isoformat()
+            if reallocation.reallocated_at
+            else None
+        ),
+        "reallocated_by_name": _reader_reallocation_user_name(
+            reallocation.reallocated_by,
+        ),
+        "has_uploaded_order": bool(reallocation.uploaded_order),
+        "order_file_url": order_file_url,
+        "order_file_download_url": order_file_download_url,
+    }
 
 
 def _bench_filter_for_configuration(bench_config) -> Q:
@@ -854,6 +981,20 @@ class RegisteredCasesListView(APIView):
 
         efilings = list(qs[:page_size])
         efiling_ids = [e.id for e in efilings]
+        latest_reallocation_by_efiling: dict[int, ReaderCaseReallocation] = {}
+        if efiling_ids:
+            for reallocation in (
+                ReaderCaseReallocation.objects.filter(
+                    efiling_id__in=efiling_ids,
+                    is_active=True,
+                )
+                .select_related("reallocated_by")
+                .order_by("efiling_id", "-reallocated_at", "-id")
+            ):
+                latest_reallocation_by_efiling.setdefault(
+                    int(reallocation.efiling_id),
+                    reallocation,
+                )
         bench_groups_by_efiling: dict[int, tuple[str, ...]] = {}
         for e in efilings:
             cfg = get_bench_configuration_for_stored_value(e.bench)
@@ -985,6 +1126,7 @@ class RegisteredCasesListView(APIView):
 
         items = []
         for e in efilings:
+            latest_reallocation = latest_reallocation_by_efiling.get(int(e.id))
             respondent = next((l for l in e.litigants.all() if not getattr(l, "is_petitioner", False)), None)
             case_detail = e.case_details.all().first()
             approval_status = "NOT_FORWARDED"
@@ -1100,6 +1242,36 @@ class RegisteredCasesListView(APIView):
                 "listing_summary": listing_summary_for_response,
                 "requested_documents": requested_documents,
                 "can_assign_listing_date": can_assign_listing_date,
+                "is_reallocated_case": bool(latest_reallocation),
+                "latest_reallocation_at": (
+                    latest_reallocation.reallocated_at.isoformat()
+                    if latest_reallocation and latest_reallocation.reallocated_at
+                    else None
+                ),
+                "latest_reallocation_previous_bench_key": (
+                    latest_reallocation.previous_bench_key
+                    if latest_reallocation
+                    else None
+                ),
+                "latest_reallocation_previous_bench_label": (
+                    _reader_reallocation_bench_label(
+                        latest_reallocation.previous_bench_key,
+                    )
+                    if latest_reallocation
+                    else None
+                ),
+                "latest_reallocation_new_bench_key": (
+                    latest_reallocation.new_bench_key
+                    if latest_reallocation
+                    else None
+                ),
+                "latest_reallocation_new_bench_label": (
+                    _reader_reallocation_bench_label(
+                        latest_reallocation.new_bench_key,
+                    )
+                    if latest_reallocation
+                    else None
+                ),
             })
 
         return Response({"total": total, "items": items}, status=drf_status.HTTP_200_OK)
@@ -1402,13 +1574,20 @@ class ReaderAssignDateView(APIView):
                 fwd_date,
             )
         try:
-            apply_reader_assign_date(
-                efiling_ids=[int(x) for x in efiling_ids],
-                forwarded_for_date=timezone.datetime.fromisoformat(str(fwd_date)).date(),
-                listing_date=timezone.datetime.fromisoformat(str(ldate)).date(),
-                listing_remark=lremark,
-                assigned_by=user,
-            )
+            fwd_parsed = timezone.datetime.fromisoformat(str(fwd_date)).date()
+            ldate_parsed = timezone.datetime.fromisoformat(str(ldate)).date()
+            for ef in efilings:
+                bc = get_bench_configuration_for_stored_value(ef.bench)
+                if not bc:
+                    continue
+                apply_reader_assign_date(
+                    efiling_ids=[int(ef.id)],
+                    forwarded_for_date=fwd_parsed,
+                    listing_date=ldate_parsed,
+                    listing_remark=lremark,
+                    assigned_by=user,
+                    bench_key=bc.bench_key,
+                )
         except Exception:
             logger.exception("bench workflow state assign-date dual-write failed")
 
@@ -1423,19 +1602,214 @@ class ReaderResetBenchView(APIView):
         efiling_id = request.data.get("efiling_id")
         if not efiling_id:
             raise ValidationError({"efiling_id": "Required."})
+        reader_group = request.query_params.get("reader_group")
+        _assert_reader_can_access_case_for_current_bench(
+            request=request,
+            efiling_id=int(efiling_id),
+            reader_group=reader_group,
+        )
         
         try:
             efiling = Efiling.objects.get(id=efiling_id)
         except Efiling.DoesNotExist:
             return Response({"detail": "Not found."}, status=drf_status.HTTP_404_NOT_FOUND)
 
-        CourtroomForward.objects.filter(efiling_id=efiling_id).delete()
-        CourtroomJudgeDecision.objects.filter(efiling_id=efiling_id).delete()
-            
-        efiling.bench = None
-        efiling.save(update_fields=["bench"])
+        current_bench = get_bench_configuration_for_stored_value(efiling.bench)
+        current_bench_key = current_bench.bench_key if current_bench else str(efiling.bench or "").strip()
+        with transaction.atomic():
+            if current_bench_key:
+                _delete_active_reader_bench_cycle(
+                    efiling=efiling,
+                    bench_key=current_bench_key,
+                )
+
+            efiling.bench = None
+            efiling.updated_by = request.user if getattr(request.user, "is_authenticated", False) else None
+            efiling.save(update_fields=["bench", "updated_by", "updated_at"])
         
         return Response({"detail": "Bench reset successful. Case returned to Scrutiny pool."}, status=drf_status.HTTP_200_OK)
+
+
+class ReaderReallocateCaseView(APIView):
+    def post(self, request, *args, **kwargs):
+        payload = ReaderCaseReallocationSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+
+        efiling_id = int(payload.validated_data["efiling_id"])
+        new_bench_key = payload.validated_data["new_bench_key"]
+        remarks = payload.validated_data["remarks"].strip()
+        order_file = payload.validated_data.get("order_file")
+        reader_group = request.query_params.get("reader_group")
+        acting_user = request.user if getattr(request.user, "is_authenticated", False) else None
+
+        if not remarks:
+            raise ValidationError({"remarks": "Remarks are required."})
+
+        _assert_reader_can_access_case_for_current_bench(
+            request=request,
+            efiling_id=efiling_id,
+            reader_group=reader_group,
+        )
+        _assert_known_bench_key(new_bench_key)
+
+        efiling = Efiling.objects.filter(
+            id=efiling_id,
+            is_draft=False,
+            status="ACCEPTED",
+        ).first()
+        if not efiling:
+            raise ValidationError({"efiling_id": "Invalid case."})
+
+        current_bench = get_bench_configuration_for_stored_value(efiling.bench)
+        if not current_bench:
+            raise ValidationError({"detail": "Case does not currently have an assigned bench."})
+        if current_bench.bench_key == new_bench_key:
+            raise ValidationError({"new_bench_key": "Please select a different bench."})
+
+        if BenchWorkflowState.objects.filter(
+            efiling=efiling,
+            bench_key=current_bench.bench_key,
+            listing_date__isnull=False,
+        ).exists() or CourtroomJudgeDecision.objects.filter(
+            efiling=efiling,
+            listing_date__isnull=False,
+        ).exists():
+            raise ValidationError({
+                "detail": "Case cannot be reallocated after a listing date has been assigned."
+            })
+
+        if order_file is not None:
+            validate_pdf_file(order_file, "order_file")
+
+        new_bench = get_bench_configuration(new_bench_key)
+        if not new_bench:
+            raise ValidationError({"new_bench_key": "Invalid bench selection."})
+
+        with transaction.atomic():
+            cleanup_result = _delete_active_reader_bench_cycle(
+                efiling=efiling,
+                bench_key=current_bench.bench_key,
+            )
+
+            efiling.bench = resolved_efiling_bench_value(new_bench)
+            efiling.updated_by = acting_user
+            efiling.save(update_fields=["bench", "updated_by", "updated_at"])
+
+            reallocation = ReaderCaseReallocation.objects.create(
+                efiling=efiling,
+                previous_bench_key=current_bench.bench_key,
+                new_bench_key=new_bench.bench_key,
+                remarks=remarks,
+                uploaded_order=order_file,
+                reallocated_by=acting_user,
+                reallocated_at=timezone.now(),
+                updated_by=acting_user,
+            )
+
+        return Response(
+            {
+                "detail": "Case reallocated successfully.",
+                "reallocation_id": reallocation.id,
+                "previous_bench_key": current_bench.bench_key,
+                "new_bench_key": new_bench.bench_key,
+                "new_bench_label": new_bench.label,
+                **cleanup_result,
+            },
+            status=drf_status.HTTP_200_OK,
+        )
+
+
+class ReaderCaseReallocationHistoryView(APIView):
+    def get(self, request, efiling_id: int, *args, **kwargs):
+        reader_group = request.query_params.get("reader_group")
+        _assert_reader_can_access_case_for_current_bench(
+            request=request,
+            efiling_id=int(efiling_id),
+            reader_group=reader_group,
+        )
+
+        efiling = Efiling.objects.filter(
+            id=efiling_id,
+            is_draft=False,
+            status="ACCEPTED",
+        ).first()
+        if not efiling:
+            return Response(
+                {"detail": "Not found."},
+                status=drf_status.HTTP_404_NOT_FOUND,
+            )
+
+        reallocations = list(
+            ReaderCaseReallocation.objects.filter(
+                efiling_id=efiling_id,
+                is_active=True,
+            )
+            .select_related("reallocated_by")
+            .order_by("-reallocated_at", "-id")
+        )
+
+        items = [
+            _serialize_reader_case_reallocation(request, reallocation)
+            for reallocation in reallocations
+        ]
+        return Response(
+            {
+                "efiling_id": int(efiling_id),
+                "total": len(items),
+                "items": items,
+            },
+            status=drf_status.HTTP_200_OK,
+        )
+
+
+class ReaderReallocationOrderFileView(APIView):
+    def get(self, request, reallocation_id: int, *args, **kwargs):
+        if not getattr(request.user, "is_authenticated", False):
+            raise ValidationError({"detail": "Authentication required."})
+
+        reallocation = (
+            ReaderCaseReallocation.objects.select_related("efiling")
+            .filter(id=reallocation_id, is_active=True)
+            .first()
+        )
+        if not reallocation or not reallocation.uploaded_order:
+            return Response(
+                {"detail": "Order file not found."},
+                status=drf_status.HTTP_404_NOT_FOUND,
+            )
+
+        reader_group = request.query_params.get("reader_group")
+        _assert_reader_can_access_case_for_current_bench(
+            request=request,
+            efiling_id=int(reallocation.efiling_id),
+            reader_group=reader_group,
+        )
+
+        try:
+            file_path = Path(reallocation.uploaded_order.path)
+        except (NotImplementedError, ValueError):
+            return Response(
+                {"detail": "Order file is not available."},
+                status=drf_status.HTTP_404_NOT_FOUND,
+            )
+
+        if not file_path.exists() or not file_path.is_file():
+            return Response(
+                {"detail": "Order file is not available."},
+                status=drf_status.HTTP_404_NOT_FOUND,
+            )
+
+        content_type, _ = mimetypes.guess_type(str(file_path))
+        download_requested = str(
+            request.query_params.get("download", ""),
+        ).lower() in {"1", "true", "yes"}
+        filename = file_path.name or f"reallocation-order-{reallocation.id}.pdf"
+        return FileResponse(
+            file_path.open("rb"),
+            as_attachment=download_requested,
+            filename=filename,
+            content_type=content_type or "application/pdf",
+        )
 
 
 def _resolve_judge_and_steno_for_reader_submission(
@@ -1616,6 +1990,22 @@ class ReaderDailyProceedingsListView(APIView):
             if row.hearing_date == cause_list_date:
                 proceedings_by_hearing_date.setdefault(row.efiling_id, row)
 
+        locked_dates_tmp: dict[tuple[int, str], set[str]] = {}
+        for eid, bench_key, hdate in (
+            ReaderDailyProceeding.objects.filter(efiling_id__in=ids)
+            .annotate(
+                _has_steno=Exists(
+                    StenoOrderWorkflow.objects.filter(proceeding_id=OuterRef("pk"))
+                )
+            )
+            .filter(_has_steno=True)
+            .values_list("efiling_id", "bench_key", "hearing_date")
+            .distinct()
+        ):
+            key = (int(eid), str(bench_key))
+            locked_dates_tmp.setdefault(key, set()).add(hdate.isoformat())
+        locked_dates_by_ef_bench = {k: sorted(v) for k, v in locked_dates_tmp.items()}
+
         items = []
         for e in efilings:
             bench = get_bench_configuration_for_stored_value(e.bench)
@@ -1630,6 +2020,7 @@ class ReaderDailyProceedingsListView(APIView):
                 if proceeding
                 else None
             )
+            bench_key_resolved = bench.bench_key if bench else str(e.bench or "").strip()
             items.append(
                 {
                     "efiling_id": e.id,
@@ -1660,6 +2051,10 @@ class ReaderDailyProceedingsListView(APIView):
                     ),
                     "steno_workflow_status": (
                         workflow.workflow_status if workflow else None
+                    ),
+                    "hearing_dates_with_steno": locked_dates_by_ef_bench.get(
+                        (e.id, bench_key_resolved),
+                        [],
                     ),
                     "can_assign_listing_date": can_assign,
                 }
@@ -1753,17 +2148,21 @@ class ReaderDailyProceedingsSubmitView(APIView):
                 listing_date=next_listing_date,
                 listing_remark=listing_remark or proceedings_text,
                 assigned_by=user,
+                bench_key=assigned_bench.bench_key if assigned_bench else None,
             )
         except Exception as exc:
             workflow_state_error = str(exc)
             logger.exception("bench workflow state submit-proceeding dual-write failed")
-        listing_sync_status = (
-            ReaderDailyProceeding.ListingSyncStatus.SYNCED
-            if decision_rows_updated > 0
-            and workflow_state_rows_updated > 0
-            and not workflow_state_error
-            else ReaderDailyProceeding.ListingSyncStatus.FAILED
-        )
+        if workflow_state_error:
+            listing_sync_status = ReaderDailyProceeding.ListingSyncStatus.FAILED
+        elif workflow_state_rows_updated > 0:
+            # BenchWorkflowState is the canonical reader listing handoff (works without judge rows).
+            listing_sync_status = ReaderDailyProceeding.ListingSyncStatus.SYNCED
+        elif decision_rows_updated > 0:
+            # Judge rows updated but workflow state did not (missing BenchWorkflowState, etc.).
+            listing_sync_status = ReaderDailyProceeding.ListingSyncStatus.FAILED
+        else:
+            listing_sync_status = ReaderDailyProceeding.ListingSyncStatus.FAILED
         if proceeding.listing_sync_status != listing_sync_status:
             proceeding.listing_sync_status = listing_sync_status
             proceeding.updated_by = user

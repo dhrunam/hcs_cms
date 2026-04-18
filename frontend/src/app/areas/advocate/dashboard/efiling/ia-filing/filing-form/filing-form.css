@@ -2,6 +2,39 @@
   padding: 0 0.25rem;
 }
 
+.section-title {
+  color: #0f172a;
+  font-size: 1rem;
+  font-weight: 600;
+  border-left: 3px solid #2563eb;
+  padding-left: 8px;
+}
+
+.ia-filing-pay-card {
+  border-left: 4px solid #0d6efd !important;
+}
+
+.ia-filing-complete-card {
+  border-left: 4px solid #212529 !important;
+}
+
+.complete-filing-section + .complete-filing-section {
+  margin-top: 0.25rem;
+}
+
+.declaration-panel {
+  background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+  border-color: #c7d2fe !important;
+}
+
+.declaration-check {
+  user-select: none;
+}
+
+.payment-detail-panel {
+  border-style: dashed !important;
+}
+
 /* Searchable select */
 .searchable-select {
   position: relative;

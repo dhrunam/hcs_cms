@@ -16,7 +16,6 @@
         <div class="form-control form-control-sm bg-light">
           {{ forwardedToJudgeLabel }}
         </div>
-        
       </div>
     </div>
   </div>
@@ -41,262 +40,381 @@
             - <strong class="filing--label mt-2" >  {{filing.petitioner_name}} </strong>
           </h5>
         </div>
-          
-          
-        <!-- <span class="mx-2 fw-light litigant-vs-badge">V/S</span> -->
-        
-        
-        <!-- <div class="text-end small text-muted">
-          Current Bench: <strong>{{ benchLabel(filing.bench) }}</strong>
-          <div class="mt-1">
-            <span
-              class="badge rounded-pill"
-              [ngClass]="approvalStatus === 'APPROVED' ? 'text-bg-success' : (approvalStatus === 'PENDING' ? 'text-bg-warning' : (approvalStatus === 'REQUESTED_DOCS' ? 'text-bg-info' : (approvalStatus === 'REJECTED' ? 'text-bg-danger' : 'text-bg-secondary')))"
-            >
-              {{ approvalStatus }}
-            </span>
-          </div>
-        </div> -->
       </div>
     </div>
 
     <div class="card border-0 shadow-sm">
-      <div class="card-body px-4 py-1">
-        <div class="filing-summary-section mt-4" *ngIf="caseDetails">
-          <div class="filing-summary-section-title">
-            <i class="fa-solid fa-scale-balanced me-2"></i>
-            Case Details
+      <div class="card-header p-0">
+        <ul class="nav scrutiny-nav-tabs">
+          <li class="nav-item">
+            <button
+              type="button"
+              class="nav-link"
+              [class.active]="activeTab === 'details'"
+              (click)="setActiveTab('details')"
+            >
+              <i class="fa-solid fa-file-lines me-2"></i>
+              Details
+            </button>
+          </li>
+          <li class="nav-item">
+            <button
+              type="button"
+              class="nav-link"
+              [class.active]="activeTab === 'notes'"
+              (click)="setActiveTab('notes')"
+            >
+              <i class="fa-solid fa-file-alt me-2"></i>
+              Case Notes
+            </button>
+          </li>
+        </ul>
+      </div>
+      <div class="card-body p-0">
+        <div *ngIf="activeTab === 'details'" class="px-4 py-3">
+          <div class="filing-summary-section mt-2" *ngIf="caseDetails">
+            <div class="filing-summary-section-title">
+              <i class="fa-solid fa-scale-balanced me-2"></i>
+              Case Details
+            </div>
+          </div>
+
+          <div class="filing-summary-section mt-4">
+            <div class="filing-summary-section-title">
+              <i class="fa-solid fa-file-pdf me-2"></i>
+              Pleadings
+            </div>
+            <div *ngIf="documents.length > 0; else noDocs" class="row g-3">
+              <div class="col-lg-4">
+                <div class="border rounded p-3 docs-list-panel bg-white">
+                  <div class="small text-muted mb-2">
+                    <!-- Click a document to preview -->
+                  </div>
+                  <div class="d-flex flex-column gap-2">
+                    <ng-container *ngFor="let section of documentDisplaySections">
+                      <button
+                        *ngIf="section.kind === 'doc'"
+                        type="button"
+                        class="doc-preview-item text-start"
+                        [class.active]="isSelectedDocument(section.doc.id)"
+                        (click)="selectDocument(section.doc)"
+                      >
+                        <span class="doc-preview-name">{{ section.doc.display_index_label || '-' }}. {{ documentName(section.doc) }}</span>
+                        <span
+                          *ngIf="isRequestedDocument(section.doc.id)"
+                          class="badge rounded-pill text-bg-info"
+                          >Requested</span
+                        >
+                      </button>
+                      <div *ngIf="section.kind === 'vakalatGroup'" class="vakalat-collapse">
+                        <button type="button" class="vakalat-collapse__trigger" (click)="toggleVakalatGroup(section.id)">
+                          <i class="fa" [class.fa-chevron-right]="!isVakalatGroupExpanded(section.id)" [class.fa-chevron-down]="isVakalatGroupExpanded(section.id)"></i>
+                          <span>{{ section.label }}</span>
+                        </button>
+                        <div class="d-flex flex-column gap-2 mt-2" *ngIf="isVakalatGroupExpanded(section.id)">
+                          <button
+                            type="button"
+                            class="doc-preview-item text-start doc-sub-item"
+                            *ngFor="let d of section.items"
+                            [class.active]="isSelectedDocument(d.id)"
+                            (click)="selectDocument(d)"
+                          >
+                            <span class="doc-preview-name">{{ d.display_index_label || '-' }}. {{ documentName(d) }}</span>
+                            <span
+                              *ngIf="isRequestedDocument(d.id)"
+                              class="badge rounded-pill text-bg-info"
+                              >Requested</span
+                            >
+                          </button>
+                        </div>
+                      </div>
+                    </ng-container>
+                  </div>
+                </div>
+                <div class="mt-3">
+                  <label class="form-label fw-semibold">Reader Case Summary</label>
+                  <textarea
+                    class="form-control"
+                    rows="4"
+                    [(ngModel)]="listingSummary"
+                    [ngModelOptions]="{ standalone: true }"
+                    placeholder="Write concise case summary for judge review..."
+                  ></textarea>
+                </div>
+                <div class="d-flex justify-content-end mt-3">
+                  <button
+                    class="btn btn-primary"
+                    [disabled]="isForwarding || !effectiveForwardBenchConfiguration"
+                    (click)="forwardToJudge()"
+                  >
+                    {{ isForwarding ? 'Forwarding...' : "Forward To Hon'ble Judge" }}
+                  </button>
+                </div>
+              </div>
+              <div class="col-lg-8">
+                <div class="border rounded p-2 preview-panel">
+                  <iframe
+                    class="vh-100"
+                    *ngIf="selectedDocumentUrl; else noPreview"
+                    [src]="selectedDocumentUrl"
+                    title="Document preview"
+                  ></iframe>
+                  <ng-template #noPreview>
+                    <div class="text-muted small p-3">
+                      Select a document to preview.
+                    </div>
+                  </ng-template>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-4 pt-3 border-top" *ngIf="hasReallocationHistory">
+              <h6 class="fw-bold mb-3 text-warning">
+                <i class="fa-solid fa-clock-rotate-left me-2"></i>
+                Reallocation History
+              </h6>
+              <div class="table-responsive border rounded bg-white">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Bench Movement</th>
+                      <th>Remarks</th>
+                      <th>Reallocated By</th>
+                      <th>When</th>
+                      <th class="text-end">Order</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let item of reallocationHistory">
+                      <td>
+                        <div class="fw-semibold">
+                          {{ item.previous_bench_label || item.previous_bench_key || '-' }}
+                        </div>
+                        <div class="small text-muted">
+                          <i class="fa-solid fa-arrow-right mx-1"></i>
+                          {{ item.new_bench_label || item.new_bench_key || '-' }}
+                        </div>
+                      </td>
+                      <td class="small">{{ item.remarks || '-' }}</td>
+                      <td class="small">{{ item.reallocated_by_name || '-' }}</td>
+                      <td class="small">
+                        {{ item.reallocated_at ? (item.reallocated_at | date:'dd MMM yyyy, hh:mm a') : '-' }}
+                      </td>
+                      <td class="text-end">
+                        <div class="btn-group btn-group-sm" *ngIf="item.has_uploaded_order; else noOrderFile">
+                          <button
+                            type="button"
+                            class="btn btn-outline-primary"
+                            (click)="openReallocationOrder(item.order_file_url)"
+                          >
+                            View
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-outline-secondary"
+                            (click)="downloadReallocationOrder(item.order_file_download_url)"
+                          >
+                            Download
+                          </button>
+                        </div>
+                        <ng-template #noOrderFile>
+                          <span class="small text-muted">No order</span>
+                        </ng-template>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="mt-4 pt-3 border-top" *ngIf="canSendBackToScrutiny">
+              <!-- <h6 class="fw-bold mb-3 text-danger">
+                <i class="fa-solid fa-rotate-left me-2"></i>
+                Return to Scrutiny
+              </h6>
+              <p class="small text-muted mb-3">
+                If the bench assignment needs to be changed, send this case back to the Scrutiny Officer for bench re-selection.
+              </p>
+              <button
+                class="btn btn-outline-danger shadow-sm"
+                (click)="sendBackToScrutiny()"
+                [disabled]="isSaving"
+              >
+                <i class="fa-solid fa-rotate-left me-2"></i> Send Back to Scrutiny
+              </button> -->
+
+              <div class="mt-4">
+                <h6 class="fw-bold mb-3 text-warning">
+                  <i class="fa-solid fa-shuffle me-2"></i>
+                  Recuse / Reallocate Case
+                </h6>
+                <p class="small text-muted mb-3">
+                  Reassign this case to a different bench before listing date assignment. The current bench workflow will be cleared and the case will move to the newly selected bench reader flow.
+                </p>
+                <button
+                  class="btn btn-outline-warning shadow-sm"
+                  (click)="openReallocateModal()"
+                  [disabled]="isSaving || !canReallocateCase"
+                >
+                  <i class="fa-solid fa-shuffle me-2"></i> Recuse / Reallocate Case
+                </button>
+              </div>
+            </div>
+
+            <div
+              class="mt-4 pt-3 border-top"
+              *ngIf="showReaderListingSection"
+            >
+              <h6
+                class="fw-bold mb-2"
+                [ngClass]="approvalListingDate ? 'text-success' : (approvalStatus === 'APPROVED' ? 'text-success' : 'text-primary')"
+              >
+                <i class="fa-solid fa-calendar-check me-2"></i>
+                {{ listingSectionHeading }}
+              </h6>
+              <p class="small text-muted mb-3" *ngIf="listingSectionLead">{{ listingSectionLead }}</p>
+
+              <div class="row align-items-end g-3">
+                <div class="col-md-5">
+                  <label class="form-label small fw-bold">
+                    {{ canAssignListingDate ? (approvalListingDate ? 'Update Listing Date' : 'Select Listing Date') : 'Listing Date' }}
+                  </label>
+                  <input
+                    type="date"
+                    class="form-control shadow-sm border-0 bg-light"
+                    [(ngModel)]="targetListingDate"
+                    [disabled]="!canAssignListingDate"
+                  />
+                  <div
+                    class="mt-2 fw-bold text-primary small"
+                    *ngIf="targetListingDate"
+                  >
+                    Listing for: {{ formattedListingDate }}
+                  </div>
+                </div>
+                <div class="col-md-7">
+                  <label class="form-label small fw-bold">Listing Remark (Optional)</label>
+                  <textarea
+                    class="form-control shadow-sm border-0 bg-light"
+                    rows="2"
+                    [(ngModel)]="listingRemark"
+                    placeholder="Additional notes for Listing Officer..."
+                    [disabled]="!canAssignListingDate"
+                  ></textarea>
+                </div>
+                <div class="col-md-12 mt-3">
+                  <button
+                    class="btn btn-success w-100 shadow-sm py-2 fw-bold text-uppercase"
+                    (click)="forwardForListing()"
+                    [disabled]="isSaving || !canAssignListingDate"
+                  >
+                    <i class="fa-solid fa-paper-plane me-2"></i>
+                    {{ approvalListingDate ? 'Update Listing Date' : (canAssignListingDate ? 'Forward for Cause List' : 'Awaiting Higher Bench Reader') }}
+                  </button>
+                </div>
+              </div>
+
+              <div
+                class="mt-3 alert alert-info mb-0"
+                *ngIf="showListingAuthorityNotice"
+              >
+                For division benches, only the higher-priority reader fixes the final
+                listing date. You can review the summary here, and the final date will
+                appear once it is sent to the Listing Officer.
+              </div>
+
+              <div
+                class="mt-3 p-3 bg-light rounded small border-start border-primary border-4"
+                *ngIf="approvalListingDate"
+              >
+                <i class="fa-solid fa-circle-info text-primary me-2"></i>
+                This case was forwarded to the Listing Officer for the
+                <strong>{{ formattedListingDate }}</strong> cause list.
+              </div>
+            </div>
+
+            <div class="mt-4 pt-3 border-top" *ngIf="approvalNotes.length">
+              <div class="fw-bold small text-uppercase text-secondary mb-2">
+                Judge Remarks & Guidance:
+              </div>
+              <div class="bg-light p-3 rounded shadow-sm mb-5">
+                <div
+                  *ngFor="let n of approvalNotes"
+                  class="ps-2 border-start border-3 border-info mb-2 last-mb-0"
+                >
+                  {{ n }}
+                </div>
+              </div>
+            </div>
+            <ng-template #noDocs>
+              <div class="text-muted small">No documents available.</div>
+            </ng-template>
           </div>
         </div>
 
-        <div class="filing-summary-section mt-4">
-          <div class="filing-summary-section-title">
-            <i class="fa-solid fa-file-pdf me-2"></i>
-            Pleadings
-          </div>
-          <div *ngIf="documents.length > 0; else noDocs" class="row g-3">
-            <div class="col-lg-4">
-              <div class="border rounded p-3 docs-list-panel bg-white">
-                <div class="small text-muted mb-2">
-                  <!-- Click a document to preview -->
-                </div>
-                <div class="d-flex flex-column gap-2">
-                  <ng-container *ngFor="let section of documentDisplaySections">
-                    <button
-                      *ngIf="section.kind === 'doc'"
-                      type="button"
-                      class="doc-preview-item text-start"
-                      [class.active]="isSelectedDocument(section.doc.id)"
-                      (click)="selectDocument(section.doc)"
-                    >
-                      <span class="doc-preview-name">{{ section.doc.display_index_label || '-' }}. {{ documentName(section.doc) }}</span>
-                      <span class="d-block small text-muted" *ngIf="publishedOrderLabel(section.doc) as pol">
-                        {{ pol }}
-                      </span>
-                      <span
-                        *ngIf="isRequestedDocument(section.doc.id)"
-                        class="badge rounded-pill text-bg-info"
-                        >Requested</span
-                      >
-                    </button>
-                    <div *ngIf="section.kind === 'vakalatGroup'" class="vakalat-collapse">
-                      <button type="button" class="vakalat-collapse__trigger" (click)="toggleVakalatGroup(section.id)">
-                        <i class="fa" [class.fa-chevron-right]="!isVakalatGroupExpanded(section.id)" [class.fa-chevron-down]="isVakalatGroupExpanded(section.id)"></i>
-                        <span>{{ section.label }}</span>
-                      </button>
-                      <div class="d-flex flex-column gap-2 mt-2" *ngIf="isVakalatGroupExpanded(section.id)">
-                        <button
-                          type="button"
-                          class="doc-preview-item text-start doc-sub-item"
-                          *ngFor="let d of section.items"
-                          [class.active]="isSelectedDocument(d.id)"
-                          (click)="selectDocument(d)"
-                        >
-                          <span class="doc-preview-name">{{ d.display_index_label || '-' }}. {{ documentName(d) }}</span>
-                          <span class="d-block small text-muted" *ngIf="publishedOrderLabel(d) as pol2">
-                            {{ pol2 }}
-                          </span>
-                          <span
-                            *ngIf="isRequestedDocument(d.id)"
-                            class="badge rounded-pill text-bg-info"
-                            >Requested</span
-                          >
-                        </button>
-                      </div>
-                    </div>
-                    <div *ngIf="section.kind === 'ordersGroup'" class="vakalat-collapse">
-                      <button type="button" class="vakalat-collapse__trigger" (click)="toggleOrdersGroup(section.id)">
-                        <i class="fa" [class.fa-chevron-right]="!isOrdersGroupExpanded(section.id)" [class.fa-chevron-down]="isOrdersGroupExpanded(section.id)"></i>
-                        <span>{{ section.label }}</span>
-                      </button>
-                      <div class="d-flex flex-column gap-2 mt-2" *ngIf="isOrdersGroupExpanded(section.id)">
-                        <button
-                          type="button"
-                          class="doc-preview-item text-start doc-sub-item"
-                          *ngFor="let d of section.items"
-                          [class.active]="isSelectedDocument(d.id)"
-                          (click)="selectDocument(d)"
-                        >
-                          <span class="doc-preview-name">{{ documentName(d) }}</span>
-                          <span class="d-block small text-muted" *ngIf="publishedOrderLabel(d) as pol2">
-                            {{ pol2 }}
-                          </span>
-                          <span
-                            *ngIf="isRequestedDocument(d.id)"
-                            class="badge rounded-pill text-bg-info"
-                            >Requested</span
-                          >
-                        </button>
-                      </div>
-                    </div>
-                  </ng-container>
-                </div>
-              </div>
-
-              <div class="mt-3">
-                <label class="form-label fw-semibold">Reader Case Summary</label>
-                <textarea
-                  class="form-control"
-                  rows="4"
-                  [(ngModel)]="listingSummary"
-                  [ngModelOptions]="{ standalone: true }"
-                  placeholder="Write concise case summary for judge review..."
-                ></textarea>
-              </div>
-              <div class="d-flex justify-content-end mt-3">
-                <button
-                  class="btn btn-primary"
-                  [disabled]="isForwarding || !effectiveForwardBenchConfiguration"
-                  (click)="forwardToJudge()"
-                >
-                  {{ isForwarding ? 'Forwarding...' : "Forward To Hon'ble Judge" }}
-                </button>
-              </div>
-            </div>
-            <div class="col-lg-8">
-              <div class="border rounded p-2 preview-panel">
-                <iframe
-                  class="vh-100"
-                  *ngIf="selectedDocumentUrl; else noPreview"
-                  [src]="selectedDocumentUrl"
-                  title="Document preview"
-                ></iframe>
-                <ng-template #noPreview>
-                  <div class="text-muted small p-3">
-                    Select a document to preview.
-                  </div>
-                </ng-template>
-              </div>
-            </div>
-          </div>
-
-          <div class="mt-4 pt-3 border-top" *ngIf="canSendBackToScrutiny">
-            <h6 class="fw-bold mb-3 text-danger">
-              <i class="fa-solid fa-rotate-left me-2"></i>
-              Return to Scrutiny
-            </h6>
-            <p class="small text-muted mb-3">
-              If the bench assignment needs to be changed, send this case back to the Scrutiny Officer for bench re-selection.
-            </p>
-            <button
-              class="btn btn-outline-danger shadow-sm"
-              (click)="sendBackToScrutiny()"
-              [disabled]="isSaving"
-            >
-              <i class="fa-solid fa-rotate-left me-2"></i> Send Back to Scrutiny
-            </button>
-          </div>
-
-          <div
-            class="mt-4 pt-3 border-top"
-            *ngIf="showReaderListingSection"
-          >
-            <h6
-              class="fw-bold mb-2"
-              [ngClass]="approvalListingDate ? 'text-primary' : (approvalStatus === 'APPROVED' ? 'text-success' : 'text-primary')"
-            >
-              <i class="fa-solid fa-calendar-check me-2"></i>
-              {{ listingSectionHeading }}
-            </h6>
-            <p class="small text-muted mb-3" *ngIf="listingSectionLead as lead">{{ lead }}</p>
-
-            <div class="row align-items-end g-3">
-              <div class="col-md-5">
-                <label class="form-label small fw-bold">
-                  {{ canAssignListingDate ? 'Select Listing Date' : 'Listing Date' }}
-                </label>
-                <input
-                  type="date"
-                  class="form-control shadow-sm border-0 bg-light"
-                  [(ngModel)]="targetListingDate"
-                  [disabled]="!canAssignListingDate || !!approvalListingDate"
-                />
-                <div
-                  class="mt-2 fw-bold text-primary small"
-                  *ngIf="targetListingDate"
-                >
-                  Listing for: {{ formattedListingDate }}
-                </div>
-              </div>
-              <div class="col-md-7">
-                <label class="form-label small fw-bold">Listing Remark (Optional)</label>
-                <textarea
-                  class="form-control shadow-sm border-0 bg-light"
-                  rows="2"
-                  [(ngModel)]="listingRemark"
-                  placeholder="Additional notes for Listing Officer..."
-                  [disabled]="!canAssignListingDate || !!approvalListingDate"
-                ></textarea>
-              </div>
-              <div class="col-md-12 mt-3">
-                <button
-                  class="btn btn-success w-100 shadow-sm py-2 fw-bold text-uppercase"
-                  (click)="forwardForListing()"
-                  [disabled]="isSaving || !canAssignListingDate || !!approvalListingDate"
-                >
-                  <i class="fa-solid fa-paper-plane me-2"></i>
-                  {{ approvalListingDate ? 'Forwarded to Listing' : (canAssignListingDate ? 'Forward for Cause List' : 'Awaiting Higher Bench Reader') }}
-                </button>
-              </div>
-            </div>
-
-            <div
-              class="mt-3 alert alert-info mb-0"
-              *ngIf="showListingAuthorityNotice"
-            >
-              For division benches, only the higher-priority reader fixes the final
-              listing date. You can review the summary here, and the final date will
-              appear once it is sent to the Listing Officer.
-            </div>
-
-            <div
-              class="mt-3 p-3 bg-light rounded small border-start border-primary border-4"
-              *ngIf="approvalListingDate"
-            >
-              <i class="fa-solid fa-circle-info text-primary me-2"></i>
-              This case was forwarded to the Listing Officer for the
-              <strong>{{ formattedListingDate }}</strong> cause list.
-            </div>
-          </div>
-
-          <div class="mt-4 pt-3 border-top" *ngIf="approvalNotes.length">
-            <div class="fw-bold small text-uppercase text-secondary mb-2">
-              Judge Remarks & Guidance:
-            </div>
-            <div class="bg-light p-3 rounded shadow-sm mb-5">
-              <div
-                *ngFor="let n of approvalNotes"
-                class="ps-2 border-start border-3 border-info mb-2 last-mb-0"
-              >
-                {{ n }}
-              </div>
-            </div>
-          </div>
-          <ng-template #noDocs>
-            <div class="text-muted small">No documents available.</div>
-          </ng-template>
+        <div *ngIf="activeTab === 'notes'" class="p-4">
+          <app-office-note-editor
+            [caseId]="filingId"
+            [showHeader]="false"
+            *ngIf="filingId"
+          ></app-office-note-editor>
         </div>
       </div>
     </div>
   </ng-container>
 </div>
+
+<div *ngIf="showReallocateModal" class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Recuse / Reallocate Case</h5>
+        <button type="button" class="btn-close" aria-label="Close" (click)="closeReallocateModal()"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Current Bench</label>
+          <div class="form-control bg-light">{{ benchLabel(filing?.bench) }}</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">New Bench</label>
+          <select class="form-select" [(ngModel)]="reallocateTargetBenchKey">
+            <option value="">Select a bench</option>
+            <option *ngFor="let bench of availableReallocationBenches" [value]="bench.bench_key">
+              {{ bench.label }}
+            </option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Remarks</label>
+          <textarea
+            class="form-control"
+            rows="4"
+            [(ngModel)]="reallocateRemarks"
+            placeholder="Enter the reason for recusal or bench reallocation..."
+          ></textarea>
+        </div>
+        <div>
+          <label class="form-label fw-semibold">Judicial Order (Optional PDF)</label>
+          <input
+            class="form-control"
+            type="file"
+            accept="application/pdf,.pdf"
+            (change)="onReallocateFileSelected($event)"
+          />
+          <div class="form-text" *ngIf="reallocateOrderFile">
+            Selected file: {{ reallocateOrderFile.name }}
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" (click)="closeReallocateModal()" [disabled]="isSaving">Cancel</button>
+        <button type="button" class="btn btn-warning" (click)="submitReallocation()" [disabled]="isSaving">
+          {{ isSaving ? 'Reallocating...' : 'Confirm Reallocation' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="showReallocateModal" class="modal-backdrop fade show"></div>

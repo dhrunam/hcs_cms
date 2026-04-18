@@ -45,29 +45,18 @@ from django.db.models import Count
 
 def _cause_list_target_efiling_ids(cld_obj: date_type | None, bench_key: str) -> Set[int]:
     """
-    Cases available for this cause list calendar day: forwarded for that day, or
-    reader listing_date matches that day (same bench), so listing tracks assign-date flow.
-
-    Date alignment: the listing officer's ``cause_list_date`` should match
-    ``CourtroomForward.forwarded_for_date`` when using the forward-only path, unless the
-    reader has already tied the file to this calendar day via ``listing_date`` +
-    ``reader_listing_remark`` on a judge decision (see ``by_listing`` below). If those
-    dates diverge, the case may not appear under ``approved_only`` until dates or remarks align.
+    Cases available for this cause list calendar day:
+    those the Reader pushed into listing for this bench — either via CourtroomJudgeDecision
+    (listing_date + reader_listing_remark) or via BenchWorkflowState when no judge row exists yet.
     """
     if not cld_obj:
         return set()
-    by_forward = set(
-        CourtroomForward.objects.filter(
-            bench_key=bench_key,
-            forwarded_for_date=cld_obj,
-        ).values_list("efiling_id", flat=True)
-    )
     on_bench = set(
         CourtroomForward.objects.filter(bench_key=bench_key).values_list(
             "efiling_id", flat=True
         )
     )
-    by_listing = set(
+    by_judge_decision = set(
         CourtroomJudgeDecision.objects.filter(
             listing_date=cld_obj,
             efiling_id__in=on_bench,
@@ -75,7 +64,14 @@ def _cause_list_target_efiling_ids(cld_obj: date_type | None, bench_key: str) ->
             reader_listing_remark__isnull=False,
         ).values_list("efiling_id", flat=True)
     )
-    return set(by_forward) | set(by_listing)
+    by_workflow_state = set(
+        BenchWorkflowState.objects.filter(
+            bench_key=bench_key,
+            listing_date=cld_obj,
+            efiling_id__in=on_bench,
+        ).values_list("efiling_id", flat=True)
+    )
+    return by_judge_decision | by_workflow_state
 
 
 def _main_parties_for_filing(filing: Efiling) -> str:

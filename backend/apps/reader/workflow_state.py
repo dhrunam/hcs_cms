@@ -120,11 +120,16 @@ def apply_reader_assign_date(
     listing_date: date_type,
     listing_remark: str | None,
     assigned_by: User | None = None,
+    bench_key: str | None = None,
 ) -> int:
-    qs = BenchWorkflowState.objects.filter(
-        efiling_id__in=list(efiling_ids),
-        forwarded_for_date=forwarded_for_date,
-    )
+    """
+    Persist reader-chosen listing date on BenchWorkflowState (canonical handoff to listing officer).
+
+    When ``bench_key`` is set, only that bench row is updated. If no row exists yet (e.g. reader
+    daily proceedings set next listing date before any forward sync created state), we upsert
+    once then apply the listing fields — so listing draft/preview can see ``listing_date``.
+    """
+    efiling_list = [int(x) for x in efiling_ids]
     updates = {
         "listing_date": listing_date,
         "listing_date_assigned_at": timezone.now(),
@@ -134,7 +139,30 @@ def apply_reader_assign_date(
     if assigned_by:
         updates["listing_assigned_by"] = assigned_by
         updates["updated_by"] = assigned_by
-    return qs.update(**updates)
+
+    def _qs():
+        q = BenchWorkflowState.objects.filter(
+            efiling_id__in=efiling_list,
+            forwarded_for_date=forwarded_for_date,
+        )
+        if bench_key:
+            q = q.filter(bench_key=str(bench_key))
+        return q
+
+    n = _qs().update(**updates)
+    if (
+        n == 0
+        and bench_key
+        and len(efiling_list) == 1
+    ):
+        upsert_state_on_forward(
+            efiling_id=efiling_list[0],
+            forwarded_for_date=forwarded_for_date,
+            bench_key=str(bench_key),
+            forwarded_by=assigned_by,
+        )
+        n = _qs().update(**updates)
+    return int(n or 0)
 
 
 @transaction.atomic

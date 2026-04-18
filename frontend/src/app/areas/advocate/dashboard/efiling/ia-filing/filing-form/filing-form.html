@@ -185,39 +185,48 @@
       </div>
     </div>
 
-    <!-- Upload Documents -->
+    <!-- Upload Documents (list + upload — same pattern as document filing / new filing) -->
     <div class="card border-0 shadow-sm mb-4">
-      <div
-        class="card-header bg-dark text-white fw-semibold d-flex justify-content-between align-items-center"
-      >
-        <span>Upload Documents</span>
-        <button
-          type="button"
-          class="btn btn-sm btn-light d-flex align-items-center gap-1"
-          [disabled]="!canDownloadMerged() || isMergingPdf"
-          (click)="downloadMergedPdf()"
-        >
-          <span
-            *ngIf="isMergingPdf"
-            class="spinner-border spinner-border-sm"
-            role="status"
-            aria-hidden="true"
-          ></span>
-          <i class="fa-solid fa-file-pdf" *ngIf="!isMergingPdf"></i>
-          {{ isMergingPdf ? 'Merging...' : 'Download Merged PDF' }}
-        </button>
+      <div class="card-header bg-dark text-white fw-semibold">
+        <i class="fa-solid fa-file-pdf me-2"></i>
+        Upload Documents
       </div>
       <div class="alert alert-danger alert-dismissible py-2 small m-3 mb-0" *ngIf="mergeError">
         {{ mergeError }}
         <button type="button" class="btn-close btn-sm" (click)="mergeError = null" aria-label="Close"></button>
       </div>
       <div class="card-body">
-        <p class="text-muted small mb-3">
-          Upload supporting documents for this IA filing. Add index name for each file.
-        </p>
+        <div class="alert alert-light border small mb-4">
+          <i class="fa-solid fa-info-circle me-2"></i>
+          <strong>Upload, pay court fees, declare, then submit.</strong> Enter relief sought, then add a
+          parent group name and PDFs. After upload, use <strong>Pay court fees</strong> when ready. After
+          payment, accept the declaration in <strong>Complete IA filing</strong> and submit (OTP
+          <strong>0000</strong>).
+        </div>
+        <h5 class="section-title text-start mb-3" *ngIf="docList.length > 0">Uploaded documents</h5>
         <div *ngIf="docList.length > 0" class="mb-4">
           <div class="card shadow-sm border-0">
             <div class="list-group list-group-flush">
+              <div
+                class="list-group-item d-flex justify-content-between align-items-center bg-light"
+              >
+                <span class="fw-semibold">Document Type</span>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"
+                  [disabled]="!canDownloadMerged() || isMergingPdf"
+                  (click)="downloadMergedPdf()"
+                >
+                  <span
+                    *ngIf="isMergingPdf"
+                    class="spinner-border spinner-border-sm"
+                    role="status"
+                    aria-hidden="true"
+                  ></span>
+                  <i class="fa-solid fa-file-pdf" *ngIf="!isMergingPdf"></i>
+                  {{ isMergingPdf ? 'Merging...' : 'Download Merged PDF' }}
+                </button>
+              </div>
               <div
                 style="border-left: 2px solid black"
                 class="list-group-item"
@@ -227,7 +236,6 @@
                   <div class="text-start">
                     <div class="fw-semibold">{{ i + 1 }}. {{ doc.document_type }}</div>
                   </div>
-
                   <button
                     type="button"
                     class="btn btn-sm btn-outline-danger"
@@ -238,7 +246,6 @@
                     delete
                   </button>
                 </div>
-
                 <div class="mt-2 ps-2" *ngIf="doc.document_indexes?.length > 0">
                   <div
                     *ngFor="let filePart of doc.document_indexes; let j = index"
@@ -247,7 +254,6 @@
                     <div class="small text-muted text-start">
                       {{ j + 1 }}. {{ filePart.document_part_name || 'Document Part' }}
                     </div>
-
                     <a
                       [href]="filePart.file_url || filePart.file_part_path"
                       target="_blank"
@@ -257,7 +263,6 @@
                     </a>
                   </div>
                 </div>
-
                 <div class="mt-2 ps-2" *ngIf="!doc.document_indexes?.length && doc.final_document">
                   <a
                     [href]="doc.final_document"
@@ -271,28 +276,73 @@
             </div>
           </div>
         </div>
-        <app-upload-documents
-          [form]="uploadFilingDocForm"
-          [isUploading]="isUploadingDocuments"
-          [fileProgresses]="uploadFileProgresses"
-          [uploadCompletedToken]="uploadCompletedToken"
-          [defaultDocumentType]="'IA'"
-          [useTextIndexName]="true"
-          [useParentIndexGroup]="true"
-          [enableAnnexureSequence]="true"
-          [annexureSequenceLetter]="litigantAnnexureLetter()"
-          (submitDoc)="handleDocUpload($event)"
-        ></app-upload-documents>
+        <div class="border rounded p-3 bg-light-subtle">
+          <div class="fw-semibold mb-2">Upload</div>
+          <p class="text-muted small mb-3">
+            Upload supporting documents for this IA. Enter parent group name and index for each file.
+          </p>
+          <app-upload-documents
+            [form]="uploadFilingDocForm"
+            [isUploading]="isUploadingDocuments"
+            [fileProgresses]="uploadFileProgresses"
+            [uploadCompletedToken]="uploadCompletedToken"
+            [defaultDocumentType]="'IA'"
+            [caseTypeId]="iaCaseTypeIdForUpload"
+            [useTextIndexName]="true"
+            [useParentIndexGroup]="true"
+            [multiManualIndexRows]="true"
+            [enableAnnexureSequence]="true"
+            [annexureSequenceLetter]="litigantAnnexureLetter()"
+            (submitDoc)="handleDocUpload($event)"
+          ></app-upload-documents>
+        </div>
       </div>
     </div>
 
-    <!-- Mandatory court fee (Rs. 10) after IA record exists -->
-    <div class="card border-0 shadow-sm mb-4" *ngIf="createdIa?.id">
+    <!-- Court fee: prompt first, then payment options (deferred) -->
+    <div
+      class="card ia-filing-pay-card border-0 shadow-sm mb-4"
+      *ngIf="createdIa?.id && !isIaCourtFeePaid && !showIaCourtFeePaymentPanel"
+    >
+      <div class="card-header bg-primary text-white fw-semibold">
+        <i class="fa-solid fa-indian-rupee-sign me-2"></i>
+        Court fee required
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">
+          Before you can submit this IA for scrutiny, pay the mandatory court fee of
+          <strong>₹{{ iaCourtFeeRupees }}/-</strong>. Click when you are ready to pay online or record an
+          offline payment.
+        </p>
+        <div class="row g-3 small mb-3">
+          <div class="col-sm-6 col-md-4">
+            <div class="text-muted">E-filing number</div>
+            <div class="fw-semibold">{{ selectedFiling?.e_filing_number || '—' }}</div>
+          </div>
+          <div class="col-sm-6 col-md-4">
+            <div class="text-muted">IA number</div>
+            <div class="fw-semibold">{{ createdIa?.ia_number || '—' }}</div>
+          </div>
+          <div class="col-sm-6 col-md-4">
+            <div class="text-muted">Court fee</div>
+            <div class="fw-semibold">₹{{ iaCourtFeeRupees }}/-</div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-primary" (click)="openIaCourtFeePaymentPanel()">
+          Pay court fees
+        </button>
+      </div>
+    </div>
+
+    <div
+      class="card border-0 shadow-sm mb-4"
+      *ngIf="createdIa?.id && !isIaCourtFeePaid && showIaCourtFeePaymentPanel"
+    >
       <div class="card-header bg-dark text-white fw-semibold">Court fee payment</div>
       <div class="card-body">
         <p class="small text-muted mb-3">
-          Before you can submit this IA for scrutiny, you must pay a court fee of
-          <strong>₹{{ iaCourtFeeRupees }}/-</strong> (IA No. {{ createdIa?.ia_number || '—' }}).
+          Mandatory court fee <strong>₹{{ iaCourtFeeRupees }}/-</strong> (IA No.
+          {{ createdIa?.ia_number || '—' }}).
         </p>
         <div class="d-flex flex-wrap gap-3 mb-3">
           <div class="form-check">
@@ -319,25 +369,12 @@
           </div>
         </div>
 
-        <div
-          class="alert alert-success py-2 small mb-3"
-          *ngIf="paymentOutcome === 'success'"
-        >
-          <i class="fa-solid fa-circle-check me-2"></i>
-          Court fee payment recorded. You may submit the IA for scrutiny.
-        </div>
-        <div
-          class="alert alert-danger py-2 small mb-3"
-          *ngIf="paymentOutcome === 'failed'"
-        >
+        <div class="alert alert-danger py-2 small mb-3" *ngIf="paymentOutcome === 'failed'">
           <i class="fa-solid fa-circle-xmark me-2"></i>
           Payment was not completed. Please try again.
         </div>
 
-        <div
-          class="d-flex flex-wrap gap-2"
-          *ngIf="paymentMode === 'online' && paymentOutcome !== 'success'"
-        >
+        <div class="d-flex flex-wrap gap-2" *ngIf="paymentMode === 'online' && paymentOutcome !== 'success'">
           <button type="button" class="btn btn-primary" (click)="confirmProceedToPayIaCourtFee()">
             <i class="fa-solid fa-arrow-up-right-from-square me-2"></i>
             Proceed to pay ₹{{ iaCourtFeeRupees }}/-
@@ -413,22 +450,197 @@
       </div>
     </div>
 
+    <!-- After payment: review documents + payment (new-filing style), declaration, submit -->
+    <div class="card ia-filing-complete-card border-0 shadow-sm mb-4" *ngIf="isIaCourtFeePaid">
+      <div class="card-header bg-dark text-white fw-semibold">
+        <i class="fa-solid fa-file-signature me-2"></i>
+        Review &amp; submit
+      </div>
+      <div class="card-body text-start">
+        <div class="text-center mb-4">
+          <p class="text-muted small mb-0">
+            Review relief sought, documents, and court fee payment, then accept the declaration and
+            submit.
+          </p>
+        </div>
+
+        <div class="card shadow-sm mb-4 border-0" *ngIf="form.value.relief_sought">
+          <div class="card-header bg-dark text-white fw-semibold small">Relief sought</div>
+          <div class="card-body small text-break">{{ form.value.relief_sought }}</div>
+        </div>
+
+        <div class="card p-0 shadow-sm mb-4 border-0" *ngIf="docList.length > 0">
+          <div
+            class="card-header bg-dark text-white fw-semibold d-flex justify-content-between align-items-center flex-wrap gap-2"
+          >
+            <span>Documents Details</span>
+            <button
+              type="button"
+              class="btn btn-sm btn-light d-flex align-items-center gap-1"
+              [disabled]="!canDownloadMerged() || isMergingPdf"
+              (click)="downloadMergedPdf()"
+            >
+              <span
+                *ngIf="isMergingPdf"
+                class="spinner-border spinner-border-sm"
+                role="status"
+                aria-hidden="true"
+              ></span>
+              <i class="fa-solid fa-file-pdf" *ngIf="!isMergingPdf"></i>
+              {{ isMergingPdf ? 'Merging...' : 'Download Merged PDF' }}
+            </button>
+          </div>
+          <div class="card-body p-0">
+            <div class="list-group list-group-flush">
+              <div
+                *ngFor="let doc of docList; let i = index; trackBy: trackById"
+                class="list-group-item"
+                style="border-bottom: 1px solid #f1f5f9"
+              >
+                <div class="d-flex align-items-center gap-3 mb-2">
+                  <div
+                    class="d-flex align-items-center justify-content-center"
+                    style="width: 36px; height: 36px; background-color: #fef2f2; border-radius: 8px"
+                  >
+                    <i class="fa-solid fa-file-pdf text-danger"></i>
+                  </div>
+                  <div class="text-start">
+                    <div class="fw-semibold" style="color: #0f172a">
+                      {{ i + 1 }}. {{ doc.document_type }}
+                    </div>
+                    <div class="text-muted small">
+                      E-filing {{ selectedFiling?.e_filing_number || '—' }} · IA
+                      {{ createdIa?.ia_number || '—' }}
+                    </div>
+                  </div>
+                </div>
+                <div class="ps-5" *ngIf="doc.document_indexes?.length > 0">
+                  <div
+                    *ngFor="let filePart of doc.document_indexes; let j = index"
+                    class="d-flex justify-content-between align-items-center py-1"
+                  >
+                    <div class="small text-muted">
+                      {{ j + 1 }}. {{ filePart.document_part_name || 'Document Part' }}
+                    </div>
+                    <a
+                      *ngIf="documentPartHref(filePart)"
+                      [href]="documentPartHref(filePart)"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="btn btn-sm btn-light border d-flex align-items-center gap-1"
+                    >
+                      <i class="fa fa-eye text-primary"></i>
+                      <span class="small">View</span>
+                    </a>
+                    <span *ngIf="!documentPartHref(filePart)" class="small text-muted">—</span>
+                  </div>
+                </div>
+                <div class="ps-5" *ngIf="!doc.document_indexes?.length && documentFinalHref(doc)">
+                  <a
+                    [href]="documentFinalHref(doc)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="btn btn-sm btn-light border d-flex align-items-center gap-1"
+                  >
+                    <i class="fa fa-eye text-primary"></i>
+                    <span class="small">View</span>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card shadow-sm mb-4 border-0">
+          <div
+            class="card-header bg-dark text-white fw-semibold d-flex justify-content-between align-items-center flex-wrap gap-2"
+          >
+            <span>Court Fee Payment</span>
+            <button
+              type="button"
+              class="btn btn-sm btn-light d-flex align-items-center gap-1"
+              (click)="downloadIaCourtFeeReceiptPdf()"
+            >
+              <i class="fa-solid fa-file-pdf"></i>
+              Download receipt (PDF)
+            </button>
+          </div>
+          <div class="card-body">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <div class="text-muted small">Transaction ID</div>
+                <div class="fw-semibold">{{ iaPaymentTxnDisplay() }}</div>
+              </div>
+              <div class="col-md-6">
+                <div class="text-muted small">
+                  {{
+                    paymentDetails.paymentMode === 'offline' ? 'Date of payment' : 'Payment date/time'
+                  }}
+                </div>
+                <div class="fw-semibold" *ngIf="paymentDetails.paymentMode === 'offline'">
+                  {{
+                    iaPaymentOfflineDateValue()
+                      ? (iaPaymentOfflineDateValue() | date : 'mediumDate')
+                      : '—'
+                  }}
+                </div>
+                <div class="fw-semibold" *ngIf="paymentDetails.paymentMode !== 'offline'">
+                  {{ iaPaymentPaidAtDate() ? (iaPaymentPaidAtDate() | date : 'medium') : '—' }}
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="text-muted small">Reference no.</div>
+                <div class="fw-semibold">{{ iaPaymentReferenceDisplay() }}</div>
+              </div>
+              <div class="col-md-6">
+                <div class="text-muted small">Amount</div>
+                <div class="fw-semibold">Rs. {{ iaPaymentAmountDisplay() }}/-</div>
+              </div>
+              <div class="col-md-6">
+                <div class="text-muted small">Payment method</div>
+                <div class="fw-semibold text-capitalize">{{ iaPaymentModeDisplay() }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="declaration-panel complete-filing-section border rounded p-3 mb-4">
+          <div class="section-title mb-2">Declaration</div>
+          <p class="small text-muted mb-3">
+            I confirm that the uploaded PDFs are true copies, within size limits, and filed in accordance
+            with court rules. I understand that false or misleading filings may attract consequences under
+            law.
+          </p>
+          <div class="form-check">
+            <input
+              id="ia-declaration-check"
+              type="checkbox"
+              class="form-check-input"
+              formControlName="ia_declaration"
+            />
+            <label class="form-check-label small" for="ia-declaration-check">
+              I have read and agree to the above declaration.
+            </label>
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-2 border-top">
+          <span class="text-muted small">
+            <i class="fa-solid fa-key me-1"></i>
+            OTP will be asked when you submit (use <strong>0000</strong>).
+          </span>
+          <button type="button" class="btn btn-dark" [disabled]="!canSubmitIaFiling()" (click)="onSubmit()">
+            <span *ngIf="isSubmitting" class="spinner-border spinner-border-sm me-1" role="status"></span>
+            {{ isSubmitting ? 'Submitting...' : 'Submit IA Filing' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div class="d-flex gap-2">
-      <button
-        type="button"
-        class="btn btn-dark"
-        [disabled]="
-          form.invalid ||
-          isSubmitting ||
-          docList.length === 0 ||
-          (requiresIaCourtFeePayment && !isIaCourtFeePaid)
-        "
-        (click)="onSubmit()"
+      <a [routerLink]="['/advocate/dashboard/efiling/ia-filing/view']" class="btn btn-outline-secondary"
+        >Cancel</a
       >
-        <span *ngIf="isSubmitting" class="spinner-border spinner-border-sm me-2" role="status"></span>
-        {{ isSubmitting ? 'Submitting...' : 'Submit IA Filing' }}
-      </button>
-      <a [routerLink]="['/advocate/dashboard/efiling/ia-filing/view']" class="btn btn-outline-secondary">Cancel</a>
     </div>
   </div>
 </div>

@@ -832,6 +832,28 @@ export class Edit {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   }
 
+  /** From `case_type_t.annexure_type`: A → A1/A2…, B → P1/P2… (see UploadDocuments). */
+  get annexureSequenceLetterForCaseType(): "P" | "A" | "R" {
+    const id = this.selectedCaseTypeId;
+    if (!id) return "P";
+    const caseTypeVal = this.initialInputsForm?.get("case_type")?.value;
+    let raw = "";
+    if (caseTypeVal && typeof caseTypeVal === "object") {
+      raw = String((caseTypeVal as any).annexure_type ?? "").trim();
+    }
+    if (!raw) {
+      const row = this.caseTypes?.find((c: any) => Number(c.id) === Number(id));
+      raw = String(row?.annexure_type ?? "").trim();
+    }
+    if (!raw && this.filingData?.case_type && typeof this.filingData.case_type === "object") {
+      raw = String((this.filingData.case_type as any).annexure_type ?? "").trim();
+    }
+    const t = raw.toUpperCase();
+    if (t === "A") return "A";
+    if (t === "B") return "P";
+    return "P";
+  }
+
   private loadNewFilingDocumentIndexes(caseTypeId: number | null): void {
     this.fetchedNewFilingDocumentIndexes = [];
     this.fullNewFilingDocumentIndexesOrdered = [];

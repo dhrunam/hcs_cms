@@ -191,6 +191,35 @@
           </div>
         </div>
 
+        <div class="share-panel mt-3" *ngIf="isSingleBenchFlow(item) && canPublishSigned(item)">
+          <div class="step-title">Final signed order</div>
+          <div class="step-row">
+            <div class="step-item">
+              <div class="step-name">Upload final signed PDF and publish</div>
+              <div class="small text-muted mb-2">
+                After the judge approves the draft, upload the fully signed order PDF here to publish it to the case file.
+              </div>
+              <div class="d-flex gap-2 flex-wrap mt-2">
+                <input
+                  class="form-control form-control-sm"
+                  style="max-width: 260px;"
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  (change)="onSignedFileSelected(item.workflow_id, $event)"
+                />
+                <button
+                  class="btn btn-dark btn-sm"
+                  type="button"
+                  (click)="uploadSignedAndPublish(item)"
+                  [disabled]="!canPublishSigned(item)"
+                >
+                  Upload Final & Publish
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="share-panel mt-3" *ngIf="isDivisionBenchFlow(item) && !item.is_primary_steno">
           <div class="step-title">Junior Steno - 4 Step Flow</div>
           <div class="step-row">

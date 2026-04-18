@@ -8,18 +8,20 @@ import { CourtroomService } from "../../../../services/judge/courtroom.service";
 import { benchLabel } from "../../../listing-officers/shared/bench-labels";
 import { PdfAnnotatorComponent } from "../courtroom/pdf-annotator.component";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
+import { OfficeNoteEditor } from "../../../office-note-sheet/note-editor/note-editor";
 import { buildCollapsedDisplaySections, DocumentDisplaySection, orderDocumentsForDisplay } from "../../../../shared/document-groups";
 
 @Component({
   selector: "app-judge-courtview-case",
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, PdfAnnotatorComponent],
+  imports: [CommonModule, FormsModule, RouterLink, PdfAnnotatorComponent, OfficeNoteEditor],
   templateUrl: "./courtview-case.html",
   styleUrl: "./courtview-case.css",
 })
 export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
   @ViewChild(PdfAnnotatorComponent) annotator?: PdfAnnotatorComponent;
   benchLabel = benchLabel;
+  activeTab: 'details' | 'notes' = 'details';
   efilingId: number | null = null;
   forwardedForDate: string | null = null;
 
@@ -76,6 +78,10 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.stopPolling();
+  }
+
+  setActiveTab(tab: 'details' | 'notes'): void {
+    this.activeTab = tab;
   }
 
   private startPolling() {

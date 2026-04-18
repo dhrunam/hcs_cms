@@ -28,6 +28,13 @@ class AssignBenchesSerializer(serializers.Serializer):
     assignments = AssignBenchEntrySerializer(many=True)
 
 
+class ReaderCaseReallocationSerializer(serializers.Serializer):
+    efiling_id = serializers.IntegerField()
+    new_bench_key = serializers.CharField(max_length=50)
+    remarks = serializers.CharField(allow_blank=False)
+    order_file = serializers.FileField(required=False, allow_null=True)
+
+
 class BenchConfigurationSerializer(serializers.Serializer):
     bench_key = serializers.CharField()
     label = serializers.CharField()
