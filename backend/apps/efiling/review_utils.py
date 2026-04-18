@@ -1,10 +1,22 @@
 from django.utils import timezone
 from django.db import models, transaction
+from django.db.models import Exists, OuterRef, Q
 from rest_framework.exceptions import ValidationError
 
 from apps.core.bench_config import resolve_bench_for_registration, resolved_efiling_bench_value
 from apps.core.models import CaseTypeT, Efiling, EfilingDocuments, EfilingDocumentsIndex, EfilingDocumentsScrutinyHistory
 from apps.efiling.notification_utils import create_notification
+
+
+def _empty_file_part_q():
+    return Q(file_part_path__isnull=True) | Q(file_part_path__exact="")
+
+
+def _document_eligible_for_scrutiny_q():
+    """
+    Normal active rows, or existing-case rows already submitted for filing after fee.
+    """
+    return Q(document__is_active=True) | Q(document__document_filing_submitted_at__isnull=False)
 
 
 def reviewable_document_indexes_for_filing(filing):
@@ -13,26 +25,68 @@ def reviewable_document_indexes_for_filing(filing):
     Name-only header rows (without file_part_path) are UI grouping metadata and
     must not influence case approval/rejection state transitions.
     Pending existing-case uploads (is_active=False on EfilingDocuments) are excluded
-    until the advocate completes submit filing.
+    until the advocate completes submit filing (unless document_filing_submitted_at is set).
+
+    Includes index rows with empty file_part_path only when the parent document has final_document
+    and no sibling index carries the file (legacy / single-file flows).
     """
-    qs = EfilingDocumentsIndex.objects.filter(
-        document__e_filing=filing,
-        document__is_active=True,
-        is_active=True,
-    ).exclude(
-        models.Q(file_part_path__isnull=True) | models.Q(file_part_path__exact="")
+    empty = _empty_file_part_q()
+    elig = _document_eligible_for_scrutiny_q()
+
+    qs = (
+        EfilingDocumentsIndex.objects.filter(document__e_filing=filing)
+        .filter(elig)
+        .filter(is_active=True)
+        .exclude(empty)
     )
     if qs.exists():
         return qs
-    # Backward-compatible fallback when rows were accidentally saved inactive.
+
+    qs = (
+        EfilingDocumentsIndex.objects.filter(document__e_filing=filing)
+        .filter(elig)
+        .exclude(empty)
+    )
+    if qs.exists():
+        return qs
+
+    sibling_with_file = EfilingDocumentsIndex.objects.filter(document_id=OuterRef("document_id")).exclude(empty)
+
+    qs = (
+        EfilingDocumentsIndex.objects.filter(document__e_filing=filing)
+        .filter(elig)
+        .filter(is_active=True)
+        .filter(document__final_document__isnull=False)
+        .filter(~Exists(sibling_with_file))
+    )
+    if qs.exists():
+        return qs
+
     return (
-        EfilingDocumentsIndex.objects.filter(
-            document__e_filing=filing,
-            document__is_active=True,
-        )
-        .exclude(
-            models.Q(file_part_path__isnull=True) | models.Q(file_part_path__exact="")
-        )
+        EfilingDocumentsIndex.objects.filter(document__e_filing=filing)
+        .filter(elig)
+        .filter(document__final_document__isnull=False)
+        .filter(~Exists(sibling_with_file))
+    )
+
+
+def reviewable_document_indexes_for_finalize(filing, user=None):
+    """
+    Same as reviewable_document_indexes_for_filing, but resilient for Register Case:
+    syncs indexes from final_document, then falls back to any file-bearing index row for the filing.
+    """
+    qs = reviewable_document_indexes_for_filing(filing)
+    if qs.exists():
+        return qs
+    ensure_document_indexes_for_filing(filing, user=user)
+    qs = reviewable_document_indexes_for_filing(filing)
+    if qs.exists():
+        return qs
+    empty = _empty_file_part_q()
+    return (
+        EfilingDocumentsIndex.objects.filter(document__e_filing=filing)
+        .exclude(empty)
+        .exclude(document__document_type__startswith="STENO_")
     )
 
 
@@ -298,7 +352,9 @@ def finalize_approved_filing(filing, user=None, bench=None):
     with transaction.atomic():
         filing = Efiling.objects.select_for_update().get(pk=filing.pk)
         filing = derive_filing_status(filing)
-        active_document_indexes = reviewable_document_indexes_for_filing(filing)
+        # Match finalize_scrutiny_submission: strict reviewable can be empty while
+        # reviewable_document_indexes_for_finalize still finds file rows (same data drift cases).
+        active_document_indexes = reviewable_document_indexes_for_finalize(filing, user=user)
 
         if filing.is_draft:
             raise ValidationError("Draft filings cannot be submitted as approved cases.")
@@ -361,7 +417,9 @@ def finalize_scrutiny_submission(filing, user=None, bench=None):
     if filing.is_draft:
         raise ValidationError("Draft filings cannot be submitted for scrutiny finalization.")
 
-    document_indexes = reviewable_document_indexes_for_filing(filing).order_by("id")
+    document_indexes = reviewable_document_indexes_for_finalize(
+        filing, user=user
+    ).order_by("id")
     if not document_indexes.exists():
         raise ValidationError("At least one document is required before final submit.")
 

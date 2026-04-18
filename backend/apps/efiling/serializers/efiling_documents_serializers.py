@@ -6,6 +6,18 @@ from apps.efiling.pdf_validators import validate_pdf_file
 _ALLOWED_FILED_BY = frozenset({"PETITIONER", "RESPONDENT", "APPELLANT"})
 
 
+def _pending_flag(value) -> bool:
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "1", "yes", "on")
+    return bool(value)
+
+
+def _strip_spurious_inactive(validated_data: dict) -> None:
+    """Keep is_active=False only when pending_until flow; drop client noise (multipart/JSON)."""
+    if validated_data.get("is_active") in (False, "false", "False", "0", 0):
+        validated_data.pop("is_active", None)
+
+
 class EfilingDocumentsSerializer(serializers.ModelSerializer):
     """
     Serializer for top-level efiling documents (EfilingDocuments).
@@ -86,9 +98,17 @@ class EfilingDocumentsSerializer(serializers.ModelSerializer):
         return normalized
 
     def create(self, validated_data):
-        pending = validated_data.pop("pending_until_document_filing_submit", False)
-        if isinstance(pending, str):
-            pending = str(pending).strip().lower() in ("true", "1", "yes", "on")
+        pending = _pending_flag(validated_data.pop("pending_until_document_filing_submit", False))
         if pending:
             validated_data["is_active"] = False
+        else:
+            _strip_spurious_inactive(validated_data)
         return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        pending = _pending_flag(validated_data.pop("pending_until_document_filing_submit", False))
+        if pending:
+            validated_data["is_active"] = False
+        else:
+            _strip_spurious_inactive(validated_data)
+        return super().update(instance, validated_data)

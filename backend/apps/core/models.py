@@ -435,7 +435,7 @@ class EfilingDocuments(BaseModel):
     document_filing_submitted_at = models.DateTimeField(
         blank=True,
         null=True,
-        help_text="Set when advocate completes document filing (fee + submit) for existing-case uploads.",
+        help_text="Set when advocate completes document filing (fee + submit-filing) for existing-case uploads.",
     )
 
     class Meta:
