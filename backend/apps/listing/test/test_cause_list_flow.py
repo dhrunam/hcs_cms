@@ -228,6 +228,41 @@ class CauseListFlowTest(TestCase):
         self.assertIsNotNone(item)
         self.assertIsNone(item.get("judge_listing_date"))
 
+    def test_draft_preview_falls_back_to_bench_workflow_state_listing_date(self):
+        """When judge decision has no listing_date, listing officer still sees reader-synced date."""
+        from apps.reader.models import BenchWorkflowState
+
+        self.filing.bench = "CLTEST"
+        self.filing.save(update_fields=["bench"])
+        CourtroomForward.objects.create(
+            efiling=self.filing,
+            forwarded_for_date=self.cause_date,
+            bench_key="CLTEST",
+            bench_role_group="BENCH_S0",
+            listing_summary="Reader forwarded",
+        )
+        next_hearing = self.cause_date + timedelta(days=21)
+        BenchWorkflowState.objects.create(
+            efiling=self.filing,
+            forwarded_for_date=self.cause_date,
+            bench_key="CLTEST",
+            required_role_groups=["BENCH_S0"],
+            decision_by_role={},
+            listing_date=next_hearing,
+            listing_remark="Reader proceedings next date",
+        )
+        preview_resp = self.client.get(
+            f"/api/v1/listing/cause-lists/draft/preview/?cause_list_date={self.cause_list_date}&bench_key=CLTEST"
+        )
+        self.assertEqual(preview_resp.status_code, 200)
+        item = next(
+            (i for i in (preview_resp.data.get("items") or []) if i["efiling_id"] == self.filing.id),
+            None,
+        )
+        self.assertIsNotNone(item)
+        self.assertEqual(item.get("judge_listing_date"), next_hearing.isoformat())
+        self.assertEqual(item.get("reader_listing_remark"), "Reader proceedings next date")
+
     def test_draft_preview_includes_reader_next_listing_date_cases(self):
         other_day = self.cause_date + timedelta(days=1)
         CourtroomForward.objects.create(

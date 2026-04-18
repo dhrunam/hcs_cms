@@ -668,21 +668,27 @@ def _resolve_reader_approval_state(
 
     seen_notes: set[str] = set()
     seen_document_ids: set[int] = set()
-    listing_dates: list[str] = []
     for key in selected_date_keys:
         for note in decision_notes_map.get(key, []):
             if note not in seen_notes:
                 approval_notes.append(note)
                 seen_notes.add(note)
-        for listing_date in decision_listing_date_map.get(key, []):
-            if listing_date not in listing_dates:
-                listing_dates.append(listing_date)
         for requested_document in requested_docs_map.get(key, []):
             document_id = int(requested_document["document_index_id"])
             if document_id in seen_document_ids:
                 continue
             requested_documents.append(requested_document)
             seen_document_ids.add(document_id)
+
+    # Reader daily proceedings set listing_date on BenchWorkflowState before any judge row exists;
+    # include those dates for every active forward day, not only days with judge decision keys.
+    listing_dates: list[str] = []
+    listing_keys: set[tuple[int, date_type]] = {(efiling_id, f.forwarded_for_date) for f in relevant_forwards}
+    listing_keys.update(selected_date_keys)
+    for key in listing_keys:
+        for listing_date in decision_listing_date_map.get(key, []):
+            if listing_date not in listing_dates:
+                listing_dates.append(listing_date)
 
     if listing_dates:
         approval_listing_date = sorted(listing_dates)[0]

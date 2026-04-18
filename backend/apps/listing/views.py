@@ -26,7 +26,7 @@ from apps.judge.models import (
     CourtroomDecisionRequestedDocument,
     CourtroomJudgeDecision,
 )
-from apps.reader.models import CourtroomForward
+from apps.reader.models import BenchWorkflowState, CourtroomForward
 from apps.reader.workflow_state import apply_cause_list_published
 from apps.listing.models import CauseList, CauseListEntry
 from apps.listing.pdf_service import CauseListRow, generate_cause_list_pdf_bytes
@@ -189,6 +189,33 @@ class CauseListDraftPreviewView(APIView):
                         d = row.get("listing_date")
                         judge_listing_date_map[eid] = d.isoformat() if d else None
                         judge_listing_remark_map[eid] = row.get("reader_listing_remark")
+
+                # Reader daily proceedings sync next hearing to BenchWorkflowState; judge rows may
+                # still have listing_date=None (or no row). Surface workflow state for the listing officer.
+                for eid in target_ids:
+                    if judge_listing_date_map.get(eid):
+                        continue
+                    fwd_raw = forwarded_for_date_map.get(eid)
+                    if not fwd_raw:
+                        continue
+                    try:
+                        fwd_d = timezone.datetime.fromisoformat(fwd_raw).date()
+                    except (TypeError, ValueError):
+                        continue
+                    st = (
+                        BenchWorkflowState.objects.filter(
+                            efiling_id=eid,
+                            bench_key=bench_key,
+                            forwarded_for_date=fwd_d,
+                        )
+                        .exclude(listing_date__isnull=True)
+                        .order_by("-id")
+                        .first()
+                    )
+                    if st and st.listing_date:
+                        judge_listing_date_map[eid] = st.listing_date.isoformat()
+                        if (st.listing_remark or "").strip() and eid not in judge_listing_remark_map:
+                            judge_listing_remark_map[eid] = (st.listing_remark or "").strip()
             accepted = (
                 Efiling.objects.filter(
                     id__in=target_ids,
