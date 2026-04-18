@@ -173,6 +173,10 @@ export class RegisteredCasesPage {
     );
   }
 
+  hasReallocationHistory(c: RegisteredCase): boolean {
+    return c.is_reallocated_case === true;
+  }
+
   openCase(efilingId: number): void {
     this.router.navigate(["/reader/dashboard/case", efilingId]);
   }

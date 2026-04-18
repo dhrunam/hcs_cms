@@ -168,6 +168,65 @@
               </div>
             </div>
 
+            <div class="mt-4 pt-3 border-top" *ngIf="hasReallocationHistory">
+              <h6 class="fw-bold mb-3 text-warning">
+                <i class="fa-solid fa-clock-rotate-left me-2"></i>
+                Reallocation History
+              </h6>
+              <div class="table-responsive border rounded bg-white">
+                <table class="table table-sm align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Bench Movement</th>
+                      <th>Remarks</th>
+                      <th>Reallocated By</th>
+                      <th>When</th>
+                      <th class="text-end">Order</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let item of reallocationHistory">
+                      <td>
+                        <div class="fw-semibold">
+                          {{ item.previous_bench_label || item.previous_bench_key || '-' }}
+                        </div>
+                        <div class="small text-muted">
+                          <i class="fa-solid fa-arrow-right mx-1"></i>
+                          {{ item.new_bench_label || item.new_bench_key || '-' }}
+                        </div>
+                      </td>
+                      <td class="small">{{ item.remarks || '-' }}</td>
+                      <td class="small">{{ item.reallocated_by_name || '-' }}</td>
+                      <td class="small">
+                        {{ item.reallocated_at ? (item.reallocated_at | date:'dd MMM yyyy, hh:mm a') : '-' }}
+                      </td>
+                      <td class="text-end">
+                        <div class="btn-group btn-group-sm" *ngIf="item.has_uploaded_order; else noOrderFile">
+                          <button
+                            type="button"
+                            class="btn btn-outline-primary"
+                            (click)="openReallocationOrder(item.order_file_url)"
+                          >
+                            View
+                          </button>
+                          <button
+                            type="button"
+                            class="btn btn-outline-secondary"
+                            (click)="downloadReallocationOrder(item.order_file_download_url)"
+                          >
+                            Download
+                          </button>
+                        </div>
+                        <ng-template #noOrderFile>
+                          <span class="small text-muted">No order</span>
+                        </ng-template>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
             <div class="mt-4 pt-3 border-top" *ngIf="canSendBackToScrutiny">
               <h6 class="fw-bold mb-3 text-danger">
                 <i class="fa-solid fa-rotate-left me-2"></i>
@@ -183,6 +242,23 @@
               >
                 <i class="fa-solid fa-rotate-left me-2"></i> Send Back to Scrutiny
               </button>
+
+              <div class="mt-4">
+                <h6 class="fw-bold mb-3 text-warning">
+                  <i class="fa-solid fa-shuffle me-2"></i>
+                  Recuse / Reallocate Case
+                </h6>
+                <p class="small text-muted mb-3">
+                  Reassign this case to a different bench before listing date assignment. The current bench workflow will be cleared and the case will move to the newly selected bench reader flow.
+                </p>
+                <button
+                  class="btn btn-outline-warning shadow-sm"
+                  (click)="openReallocateModal()"
+                  [disabled]="isSaving || !canReallocateCase"
+                >
+                  <i class="fa-solid fa-shuffle me-2"></i> Recuse / Reallocate Case
+                </button>
+              </div>
             </div>
 
             <div
@@ -283,3 +359,58 @@
     </div>
   </ng-container>
 </div>
+
+<div *ngIf="showReallocateModal" class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Recuse / Reallocate Case</h5>
+        <button type="button" class="btn-close" aria-label="Close" (click)="closeReallocateModal()"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Current Bench</label>
+          <div class="form-control bg-light">{{ benchLabel(filing?.bench) }}</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">New Bench</label>
+          <select class="form-select" [(ngModel)]="reallocateTargetBenchKey">
+            <option value="">Select a bench</option>
+            <option *ngFor="let bench of availableReallocationBenches" [value]="bench.bench_key">
+              {{ bench.label }}
+            </option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Remarks</label>
+          <textarea
+            class="form-control"
+            rows="4"
+            [(ngModel)]="reallocateRemarks"
+            placeholder="Enter the reason for recusal or bench reallocation..."
+          ></textarea>
+        </div>
+        <div>
+          <label class="form-label fw-semibold">Judicial Order (Optional PDF)</label>
+          <input
+            class="form-control"
+            type="file"
+            accept="application/pdf,.pdf"
+            (change)="onReallocateFileSelected($event)"
+          />
+          <div class="form-text" *ngIf="reallocateOrderFile">
+            Selected file: {{ reallocateOrderFile.name }}
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" (click)="closeReallocateModal()" [disabled]="isSaving">Cancel</button>
+        <button type="button" class="btn btn-warning" (click)="submitReallocation()" [disabled]="isSaving">
+          {{ isSaving ? 'Reallocating...' : 'Confirm Reallocation' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="showReallocateModal" class="modal-backdrop fade show"></div>
