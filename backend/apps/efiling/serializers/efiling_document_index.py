@@ -39,6 +39,7 @@ class EfilingDocumentsIndexSerializer(serializers.ModelSerializer):
             "is_new_for_scrutiny",
             "last_resubmitted_at",
             "last_reviewed_at",
+            "published_order_at",
             "e_filing_id",
             "e_filing_number",
             "document_type",

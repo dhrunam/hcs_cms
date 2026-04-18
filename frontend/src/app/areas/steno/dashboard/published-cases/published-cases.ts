@@ -154,7 +154,9 @@ export class PublishedCases {
     const value = String(status || '');
     if (value === 'PENDING_UPLOAD') return 'badge bg-secondary-subtle text-secondary-emphasis';
     if (value === 'UPLOADED_BY_STENO') return 'badge bg-info-subtle text-info-emphasis';
-    if (value === 'SENT_FOR_JUDGE_APPROVAL') return 'badge bg-primary-subtle text-primary-emphasis';
+    if (value === 'SENT_FOR_JUDGE_APPROVAL' || value === 'PENDING_SENIOR_JUDGE_APPROVAL')
+      return 'badge bg-primary-subtle text-primary-emphasis';
+    if (value === 'RETURNED_BY_SENIOR_JUDGE') return 'badge bg-warning-subtle text-warning-emphasis';
     if (value === 'CHANGES_REQUESTED') return 'badge bg-warning-subtle text-warning-emphasis';
     if (value === 'JUDGE_APPROVED') return 'badge bg-success-subtle text-success-emphasis';
     if (value === 'SIGNED_AND_PUBLISHED') return 'badge bg-dark-subtle text-dark-emphasis';
@@ -167,6 +169,8 @@ export class PublishedCases {
       status === 'PENDING_UPLOAD' ||
       status === 'UPLOADED_BY_STENO' ||
       status === 'SENT_FOR_JUDGE_APPROVAL' ||
+      status === 'PENDING_SENIOR_JUDGE_APPROVAL' ||
+      status === 'RETURNED_BY_SENIOR_JUDGE' ||
       status === 'CHANGES_REQUESTED'
     );
   }
@@ -179,7 +183,12 @@ export class PublishedCases {
     const st = item?.workflow_status;
     const notes = (item?.judge_approval_notes || '').toString().trim();
     const ann = item?.judge_annotations;
-    return st === 'CHANGES_REQUESTED' || !!notes || (Array.isArray(ann) && ann.length > 0);
+    return (
+      st === 'CHANGES_REQUESTED' ||
+      st === 'RETURNED_BY_SENIOR_JUDGE' ||
+      !!notes ||
+      (Array.isArray(ann) && ann.length > 0)
+    );
   }
 
   canPublishSigned(item: any): boolean {

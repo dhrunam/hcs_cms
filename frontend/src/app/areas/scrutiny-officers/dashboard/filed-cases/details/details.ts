@@ -648,6 +648,7 @@ export class FiledCaseDetails {
 
   getDocumentDate(document: any): string | null {
     return (
+      document?.published_order_at ??
       document?.last_reviewed_at ??
       document?.last_resubmitted_at ??
       document?.updated_at ??

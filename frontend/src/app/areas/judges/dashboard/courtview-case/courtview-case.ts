@@ -331,6 +331,19 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
     return buildCollapsedDisplaySections(this.filteredCaseDocuments);
   }
 
+  /** Final signed court order publish time from API (if present). */
+  publishedOrderLabel(doc: any): string | null {
+    const raw = doc?.published_order_at;
+    if (!raw) return null;
+    try {
+      const d = new Date(raw);
+      if (Number.isNaN(d.getTime())) return null;
+      return `Published: ${d.toLocaleString()}`;
+    } catch {
+      return null;
+    }
+  }
+
   isVakalatGroupExpanded(id: string): boolean {
     return this.expandedVakalatGroupIds.has(id);
   }

@@ -503,6 +503,12 @@ class EfilingDocumentsIndex(BaseModel):
     last_resubmitted_at = models.DateTimeField(blank=True, null=True)
     last_reviewed_at = models.DateTimeField(blank=True, null=True)
     parent_document_index = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='resubmissions')
+    published_order_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When a court/steno order became final (signed publish); use for display in case files.",
+    )
+
     class Meta:
       
         db_table = 'efiling_documents_index'

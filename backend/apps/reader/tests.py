@@ -7,7 +7,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
-from apps.core.models import BenchT, Efiling, JudgeT, OrderDetailsA, ReaderJudgeAssignment
+from apps.core.models import BenchT, Efiling, JudgeT, OrderDetailsA, ReaderJudgeAssignment, EfilingDocumentsIndex
 from apps.judge.models import CourtroomJudgeDecision
 from apps.judge.models import JudgeStenoMapping
 from apps.listing.models import CauseList, CauseListEntry
@@ -1186,12 +1186,80 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
             format="json",
         )
         self.assertEqual(submit_response.status_code, 200, submit_response.data)
+        workflow.refresh_from_db()
+        self.assertEqual(
+            workflow.workflow_status,
+            StenoOrderWorkflow.WorkflowStatus.PENDING_SENIOR_JUDGE_APPROVAL,
+        )
 
         judge_client = self._auth_client(self.judge_cj_user)
         judge_list = judge_client.get("/api/v1/judge/steno-workflows/")
         self.assertEqual(judge_list.status_code, 200, judge_list.data)
         item = next(x for x in judge_list.data["items"] if x["workflow_id"] == workflow.id)
         self.assertTrue(item.get("draft_preview_url"))
+
+        junior_client = self._auth_client(self.judge_j1_user)
+        junior_list = junior_client.get("/api/v1/judge/steno-workflows/")
+        self.assertEqual(junior_list.status_code, 200, junior_list.data)
+        self.assertFalse(
+            any(x["workflow_id"] == workflow.id for x in junior_list.data["items"]),
+        )
+
+    def test_reader_daily_proceeding_resubmit_does_not_reset_steno_judge_queue_status(self):
+        """Regression: update_or_create used to force PENDING_UPLOAD and drop senior-judge queue status."""
+        reader_client = self._auth_client(self.reader_cj)
+        body = {
+            "efiling_id": self.filing.id,
+            "hearing_date": self.forwarded_for_date.isoformat(),
+            "next_listing_date": self.listing_date.isoformat(),
+            "proceedings_text": "Matter heard.",
+            "reader_remark": "First submit.",
+            "document_type": "ORDER",
+        }
+        reader_client.post(
+            "/api/v1/reader/daily-proceedings/submit/?reader_group=READER",
+            body,
+            format="json",
+        )
+        workflow = StenoOrderWorkflow.objects.get(efiling=self.filing, document_type="ORDER")
+        steno_client = self._auth_client(self.steno_user)
+        with override_settings(EFILING_VALIDATE_PDF_UPLOAD=False):
+            draft_pdf = SimpleUploadedFile("draft.pdf", b"%PDF-1.4\n%", content_type="application/pdf")
+            steno_client.post(
+                "/api/v1/reader/steno/upload-draft-file/",
+                {"workflow_id": str(workflow.id), "file": draft_pdf},
+                format="multipart",
+            )
+            steno_client.post(
+                "/api/v1/reader/steno/submit-judge/",
+                {"workflow_id": workflow.id},
+                format="json",
+            )
+        workflow.refresh_from_db()
+        self.assertEqual(
+            workflow.workflow_status,
+            StenoOrderWorkflow.WorkflowStatus.PENDING_SENIOR_JUDGE_APPROVAL,
+        )
+        reader_client.post(
+            "/api/v1/reader/daily-proceedings/submit/?reader_group=READER",
+            {
+                **body,
+                "proceedings_text": "Matter heard — reader corrected listing text.",
+                "reader_remark": "Second submit after steno sent to judge.",
+            },
+            format="json",
+        )
+        workflow.refresh_from_db()
+        self.assertEqual(
+            workflow.workflow_status,
+            StenoOrderWorkflow.WorkflowStatus.PENDING_SENIOR_JUDGE_APPROVAL,
+        )
+        judge_client = self._auth_client(self.judge_cj_user)
+        judge_list = judge_client.get("/api/v1/judge/steno-workflows/")
+        self.assertEqual(judge_list.status_code, 200, judge_list.data)
+        self.assertTrue(
+            any(x["workflow_id"] == workflow.id for x in judge_list.data["items"]),
+        )
 
     def test_steno_queue_without_date_includes_assigned_workflows(self):
         reader_client = self._auth_client(self.reader_cj)
@@ -1265,6 +1333,16 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
         self.assertTrue(resp.data.get("signed_preview_url"))
         signed_row = OrderDetailsA.objects.filter(hashkey=f"STENO_WF_{workflow.id}_SIGNED_FINAL").first()
         self.assertIsNotNone(signed_row)
+        workflow.refresh_from_db()
+        self.assertIsNotNone(workflow.signed_document_index_id)
+        idx = EfilingDocumentsIndex.objects.filter(pk=workflow.signed_document_index_id).first()
+        self.assertIsNotNone(idx)
+        self.assertEqual(
+            idx.document.document_type if idx.document_id else "",
+            "COURT_ORDER_SIGNED_FINAL",
+        )
+        self.assertEqual(idx.published_order_at, workflow.published_at)
+        self.assertEqual(idx.file_part_path.name.endswith(".pdf"), True)
 
     def test_share_approved_draft_requires_primary_steno(self):
         workflow = StenoOrderWorkflow.objects.create(

@@ -243,6 +243,9 @@ export class StenoHomePage {
   }
 
   isDivisionBenchFlow(item: any): boolean {
+    if (typeof item?.is_division_bench_flow === 'boolean') {
+      return item.is_division_bench_flow;
+    }
     const rows = Array.isArray(item?.signature_rows) ? item.signature_rows : [];
     if (rows.length > 1) {
       return true;
@@ -255,7 +258,9 @@ export class StenoHomePage {
     const value = String(status || '');
     if (value === 'PENDING_UPLOAD') return 'badge bg-secondary-subtle text-secondary-emphasis';
     if (value === 'UPLOADED_BY_STENO') return 'badge bg-info-subtle text-info-emphasis';
-    if (value === 'SENT_FOR_JUDGE_APPROVAL') return 'badge bg-primary-subtle text-primary-emphasis';
+    if (value === 'SENT_FOR_JUDGE_APPROVAL' || value === 'PENDING_SENIOR_JUDGE_APPROVAL')
+      return 'badge bg-primary-subtle text-primary-emphasis';
+    if (value === 'RETURNED_BY_SENIOR_JUDGE') return 'badge bg-warning-subtle text-warning-emphasis';
     if (value === 'CHANGES_REQUESTED') return 'badge bg-warning-subtle text-warning-emphasis';
     if (value === 'JUDGE_APPROVED') return 'badge bg-success-subtle text-success-emphasis';
     if (value === 'SIGNED_AND_PUBLISHED') return 'badge bg-dark-subtle text-dark-emphasis';
@@ -271,7 +276,9 @@ export class StenoHomePage {
       status === 'PENDING_UPLOAD' ||
       status === 'UPLOADED_BY_STENO' ||
       status === 'SENT_FOR_JUDGE_APPROVAL' ||
-      status === 'CHANGES_REQUESTED'
+      status === 'PENDING_SENIOR_JUDGE_APPROVAL' ||
+      status === 'CHANGES_REQUESTED' ||
+      status === 'RETURNED_BY_SENIOR_JUDGE'
     );
   }
 
@@ -286,7 +293,12 @@ export class StenoHomePage {
     const st = item?.workflow_status;
     const notes = (item?.judge_approval_notes || '').toString().trim();
     const ann = item?.judge_annotations;
-    return st === 'CHANGES_REQUESTED' || !!notes || (Array.isArray(ann) && ann.length > 0);
+    return (
+      st === 'CHANGES_REQUESTED' ||
+      st === 'RETURNED_BY_SENIOR_JUDGE' ||
+      !!notes ||
+      (Array.isArray(ann) && ann.length > 0)
+    );
   }
 
   canPublishSigned(item: any): boolean {
@@ -400,7 +412,26 @@ export class StenoHomePage {
       if (this.canShareApprovedDraft(item)) {
         return 'Step 1: Share approved draft with junior steno for the same order file.';
       }
-      if (!item?.all_required_signatures_done) {
+      const st = String(item?.workflow_status || '');
+      // Before judge approval / before share, the API reports signatures as "not done" because
+      // no junior workflow yet — that is not "waiting on stenographers"; do not confuse with post-share signing.
+      const awaitingJudgeOrDraft = [
+        'PENDING_UPLOAD',
+        'UPLOADED_BY_STENO',
+        'PENDING_SENIOR_JUDGE_APPROVAL',
+        'SENT_FOR_JUDGE_APPROVAL',
+        'CHANGES_REQUESTED',
+        'RETURNED_BY_SENIOR_JUDGE',
+      ].includes(st);
+      if (awaitingJudgeOrDraft) {
+        return this.isDivisionBenchFlow(item)
+          ? 'Upload or update the draft, send to the senior judge for approval, then share with junior steno for signatures.'
+          : 'Upload or update the draft, then send to the judge for approval.';
+      }
+      if (
+        (st === 'SHARED_FOR_SIGNATURE' || st === 'SIGNATURES_IN_PROGRESS') &&
+        !item?.all_required_signatures_done
+      ) {
         return 'Waiting for all assigned stenographers to complete signatures.';
       }
       if (!item?.all_junior_signature_copies_uploaded) {

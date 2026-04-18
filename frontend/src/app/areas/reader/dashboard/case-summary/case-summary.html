@@ -90,6 +90,9 @@
                       (click)="selectDocument(section.doc)"
                     >
                       <span class="doc-preview-name">{{ section.doc.display_index_label || '-' }}. {{ documentName(section.doc) }}</span>
+                      <span class="d-block small text-muted" *ngIf="publishedOrderLabel(section.doc) as pol">
+                        {{ pol }}
+                      </span>
                       <span
                         *ngIf="isRequestedDocument(section.doc.id)"
                         class="badge rounded-pill text-bg-info"
@@ -110,6 +113,9 @@
                           (click)="selectDocument(d)"
                         >
                           <span class="doc-preview-name">{{ d.display_index_label || '-' }}. {{ documentName(d) }}</span>
+                          <span class="d-block small text-muted" *ngIf="publishedOrderLabel(d) as pol2">
+                            {{ pol2 }}
+                          </span>
                           <span
                             *ngIf="isRequestedDocument(d.id)"
                             class="badge rounded-pill text-bg-info"

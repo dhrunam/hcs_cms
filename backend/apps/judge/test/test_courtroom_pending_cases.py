@@ -427,6 +427,56 @@ class CourtroomPendingCasesViewTest(TestCase):
         self.assertEqual(resp2.status_code, 200)
         self.assertEqual(resp2.data["items"], [])
 
+    def test_hearing_pack_always_includes_published_final_orders(self):
+        """Courtroom doc list includes steno-published orders even when hearing pack excludes them."""
+        from apps.core.models import EfilingDocuments, EfilingDocumentsIndex
+
+        from apps.reader.models import CourtroomForwardDocument
+
+        fwd = CourtroomForward.objects.filter(
+            efiling=self.filing,
+            forwarded_for_date=self.forwarded_for_date,
+        ).first()
+        self.assertIsNotNone(fwd)
+
+        doc_main = EfilingDocuments.objects.create(
+            e_filing=self.filing,
+            e_filing_number=self.filing.e_filing_number or "",
+            document_type="AFFIDAVIT",
+        )
+        idx_main = EfilingDocumentsIndex.objects.create(
+            document=doc_main,
+            document_part_name="Pack selected doc",
+            document_sequence=1,
+            scrutiny_status=EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED,
+            is_compliant=True,
+        )
+        doc_order = EfilingDocuments.objects.create(
+            e_filing=self.filing,
+            e_filing_number=self.filing.e_filing_number or "",
+            document_type="COURT_ORDER_SIGNED_FINAL",
+        )
+        idx_order = EfilingDocumentsIndex.objects.create(
+            document=doc_order,
+            document_part_name="Signed court order",
+            document_sequence=99,
+            scrutiny_status=EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED,
+            is_compliant=True,
+            published_order_at=timezone.now(),
+        )
+        CourtroomForwardDocument.objects.create(forward=fwd, efiling_document_index=idx_main)
+
+        self.client.force_authenticate(user=self.judge_user)
+        url = (
+            f"/api/v1/judge/courtroom/cases/{self.filing.id}/documents/"
+            f"?forwarded_for_date={self.forwarded_for_date.isoformat()}"
+        )
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        ids = {item["id"] for item in resp.data["items"]}
+        self.assertIn(idx_main.id, ids)
+        self.assertIn(idx_order.id, ids)
+
 
 class DivisionBenchJudgeListingSummaryVisibilityTest(TestCase):
     """Division bench: listing_summary from a forward is shown only to the judge served by that reader."""

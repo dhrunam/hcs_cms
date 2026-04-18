@@ -192,6 +192,7 @@
                     <div style="font-size: 13px; font-weight: 500">
                       {{ section.doc.document_part_name || section.doc.document_type || 'Document' }}
                     </div>
+                    <div *ngIf="publishedOrderLabel(section.doc) as pol" style="font-size: 11px; opacity: 0.85; margin-top: 2px">{{ pol }}</div>
                     <div style="font-size: 11px; opacity: 0.7; margin-top: 2px">
                       Index #{{ section.doc.display_index_label || (i + 1) }}
                     </div>
@@ -214,6 +215,7 @@
                         <div style="font-size: 13px; font-weight: 500">
                           {{ doc.document_part_name || doc.document_type || 'Document' }}
                         </div>
+                        <div *ngIf="publishedOrderLabel(doc) as pol2" style="font-size: 11px; opacity: 0.85; margin-top: 2px">{{ pol2 }}</div>
                         <div style="font-size: 11px; opacity: 0.7; margin-top: 2px">
                           Index #{{ doc.display_index_label }}
                         </div>

@@ -18,12 +18,17 @@ export class JudgeStenoReviewPage {
   isDistractionFree = false;
   statusFilter:
     | 'ALL'
+    | 'AWAITING_JUDGE'
     | 'SENT_FOR_JUDGE_APPROVAL'
     | 'CHANGES_REQUESTED'
     | 'JUDGE_APPROVED'
-    | 'SIGNED_AND_PUBLISHED' = 'SENT_FOR_JUDGE_APPROVAL';
+    | 'SIGNED_AND_PUBLISHED' = 'AWAITING_JUDGE';
   selectedWorkflowId: number | null = null;
   notes: Record<number, string> = {};
+
+  /** Avoid new SafeResourceUrl every CD cycle — that reloads the iframe (e.g. while typing notes). */
+  private pdfIframeCacheKey = '';
+  private pdfIframeSafeUrl: SafeResourceUrl | null = null;
 
   constructor(
     private courtroomService: CourtroomService,
@@ -55,10 +60,12 @@ export class JudgeStenoReviewPage {
             ? Number(firstVisible.workflow_id)
             : null;
         this.isLoading = false;
+        this.invalidatePdfIframeCache();
       },
       error: () => {
         this.items = [];
         this.isLoading = false;
+        this.invalidatePdfIframeCache();
       },
     });
   }
@@ -68,7 +75,9 @@ export class JudgeStenoReviewPage {
   }
 
   get pendingCount(): number {
-    return this.items.filter((x) => x?.workflow_status === 'SENT_FOR_JUDGE_APPROVAL').length;
+    return this.items.filter((x) =>
+      ['SENT_FOR_JUDGE_APPROVAL', 'PENDING_SENIOR_JUDGE_APPROVAL'].includes(x?.workflow_status),
+    ).length;
   }
 
   get changesRequestedCount(): number {
@@ -84,6 +93,11 @@ export class JudgeStenoReviewPage {
   }
 
   groupedItems(status: string): any[] {
+    if (status === 'AWAITING_JUDGE') {
+      return this.items.filter((x) =>
+        ['SENT_FOR_JUDGE_APPROVAL', 'PENDING_SENIOR_JUDGE_APPROVAL'].includes(x?.workflow_status),
+      );
+    }
     return this.items.filter((x) => x?.workflow_status === status);
   }
 
@@ -102,6 +116,7 @@ export class JudgeStenoReviewPage {
   setFilter(
     filter:
       | 'ALL'
+      | 'AWAITING_JUDGE'
       | 'SENT_FOR_JUDGE_APPROVAL'
       | 'CHANGES_REQUESTED'
       | 'JUDGE_APPROVED'
@@ -125,26 +140,55 @@ export class JudgeStenoReviewPage {
 
   draftOptionLabel(draft: any): string {
     const caseNumber = draft?.case_number || '-';
-    const parties = draft?.petitioner_vs_respondent || '-';
-    const workflowId = draft?.workflow_id ?? '-';
-    return `${caseNumber} | ${parties} | WF #${workflowId}`;
+    const parties = (draft?.petitioner_vs_respondent || '').trim() || '-';
+    return `${caseNumber} — ${parties}`;
   }
 
   statusLabel(status: string | null | undefined): string {
-    return String(status || 'PENDING').replaceAll('_', ' ');
+    const value = String(status || '');
+    // Friendly copy for judges (API values unchanged). "Senior" in the enum confuses seated judges.
+    if (value === 'PENDING_SENIOR_JUDGE_APPROVAL' || value === 'SENT_FOR_JUDGE_APPROVAL') {
+      return 'Pending draft approval';
+    }
+    if (value === 'RETURNED_BY_SENIOR_JUDGE') {
+      return 'Returned to steno for revision';
+    }
+    if (value === 'CHANGES_REQUESTED') {
+      return 'Changes requested';
+    }
+    if (value === 'JUDGE_APPROVED') {
+      return 'Approved';
+    }
+    if (value === 'SHARED_FOR_SIGNATURE') {
+      return 'Shared for signature';
+    }
+    if (value === 'SIGNATURES_IN_PROGRESS') {
+      return 'Signatures in progress';
+    }
+    if (value === 'SIGNED_AND_PUBLISHED') {
+      return 'Signed and published';
+    }
+    return value ? value.replaceAll('_', ' ') : 'Pending';
   }
 
   statusBadgeClass(status: string | null | undefined): string {
     const value = String(status || '');
-    if (value === 'SENT_FOR_JUDGE_APPROVAL') return 'badge-pending';
-    if (value === 'CHANGES_REQUESTED') return 'badge-warning';
+    if (value === 'SENT_FOR_JUDGE_APPROVAL' || value === 'PENDING_SENIOR_JUDGE_APPROVAL')
+      return 'badge-pending';
+    if (value === 'CHANGES_REQUESTED' || value === 'RETURNED_BY_SENIOR_JUDGE') return 'badge-warning';
     if (value === 'JUDGE_APPROVED') return 'badge-success';
     if (value === 'SIGNED_AND_PUBLISHED') return 'badge-muted';
+    if (value === 'SHARED_FOR_SIGNATURE' || value === 'SIGNATURES_IN_PROGRESS') return 'badge-info';
     return 'badge-muted';
   }
 
   canDecide(item: any): boolean {
-    return item?.workflow_status === 'SENT_FOR_JUDGE_APPROVAL';
+    const s = item?.workflow_status;
+    return (
+      s === 'SENT_FOR_JUDGE_APPROVAL' ||
+      s === 'PENDING_SENIOR_JUDGE_APPROVAL' ||
+      s === 'CHANGES_REQUESTED'
+    );
   }
 
   decisionHint(item: any): string {
@@ -157,16 +201,31 @@ export class JudgeStenoReviewPage {
     return Number(this.selectedWorkflowId) === Number(item?.workflow_id);
   }
 
+  private invalidatePdfIframeCache(): void {
+    this.pdfIframeCacheKey = '';
+    this.pdfIframeSafeUrl = null;
+  }
+
   pdfUrlFor(item: any): string {
     const raw = item?.draft_preview_url;
     if (!raw) return '';
     return this.courtroomService.resolveDocumentUrl(raw);
   }
 
+  /**
+   * Stable trust URL for the iframe: same object reference until workflow or PDF URL changes.
+   */
   pdfFrameUrlFor(item: any): SafeResourceUrl {
-    return this.sanitizer.bypassSecurityTrustResourceUrl(
-      this.pdfUrlFor(item),
+    const resolved = this.pdfUrlFor(item);
+    const key = `${item?.workflow_id ?? ''}|${resolved}`;
+    if (key === this.pdfIframeCacheKey && this.pdfIframeSafeUrl) {
+      return this.pdfIframeSafeUrl;
+    }
+    this.pdfIframeCacheKey = key;
+    this.pdfIframeSafeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
+      resolved || 'about:blank',
     );
+    return this.pdfIframeSafeUrl;
   }
 
   decide(item: any, decision: 'APPROVED' | 'REJECTED'): void {

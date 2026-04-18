@@ -46,6 +46,7 @@
               <div class="doc-index">{{ section.doc.display_index_label || (i + 1) }}</div>
               <div class="doc-details">
                 <div class="doc-name">{{ section.doc.document_part_name || 'Unnamed Document' }}</div>
+                <div class="small text-muted" *ngIf="publishedOrderLabel(section.doc) as pol">{{ pol }}</div>
                 <div class="doc-type">{{ section.doc.document_type || 'General' }}</div>
               </div>
               <div class="doc-action" *ngIf="previewDocument?.id === section.doc.id">
@@ -65,6 +66,7 @@
                   <div class="doc-index">{{ doc.display_index_label }}</div>
                   <div class="doc-details">
                     <div class="doc-name">{{ doc.document_part_name || 'Unnamed Document' }}</div>
+                    <div class="small text-muted" *ngIf="publishedOrderLabel(doc) as pol2">{{ pol2 }}</div>
                     <div class="doc-type">{{ doc.document_type || 'General' }}</div>
                   </div>
                   <div class="doc-action" *ngIf="previewDocument?.id === doc.id">

@@ -143,7 +143,8 @@
                         class="btn btn-link p-0 text-start text-decoration-none"
                         (click)="selectDocument(d)"
                       >
-                        {{ documentName(d) }}
+                        <span class="d-block">{{ documentName(d) }}</span>
+                        <span class="d-block small text-muted" *ngIf="publishedOrderLabel(d) as plb">{{ plb }}</span>
                       </button>
                     </div>
                   </label>

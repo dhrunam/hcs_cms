@@ -32,6 +32,9 @@ from apps.core.models import (
     OrderDetailsA,
     ReaderJudgeAssignment,
 )
+
+# Published steno final order on case files (must match reader `STENO_PUBLISHED_CASE_FILE_DOCUMENT_TYPE`).
+COURT_ORDER_SIGNED_FINAL_DOC_TYPE = "COURT_ORDER_SIGNED_FINAL"
 from apps.efiling.party_display import build_petitioner_vs_respondent
 from apps.efiling.serializers.efiling_document_index import EfilingDocumentsIndexSerializer
 
@@ -43,6 +46,10 @@ from .models import (
     JudgeDraftAnnotation,
 )
 from apps.reader.models import CourtroomForward, CourtroomForwardDocument, StenoOrderWorkflow
+from apps.reader.steno_workflow_utils import (
+    is_division_bench_steno_workflow,
+    senior_judge_user_id_for_workflow,
+)
 from apps.reader.workflow_state import apply_judge_decision
 from apps.listing.models import CauseList, CauseListEntry
 from .serializers import (
@@ -168,6 +175,52 @@ def _judge_can_view_forward(user: User, bench_key: str) -> bool:
     if not bench_key or not _user_judge_groups(user):
         return False
     return judge_user_seated_on_bench_key(user, bench_key)
+
+
+def _judge_can_view_steno_workflow(user: User, workflow: StenoOrderWorkflow) -> bool:
+    """
+    Prefer ReaderDailyProceeding.bench_key, but fall back to Efiling.bench / CourtroomForward rows
+    when the stored proceeding key does not resolve (legacy / mismatch), so judge steno review
+    stays aligned with courtroom bench access.
+    """
+    if not _user_judge_groups(user):
+        return False
+    keys: list[str] = []
+    proc = getattr(workflow, "proceeding", None)
+    if proc and getattr(proc, "bench_key", None):
+        keys.append(str(proc.bench_key).strip())
+    ef = getattr(workflow, "efiling", None)
+    if ef and getattr(ef, "bench", None):
+        keys.append(str(ef.bench).strip())
+    for fwd in CourtroomForward.objects.filter(efiling_id=workflow.efiling_id).order_by(
+        "-forwarded_for_date", "-id"
+    )[:8]:
+        if fwd.bench_key:
+            keys.append(str(fwd.bench_key).strip())
+    seen: set[str] = set()
+    for bk in keys:
+        if not bk or bk in seen:
+            continue
+        seen.add(bk)
+        if _judge_can_view_forward(user, bk):
+            return True
+    return False
+
+
+def _judge_can_view_steno_workflow_item(user: User, workflow: StenoOrderWorkflow) -> bool:
+    """
+    Bench access plus division rule: only the senior judge (BENCH_S0 user) sees
+    PENDING_SENIOR_JUDGE_APPROVAL rows.
+    """
+    if not _judge_can_view_steno_workflow(user, workflow):
+        return False
+    if (
+        workflow.workflow_status == StenoOrderWorkflow.WorkflowStatus.PENDING_SENIOR_JUDGE_APPROVAL
+        and is_division_bench_steno_workflow(workflow)
+    ):
+        sid = senior_judge_user_id_for_workflow(workflow)
+        return sid is not None and int(user.id) == int(sid)
+    return True
 
 
 def _bench_key_aliases_list_for_judge(user: User) -> list[str]:
@@ -772,7 +825,9 @@ class CourtroomCaseDocumentsView(APIView):
         )
         
         # SYNC MODIFICATION: Only show documents specifically selected for the hearing (Hearing Pack).
-        # Exception: approved case-access vakalatnamas should remain visible in case files.
+        # Exceptions:
+        # - Approved case-access vakalatnamas remain visible.
+        # - Final signed court orders (steno publish) must always appear for judges and advocates.
         selected_ids = list(forward.selected_documents.values_list("efiling_document_index_id", flat=True))
         if selected_ids:
             access_vakalat_ids = list(
@@ -781,7 +836,12 @@ class CourtroomCaseDocumentsView(APIView):
                     | Q(document_part_name__icontains="vakalatnama - ")
                 ).values_list("id", flat=True)
             )
-            visible_ids = set(selected_ids) | set(access_vakalat_ids)
+            published_final_order_ids = list(
+                doc_indexes_qs.filter(
+                    document__document_type=COURT_ORDER_SIGNED_FINAL_DOC_TYPE,
+                ).values_list("id", flat=True)
+            )
+            visible_ids = set(selected_ids) | set(access_vakalat_ids) | set(published_final_order_ids)
             doc_indexes_qs = doc_indexes_qs.filter(id__in=visible_ids)
 
         if requested_only and is_judge:
@@ -1342,8 +1402,13 @@ class JudgeStenoWorkflowListView(APIView):
             StenoOrderWorkflow.objects.filter(
                 workflow_status__in=[
                     StenoOrderWorkflow.WorkflowStatus.SENT_FOR_JUDGE_APPROVAL,
+                    StenoOrderWorkflow.WorkflowStatus.PENDING_SENIOR_JUDGE_APPROVAL,
                     StenoOrderWorkflow.WorkflowStatus.CHANGES_REQUESTED,
                     StenoOrderWorkflow.WorkflowStatus.JUDGE_APPROVED,
+                    # Division bench: junior steno may forward a shared draft to their judge while
+                    # signatures are still in progress — keep the workflow visible on judge steno review.
+                    StenoOrderWorkflow.WorkflowStatus.SHARED_FOR_SIGNATURE,
+                    StenoOrderWorkflow.WorkflowStatus.SIGNATURES_IN_PROGRESS,
                     StenoOrderWorkflow.WorkflowStatus.SIGNED_AND_PUBLISHED,
                 ],
                 is_active=True,
@@ -1354,7 +1419,7 @@ class JudgeStenoWorkflowListView(APIView):
         )
         items = []
         for row in rows:
-            if not _judge_can_view_forward(judge_user, getattr(row.proceeding, "bench_key", None)):
+            if not _judge_can_view_steno_workflow_item(judge_user, row):
                 continue
             draft_id = row.draft_document_index_id
             draft_entry = _latest_steno_order_entry(row.id, "DRAFT")
@@ -1373,12 +1438,20 @@ class JudgeStenoWorkflowListView(APIView):
                 }
                 for a in row.judge_annotations.all()
             ]
+            petitioner_vs_respondent = (
+                (row.efiling.petitioner_name or "").strip()
+                or build_petitioner_vs_respondent(
+                    row.efiling,
+                    fallback_petitioner_name=row.efiling.petitioner_name or "",
+                )
+            )
             items.append(
                 {
                     "workflow_id": row.id,
                     "efiling_id": row.efiling_id,
                     "case_number": row.efiling.case_number,
                     "e_filing_number": row.efiling.e_filing_number,
+                    "petitioner_vs_respondent": petitioner_vs_respondent,
                     "document_type": row.document_type,
                     "draft_document_index_id": draft_id,
                     "draft_preview_url": (
@@ -1407,7 +1480,7 @@ class JudgeStenoWorkflowAnnotationView(APIView):
         ).first()
         if not workflow:
             raise ValidationError({"workflow_id": "Invalid workflow_id."})
-        if not _judge_can_view_forward(judge_user, getattr(workflow.proceeding, "bench_key", None)):
+        if not _judge_can_view_steno_workflow_item(judge_user, workflow):
             raise ValidationError({"detail": "Not authorized for this workflow."})
         annotation = JudgeDraftAnnotation.objects.create(
             workflow=workflow,
@@ -1442,7 +1515,7 @@ class JudgeStenoWorkflowAnnotationsSnapshotView(APIView):
         ).first()
         if not workflow:
             raise ValidationError({"workflow_id": "Invalid workflow_id."})
-        if not _judge_can_view_forward(judge_user, getattr(workflow.proceeding, "bench_key", None)):
+        if not _judge_can_view_steno_workflow_item(judge_user, workflow):
             raise ValidationError({"detail": "Not authorized for this workflow."})
         positional = (
             Q(page_number__isnull=False)
@@ -1480,15 +1553,75 @@ class JudgeStenoWorkflowDecisionView(APIView):
         ).first()
         if not workflow:
             raise ValidationError({"workflow_id": "Invalid workflow_id."})
-        if not _judge_can_view_forward(judge_user, getattr(workflow.proceeding, "bench_key", None)):
+        if not _judge_can_view_steno_workflow_item(judge_user, workflow):
             raise ValidationError({"detail": "Not authorized for this workflow."})
+
+        now = timezone.now()
         status = payload.validated_data["judge_approval_status"]
         notes = payload.validated_data.get("judge_approval_notes")
+
+        if workflow.workflow_status == StenoOrderWorkflow.WorkflowStatus.PENDING_SENIOR_JUDGE_APPROVAL:
+            if not is_division_bench_steno_workflow(workflow):
+                raise ValidationError({"detail": "Invalid workflow state for senior-judge review."})
+            if status == "APPROVED":
+                workflow.judge_approval_status = StenoOrderWorkflow.JudgeApprovalStatus.APPROVED
+                workflow.workflow_status = StenoOrderWorkflow.WorkflowStatus.JUDGE_APPROVED
+                workflow.judge_approved_by = judge_user
+                workflow.judge_approved_at = now
+                workflow.judge_approval_notes = notes
+                workflow.senior_judge_decided_by = judge_user
+                workflow.senior_judge_decided_at = now
+                workflow.senior_judge_remarks = notes
+                workflow.senior_judge_returned_at = None
+            else:
+                workflow.judge_approval_status = StenoOrderWorkflow.JudgeApprovalStatus.REJECTED
+                workflow.workflow_status = StenoOrderWorkflow.WorkflowStatus.RETURNED_BY_SENIOR_JUDGE
+                workflow.judge_approval_notes = notes
+                workflow.senior_judge_decided_by = judge_user
+                workflow.senior_judge_decided_at = now
+                workflow.senior_judge_remarks = notes
+                workflow.senior_judge_returned_at = now
+            workflow.updated_by = judge_user
+            workflow.save(
+                update_fields=[
+                    "judge_approval_status",
+                    "workflow_status",
+                    "judge_approved_by",
+                    "judge_approved_at",
+                    "judge_approval_notes",
+                    "senior_judge_decided_by",
+                    "senior_judge_decided_at",
+                    "senior_judge_remarks",
+                    "senior_judge_returned_at",
+                    "updated_by",
+                    "updated_at",
+                ]
+            )
+            return Response(
+                {
+                    "workflow_status": workflow.workflow_status,
+                    "judge_approval_status": workflow.judge_approval_status,
+                },
+                status=drf_status.HTTP_200_OK,
+            )
+
+        if workflow.workflow_status not in (
+            StenoOrderWorkflow.WorkflowStatus.SENT_FOR_JUDGE_APPROVAL,
+            StenoOrderWorkflow.WorkflowStatus.CHANGES_REQUESTED,
+        ):
+            raise ValidationError(
+                {
+                    "detail": (
+                        "Judge approve / request-changes is only allowed while the order "
+                        "is awaiting first-pass review (not during the shared signature phase)."
+                    )
+                }
+            )
         if status == "APPROVED":
             workflow.judge_approval_status = StenoOrderWorkflow.JudgeApprovalStatus.APPROVED
             workflow.workflow_status = StenoOrderWorkflow.WorkflowStatus.JUDGE_APPROVED
             workflow.judge_approved_by = judge_user
-            workflow.judge_approved_at = timezone.now()
+            workflow.judge_approved_at = now
         else:
             workflow.judge_approval_status = StenoOrderWorkflow.JudgeApprovalStatus.REJECTED
             workflow.workflow_status = StenoOrderWorkflow.WorkflowStatus.CHANGES_REQUESTED

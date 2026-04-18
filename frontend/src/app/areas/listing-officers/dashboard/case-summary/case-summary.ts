@@ -125,6 +125,18 @@ export class ListingCaseSummaryPage {
     return d?.document_part_name || d?.description || d?.document_name || d?.name || d?.file_name || 'Document';
   }
 
+  publishedOrderLabel(d: any): string | null {
+    const raw = d?.published_order_at;
+    if (!raw) return null;
+    try {
+      const dt = new Date(raw);
+      if (Number.isNaN(dt.getTime())) return null;
+      return `Published: ${dt.toLocaleString()}`;
+    } catch {
+      return null;
+    }
+  }
+
   documentUrl(d: any): string | null {
     return d?.file_url || d?.document || d?.file || null;
   }

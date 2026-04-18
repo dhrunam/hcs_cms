@@ -129,6 +129,8 @@ export type StenoQueueItem = {
   can_share_approved_draft?: boolean;
   can_upload_signed_publish?: boolean;
   is_read_only_view?: boolean;
+  /** True when the case bench has multiple seated judges (division / collaboration flow). */
+  is_division_bench_flow?: boolean;
 };
 
 export function resolveBenchConfiguration(
@@ -326,10 +328,12 @@ export class ReaderService {
     file: File,
   ): Observable<{
     workflow_status: string;
-    signed_document_index_id: number;
+    signed_order_no?: number;
     signed_preview_url?: string | null;
     digitally_signed_at?: string | null;
     published_at?: string | null;
+    case_file_document_index_id?: number | null;
+    published_order_at?: string | null;
   }> {
     const fd = new FormData();
     fd.append('workflow_id', String(workflowId));

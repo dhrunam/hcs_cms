@@ -60,7 +60,7 @@
     </div>
 
     <div class="filter-strip" *ngIf="!isDistractionFree">
-      <button class="btn btn-sm" [class.btn-primary]="statusFilter==='SENT_FOR_JUDGE_APPROVAL'" [class.btn-outline-primary]="statusFilter!=='SENT_FOR_JUDGE_APPROVAL'" (click)="setFilter('SENT_FOR_JUDGE_APPROVAL')">Pending ({{ pendingCount }})</button>
+      <button class="btn btn-sm" [class.btn-primary]="statusFilter==='AWAITING_JUDGE'" [class.btn-outline-primary]="statusFilter!=='AWAITING_JUDGE'" (click)="setFilter('AWAITING_JUDGE')">Pending ({{ pendingCount }})</button>
       <button class="btn btn-sm" [class.btn-primary]="statusFilter==='CHANGES_REQUESTED'" [class.btn-outline-primary]="statusFilter!=='CHANGES_REQUESTED'" (click)="setFilter('CHANGES_REQUESTED')">Changes Requested ({{ changesRequestedCount }})</button>
       <button class="btn btn-sm" [class.btn-primary]="statusFilter==='JUDGE_APPROVED'" [class.btn-outline-primary]="statusFilter!=='JUDGE_APPROVED'" (click)="setFilter('JUDGE_APPROVED')">Approved ({{ approvedCount }})</button>
       <button class="btn btn-sm" [class.btn-primary]="statusFilter==='SIGNED_AND_PUBLISHED'" [class.btn-outline-primary]="statusFilter!=='SIGNED_AND_PUBLISHED'" (click)="setFilter('SIGNED_AND_PUBLISHED')">Published ({{ publishedCount }})</button>
@@ -70,6 +70,9 @@
     <section class="steno-review__workspace">
       <main class="detail-pane" *ngIf="selectedItem as item; else noSelection">
         <div class="detail-pane__head">
+          <div class="small fw-semibold text-body mb-1">
+            {{ item.case_number || '-' }}<span *ngIf="item.petitioner_vs_respondent"> — {{ item.petitioner_vs_respondent }}</span>
+          </div>
           <div class="small text-muted">{{ item.document_type }} | Draft Doc ID: {{ item.draft_document_index_id || '-' }} | Status: {{ statusLabel(item.workflow_status) }}</div>
         </div>
 
@@ -80,8 +83,11 @@
             <div class="draft-order-block__head">
               <div>
                 <p class="draft-order-block__eyebrow">Draft Order</p>
-                <h5>{{ item.case_number || '-' }}</h5>
-                <p class="draft-order-block__parties">{{ item.petitioner_vs_respondent || '-' }}</p>
+                <h5>
+                  {{ item.case_number || '-' }}
+                  <span class="fs-6 fw-normal text-body-secondary d-block mt-1" *ngIf="item.petitioner_vs_respondent">
+                    {{ item.petitioner_vs_respondent }}</span>
+                </h5>
               </div>
               <span class="badge" [ngClass]="statusBadgeClass(item.workflow_status)">
                 {{ statusLabel(item.workflow_status) }}
@@ -113,9 +119,12 @@
                   (click)="selectItem(item)"
                   type="button"
                 >
-                  <div class="fw-semibold">{{ item.case_number || '-' }}</div>
+                  <div class="fw-semibold">
+                    {{ item.case_number || '-' }}
+                    <span class="text-muted fw-normal" *ngIf="item.petitioner_vs_respondent">
+                      — {{ item.petitioner_vs_respondent }}</span>
+                  </div>
                   <div class="small text-muted">{{ item.document_type }} | WF #{{ item.workflow_id }} | E-file: {{ item.e_filing_number || '-' }}</div>
-                  <div class="small text-muted">{{ item.petitioner_vs_respondent || '-' }}</div>
                   <span class="badge mt-2" [ngClass]="statusBadgeClass(item.workflow_status)">{{ statusLabel(item.workflow_status) }}</span>
                 </button>
                 <div *ngIf="filteredItems.length === 0" class="text-muted small p-2">No orders in this status.</div>
@@ -124,10 +133,7 @@
 
             <section class="steno-review__actions-pane">
               <div class="mb-3">
-                <label class="form-label small">Notes to Steno</label>
-                <div class="small text-muted mb-2">
-                  These notes are sent to steno when you Approve or Send Back for Changes.
-                </div>
+                <label class="form-label small">Notes for steno</label>
                 <textarea class="form-control" rows="3" [(ngModel)]="notes[item.workflow_id]"></textarea>
               </div>
 

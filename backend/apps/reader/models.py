@@ -133,6 +133,9 @@ class StenoOrderWorkflow(BaseModel):
         PENDING_UPLOAD = "PENDING_UPLOAD", "Pending Upload"
         UPLOADED_BY_STENO = "UPLOADED_BY_STENO", "Uploaded by Steno"
         SENT_FOR_JUDGE_APPROVAL = "SENT_FOR_JUDGE_APPROVAL", "Sent for Judge Approval"
+        # Division bench: senior judge (BENCH_S0) must review before share-to-junior-steno.
+        PENDING_SENIOR_JUDGE_APPROVAL = "PENDING_SENIOR_JUDGE_APPROVAL", "Pending Senior Judge Approval"
+        RETURNED_BY_SENIOR_JUDGE = "RETURNED_BY_SENIOR_JUDGE", "Returned by Senior Judge"
         CHANGES_REQUESTED = "CHANGES_REQUESTED", "Changes Requested"
         JUDGE_APPROVED = "JUDGE_APPROVED", "Judge Approved"
         SHARED_FOR_SIGNATURE = "SHARED_FOR_SIGNATURE", "Shared For Signature"
@@ -199,6 +202,24 @@ class StenoOrderWorkflow(BaseModel):
         related_name="judge_approved_steno_workflows",
     )
     judge_approved_at = models.DateTimeField(blank=True, null=True)
+    draft_last_submitted_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="steno_draft_submitted_workflows",
+    )
+    draft_last_submitted_at = models.DateTimeField(blank=True, null=True)
+    senior_judge_decided_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="steno_senior_judge_decided_workflows",
+    )
+    senior_judge_decided_at = models.DateTimeField(blank=True, null=True)
+    senior_judge_remarks = models.TextField(blank=True, null=True)
+    senior_judge_returned_at = models.DateTimeField(blank=True, null=True)
     digitally_signed_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,

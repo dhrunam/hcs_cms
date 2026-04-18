@@ -183,6 +183,19 @@ export class ReaderCaseSummaryPage {
     );
   }
 
+  /** Final signed court order timestamp (steno publish); empty for other documents. */
+  publishedOrderLabel(document: any): string | null {
+    const raw = document?.published_order_at;
+    if (!raw) return null;
+    try {
+      const d = new Date(raw);
+      if (Number.isNaN(d.getTime())) return null;
+      return `Published: ${d.toLocaleString()}`;
+    } catch {
+      return null;
+    }
+  }
+
   selectDocument(document: any): void {
     this.selectedDocument = document;
     this.updatePreviewUrl(document ?? null);
