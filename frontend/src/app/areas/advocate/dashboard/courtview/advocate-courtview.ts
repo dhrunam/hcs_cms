@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { Subject } from 'rxjs';
+import { catchError, forkJoin, of, Subject } from 'rxjs';
 
 import { CourtroomService } from '../../../../services/judge/courtroom.service';
 import { PdfAnnotatorComponent } from '../../../judges/dashboard/courtroom/pdf-annotator.component';
@@ -71,30 +71,25 @@ export class AdvocateCourtviewPage implements OnInit, OnDestroy {
   private loadCaseSummary(): void {
     if (!this.efilingId || !this.forwardedForDate) return;
     this.isLoading = true;
-    this.courtroomService.getCaseSummary(this.efilingId, this.forwardedForDate).subscribe({
-      next: (resp) => {
-        this.caseSummary = resp ?? null;
-        this.loadCaseDocuments();
+    forkJoin({
+      summary: this.courtroomService.getCaseSummary(this.efilingId, this.forwardedForDate),
+      documents: this.courtroomService
+        .getCaseDocuments(this.efilingId, this.forwardedForDate, null, false)
+        .pipe(
+          catchError(() => of({ items: [] as any[] })),
+        ),
+    }).subscribe({
+      next: ({ summary, documents }) => {
+        this.caseSummary = summary ?? null;
+        this.allCaseDocuments = documents?.items ?? [];
+        if (this.allCaseDocuments.length && !this.previewDocument) {
+          this.selectPreviewDocument(this.allCaseDocuments[0]);
+        }
         this.isLoading = false;
       },
       error: () => {
         this.loadError = 'Failed to load case details.';
         this.isLoading = false;
-      },
-    });
-  }
-
-  private loadCaseDocuments(): void {
-    if (!this.efilingId || !this.forwardedForDate) return;
-    this.courtroomService.getCaseDocuments(this.efilingId, this.forwardedForDate, null ,false).subscribe({
-      next: (resp) => {
-        this.allCaseDocuments = resp?.items ?? [];
-        if (this.allCaseDocuments.length && !this.previewDocument) {
-          this.selectPreviewDocument(this.allCaseDocuments[0]);
-        }
-      },
-      error: () => {
-        this.allCaseDocuments = [];
       },
     });
   }

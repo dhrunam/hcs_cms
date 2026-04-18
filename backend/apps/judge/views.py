@@ -5,7 +5,7 @@ import logging
 
 from django.contrib.auth.models import Group, AnonymousUser
 from django.db import transaction, connections
-from django.db.models import Prefetch, Q
+from django.db.models import Count, Prefetch, Q
 
 from django.urls import reverse
 from django.utils import timezone
@@ -868,6 +868,8 @@ class CourtroomCaseDocumentsView(APIView):
             )
             if requested_ids:
                 doc_indexes_qs = doc_indexes_qs.filter(id__in=requested_ids)
+
+        doc_indexes_qs = doc_indexes_qs.annotate(_history_count=Count("scrutiny_history"))
 
         serializer = EfilingDocumentsIndexSerializer(doc_indexes_qs, many=True, context={"request": request})
         doc_items = serializer.data

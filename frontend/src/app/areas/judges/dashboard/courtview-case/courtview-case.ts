@@ -2,6 +2,8 @@ import { CommonModule } from "@angular/common";
 import { Component, OnInit, OnDestroy, ViewChild } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
+import { catchError, forkJoin, of } from "rxjs";
+import { finalize } from "rxjs/operators";
 import Swal from "sweetalert2";
 
 import { CourtroomService } from "../../../../services/judge/courtroom.service";
@@ -41,7 +43,7 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
 
   activeShare: any = null;
   isSyncEnabled = false;
-  private pollingInterval: any = null;
+  private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private originalState: { doc: any; pageIndex: number } | null = null;
   /** Skip redundant follow updates when advocate position unchanged. */
   private lastAppliedSyncKey: string | null = null;
@@ -84,26 +86,49 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
     this.activeTab = tab;
   }
 
-  private startPolling() {
-    this.pollingInterval = setInterval(() => {
-      if (this.efilingId) {
-        this.courtroomService.getActiveSharedView(this.efilingId).subscribe({
-          next: (share: any) => {
-            this.activeShare = share.active ? share : null;
-            if (!this.activeShare) {
-              this.lastAppliedSyncKey = null;
-            }
-            if (this.isSyncEnabled && this.activeShare) {
-              this.applySync(false);
-            }
-          },
-        });
-      }
-    }, 3000);
+  /** Faster polling while advocate sync is on; slower when idle to cut load. */
+  private pollIntervalMs(): number {
+    return this.isSyncEnabled ? 3000 : 12000;
   }
 
-  private stopPolling() {
-    if (this.pollingInterval) clearInterval(this.pollingInterval);
+  private startPolling(): void {
+    this.stopPolling();
+    this.runPollTick();
+  }
+
+  private runPollTick(): void {
+    if (!this.efilingId) {
+      this.scheduleNextPoll();
+      return;
+    }
+    this.courtroomService
+      .getActiveSharedView(this.efilingId)
+      .pipe(finalize(() => this.scheduleNextPoll()))
+      .subscribe({
+        next: (share: any) => {
+          this.activeShare = share.active ? share : null;
+          if (!this.activeShare) {
+            this.lastAppliedSyncKey = null;
+          }
+          if (this.isSyncEnabled && this.activeShare) {
+            this.applySync(false);
+          }
+        },
+      });
+  }
+
+  private scheduleNextPoll(): void {
+    if (this.pollTimer != null) {
+      clearTimeout(this.pollTimer);
+    }
+    this.pollTimer = setTimeout(() => this.runPollTick(), this.pollIntervalMs());
+  }
+
+  private stopPolling(): void {
+    if (this.pollTimer != null) {
+      clearTimeout(this.pollTimer);
+      this.pollTimer = null;
+    }
   }
 
   toggleSync() {
@@ -128,6 +153,8 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
         pageIndex: this.annotator?.currentPageIndex || 0,
       };
       this.applySync(true);
+      this.stopPolling();
+      this.startPolling();
     } else {
       this.lastAppliedSyncKey = null;
       this.pendingSyncPage = null;
@@ -140,6 +167,8 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
           this.originalState = null;
         }, 500);
       }
+      this.stopPolling();
+      this.startPolling();
     }
   }
 
@@ -223,40 +252,36 @@ export class JudgeCourtviewCasePage implements OnInit, OnDestroy {
     this.isLoading = true;
     this.loadError = "";
 
-    this.courtroomService
-      .getCaseSummary(this.efilingId, this.forwardedForDate)
-      .subscribe({
-        next: (resp) => {
-          this.caseSummary = resp ?? null;
-          this.forwardedForDate =
-            resp?.forwarded_for_date ?? this.forwardedForDate;
-          this.loadCaseDocuments();
-          this.isLoading = false;
-        },
-        error: (err) => {
-          console.warn("Failed to load case summary", err);
-          this.loadError = err?.error?.detail || "Failed to load case details.";
-          this.isLoading = false;
-        },
-      });
-  }
-
-  private loadCaseDocuments(): void {
-    if (!this.efilingId || !this.forwardedForDate) return;
-    this.courtroomService
-      .getCaseDocuments(this.efilingId, this.forwardedForDate, null, false)
-      .subscribe({
-        next: (resp) => {
-          this.allCaseDocuments = resp?.items ?? [];
-          if (this.allCaseDocuments.length && !this.previewDocument) {
-            this.selectPreviewDocument(this.allCaseDocuments[0]);
-          }
-        },
-        error: (err) => {
-          console.warn("Failed to load case documents", err);
-          this.allCaseDocuments = [];
-        },
-      });
+    forkJoin({
+      summary: this.courtroomService.getCaseSummary(
+        this.efilingId,
+        this.forwardedForDate,
+      ),
+      documents: this.courtroomService
+        .getCaseDocuments(this.efilingId, this.forwardedForDate, null, false)
+        .pipe(
+          catchError((err) => {
+            console.warn("Courtview case documents parallel load failed", err);
+            return of({ items: [] as any[] });
+          }),
+        ),
+    }).subscribe({
+      next: ({ summary, documents }) => {
+        this.caseSummary = summary ?? null;
+        this.forwardedForDate =
+          summary?.forwarded_for_date ?? this.forwardedForDate;
+        this.allCaseDocuments = documents?.items ?? [];
+        if (this.allCaseDocuments.length && !this.previewDocument) {
+          this.selectPreviewDocument(this.allCaseDocuments[0]);
+        }
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.warn("Failed to load case summary", err);
+        this.loadError = err?.error?.detail || "Failed to load case details.";
+        this.isLoading = false;
+      },
+    });
   }
 
   selectPreviewDocument(doc: any, fromSync = false): void {

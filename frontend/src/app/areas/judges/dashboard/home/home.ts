@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { catchError, forkJoin, of } from 'rxjs';
 
 import { CourtroomService } from '../../../../services/judge/courtroom.service';
 import { benchLabel } from '../../../listing-officers/shared/bench-labels';
@@ -70,11 +71,16 @@ export class JudgePendingCasesPage {
     this.isLoading = true;
     this.loadError = '';
 
-    this.courtroomService.getPendingCases(this.forwardedForDate).subscribe({
-      next: (pending) => {
+    forkJoin({
+      pending: this.courtroomService.getPendingCases(this.forwardedForDate),
+      calendar: this.courtroomService.getDecisionCalendar().pipe(
+        catchError(() => of({ items: [] as any[] })),
+      ),
+    }).subscribe({
+      next: ({ pending, calendar }) => {
         this.pendingForListing = pending?.pending_for_listing ?? [];
         this.pendingForCauseList = pending?.pending_for_causelist ?? [];
-        this.loadCalendar();
+        this.calendarItems = calendar?.items ?? [];
         this.isLoading = false;
       },
       error: (err) => {
@@ -94,18 +100,6 @@ export class JudgePendingCasesPage {
     const fbench = c?.forward_bench_key || undefined;
     this.router.navigate(['/judges/dashboard/courtroom', c.efiling_id], {
       queryParams: { forwarded_for_date: fdate, forward_bench_key: fbench },
-    });
-  }
-
-  private loadCalendar(): void {
-    this.courtroomService.getDecisionCalendar().subscribe({
-      next: (resp) => {
-        this.calendarItems = resp?.items ?? [];
-      },
-      error: (err) => {
-        console.warn('Failed to load decision calendar', err);
-        this.calendarItems = [];
-      },
     });
   }
 

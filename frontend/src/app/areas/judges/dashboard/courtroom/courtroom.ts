@@ -3,6 +3,7 @@ import { Component } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { DomSanitizer, SafeResourceUrl, SafeHtml } from "@angular/platform-browser";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
+import { catchError, forkJoin, of } from "rxjs";
 import Swal from "sweetalert2";
 
 import { AuthService } from "../../../../auth.service";
@@ -83,27 +84,57 @@ export class JudgeCourtroomPage {
     this.isLoading = true;
     this.loadError = "";
 
-    this.courtroomService
-      .getCaseSummary(this.efilingId, this.forwardedForDate, this.forwardBenchKey)
-      .subscribe({
-        next: (resp) => {
-          this.caseSummary = resp ?? null;
-          this.forwardedForDate =
-            resp?.forwarded_for_date ?? this.forwardedForDate;
-          this.forwardBenchKey =
-            resp?.forward_bench_key ?? this.forwardBenchKey;
-          this.decisionNotes = resp?.judge_decision?.decision_notes ?? "";
+    const benchForParallel = this.forwardBenchKey;
+    forkJoin({
+      summary: this.courtroomService.getCaseSummary(
+        this.efilingId,
+        this.forwardedForDate,
+        benchForParallel,
+      ),
+      documents: this.courtroomService
+        .getCaseDocuments(
+          this.efilingId,
+          this.forwardedForDate,
+          benchForParallel,
+          false,
+        )
+        .pipe(
+          catchError((err) => {
+            console.warn("Courtroom documents parallel load failed", err);
+            return of({ items: [] as any[] });
+          }),
+        ),
+    }).subscribe({
+      next: ({ summary, documents }) => {
+        this.caseSummary = summary ?? null;
+        this.forwardedForDate =
+          summary?.forwarded_for_date ?? this.forwardedForDate;
+        const resolvedBench =
+          summary?.forward_bench_key ?? this.forwardBenchKey;
+        this.decisionNotes = summary?.judge_decision?.decision_notes ?? "";
+        const benchChanged =
+          String(resolvedBench ?? "") !== String(benchForParallel ?? "");
+        this.forwardBenchKey = resolvedBench;
+        if (benchChanged) {
           this.loadCaseDocuments();
-          this.isLoading = false;
+        } else {
+          this.applyDocumentsResponse(documents);
+        }
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.warn("Failed to load courtroom case summary", err);
+        this.loadError = "Failed to load case details.";
+        this.isLoading = false;
+      },
+    });
+  }
 
-          console.log("Case Summary Is", this.caseSummary);
-        },
-        error: (err) => {
-          console.warn("Failed to load courtroom case summary", err);
-          this.loadError = "Failed to load case details.";
-          this.isLoading = false;
-        },
-      });
+  private applyDocumentsResponse(resp: { items?: any[] } | null): void {
+    this.allCaseDocuments = resp?.items ?? [];
+    if (this.allCaseDocuments.length && !this.previewDocument) {
+      this.selectPreviewDocument(this.allCaseDocuments[0]);
+    }
   }
 
  formatVs(text: string): SafeHtml {
@@ -174,10 +205,7 @@ export class JudgeCourtroomPage {
       .getCaseDocuments(this.efilingId, this.forwardedForDate, this.forwardBenchKey, false)
       .subscribe({
         next: (resp) => {
-          this.allCaseDocuments = resp?.items ?? [];
-          if (this.allCaseDocuments.length && !this.previewDocument) {
-            this.selectPreviewDocument(this.allCaseDocuments[0]);
-          }
+          this.applyDocumentsResponse(resp);
         },
         error: (err) => {
           console.warn("Failed to load case documents", err);

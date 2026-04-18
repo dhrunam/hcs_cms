@@ -79,6 +79,9 @@ class EfilingDocumentsIndexSerializer(serializers.ModelSerializer):
         return obj.document.ia_number if obj.document_id and obj.document else None
 
     def get_history_count(self, obj):
+        c = getattr(obj, "_history_count", None)
+        if c is not None:
+            return int(c)
         return obj.scrutiny_history.count()
 
     def get_can_replace(self, obj):
