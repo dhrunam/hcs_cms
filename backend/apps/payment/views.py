@@ -114,18 +114,9 @@ class PaymentInitiateView(APIView):
             amount=str(amount),
             court_fees=str(amount),
             message="Initiated",
-            callback_method="INIT",
-<<<<<<< HEAD
-            callback_payload={
-                "application": str(application),
-                "e_filing_number": str(e_filing_number or ""),
-                "source": source,
-                "encdata": encdata,
-            },
+            callback_method="INIT",            
             created_by=request.user if request.user.is_authenticated else None,
-=======
             callback_payload=callback_payload,
->>>>>>> jwt-auth
         )
 
         fields = {"encdata": encdata}
