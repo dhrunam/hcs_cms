@@ -250,25 +250,30 @@ def _create_case_file_entry_for_published_steno_order(
         filed_by=filed_by or None,
     )
 
-    last_sequence = (
-        EfilingDocumentsIndex.objects.filter(document__e_filing=efiling)
-        .exclude(document_sequence__isnull=True)
-        .order_by("-document_sequence")
-        .values_list("document_sequence", flat=True)
-        .first()
+    purpose_name = (
+        getattr(getattr(workflow, "proceeding", None), "steno_purpose", None).purpose_name
+        if getattr(getattr(workflow, "proceeding", None), "steno_purpose", None)
+        else ""
     )
-    next_sequence = (last_sequence or 0) + 1
+    purpose_label = (purpose_name or "").strip()
+    title_suffix = f" - {purpose_label}" if purpose_label else ""
+    title = (
+        f"Signed court order (WF #{workflow.id}, order no. {order_no_for_label})"
+        f"{title_suffix}"
+    )[:256]
+    comments = (
+        f"Final signed order published through steno workflow."
+        f"{f' Purpose: {purpose_label}.' if purpose_label else ''}"
+    )
 
     idx = EfilingDocumentsIndex(
         document=doc,
-        document_part_name=(
-            f"Signed court order (WF #{workflow.id}, order no. {order_no_for_label})"
-        ),
-        document_sequence=next_sequence,
+        document_part_name=title,
+        document_sequence=None,
         scrutiny_status=EfilingDocumentsIndex.ScrutinyStatus.ACCEPTED,
         is_new_for_scrutiny=False,
         is_compliant=True,
-        comments="Final signed order published through steno workflow.",
+        comments=comments,
         published_order_at=published_at,
         created_by=user if getattr(user, "is_authenticated", False) else None,
         updated_by=user if getattr(user, "is_authenticated", False) else None,
@@ -2023,7 +2028,7 @@ class StenoDraftFileUploadView(APIView):
             raise ValidationError({"file": "PDF file is required."})
 
         workflow = (
-            StenoOrderWorkflow.objects.select_related("efiling")
+            StenoOrderWorkflow.objects.select_related("efiling", "proceeding__steno_purpose")
             .filter(id=workflow_id, is_active=True)
             .first()
         )

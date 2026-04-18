@@ -38,6 +38,7 @@ export class JudgeCourtroomPage {
 
   canWrite = false;
   private expandedVakalatGroupIds = new Set<string>();
+  private expandedOrdersGroupIds = new Set<string>();
 
   constructor(
     private route: ActivatedRoute,
@@ -194,6 +195,18 @@ export class JudgeCourtroomPage {
     return buildCollapsedDisplaySections(this.filteredDocuments);
   }
 
+  publishedOrderLabel(doc: any): string | null {
+    const raw = doc?.published_order_at;
+    if (!raw) return null;
+    try {
+      const d = new Date(raw);
+      if (Number.isNaN(d.getTime())) return null;
+      return `Published: ${d.toLocaleString()}`;
+    } catch {
+      return null;
+    }
+  }
+
   isVakalatGroupExpanded(id: string): boolean {
     return this.expandedVakalatGroupIds.has(id);
   }
@@ -204,6 +217,18 @@ export class JudgeCourtroomPage {
       return;
     }
     this.expandedVakalatGroupIds.add(id);
+  }
+
+  isOrdersGroupExpanded(id: string): boolean {
+    return this.expandedOrdersGroupIds.has(id);
+  }
+
+  toggleOrdersGroup(id: string): void {
+    if (this.expandedOrdersGroupIds.has(id)) {
+      this.expandedOrdersGroupIds.delete(id);
+      return;
+    }
+    this.expandedOrdersGroupIds.add(id);
   }
 
   selectPreviewDocument(doc: any): void {

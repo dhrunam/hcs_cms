@@ -7,7 +7,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
-from apps.core.models import BenchT, Efiling, JudgeT, OrderDetailsA, ReaderJudgeAssignment, EfilingDocumentsIndex
+from apps.core.models import BenchT, Efiling, JudgeT, OrderDetailsA, ReaderJudgeAssignment, EfilingDocumentsIndex, PurposeT
 from apps.judge.models import CourtroomJudgeDecision
 from apps.judge.models import JudgeStenoMapping
 from apps.listing.models import CauseList, CauseListEntry
@@ -1284,6 +1284,15 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
 
     @override_settings(EFILING_VALIDATE_PDF_UPLOAD=False)
     def test_steno_upload_signed_publish_after_judge_approval(self):
+        purpose = PurposeT.objects.create(
+            purpose_code=9876,
+            purpose_name="For directions",
+            display="For directions",
+            purpose_priority=1,
+            res_disp=0,
+            national_code=1,
+            est_code_src="SRC001",
+        )
         reader_client = self._auth_client(self.reader_cj)
         reader_client.post(
             "/api/v1/reader/daily-proceedings/submit/?reader_group=READER",
@@ -1293,6 +1302,7 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
                 "next_listing_date": self.listing_date.isoformat(),
                 "proceedings_text": "Matter heard.",
                 "reader_remark": "Send draft order.",
+                "steno_purpose_code": purpose.purpose_code,
                 "document_type": "ORDER",
             },
             format="json",
@@ -1341,6 +1351,8 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
             idx.document.document_type if idx.document_id else "",
             "COURT_ORDER_SIGNED_FINAL",
         )
+        self.assertIsNone(idx.document_sequence)
+        self.assertIn("For directions", idx.document_part_name or "")
         self.assertEqual(idx.published_order_at, workflow.published_at)
         self.assertEqual(idx.file_part_path.name.endswith(".pdf"), True)
 

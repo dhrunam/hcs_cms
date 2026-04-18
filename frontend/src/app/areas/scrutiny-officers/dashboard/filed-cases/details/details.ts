@@ -11,7 +11,11 @@ import {
   EfilingService,
 } from "../../../../../services/advocate/efiling/efiling.services";
 import { EfilingChatComponent } from "../../../../../shared/efiling-chat/efiling-chat";
-import { orderDocumentsForDisplay } from "../../../../../shared/document-groups";
+import {
+  isPublishedCourtOrderDoc,
+  orderDocumentsForDisplay,
+  sortCourtOrdersNewestFirst,
+} from "../../../../../shared/document-groups";
 import { catchError, of } from "rxjs";
 import { PaymentService } from "../../../../../services/payment/payment.service";
 import {
@@ -83,9 +87,10 @@ export class FiledCaseDetails {
   isSavingReview = false;
   isSubmittingApprovedCase = false;
   missingFilingId = false;
-  activeTab: "filing" | "documents" | "ia" | "chat" = "filing";
+  activeTab: "filing" | "documents" | "orders" | "ia" | "chat" = "filing";
   iaList: any[] = [];
   fullScreen = false;
+  courtOrderDocuments: any[] = [];
   iaDocuments: any[] = [];
   groupedIaDocuments: EfilingDocumentIndexGroup[] = [];
   selectedIaDocument: any = null;
@@ -111,7 +116,7 @@ export class FiledCaseDetails {
     private toastr: ToastrService,
   ) {}
 
-  setActiveTab(tab: "filing" | "documents" | "ia" | "chat"): void {
+  setActiveTab(tab: "filing" | "documents" | "orders" | "ia" | "chat"): void {
     this.activeTab = tab;
   }
 
@@ -171,7 +176,13 @@ export class FiledCaseDetails {
         this.litigants = litigants?.results ?? [];
         this.caseDetails = caseDetails?.results?.[0] ?? null;
         this.acts = acts?.results ?? [];
-        this.documents = orderDocumentsForDisplay(documents?.results ?? [], "");
+        const orderedMainDocs = orderDocumentsForDisplay(documents?.results ?? [], "");
+        this.courtOrderDocuments = sortCourtOrdersNewestFirst(
+          orderedMainDocs.filter((doc: any) => isPublishedCourtOrderDoc(doc)),
+        );
+        this.documents = orderedMainDocs.filter(
+          (doc: any) => !isPublishedCourtOrderDoc(doc),
+        );
         this.groupedDocuments = this.groupDocumentsByType(this.documents);
         this.iaDocuments = orderDocumentsForDisplay(iaDocuments?.results ?? [], "");
         this.groupedIaDocuments = this.groupDocumentsByType(this.iaDocuments);

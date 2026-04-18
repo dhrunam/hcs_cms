@@ -21,7 +21,11 @@ import {
   trackByEfilingDocumentIndexRowId,
 } from "../../../../../../utils/efiling-document-index-tree";
 import { EfilingChatComponent } from "../../../../../../shared/efiling-chat/efiling-chat";
-import { orderDocumentsForDisplay } from "../../../../../../shared/document-groups";
+import {
+  isPublishedCourtOrderDoc,
+  orderDocumentsForDisplay,
+  sortCourtOrdersNewestFirst,
+} from "../../../../../../shared/document-groups";
 
 @Component({
   selector: "app-scrutiny-details",
@@ -59,8 +63,9 @@ export class ScrutinyDetails {
     document: any;
     file: File;
   }> = [];
-  activeTab: "filing" | "documents" | "ia" | "chat" = "filing";
+  activeTab: "filing" | "documents" | "orders" | "ia" | "chat" = "filing";
   iaList: any[] = [];
+  courtOrderDocuments: any[] = [];
   iaDocuments: any[] = [];
   selectedIaDocument: any = null;
   selectedIaDocumentUrl: SafeResourceUrl | null = null;
@@ -92,7 +97,7 @@ export class ScrutinyDetails {
     this.notesPopupOpen = false;
   }
 
-  setActiveTab(tab: "filing" | "documents" | "ia" | "chat"): void {
+  setActiveTab(tab: "filing" | "documents" | "orders" | "ia" | "chat"): void {
     this.activeTab = tab;
   }
 
@@ -136,7 +141,13 @@ export class ScrutinyDetails {
         payment,
       }) => {
         this.filing = filing;
-        this.documents = orderDocumentsForDisplay(documents?.results ?? [], "");
+        const orderedMainDocs = orderDocumentsForDisplay(documents?.results ?? [], "");
+        this.courtOrderDocuments = sortCourtOrdersNewestFirst(
+          orderedMainDocs.filter((doc: any) => isPublishedCourtOrderDoc(doc)),
+        );
+        this.documents = orderedMainDocs.filter(
+          (doc: any) => !isPublishedCourtOrderDoc(doc),
+        );
         this.groupedDocuments = this.groupDocumentsByType(this.documents);
         this.iaDocuments = orderDocumentsForDisplay(iaDocuments?.results ?? [], "");
         this.litigantList = litigants?.results ?? [];

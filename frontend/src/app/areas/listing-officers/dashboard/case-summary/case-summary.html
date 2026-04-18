@@ -130,7 +130,7 @@
               <div class="border rounded p-3 docs-list-panel">
                 <div class="small text-muted mb-2">Select documents to forward</div>
                 <div class="d-flex flex-column gap-2">
-                  <label class="doc-select-item" *ngFor="let d of documents">
+                  <label class="doc-select-item" *ngFor="let d of pleadingDocuments">
                     <div class="d-flex align-items-start gap-2">
                       <input
                         class="form-check-input mt-1"
@@ -148,6 +148,29 @@
                       </button>
                     </div>
                   </label>
+                  <details class="mt-2" *ngIf="courtOrderDocuments.length > 0" open>
+                    <summary class="small fw-semibold text-muted mb-2">
+                      Court orders ({{ courtOrderDocuments.length }})
+                    </summary>
+                    <label class="doc-select-item" *ngFor="let d of courtOrderDocuments">
+                      <div class="d-flex align-items-start gap-2">
+                        <input
+                          class="form-check-input mt-1"
+                          type="checkbox"
+                          [checked]="isDocSelected(d.id)"
+                          (change)="toggleDocSelection(d.id, $any($event.target).checked)"
+                        />
+                        <button
+                          type="button"
+                          class="btn btn-link p-0 text-start text-decoration-none"
+                          (click)="selectDocument(d)"
+                        >
+                          <span class="d-block">{{ d.document_part_name || 'Court order' }}</span>
+                          <span class="d-block small text-muted" *ngIf="publishedOrderLabel(d) as plb">{{ plb }}</span>
+                        </button>
+                      </div>
+                    </label>
+                  </details>
                 </div>
               </div>
             </div>

@@ -57,6 +57,7 @@ export class ReaderCaseSummaryPage {
   benchConfigurations: BenchConfiguration[] = [];
   listingRemark = "";
   private expandedVakalatGroupIds = new Set<string>();
+  private expandedOrdersGroupIds = new Set<string>();
 
   constructor(
     private route: ActivatedRoute,
@@ -519,5 +520,17 @@ export class ReaderCaseSummaryPage {
       return;
     }
     this.expandedVakalatGroupIds.add(id);
+  }
+
+  isOrdersGroupExpanded(id: string): boolean {
+    return this.expandedOrdersGroupIds.has(id);
+  }
+
+  toggleOrdersGroup(id: string): void {
+    if (this.expandedOrdersGroupIds.has(id)) {
+      this.expandedOrdersGroupIds.delete(id);
+      return;
+    }
+    this.expandedOrdersGroupIds.add(id);
   }
 }

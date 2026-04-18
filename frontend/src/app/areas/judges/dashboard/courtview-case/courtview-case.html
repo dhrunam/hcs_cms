@@ -223,6 +223,28 @@
                     </div>
                   </div>
                 </div>
+                <div *ngIf="section.kind === 'ordersGroup'" class="vakalat-collapse mb-2">
+                  <button type="button" class="vakalat-collapse__trigger" (click)="toggleOrdersGroup(section.id)">
+                    <i class="fa" [class.fa-chevron-right]="!isOrdersGroupExpanded(section.id)" [class.fa-chevron-down]="isOrdersGroupExpanded(section.id)"></i>
+                    <span>{{ section.label }}</span>
+                  </button>
+                  <div class="doc-list mt-2" *ngIf="isOrdersGroupExpanded(section.id)">
+                    <div
+                      *ngFor="let doc of section.items"
+                      class="doc-list-item doc-sub-item"
+                      [class.active-doc]="previewDocument?.id === doc.id"
+                      (click)="selectPreviewDocument(doc)"
+                    >
+                      <i class="fa fa-file-pdf doc-icon"></i>
+                      <div class="text-truncate">
+                        <div style="font-size: 13px; font-weight: 500">
+                          {{ doc.document_part_name || doc.document_type || 'Court order' }}
+                        </div>
+                        <div *ngIf="publishedOrderLabel(doc) as pol2" style="font-size: 11px; opacity: 0.85; margin-top: 2px">{{ pol2 }}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </ng-container>
             </div>
             <div

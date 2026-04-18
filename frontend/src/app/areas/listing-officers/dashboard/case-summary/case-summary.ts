@@ -12,6 +12,11 @@ import {
   CauseListService,
 } from '../../../../services/listing/cause-list.service';
 import { formatPetitionerVsRespondent } from '../../../../utils/petitioner-vs-respondent';
+import {
+  isPublishedCourtOrderDoc,
+  orderDocumentsForDisplay,
+  sortCourtOrdersNewestFirst,
+} from '../../../../shared/document-groups';
 
 type Filing = any;
 type CaseDetails = any;
@@ -35,6 +40,8 @@ export class ListingCaseSummaryPage {
   caseDetails: CaseDetails | null = null;
   litigants: Litigant[] = [];
   documents: FilingDoc[] = [];
+  pleadingDocuments: FilingDoc[] = [];
+  courtOrderDocuments: FilingDoc[] = [];
   selectedDocument: FilingDoc | null = null;
   selectedDocumentUrl: SafeResourceUrl | null = null;
   selectedDocumentBlobUrl: string | null = null;
@@ -89,7 +96,13 @@ export class ListingCaseSummaryPage {
         this.litigants = Array.isArray(litigants?.results) ? litigants.results : Array.isArray(litigants) ? litigants : [];
         const mainDocs = Array.isArray(documents?.results) ? documents.results : Array.isArray(documents) ? documents : [];
         const iaDocs = Array.isArray(iaDocuments?.results) ? iaDocuments.results : Array.isArray(iaDocuments) ? iaDocuments : [];
-        this.documents = [...mainDocs, ...iaDocs];
+        this.documents = orderDocumentsForDisplay([...mainDocs, ...iaDocs], "");
+        this.courtOrderDocuments = sortCourtOrdersNewestFirst(
+          this.documents.filter((doc: any) => isPublishedCourtOrderDoc(doc)),
+        );
+        this.pleadingDocuments = this.documents.filter(
+          (doc: any) => !isPublishedCourtOrderDoc(doc),
+        );
         this.selectedDocument = this.documents[0] ?? null;
         this.updatePreviewUrl(this.selectedDocument ?? null);
         const currentCase = (registeredCases?.items ?? []).find((x: any) => Number(x?.efiling_id) === Number(this.filingId));

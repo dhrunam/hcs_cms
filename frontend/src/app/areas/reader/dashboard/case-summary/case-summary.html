@@ -124,6 +124,31 @@
                         </button>
                       </div>
                     </div>
+                    <div *ngIf="section.kind === 'ordersGroup'" class="vakalat-collapse">
+                      <button type="button" class="vakalat-collapse__trigger" (click)="toggleOrdersGroup(section.id)">
+                        <i class="fa" [class.fa-chevron-right]="!isOrdersGroupExpanded(section.id)" [class.fa-chevron-down]="isOrdersGroupExpanded(section.id)"></i>
+                        <span>{{ section.label }}</span>
+                      </button>
+                      <div class="d-flex flex-column gap-2 mt-2" *ngIf="isOrdersGroupExpanded(section.id)">
+                        <button
+                          type="button"
+                          class="doc-preview-item text-start doc-sub-item"
+                          *ngFor="let d of section.items"
+                          [class.active]="isSelectedDocument(d.id)"
+                          (click)="selectDocument(d)"
+                        >
+                          <span class="doc-preview-name">{{ documentName(d) }}</span>
+                          <span class="d-block small text-muted" *ngIf="publishedOrderLabel(d) as pol2">
+                            {{ pol2 }}
+                          </span>
+                          <span
+                            *ngIf="isRequestedDocument(d.id)"
+                            class="badge rounded-pill text-bg-info"
+                            >Requested</span
+                          >
+                        </button>
+                      </div>
+                    </div>
                   </ng-container>
                 </div>
               </div>
