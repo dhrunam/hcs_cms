@@ -33,6 +33,18 @@ export const ListingOfficerDashboardRoutes: Routes = [
         loadComponent: () => import('./home/home').then((c) => c.ListingOfficerHome),
         title: 'Cause List Generator | CMS',
       },
+      {
+        path: 'office-note-sheet',
+        loadComponent: () =>
+          import('../../office-note-sheet/list/list').then((c) => c.OfficeNoteSheetList),
+        title: 'Office Note Sheet | CMS',
+      },
+      {
+        path: 'office-note-sheet/note/:caseId',
+        loadComponent: () =>
+          import('../../office-note-sheet/note-editor/note-editor').then((c) => c.OfficeNoteEditor),
+        title: 'Case Notes | CMS',
+      },
     ],
   },
 ];

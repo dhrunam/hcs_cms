@@ -7,6 +7,7 @@ import { firstValueFrom } from 'rxjs';
 import { forkJoin } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import Swal from 'sweetalert2';
+import { jsPDF } from 'jspdf';
 import { app_url } from '../../../../../../environment';
 import { EfilingService } from '../../../../../../services/advocate/efiling/efiling.services';
 import { PaymentService } from '../../../../../../services/payment/payment.service';
@@ -81,6 +82,9 @@ export class IaFilingForm implements OnInit {
   offlineBankReceiptName: string | null = null;
   isSubmittingOfflinePayment = false;
 
+  /** Until true, court fee payment options stay hidden (user clicks Pay court fees first). */
+  showIaCourtFeePaymentPanel = false;
+
   constructor(
     private fb: FormBuilder,
     private efilingService: EfilingService,
@@ -94,6 +98,8 @@ export class IaFilingForm implements OnInit {
     this.form = this.fb.group({
       e_filing_id: ['', Validators.required],
       relief_sought: ['', Validators.required],
+      /** Review step: user must check before submit (after court fee paid). */
+      ia_declaration: [false],
     });
 
     this.uploadFilingDocForm = this.fb.group({
@@ -122,6 +128,94 @@ export class IaFilingForm implements OnInit {
     return this.paymentOutcome === 'success';
   }
 
+  openIaCourtFeePaymentPanel(): void {
+    if (!this.createdIa?.id) {
+      this.toastr.warning('Upload documents first so the IA record exists.');
+      return;
+    }
+    this.showIaCourtFeePaymentPanel = true;
+  }
+
+  iaPaymentAmountDisplay(): string {
+    const a = this.paymentDetails?.amount;
+    return a != null && String(a).trim() !== '' ? String(a) : String(this.iaCourtFeeRupees);
+  }
+
+  iaPaymentTxnDisplay(): string {
+    const v = String(this.paymentDetails?.txnId ?? '').trim();
+    return v || '—';
+  }
+
+  iaPaymentReferenceDisplay(): string {
+    const v = String(this.paymentDetails?.referenceNo ?? '').trim();
+    return v || '—';
+  }
+
+  iaPaymentModeDisplay(): string {
+    const m = this.paymentDetails?.paymentMode;
+    if (m === 'offline') return 'Offline';
+    if (m === 'online') return 'Online';
+    return '—';
+  }
+
+  iaPaymentDateTimeDisplay(): string {
+    const d = this.paymentDetails;
+    if (!d) return '—';
+    if (d.paymentMode === 'offline' && d.paymentDate) {
+      return `${d.paymentDate} (offline)`;
+    }
+    if (d.paidAt) return String(d.paidAt);
+    return '—';
+  }
+
+  /** For `| date` pipe in review (online payment). */
+  iaPaymentPaidAtDate(): Date | null {
+    const raw = this.paymentDetails?.paidAt;
+    if (raw == null || raw === '') return null;
+    const dt = new Date(raw as string | number);
+    return Number.isNaN(dt.getTime()) ? null : dt;
+  }
+
+  iaPaymentOfflineDateValue(): string | null {
+    const d = this.paymentDetails;
+    if (d?.paymentMode !== 'offline' || !d.paymentDate) return null;
+    return String(d.paymentDate);
+  }
+
+  canSubmitIaFiling(): boolean {
+    const filingId = this.form.value.e_filing_id;
+    const relief = String(this.form.value.relief_sought ?? '').trim();
+    const declared = this.form.value.ia_declaration === true;
+    return (
+      !!filingId &&
+      relief.length > 0 &&
+      !this.isSubmitting &&
+      this.docList.length > 0 &&
+      !!this.createdIa?.id &&
+      this.isIaCourtFeePaid &&
+      declared
+    );
+  }
+
+  private eFilingIdFromIa(ia: { e_filing?: number | { id?: number } } | null): number | null {
+    if (!ia) return null;
+    const raw = ia.e_filing;
+    if (raw != null && typeof raw === 'object' && 'id' in raw) {
+      const n = Number((raw as { id: number }).id);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    }
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+
+  private parseIaFeeApplicationId(appParam: string | number | undefined): number | null {
+    const s = String(appParam ?? '').trim();
+    const m = s.match(/^IA-FEE-(\d+)$/i);
+    if (!m) return null;
+    const n = Number(m[1]);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+
   private applyIaPaymentReturnQueryParams(params: Params): void {
     const statusRaw =
       params['status'] ?? params['payment_status'] ?? params['txn_status'];
@@ -129,19 +223,21 @@ export class IaFilingForm implements OnInit {
       return;
     }
     const appParam = params['application'] ?? params['id'];
+    const appStr = String(appParam ?? '');
     const expected = this.iaFeeApplicationRef();
-    if (expected && appParam !== undefined && String(appParam) !== String(expected)) {
+    if (expected && appParam !== undefined && appStr !== '' && appStr !== String(expected)) {
       return;
     }
     const st = String(statusRaw).trim().toLowerCase();
-    if (/(success|paid|complete|ok)/i.test(st)) {
+    const success = /(success|paid|complete|ok)/i.test(st);
+    if (success) {
       this.paymentOutcome = 'success';
     } else if (/(fail|reject|declin|error|cancel)/i.test(st)) {
       this.paymentOutcome = 'failed';
     } else {
       this.paymentOutcome = 'failed';
     }
-    this.paymentDetails = {
+    const paymentDetails = {
       txnId:
         String(
           params['txn_id'] ??
@@ -152,18 +248,143 @@ export class IaFilingForm implements OnInit {
       paidAt: String(params['payment_datetime'] ?? params['paid_at'] ?? '') || undefined,
       referenceNo: String(params['reference_no'] ?? '') || undefined,
       amount: String(params['amount'] ?? '') || undefined,
-      paymentMode: 'online',
+      paymentMode: 'online' as const,
     };
-    this.persistIaPaymentState();
+
     const clean: Record<string, string | number> = {};
     if (this.form.value.e_filing_id) {
       clean['e_filing_id'] = this.form.value.e_filing_id;
     }
-    this.router.navigate([], { relativeTo: this.route, queryParams: clean, replaceUrl: true });
+
+    const iaIdFromGateway = this.parseIaFeeApplicationId(appParam);
+
+    const navigateClean = (): void => {
+      this.router.navigate([], { relativeTo: this.route, queryParams: clean, replaceUrl: true });
+    };
+
+    if (!success) {
+      this.paymentDetails = {};
+      this.persistIaPaymentState();
+      navigateClean();
+      return;
+    }
+
+    this.paymentDetails = paymentDetails;
+
+    const afterDocs = (iaIdForStorage: number | null): void => {
+      this.persistIaPaymentState(iaIdForStorage ?? undefined);
+      const efId = Number(this.form.value.e_filing_id);
+      if (efId) {
+        this.reloadIaDocumentListFromServer(efId, navigateClean);
+      } else {
+        navigateClean();
+      }
+    };
+
+    if (iaIdFromGateway && !this.createdIa?.id) {
+      void firstValueFrom(this.efilingService.get_ia_by_id(iaIdFromGateway))
+        .then((ia) => {
+          this.createdIa = ia;
+          const efId = this.eFilingIdFromIa(ia);
+          if (efId) {
+            const relief = String(ia?.ia_text ?? '').trim();
+            this.form.patchValue({
+              e_filing_id: efId,
+              relief_sought: relief || this.form.value.relief_sought,
+            });
+            clean['e_filing_id'] = efId;
+            this.hydrateSelectedFilingAfterPaymentReturn(efId);
+          }
+          afterDocs(iaIdFromGateway);
+        })
+        .catch(() => {
+          this.persistIaPaymentState(iaIdFromGateway ?? undefined);
+          navigateClean();
+        });
+      return;
+    }
+
+    afterDocs(this.createdIa?.id ?? iaIdFromGateway ?? null);
   }
 
-  private persistIaPaymentState(): void {
-    const key = this.iaPaymentStorageKey();
+  private hydrateSelectedFilingAfterPaymentReturn(efId: number): void {
+    this.efilingService.get_filing_by_id(efId).subscribe({
+      next: (filing) => {
+        this.selectedFiling = filing;
+        forkJoin({
+          caseDetails: this.efilingService.get_case_details_by_filing_id(efId),
+          litigants: this.efilingService.get_litigant_list_by_filing_id(efId),
+          acts: this.efilingService.get_acts_by_filing_id(efId),
+        }).subscribe({
+          next: ({ caseDetails, litigants, acts }) => {
+            this.caseDetails = caseDetails?.results?.[0] ?? null;
+            this.litigants = litigants?.results ?? [];
+            this.acts = acts?.results ?? [];
+          },
+          error: () => {
+            /* ignore */
+          },
+        });
+      },
+      error: () => {
+        /* ignore */
+      },
+    });
+  }
+
+  private reloadIaDocumentListFromServer(eFilingId: number, onDone?: () => void): void {
+    forkJoin({
+      documents: this.efilingService.get_documents_by_filing_id(eFilingId),
+      documentIndexes: this.efilingService.get_document_reviews_by_filing_id(eFilingId),
+    }).subscribe({
+      next: ({ documents, documentIndexes }) => {
+        const mainDocs = documents?.results ?? [];
+        const indexParts = documentIndexes?.results ?? [];
+        const list = mainDocs.map((doc: any) => ({
+          ...doc,
+          document_indexes: indexParts
+            .filter((p: any) => Number(p.document) === Number(doc.id))
+            .sort(
+              (a: any, b: any) =>
+                Number(a.document_sequence) - Number(b.document_sequence),
+            ),
+        }));
+        const iaDoc =
+          list.find(
+            (d: any) => String(d?.document_type || '').trim().toUpperCase() === 'IA',
+          ) || list[0];
+        if (iaDoc) {
+          this.docList = [iaDoc];
+        }
+        onDone?.();
+      },
+      error: () => {
+        onDone?.();
+      },
+    });
+  }
+
+  private toAbsoluteUrl(url: string): string {
+    if (!url) return '';
+    const s = String(url).trim();
+    if (s.startsWith('http://') || s.startsWith('https://')) return s;
+    const base = app_url.replace(/\/$/, '');
+    return s.startsWith('/') ? `${base}${s}` : `${base}/${s}`;
+  }
+
+  documentPartHref(part: { file_url?: string; file_part_path?: string } | null): string {
+    return this.toAbsoluteUrl(String(part?.file_url || part?.file_part_path || ''));
+  }
+
+  documentFinalHref(doc: { final_document?: string } | null): string {
+    return this.toAbsoluteUrl(String(doc?.final_document || ''));
+  }
+
+  private persistIaPaymentState(iaIdOverride?: number): void {
+    const key =
+      iaIdOverride != null
+        ? `ia_court_fee_${iaIdOverride}`
+        : this.iaPaymentStorageKey();
     if (!key || !this.paymentOutcome) return;
     try {
       sessionStorage.setItem(
@@ -424,12 +645,20 @@ export class IaFilingForm implements OnInit {
     return map[this.litigantType] ?? 'P';
   }
 
+  /** Case type for `app-upload-documents` — loads index masters and keeps annexure naming in sync. */
+  get iaCaseTypeIdForUpload(): number | null {
+    const raw = this.selectedFiling?.case_type?.id;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+
   selectFiling(item: { filing: any }): void {
-    this.form.patchValue({ e_filing_id: item.filing.id });
+    this.form.patchValue({ e_filing_id: item.filing.id, ia_declaration: false });
     this.createdIa = null;
     this.docList = [];
     this.paymentOutcome = null;
     this.paymentDetails = {};
+    this.showIaCourtFeePaymentPanel = false;
     this.litigantType = 'PETITIONER';
     this.onFilingSelect();
     this.isDropdownOpen = false;
@@ -688,6 +917,10 @@ export class IaFilingForm implements OnInit {
       );
       return;
     }
+    if (!this.form.get('ia_declaration')?.value) {
+      this.toastr.warning('Accept the declaration in Complete IA filing below.');
+      return;
+    }
 
     const proceed = await this.promptOtpAndProceed(
       'Submit IA Filing?',
@@ -711,7 +944,7 @@ export class IaFilingForm implements OnInit {
           /* ignore */
         }
         this.toastr.success('IA Filing submitted successfully.');
-        this.router.navigate(['/advocate/dashboard/efiling/ia-filing/view']);
+        this.router.navigate(['/advocate/dashboard/efiling/pending-scrutiny']);
         this.isSubmitting = false;
       },
       error: (err) => {
@@ -858,16 +1091,71 @@ export class IaFilingForm implements OnInit {
     return items;
   }
 
-  private toAbsoluteUrl(url: string): string {
-    if (!url) return '';
-    const s = String(url).trim();
-    if (s.startsWith('http://') || s.startsWith('https://')) return s;
-    const base = app_url.replace(/\/$/, '');
-    return s.startsWith('/') ? `${base}${s}` : `${base}/${s}`;
-  }
-
   canDownloadMerged(): boolean {
     return this.getMergeItems().length > 0;
+  }
+
+  downloadIaCourtFeeReceiptPdf(): void {
+    if (!this.isIaCourtFeePaid || !this.createdIa?.id) return;
+    const bench = 'High Court Of Sikkim';
+    const eFilingNo = String(this.selectedFiling?.e_filing_number ?? '');
+    const iaNo = String(this.createdIa?.ia_number ?? '');
+    const amountStr = this.iaPaymentAmountDisplay();
+    const txnId = this.iaPaymentTxnDisplay();
+    const referenceNo = this.iaPaymentReferenceDisplay();
+    const modeLabel = this.iaPaymentModeDisplay();
+    const dateTimeLabel = this.iaPaymentDateTimeDisplay();
+
+    const docPdf = new jsPDF();
+    const pageWidth = docPdf.internal.pageSize.getWidth();
+    const margin = 14;
+    let y = 18;
+
+    docPdf.setFont('helvetica', 'bold');
+    docPdf.setFontSize(16);
+    docPdf.text('Court fee payment receipt', margin, y);
+    y += 9;
+    docPdf.setFontSize(10);
+    docPdf.setFont('helvetica', 'normal');
+    docPdf.text(bench, margin, y);
+    y += 11;
+
+    const rows: [string, string][] = [
+      ['E-filing number', eFilingNo || '—'],
+      ['IA number', iaNo || '—'],
+      ['Transaction ID', txnId],
+      ['Reference number', referenceNo],
+      ['Amount paid (INR)', `Rs. ${amountStr}/-`],
+      ['Payment mode', modeLabel],
+      ['Payment date / time', dateTimeLabel],
+      ['Payment status', 'Successful'],
+    ];
+
+    const labelX = margin;
+    const valueX = margin + 52;
+    const valueMaxW = pageWidth - valueX - margin;
+
+    for (const [label, value] of rows) {
+      docPdf.setFont('helvetica', 'bold');
+      docPdf.text(`${label}:`, labelX, y);
+      docPdf.setFont('helvetica', 'normal');
+      const lines = docPdf.splitTextToSize(String(value), valueMaxW);
+      docPdf.text(lines, valueX, y);
+      y += Math.max(6, lines.length * 5.5) + 2;
+    }
+
+    y += 6;
+    docPdf.setFontSize(9);
+    docPdf.setTextColor(90);
+    const footer = `Generated on ${new Date().toLocaleString()}. Record of IA court fee payment.`;
+    docPdf.text(docPdf.splitTextToSize(footer, pageWidth - margin * 2), margin, y);
+    docPdf.setTextColor(0);
+
+    const safeEf = (eFilingNo || `ia-${this.createdIa.id}`).replace(/[^\w.-]+/g, '_').slice(0, 40);
+    const safeTxn = (String(this.paymentDetails?.txnId ?? '').trim() || 'receipt')
+      .replace(/[^\w.-]+/g, '_')
+      .slice(0, 48);
+    docPdf.save(`ia-court-fee-receipt-${safeEf}-${safeTxn}.pdf`);
   }
 
   downloadMergedPdf(): void {

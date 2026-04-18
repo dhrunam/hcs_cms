@@ -48,6 +48,22 @@ export const ReaderRoutes: Routes = [
           ),
         title: 'Reader | Daily Proceedings',
       },
+      {
+        path: 'office-note-sheet',
+        loadComponent: () =>
+          import('../office-note-sheet/list/list').then(
+            (m) => m.OfficeNoteSheetList,
+          ),
+        title: 'Reader | Office Note Sheet',
+      },
+      {
+        path: 'office-note-sheet/note/:caseId',
+        loadComponent: () =>
+          import('../office-note-sheet/note-editor/note-editor').then(
+            (m) => m.OfficeNoteEditor,
+          ),
+        title: 'Reader | Case Notes',
+      },
     ],
   },
 ];

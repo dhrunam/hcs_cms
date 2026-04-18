@@ -1,10 +1,19 @@
 from __future__ import annotations
 
 from django.db import models
+from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.core.models import BaseModel, Efiling
 from apps.core.models import EfilingDocumentsIndex, PurposeT
+
+
+def _reader_case_reallocation_order_upload_to(instance, filename: str) -> str:
+    suffix = ".pdf"
+    if "." in filename:
+        suffix = f'.{filename.rsplit(".", 1)[-1].lower()}'
+    stamp = timezone.now().strftime("%Y%m%d%H%M%S")
+    return f"reader/case-reallocations/{instance.efiling_id}/{stamp}{suffix}"
 
 class CourtroomForward(BaseModel):
     """
@@ -333,4 +342,37 @@ class BenchWorkflowState(BaseModel):
             models.Index(fields=["is_published", "forwarded_for_date"]),
             models.Index(fields=["all_required_approved", "bench_key"]),
             models.Index(fields=["efiling", "forwarded_for_date"]),
+        ]
+
+
+class ReaderCaseReallocation(BaseModel):
+    efiling = models.ForeignKey(
+        Efiling,
+        on_delete=models.CASCADE,
+        related_name="reader_case_reallocations",
+    )
+    previous_bench_key = models.CharField(max_length=50)
+    new_bench_key = models.CharField(max_length=50)
+    remarks = models.TextField()
+    uploaded_order = models.FileField(
+        upload_to=_reader_case_reallocation_order_upload_to,
+        blank=True,
+        null=True,
+        max_length=512,
+    )
+    reallocated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reader_case_reallocations",
+    )
+    reallocated_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = "reader_case_reallocation"
+        app_label = "reader"
+        indexes = [
+            models.Index(fields=["efiling", "reallocated_at"]),
+            models.Index(fields=["previous_bench_key", "new_bench_key"]),
         ]

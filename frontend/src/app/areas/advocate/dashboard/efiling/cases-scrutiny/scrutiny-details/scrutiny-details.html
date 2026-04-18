@@ -230,71 +230,101 @@
               <i class="fa-solid fa-indian-rupee-sign me-2"></i>
               Payment Details
             </div>
-            <div class="filing-summary-grid">
-              <div class="filing-summary-item">
-                <span class="filing-summary-label">Payment Status</span>
-                <span class="filing-summary-value">
-                  {{ paymentOutcome === 'success' ? 'Paid' : 'Not Paid' }}
-                </span>
-              </div>
-              <div class="filing-summary-item">
-                <span class="filing-summary-label">Payment method</span>
-                <span class="filing-summary-value text-capitalize"
-                  >{{ paymentDetails?.paymentMode || '-' }}</span
-                >
-              </div>
-              <div class="filing-summary-item">
-                <span class="filing-summary-label">Amount</span>
-                <span class="filing-summary-value">
-                  {{ paymentDetails?.amount ? ('₹' + paymentDetails?.amount) :
-                  '-' }}
-                </span>
-              </div>
-              <div class="filing-summary-item">
-                <span class="filing-summary-label">Transaction ID</span>
-                <span class="filing-summary-value"
-                  >{{ paymentDetails?.txnId || '-' }}</span
-                >
-              </div>
-              <div class="filing-summary-item">
-                <span class="filing-summary-label">Reference ID</span>
-                <span class="filing-summary-value"
-                  >{{ paymentDetails?.referenceNo || '-' }}</span
-                >
-              </div>
-              <div
-                class="filing-summary-item"
-                *ngIf="
-                  paymentDetails?.paymentMode === 'offline' &&
-                  paymentDetails?.bankReceipt
-                "
-              >
-                <span class="filing-summary-label">Bank receipt</span>
-                <span class="filing-summary-value">
-                  <a [href]="paymentDetails?.bankReceipt || ''" target="_blank"
-                    >View receipt</a
-                  >
-                </span>
-              </div>
-              <div
-                class="filing-summary-item"
-                *ngIf="paymentDetails?.paymentMode !== 'offline'"
-              >
-                <span class="filing-summary-label">Date & Time</span>
-                <span class="filing-summary-value">
-                  {{ paymentDetails?.paidAt ? (paymentDetails?.paidAt | date:
-                  'dd MMM yyyy, hh:mm a') : '-' }}
-                </span>
-              </div>
-              <div
-                class="filing-summary-item"
-                *ngIf="paymentDetails?.paymentMode === 'offline'"
-              >
-                <span class="filing-summary-label">Date of payment</span>
-                <span class="filing-summary-value">
-                  {{ paymentDetails?.paymentDate ? (paymentDetails?.paymentDate
-                  | date: 'dd MMM yyyy') : '-' }}
-                </span>
+            <div
+              class="payment-history-empty text-muted small"
+              *ngIf="paymentTransactions.length === 0"
+            >
+              <i class="fa-regular fa-credit-card me-2 opacity-50"></i>
+              No payment records.
+            </div>
+            <div class="payment-history-card" *ngIf="paymentTransactions.length > 0">
+              <div class="table-responsive payment-history-table">
+                <table class="table table-hover align-middle mb-0 payment-history-table-inner">
+                  <thead>
+                    <tr>
+                      <th scope="col" class="payment-col-num">#</th>
+                      <th scope="col">Date / time</th>
+                      <th scope="col">Mode</th>
+                      <th scope="col">Type</th>
+                      <th scope="col">Amount</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Txn ID</th>
+                      <th scope="col">Reference</th>
+                      <th scope="col" class="payment-col-action">Receipt</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      *ngFor="
+                        let row of paymentTransactions;
+                        let i = index;
+                        trackBy: trackByPaymentRowId
+                      "
+                    >
+                      <td class="payment-col-num text-secondary fw-semibold">
+                        {{ i + 1 }}
+                      </td>
+                      <td class="payment-col-datetime">
+                        <ng-container *ngIf="row.paymentMode !== 'offline'">
+                          {{
+                            row.paidAt
+                              ? (row.paidAt | date : 'dd MMM yyyy, hh:mm a')
+                              : '—'
+                          }}
+                        </ng-container>
+                        <ng-container *ngIf="row.paymentMode === 'offline'">
+                          {{
+                            row.paymentDate
+                              ? (row.paymentDate | date : 'dd MMM yyyy')
+                              : '—'
+                          }}
+                        </ng-container>
+                      </td>
+                      <td>
+                        <span
+                          class="badge rounded-pill payment-mode-badge"
+                          [ngClass]="
+                            row.paymentMode === 'online'
+                              ? 'text-bg-primary'
+                              : 'text-bg-secondary'
+                          "
+                          >{{ row.paymentMode }}</span
+                        >
+                      </td>
+                      <td class="text-secondary small">{{
+                        row.paymentType || '—'
+                      }}</td>
+                      <td class="payment-amount">
+                        {{ row.amount !== '-' ? ('₹' + row.amount) : '—' }}
+                      </td>
+                      <td>
+                        <span
+                          class="badge rounded-pill payment-status-badge"
+                          [ngClass]="paymentStatusBadgeClass(row)"
+                          >{{ row.status }}</span
+                        >
+                      </td>
+                      <td class="payment-mono small">{{ row.txnId }}</td>
+                      <td class="payment-mono small">{{ row.referenceNo }}</td>
+                      <td class="payment-col-action">
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-download-receipt"
+                          *ngIf="paymentRowCanDownloadReceipt(row)"
+                          (click)="downloadPaymentReceipt(row)"
+                        >
+                          <i class="fa-solid fa-file-pdf me-1"></i>
+                          Receipt
+                        </button>
+                        <span
+                          *ngIf="!paymentRowCanDownloadReceipt(row)"
+                          class="text-muted small"
+                          >—</span
+                        >
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>

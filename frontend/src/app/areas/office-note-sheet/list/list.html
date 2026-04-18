@@ -1,0 +1,60 @@
+<div class="dashboard-header mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <h2 class="fw-semibold mb-0">Office Note Sheet</h2>
+    <p class="text-muted small mb-0">
+      Add and manage notes for cases in your care.
+    </p>
+  </div>
+  <div class="search-wrapper">
+    <i class="fa-solid fa-search search-icon"></i>
+    <input
+      type="text"
+      class="search-input form-control"
+      placeholder="Search by case number or party name..."
+      [(ngModel)]="searchQuery"
+      (ngModelChange)="onSearchChange($event)"
+    />
+  </div>
+</div>
+<hr />
+
+<div *ngIf="isLoading" class="text-center py-4 text-muted">
+  <i class="fa-solid fa-spinner fa-spin me-2"></i> Loading cases...
+</div>
+
+<div *ngIf="!isLoading && filteredCases.length === 0" class="text-muted text-center py-4">
+  <i class="fa-solid fa-folder-open me-2"></i> No cases found
+</div>
+
+<div *ngIf="!isLoading && filteredCases.length > 0" class="mt-3">
+  <div class="case-grid">
+    <div class="case-card" *ngFor="let caseItem of filteredCases; trackBy: trackByCaseId">
+      <div class="case-card-header">
+        <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+          <div>
+            <div class="fw-semibold fs-6">{{ caseItem.case_number || '-' }}</div>
+            <div class="small text-muted">
+              {{ caseItem.petitioner_name || '-' }}
+            </div>
+          </div>
+          <div class="text-end">
+            <span class="badge rounded-pill px-3 py-2" [ngClass]="getStatusBadgeClass(caseItem.status)">
+              {{ caseItem.status || 'Unknown' }}
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="case-card-body">
+        <div class="d-flex justify-content-between align-items-center">
+          <div class="small text-muted">
+            <i class="fa-solid fa-user me-1"></i>
+            {{ caseItem.respondent_name || 'N/A' }}
+          </div>
+          <a [routerLink]="['note', caseItem.id]" class="btn btn-primary btn-sm">
+            <i class="fa-solid fa-pen me-1"></i> Add Note
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

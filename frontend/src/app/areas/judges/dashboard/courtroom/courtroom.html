@@ -21,139 +21,67 @@
   <div *ngIf="loadError" class="alert alert-warning">{{ loadError }}</div>
 
   <div *ngIf="!isLoading && !loadError">
-    <div class="card border-0 shadow-sm mb-3">
-      <div class="card-body">
-        <!-- <h5 class="mb-1">Request Details</h5>
-        <div class="text-muted small mb-3">Review case details, add remarks, and submit decision.</div> -->
-
-        <div class="row g-3" *ngIf="caseSummary">
-          <div class="card ">
-            <div class="row">
-          <div class="col-md-6 pt-2">
-            <div class="small text-muted">Case Number</div>
-            <div class="fw-semibold">{{ caseSummary.case_number || '-' }}</div>
-          </div > 
-          <div class="col-md-6">
-            <div class="small text-muted">Bench</div>
-            <div class="fw-semibold">
-              {{ caseSummary.bench_label || benchLabel(caseSummary.bench_key) }}
-            </div>
-          </div>
-          <div class="col-md-6 d-flex align-items-end">
-            <button
-              type="button"
-              class="btn btn-sm litigants-trigger"
-              (click)="openLitigantsModal()"
-            >
-              <i class="fa fa-users me-2"></i>
-              View Litigants
-            </button>
-          </div>
-          <div
-            class="col-md-6"
-            *ngIf="(caseSummary.litigants?.length ?? 0) > 0;"
+    <div class="card border-0 shadow-sm overflow-hidden">
+      <div class="card-header bg-white border-bottom px-4 py-3">
+        <div class="d-flex gap-1">
+          <button
+            type="button"
+            class="btn btn-sm px-4"
+            [class.btn-primary]="activeTab === 'details'"
+            [class.btn-light]="activeTab !== 'details'"
+            (click)="setActiveTab('details')"
           >
-           
-          </div>
-
-          <div class="text-center mt-3 text-dark fw-bold col-12"
-            [innerHTML]="formatVs(caseSummary.petitioner_name)">
+            <i class="fa-solid fa-file-lines me-2"></i>
+            Details
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm px-4"
+            [class.btn-primary]="activeTab === 'notes'"
+            [class.btn-light]="activeTab !== 'notes'"
+            (click)="setActiveTab('notes')"
+          >
+            <i class="fa-solid fa-file-alt me-2"></i>
+            Case Notes
+          </button>
         </div>
-
-        <div class="col-12 align-items-center">
-            <div class="small text-muted">Case Summary -</div>
-            <div
-              class="p-2 rounded text-primary-emphasis fs-7"
-              style="color: rgb(8, 5, 99)"
-            >
-              {{ caseSummary.listing_summary || '-' }}
-            </div>
-          </div>
-          </div>
-        </div>
-          <!-- <div class="col-md-6">
-            <div class="small text-muted">E-Filing Number</div>
-            <div class="fw-semibold">
-              {{ caseSummary.e_filing_number || '-' }}
-            </div>
-          </div> -->
-          <!-- <div class="col-md-6">
-            <div class="small text-muted">Petitioner</div>
-            <div>{{ caseSummary.petitioner_name || '-' }}</div>
-          </div> -->
-          <!-- <div class="col-md-6">
-            <div class="small text-muted">Petitioner Contact</div>
-            <div>{{ caseSummary.petitioner_contact || '-' }}</div>
-          </div> -->
-
-          <!-- <div class="col-12 text-center py-3">
-
-            <ng-template #noLitigants>
-              <div class="text-muted small">No litigants available.</div>
-            </ng-template>
-          </div> -->
-          
-          <div class="col-12">
-            <div class="small mb-1">Case Documents</div>
-            <div *ngIf="documentsLoadError" class="alert alert-warning py-2 small mb-2">
-              {{ documentsLoadError }}
-            </div>
-
+      </div>
+      <div class="card-body p-0">
+        <div *ngIf="activeTab === 'details'" class="px-4 py-3">
+          <ng-container *ngIf="caseSummary">
             <div class="row g-3">
-              <div class="col-lg-3">
-                <div
-                  class="p-2 border rounded"
-                  *ngIf="filteredDocuments.length > 0; else noForwardDocsForRequest"
-                >
-                  <div class="mb-2">
-                    <input
-                      type="text"
-                      class="form-control form-control-sm"
-                      [(ngModel)]="docSearch"
-                      [ngModelOptions]="{ standalone: true }"
-                      placeholder="Search ..."
-                    />
+              <div class="card">
+                <div class="row">
+                  <div class="col-md-6 pt-2">
+                    <div class="small text-muted">Case Number</div>
+                    <div class="fw-semibold">{{ caseSummary.case_number || '-' }}</div>
+                  </div >
+                  <div class="col-md-6">
+                    <div class="small text-muted">Bench</div>
+                    <div class="fw-semibold">
+                      {{ caseSummary.bench_label || benchLabel(caseSummary.bench_key) }}
+                    </div>
                   </div>
-                  <ng-container *ngFor="let section of documentDisplaySections; let i = index">
-                    <div
-                      *ngIf="section.kind === 'doc'"
-                      class="form-check mb-1 px-2 py-2 shadow-sm mb-2"
-                      style="
-                        cursor: pointer;
-                        border: 1px solid rgb(232, 232, 232);
-                        color: rgb(5, 3, 78);
-                        border-radius: 6px;
-                      "
-                      (click)="selectPreviewDocument(section.doc)"
-                    >
-                      <label class="form-check-label small me-2">
-                        {{ section.doc.display_index_label || (i + 1) }}. {{ section.doc.document_part_name || 'Document' }}
-                      </label>
+                  <div
+                    class="col-md-6"
+                    *ngIf="(caseSummary.litigants?.length ?? 0) > 0;"
+                  >
+                 
+                  </div>
+
+                  <div class="text-center mt-3 text-dark fw-bold col-12"
+                    [innerHTML]="formatVs(caseSummary.petitioner_name)">
+                  </div>
+
+                  <div class="col-12 align-items-center">
+                      <div class="small text-muted">Case Summary -</div>
+                      <div
+                        class="p-2 rounded text-primary-emphasis fs-7"
+                        style="color: rgb(8, 5, 99)"
+                      >
+                        {{ caseSummary.listing_summary || '-' }}
+                      </div>
                     </div>
-                    <div *ngIf="section.kind === 'vakalatGroup'" class="vakalat-collapse mb-2">
-                      <button type="button" class="vakalat-collapse__trigger" (click)="toggleVakalatGroup(section.id)">
-                        <i class="fa" [class.fa-chevron-right]="!isVakalatGroupExpanded(section.id)" [class.fa-chevron-down]="isVakalatGroupExpanded(section.id)"></i>
-                        <span>{{ section.label }}</span>
-                      </button>
-                      <ng-container *ngIf="isVakalatGroupExpanded(section.id)">
-                        <div
-                          *ngFor="let doc of section.items"
-                          class="form-check mb-1 px-2 py-2 shadow-sm mb-2 doc-sub-item"
-                          style="
-                            cursor: pointer;
-                            border: 1px solid rgb(232, 232, 232);
-                            color: rgb(5, 3, 78);
-                            border-radius: 6px;
-                          "
-                          (click)="selectPreviewDocument(doc)"
-                        >
-                          <label class="form-check-label small me-2">
-                            {{ doc.display_index_label }}. {{ doc.document_part_name || 'Document' }}
-                          </label>
-                        </div>
-                      </ng-container>
-                    </div>
-                  </ng-container>
                 </div>
                 <div class="p-2 border rounded mt-2" *ngIf="orderEntries.length > 0">
                   <div class="small mb-2 fw-semibold">Orders</div>
@@ -172,46 +100,95 @@
                   </div>
                 </div>
               </div>
-              <div class="col-lg-9">
-                <div class="border rounded p-2 judge-preview-wrap">
-                  <iframe
-                    *ngIf="previewDocumentUrl; else noDocPreview"
-                    [src]="previewDocumentUrl"
-                    class="d-block w-100"
-                    style="min-height: 800px; border: none;"
-                  ></iframe>
-                  <ng-template #noDocPreview>
-                    <div class="text-muted small p-2">
-                      {{ previewLoadError || 'Select a document to preview.' }}
-                    </div>
-                  </ng-template>
+
+              <div class="col-12">
+                <div class="small mb-1">Case Documents</div>
+                <div *ngIf="documentsLoadError" class="alert alert-warning py-2 small mb-2">
+                  {{ documentsLoadError }}
                 </div>
+
+                <div class="row g-3">
+                  <div class="col-lg-3">
+                    <div
+                      class="p-2 border rounded"
+                      *ngIf="filteredDocuments.length > 0; else noForwardDocsForRequest"
+                    >
+                      <div class="mb-2">
+                        <input
+                          type="text"
+                          class="form-control form-control-sm"
+                          [(ngModel)]="docSearch"
+                          [ngModelOptions]="{ standalone: true }"
+                          placeholder="Search ..."
+                        />
+                      </div>
+                      <div
+                        *ngFor="let doc of filteredDocuments;let i=index"
+                        class="form-check mb-1 px-2 py-2 shadow-sm mb-2"
+                        style="
+                          cursor: pointer;
+                          border: 1px solid rgb(232, 232, 232);
+                          color: rgb(5, 3, 78);
+                          border-radius: 6px;
+                        "
+                        (click)="selectPreviewDocument(doc)"
+                      >
+                        <label class="form-check-label small me-2">
+                          {{i+1}}. {{ doc.document_part_name || 'Document' }}
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-lg-9">
+                    <div class="border rounded p-2 judge-preview-wrap">
+                      <iframe
+                        *ngIf="previewDocumentUrl; else noDocPreview"
+                        [src]="previewDocumentUrl"
+                        class="d-block w-100"
+                        style="min-height: 800px; border: none;"
+                      ></iframe>
+                      <ng-template #noDocPreview>
+                        <div class="text-muted small p-2">
+                          {{ previewLoadError || 'Select a document to preview.' }}
+                        </div>
+                      </ng-template>
+                    </div>
+                  </div>
+                </div>
+                <ng-template #noForwardDocsForRequest>
+                  <div class="text-muted small">No case documents available.</div>
+                </ng-template>
               </div>
             </div>
-            <ng-template #noForwardDocsForRequest>
-              <div class="text-muted small">No case documents available.</div>
-            </ng-template>
-          </div>
+
+            <div class="mt-4">
+              <h5 class="mb-2">Judge Remarks</h5>
+              <textarea
+                class="form-control"
+                rows="3"
+                [(ngModel)]="decisionNotes"
+                placeholder="Write remarks..."
+                [disabled]="!canWrite"
+              ></textarea>
+              <div class="d-flex justify-content-end mt-2">
+                <button
+                  class="btn btn-success btn-sm"
+                  (click)="submitDecision()"
+                  [disabled]="!canWrite"
+                >
+                  Read
+                </button>
+              </div>
+            </div>
+          </ng-container>
         </div>
 
-        <div class="mt-4">
-          <h5 class="mb-2">Judge Remarks</h5>
-          <textarea
-            class="form-control"
-            rows="3"
-            [(ngModel)]="decisionNotes"
-            placeholder="Write remarks..."
-            [disabled]="!canWrite"
-          ></textarea>
-          <div class="d-flex justify-content-end mt-2">
-            <button
-              class="btn btn-success btn-sm"
-              (click)="submitDecision()"
-              [disabled]="!canWrite"
-            >
-              Read
-            </button>
-          </div>
+        <div *ngIf="activeTab === 'notes'" class="p-4">
+          <app-office-note-editor
+            [caseId]="efilingId"
+            [showHeader]="false"
+            *ngIf="efilingId"
+          ></app-office-note-editor>
         </div>
       </div>
     </div>
