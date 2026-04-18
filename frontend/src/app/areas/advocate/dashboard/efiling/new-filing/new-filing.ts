@@ -67,7 +67,10 @@ export class NewFiling {
   isUpdateMode = false;
   docList: any[] = [];
   isDeclarationChecked = false;
+  isGovernmentBody = false;
   isUploadingDocuments = false;
+  isResubmission = false;
+  objectionResolvedByPayment: any | null = null;
   private isUploadRequestInFlight = false;
   uploadFileProgresses: number[] = [];
   uploadCompletedToken = 0;
@@ -336,7 +339,7 @@ export class NewFiling {
 
   /** Court fee step and payment apply for all new filing case types; amount is entered manually. */
   get requiresCourtFeePayment(): boolean {
-    return true;
+    return !this.isGovernmentBody;
   }
 
   get isPaymentSuccessful(): boolean {
@@ -555,6 +558,12 @@ export class NewFiling {
         };
         this.step = 5;
         this.hydrateManualCourtFeeFromPaymentDetails();
+      }
+
+      const resubmissionFlag = sessionStorage.getItem(`paymentResubmission_${this.filingId}`);
+      if (resubmissionFlag === "true") {
+        this.isResubmission = true;
+        sessionStorage.removeItem(`paymentResubmission_${this.filingId}`);
       }
     } catch {
       /* ignore */
@@ -1129,7 +1138,7 @@ export class NewFiling {
         );
         return;
       }
-      this.step = 5;
+      this.step = this.isGovernmentBody ? 6 : 5;
       this.setCaseDetailsReviewState(this.step === 6);
       window.scrollTo({
         top: 0,
@@ -1191,7 +1200,7 @@ export class NewFiling {
 
   prev() {
     if (this.step === 6) {
-      this.step = 5;
+      this.step = this.isGovernmentBody ? 4 : 5;
     } else if (this.step === 5) {
       this.step = 4;
     } else if (this.step === 4) {
@@ -1761,6 +1770,10 @@ export class NewFiling {
         if (!record) return;
 
         this.filingData = record;
+        console.log("[NewFiling] Filing data loaded:", JSON.stringify(record, null, 2));
+        console.log("[NewFiling] objection_resolved_by_payment:", record?.objection_resolved_by_payment);
+        this.objectionResolvedByPayment = record?.objection_resolved_by_payment ?? null;
+        console.log("[NewFiling] this.objectionResolvedByPayment set to:", this.objectionResolvedByPayment);
 
         this.initialInputsForm.patchValue({
           bench: record.bench || "High Court Of Sikkim",
@@ -2038,22 +2051,53 @@ export class NewFiling {
       this.step = 4;
       return;
     }
+
+    const resubmitTitle = "Resubmit for Scrutiny?";
+    const resubmitText = "Your case will be resubmitted after resolving the payment objection. It will be forwarded for scrutiny.";
+
+    const newFilingTitle = "Submit Filing?";
+    const newFilingText = "Once submitted, it will be forwarded for scrutiny.";
+
     Swal.fire({
-      title: "Submit Filing?",
-      text: "Once submitted, it will be forwarded for scrutiny.",
+      title: this.isResubmission ? resubmitTitle : newFilingTitle,
+      text: this.isResubmission ? resubmitText : newFilingText,
       icon: "warning",
       showCancelButton: true,
-      confirmButtonText: "Yes, Submit",
+      confirmButtonText: this.isResubmission ? "Yes, Resubmit" : "Yes, Submit",
       cancelButtonText: "Cancel",
     }).then((result) => {
       if (result.isConfirmed) {
-        this.toastr.success("OTP has been sent successfully.", "", {
-          timeOut: 3000,
-          closeButton: true,
-        });
-
-        this.promptOtpAndSubmit();
+        if (this.isResubmission) {
+          this.resubmitAfterPaymentObjection();
+        } else {
+          this.toastr.success("OTP has been sent successfully.", "", {
+            timeOut: 3000,
+            closeButton: true,
+          });
+          this.promptOtpAndSubmit();
+        }
       }
+    });
+  }
+
+  private resubmitAfterPaymentObjection(): void {
+    if (!this.filingId) return;
+
+    this.eFilingService.resubmit_after_payment_objection(this.filingId).subscribe({
+      next: (response) => {
+        Swal.fire({
+          icon: "success",
+          title: "Resubmitted Successfully",
+          text: "Your case has been resubmitted for scrutiny after resolving the payment objection.",
+        }).then(() => {
+          this.router.navigate(["/advocate/dashboard/efiling/pending-scrutiny"]);
+        });
+      },
+      error: (err) => {
+        this.toastr.error(
+          err?.error?.error || err?.message || "Failed to resubmit. Please try again."
+        );
+      },
     });
   }
 

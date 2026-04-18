@@ -104,6 +104,65 @@ export class FiledCaseDetails {
     paymentDate?: string;
   } | null = null;
 
+  raisePaymentObjection = false;
+  directCourtFeeAmount: number | null = null;
+  isSubmittingPaymentObjection = false;
+  hasPaymentObjection = false;
+  paymentObjectionAmount: number | null = null;
+  objectionResolvedByPayment: any | null = null;
+  allPayments: any[] = [];
+  collapsedPayments = new Set<number>();
+
+  get canSubmitPaymentObjection(): boolean {
+    return (
+      !this.isSubmittingPaymentObjection &&
+      this.directCourtFeeAmount !== null &&
+      this.directCourtFeeAmount > 0
+    );
+  }
+
+  togglePaymentCollapse(paymentId: number): void {
+    if (this.collapsedPayments.has(paymentId)) {
+      this.collapsedPayments.delete(paymentId);
+    } else {
+      this.collapsedPayments.add(paymentId);
+    }
+  }
+
+  isPaymentCollapsed(paymentId: number): boolean {
+    return !this.collapsedPayments.has(paymentId);
+  }
+
+  get sortedPayments(): any[] {
+    return [...this.allPayments].sort((a, b) => {
+      const dateA = new Date(a.payment_datetime || 0).getTime();
+      const dateB = new Date(b.payment_datetime || 0).getTime();
+      return dateB - dateA;
+    });
+  }
+
+  get isPaymentObjectionResolved(): boolean {
+    return this.objectionResolvedByPayment !== null;
+  }
+
+  getPaymentStatusLabel(status: string | null): string {
+    if (!status) return 'Unknown';
+    const s = status.toLowerCase();
+    if (/(success|paid|complete|ok)/i.test(s)) return 'Success';
+    if (/failed/i.test(s)) return 'Failed';
+    if (/pending|initiated/i.test(s)) return 'Pending';
+    if (/offline_submitted|submitted/i.test(s)) return 'Submitted';
+    return status;
+  }
+
+  getPaymentStatusClass(status: string | null): string {
+    const label = this.getPaymentStatusLabel(status).toLowerCase();
+    if (label.includes('success')) return 'text-success';
+    if (label.includes('fail')) return 'text-danger';
+    if (label.includes('pending')) return 'text-warning';
+    return 'text-muted';
+  }
+
   constructor(
     private route: ActivatedRoute,
     private efilingService: EfilingService,
@@ -157,6 +216,7 @@ export class FiledCaseDetails {
       ),
       ias: this.efilingService.get_ias_by_efiling_id(id),
       payment: this.paymentService.latest(id).pipe(catchError(() => of(null))),
+      allPayments: this.paymentService.getAll(id).pipe(catchError(() => of({ results: [] }))),
     }).subscribe({
       next: ({
         filing,
@@ -167,6 +227,7 @@ export class FiledCaseDetails {
         iaDocuments,
         ias,
         payment,
+        allPayments,
       }) => {
         this.filing = filing;
         this.litigants = litigants?.results ?? [];
@@ -178,6 +239,10 @@ export class FiledCaseDetails {
         this.groupedIaDocuments = this.groupDocumentsByType(this.iaDocuments);
         this.iaList = Array.isArray(ias) ? ias : (ias?.results ?? []);
         this.updatePaymentDetails(payment);
+        this.allPayments = allPayments?.results ?? [];
+        this.hasPaymentObjection = filing?.has_payment_objection === true;
+        this.paymentObjectionAmount = filing?.payment_objection_amount ?? null;
+        this.objectionResolvedByPayment = filing?.objection_resolved_by_payment ?? null;
         const firstIaWithDocs = this.iaWithDocuments.find(
           (i) => i.documents.length > 0,
         );
@@ -534,6 +599,10 @@ export class FiledCaseDetails {
   }
 
   get filingStatusForDisplay(): string | null {
+    if (this.hasPaymentObjection) {
+      return "REJECTED_PAYMENT_OBJECTION";
+    }
+
     const allActive = [...this.activeDocuments, ...this.activeIaDocuments];
     if (!allActive.length) {
       return this.filing?.status ?? null;
@@ -572,17 +641,20 @@ export class FiledCaseDetails {
     if (normalizedStatus.includes("accept")) {
       return "Accepted";
     }
-    if (
-      normalizedStatus.includes("reject") ||
-      normalizedStatus.includes("object")
-    ) {
-      return "Rejected";
+    if (normalizedStatus === "rejected_payment_objection") {
+      return "Rejected - Payment Objection";
     }
     if (normalizedStatus.includes("partially")) {
       return "Partially Rejected";
     }
     if (normalizedStatus === "draft") {
       return "Draft";
+    }
+    if (
+      normalizedStatus.includes("reject") ||
+      normalizedStatus.includes("object")
+    ) {
+      return "Rejected";
     }
     return status ?? "Under Scrutiny";
   }
@@ -973,6 +1045,88 @@ export class FiledCaseDetails {
             err?.error?.detail || err?.message || "Failed to verify IA.",
           );
           this.isVerifyingIaId = null;
+        },
+      });
+    });
+  }
+
+  submitPaymentObjection(): void {
+    if (!this.filingId || !this.directCourtFeeAmount) {
+      this.toastr.error("Please enter a valid court fee amount.");
+      return;
+    }
+    const amount: number = Number(this.directCourtFeeAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      this.toastr.error("Please enter a valid court fee amount.");
+      return;
+    }
+    this.isSubmittingPaymentObjection = true;
+    const filingId = this.filingId;
+
+    Swal.fire({
+      title: "Raise Payment Objection?",
+      html: `This will reject the case due to incorrect payment. The advocate will be notified to pay the correct court fee of <strong>₹${amount}</strong>.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, Raise Objection",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#dc3545",
+      cancelButtonColor: "#6c757d",
+    }).then((result) => {
+      if (!result.isConfirmed) {
+        this.isSubmittingPaymentObjection = false;
+        return;
+      }
+
+      this.efilingService.raise_payment_objection(filingId, amount).subscribe({
+        next: (response) => {
+          this.isSubmittingPaymentObjection = false;
+          this.toastr.success("Payment objection raised. Case has been rejected.");
+          this.raisePaymentObjection = false;
+          this.directCourtFeeAmount = null;
+          this.paymentOutcome = "failed";
+          this.hasPaymentObjection = true;
+          this.paymentObjectionAmount = amount;
+          if (this.filingId) {
+            this.loadWorkspace(this.filingId);
+          }
+        },
+        error: (error) => {
+          this.isSubmittingPaymentObjection = false;
+          this.toastr.error(error?.error?.detail || error?.message || "Failed to raise payment objection.");
+        },
+      });
+    });
+  }
+
+  resetPaymentObjection(): void {
+    if (!this.filingId) return;
+
+    Swal.fire({
+      title: "Reset Payment Objection?",
+      html: "This will cancel the pending objection and restore the case to under scrutiny. The advocate will not be notified.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, Reset",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#dc3545",
+      cancelButtonColor: "#6c757d",
+    }).then((result) => {
+      if (!result.isConfirmed) return;
+
+      this.efilingService.reset_payment_objection(this.filingId!).subscribe({
+        next: (response) => {
+          this.toastr.success("Payment objection has been reset.");
+          this.hasPaymentObjection = false;
+          this.paymentObjectionAmount = null;
+          this.objectionResolvedByPayment = null;
+          this.raisePaymentObjection = false;
+          if (this.filingId) {
+            this.loadWorkspace(this.filingId);
+          }
+        },
+        error: (error) => {
+          this.toastr.error(error?.error?.error || error?.message || "Failed to reset payment objection.");
         },
       });
     });

@@ -18,7 +18,7 @@
           bench is required
         </small>
       </div> -->
-      <div class="col-md-6">
+      <div class="col-md-4">
         <label class="form-label fw-semibold"
           >Case Category<small class="text-danger">*</small>
         </label>
@@ -50,6 +50,20 @@
             disabled
           />
         </ng-template>
+      </div>
+      <div class="col-md-8 d-flex align-items-end">
+        <div class="form-check">
+          <input
+            class="form-check-input"
+            type="checkbox"
+            id="isGovernmentBody"
+            [checked]="isGovernmentBody"
+            (change)="isGovernmentBodyChange.emit($any($event.target).checked)"
+          />
+          <label class="form-check-label" for="isGovernmentBody">
+            Filing as a Government Body ?
+          </label>
+        </div>
       </div>
       <!-- <div class="col-md-6">
         <label class="form-label"> Main Party Name <small class="text-danger">*</small> </label>

@@ -20,6 +20,9 @@ class EfilingSerializer(serializers.ModelSerializer):
     latest_chat_message_id = serializers.SerializerMethodField(read_only=True)
     latest_chat_message_at = serializers.SerializerMethodField(read_only=True)
     latest_chat_is_from_current_user = serializers.SerializerMethodField(read_only=True)
+    has_payment_objection = serializers.SerializerMethodField(read_only=True)
+    payment_objection_amount = serializers.SerializerMethodField(read_only=True)
+    objection_resolved_by_payment = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Efiling
@@ -43,6 +46,9 @@ class EfilingSerializer(serializers.ModelSerializer):
             'latest_chat_message_id',
             'latest_chat_message_at',
             'latest_chat_is_from_current_user',
+            'has_payment_objection',
+            'payment_objection_amount',
+            'objection_resolved_by_payment',
         ]
         read_only_fields = [
             'id',
@@ -56,6 +62,9 @@ class EfilingSerializer(serializers.ModelSerializer):
             'latest_chat_message_id',
             'latest_chat_message_at',
             'latest_chat_is_from_current_user',
+            'has_payment_objection',
+            'payment_objection_amount',
+            'objection_resolved_by_payment',
         ]
 
     def get_petitioner_vs_respondent(self, obj):
@@ -83,6 +92,127 @@ class EfilingSerializer(serializers.ModelSerializer):
         if not latest_message or not latest_message.sender_id:
             return False
         return latest_message.sender_id == request.user.id
+
+    def get_has_payment_objection(self, obj):
+        """Check if there's a pending payment objection for this e-filing that hasn't been resolved by a matching payment."""
+        from apps.efiling.models import PaymentObjection
+        from apps.payment.models import PaymentTransaction
+        from django.utils import timezone
+        
+        pending_objection = PaymentObjection.objects.filter(
+            e_filing=obj,
+            status=PaymentObjection.Status.PENDING
+        ).order_by('-raised_at').first()
+        
+        if not pending_objection:
+            return False
+        
+        required_amount = float(pending_objection.court_fee_amount)
+        raised_at = pending_objection.raised_at
+        if raised_at.tzinfo is None:
+            raised_at = timezone.make_aware(raised_at, timezone.utc)
+        
+        successful_payments = PaymentTransaction.objects.filter(
+            application=str(obj.id)
+        ).filter(
+            status__iregex=r'^(success|paid|complete|ok)$'
+        ).filter(
+            created_at__gt=raised_at
+        )
+        
+        for payment in successful_payments:
+            payment_amount = float(payment.amount or 0)
+            if payment_amount >= required_amount:
+                return False
+        
+        return True
+
+    def get_payment_objection_amount(self, obj):
+        """Get the court fee amount from the latest unresolved payment objection."""
+        from apps.efiling.models import PaymentObjection
+        from apps.payment.models import PaymentTransaction
+        from django.utils import timezone
+        
+        pending_objection = PaymentObjection.objects.filter(
+            e_filing=obj,
+            status=PaymentObjection.Status.PENDING
+        ).order_by('-raised_at').first()
+        
+        if not pending_objection:
+            return None
+        
+        required_amount = float(pending_objection.court_fee_amount)
+        raised_at = pending_objection.raised_at
+        if raised_at.tzinfo is None:
+            raised_at = timezone.make_aware(raised_at, timezone.utc)
+        
+        successful_payments = PaymentTransaction.objects.filter(
+            application=str(obj.id)
+        ).filter(
+            status__iregex=r'^(success|paid|complete|ok)$'
+        ).filter(
+            created_at__gt=raised_at
+        )
+        
+        for payment in successful_payments:
+            payment_amount = float(payment.amount or 0)
+            if payment_amount >= required_amount:
+                return None
+        
+        return required_amount
+
+    def get_objection_resolved_by_payment(self, obj):
+        """Return payment info if the objection was resolved by a successful payment matching the required amount."""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        from apps.efiling.models import PaymentObjection
+        from apps.payment.models import PaymentTransaction
+        from django.utils import timezone
+        
+        pending_objection = PaymentObjection.objects.filter(
+            e_filing=obj,
+            status=PaymentObjection.Status.PENDING
+        ).order_by('-raised_at').first()
+        
+        if not pending_objection:
+            logger.info(f"[ObjectionDebug] No pending objection for efiling {obj.id}")
+            return None
+        
+        logger.info(f"[ObjectionDebug] Found pending objection {pending_objection.id} for efiling {obj.id}, raised_at={pending_objection.raised_at}, amount={pending_objection.court_fee_amount}")
+        
+        required_amount = float(pending_objection.court_fee_amount)
+        raised_at = pending_objection.raised_at
+        if raised_at.tzinfo is None:
+            raised_at = timezone.make_aware(raised_at, timezone.utc)
+        
+        successful_payments = PaymentTransaction.objects.filter(
+            application=str(obj.id)
+        ).filter(
+            status__iregex=r'^(success|paid|complete|ok)$'
+        ).filter(
+            created_at__gt=raised_at
+        ).order_by('created_at')
+        
+        logger.info(f"[ObjectionDebug] Query: application={str(obj.id)}, created_at__gt={raised_at}")
+        logger.info(f"[ObjectionDebug] All payments after raised_at: {[(p.id, p.amount, p.status, p.created_at) for p in successful_payments]}")
+        
+        for payment in successful_payments:
+            payment_amount = float(payment.amount or 0)
+            logger.info(f"[ObjectionDebug] Checking payment {payment.id}: amount={payment_amount}, required={required_amount}")
+            if payment_amount >= required_amount:
+                result = {
+                    'payment_id': payment.id,
+                    'txn_id': payment.txn_id,
+                    'amount': payment_amount,
+                    'payment_datetime': (payment.updated_at or payment.created_at).isoformat() if (payment.updated_at or payment.created_at) else None,
+                    'status': payment.status,
+                }
+                logger.info(f"[ObjectionDebug] Payment {payment.id} resolves objection, returning: {result}")
+                return result
+        
+        logger.info(f"[ObjectionDebug] No payment found that satisfies required amount {required_amount}")
+        return None
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

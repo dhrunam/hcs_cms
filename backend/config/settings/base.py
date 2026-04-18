@@ -267,6 +267,10 @@ PG_PARAMS = {
         "PG_APPLICATION_DRAFT_REDIRECT_URL",
         "http://localhost:4200/advocate/dashboard/efiling/draft-filings/edit",
     ),
+    "redirect_to_front_end_for_payment_confirmation": os.getenv(
+        "PG_PAYMENT_CONFIRMATION_REDIRECT_URL",
+        "http://localhost:4200/advocate/dashboard/efiling/payment-confirmation",
+    ),
     "redirect_to_front_end_for_intimation_fee_paymet_status_page": os.getenv(
         "PG_INTIMATION_REDIRECT_URL",
         "http://localhost:4200/dashboard/payment?application=",

@@ -382,7 +382,8 @@
     <div class="card-body">
       <ng-container *ngIf="paymentDetails.required === false">
         <div class="text-muted">
-          No court fee required for this selected case type.
+          <ng-container *ngIf="isGovernmentBody">Court fee is not required for Government body.</ng-container>
+          <ng-container *ngIf="!isGovernmentBody">No court fee required for this selected case type.</ng-container>
         </div>
       </ng-container>
 

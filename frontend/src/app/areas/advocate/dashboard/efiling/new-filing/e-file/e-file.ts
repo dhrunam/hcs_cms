@@ -29,6 +29,7 @@ export class EFile {
   @Input() paymentDetails: any;
   /** Statutory court fee in rupees (e.g. WP(C) fee); optional, improves PDF court-fee line. */
   @Input() paymentFeeRupees: number | null = null;
+  @Input() isGovernmentBody = false;
   @Output() goToPage = new EventEmitter<number>();
 
   caseTypes: any[] = [];

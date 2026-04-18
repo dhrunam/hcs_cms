@@ -63,7 +63,9 @@ export class Edit {
   isUpdateMode = false;
   docList: any[] = [];
   isDeclarationChecked = false;
-
+  isGovernmentBody = false;
+  isResubmission = false;
+  objectionResolvedByPayment: any | null = null;
   isUploadingDocuments = false;
   uploadFileProgresses: number[] = [];
   uploadCompletedToken = 0;
@@ -328,9 +330,9 @@ export class Edit {
     return names.length - 1;
   }
 
-  /** Court fee step applies for all draft case types; amount is entered manually. */
+  /** Court fee step skipped for government bodies. */
   get requiresCourtFeePayment(): boolean {
-    return true;
+    return !this.isGovernmentBody;
   }
 
   get isPaymentSuccessful(): boolean {
@@ -546,6 +548,12 @@ export class Edit {
         }
         this.step = 5;
         this.hydrateManualCourtFeeFromPaymentDetails();
+      }
+
+      const resubmissionFlag = sessionStorage.getItem(`paymentResubmission_${this.filingId}`);
+      if (resubmissionFlag === "true") {
+        this.isResubmission = true;
+        sessionStorage.removeItem(`paymentResubmission_${this.filingId}`);
       }
     } catch {
       // ignore
@@ -1061,14 +1069,16 @@ export class Edit {
       return;
     }
 
-    if (this.step == 4 && this.docList.length > 0) {
-      if (!this.hasMandatoryWpCDocuments()) {
-        this.toastr.error(
-          "For WP(C), upload all mandatory Main Petition indexes before proceeding.",
-        );
-        return;
+    if (this.step === 4) {
+      if (!this.isGovernmentBody && this.docList.length > 0) {
+        if (!this.hasMandatoryWpCDocuments()) {
+          this.toastr.error(
+            "For WP(C), upload all mandatory Main Petition indexes before proceeding.",
+          );
+          return;
+        }
       }
-      this.step = 5;
+      this.step = this.isGovernmentBody ? 6 : 5;
       this.setCaseDetailsReviewState(this.step === 6);
       // window.scrollTo({
       //   top: 0,
@@ -1097,7 +1107,7 @@ export class Edit {
 
   prev() {
     if (this.step === 6) {
-      this.step = 5;
+      this.step = this.isGovernmentBody ? 4 : 5;
     } else if (this.step === 5) {
       this.step = 4;
     } else if (this.step === 4) {
@@ -1638,6 +1648,7 @@ export class Edit {
 
         this.filingData = record;
         console.log("Filing data is ", this.filingData);
+        this.objectionResolvedByPayment = record?.objection_resolved_by_payment ?? null;
         const resolvedCaseTypeId =
           record.case_type?.id ?? record.case_type_id ?? record.case_type ?? "";
         this.initialInputsForm.patchValue({
@@ -1947,6 +1958,23 @@ export class Edit {
       this.step = 4;
       return;
     }
+
+    if (this.isResubmission || this.objectionResolvedByPayment) {
+      Swal.fire({
+        title: "Resubmit for Scrutiny?",
+        text: "Your case will be resubmitted after resolving the payment objection. It will be forwarded for scrutiny.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Yes, Resubmit",
+        cancelButtonText: "Cancel",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          this.resubmitAfterPaymentObjection();
+        }
+      });
+      return;
+    }
+
     Swal.fire({
       title: "Submit Filing?",
       text: "Once submitted, it will be forwarded for scrutiny.",
@@ -1963,6 +1991,27 @@ export class Edit {
 
         this.promptOtpAndSubmit();
       }
+    });
+  }
+
+  private resubmitAfterPaymentObjection(): void {
+    if (!this.filingId) return;
+
+    this.eFilingService.resubmit_after_payment_objection(this.filingId).subscribe({
+      next: (response) => {
+        Swal.fire({
+          icon: "success",
+          title: "Resubmitted Successfully",
+          text: "Your case has been resubmitted for scrutiny after resolving the payment objection.",
+        }).then(() => {
+          this.router.navigate(["/advocate/dashboard/efiling/pending-scrutiny"]);
+        });
+      },
+      error: (err) => {
+        this.toastr.error(
+          err?.error?.error || err?.message || "Failed to resubmit. Please try again."
+        );
+      },
     });
   }
 

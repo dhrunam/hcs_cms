@@ -33,3 +33,67 @@ class EfilingNotification(models.Model):
     class Meta:
         db_table = "efiling_notification"
         ordering = ["-created_at"]
+
+
+class PaymentObjection(models.Model):
+    """
+    Tracks payment objections raised by scrutiny officer against an e-filing.
+    When a scrutiny officer raises a payment objection, this record is created
+    and the e-filing status is updated to reflect the objection.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        RESOLVED = "RESOLVED", "Resolved"
+        CANCELLED = "CANCELLED", "Cancelled"
+
+    e_filing = models.ForeignKey(
+        Efiling,
+        on_delete=models.CASCADE,
+        related_name="payment_objections"
+    )
+    court_fee_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        help_text="The correct court fee amount as determined by the scrutiny officer"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True
+    )
+    remarks = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Optional remarks explaining the payment objection"
+    )
+    raised_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="raised_payment_objections",
+        help_text="The scrutiny officer who raised the objection"
+    )
+    raised_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="Timestamp when the objection was resolved"
+    )
+    resolved_by_payment_id = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="The payment transaction ID that resolved this objection"
+    )
+
+    class Meta:
+        db_table = "efiling_payment_objection"
+        ordering = ["-raised_at"]
+        verbose_name = "Payment Objection"
+        verbose_name_plural = "Payment Objections"
+
+    def __str__(self):
+        return f"Payment Objection - {self.e_filing.e_filing_number} - ₹{self.court_fee_amount}"

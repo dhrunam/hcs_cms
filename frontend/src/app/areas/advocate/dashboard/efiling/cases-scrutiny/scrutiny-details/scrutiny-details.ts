@@ -1,7 +1,7 @@
 import { CommonModule } from "@angular/common";
 import { Component } from "@angular/core";
 import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
-import { ActivatedRoute } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
 import { catchError, forkJoin, of } from "rxjs";
 import { ToastrService } from "ngx-toastr";
 import Swal from "sweetalert2";
@@ -75,9 +75,17 @@ export class ScrutinyDetails {
     bankReceipt?: string;
     paymentDate?: string;
   } | null = null;
+  hasPaymentObjection = false;
+  paymentObjectionAmount: number | null = null;
+  isPayingNow = false;
+  allPayments: any[] = [];
+  resolvedObjections: any[] = [];
+  objectionResolvedByPayment: any | null = null;
+  collapsedPayments = new Set<number>();
 
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
     private efilingService: EfilingService,
     private paymentService: PaymentService,
     private sanitizer: DomSanitizer,
@@ -124,6 +132,7 @@ export class ScrutinyDetails {
       acts: this.efilingService.get_acts_by_filing_id(id),
       ias: this.efilingService.get_ias_by_efiling_id(id),
       payment: this.paymentService.latest(id).pipe(catchError(() => of(null))),
+      allPayments: this.paymentService.getAll(id).pipe(catchError(() => of({ results: [] }))),
     }).subscribe({
       next: ({
         filing,
@@ -134,6 +143,7 @@ export class ScrutinyDetails {
         acts,
         ias,
         payment,
+        allPayments,
       }) => {
         this.filing = filing;
         this.documents = orderDocumentsForDisplay(documents?.results ?? [], "");
@@ -145,6 +155,10 @@ export class ScrutinyDetails {
         console.log("Act llist is", this.actList);
         this.iaList = Array.isArray(ias) ? ias : (ias?.results ?? []);
         this.updatePaymentDetails(payment);
+        this.allPayments = allPayments?.results ?? [];
+        this.hasPaymentObjection = filing?.has_payment_objection === true;
+        this.paymentObjectionAmount = filing?.payment_objection_amount ?? null;
+        this.objectionResolvedByPayment = filing?.objection_resolved_by_payment ?? null;
         const firstWithDocs = this.iaWithDocuments.find(
           (i) => i.documents.length > 0,
         );
@@ -565,10 +579,10 @@ export class ScrutinyDetails {
     const s = (status ?? "").trim().toLowerCase();
     if (!s) return "Under Scrutiny";
     if (s === "accepted" || s.includes("accept")) return "Accepted";
+    if (s === "rejected_payment_objection") return "Rejected - Payment Objection";
     if (
       s === "rejected" ||
       s.includes("reject") ||
-      s.includes("object") ||
       s.includes("partial")
     )
       return "Rejected";
@@ -753,6 +767,44 @@ export class ScrutinyDetails {
     return act?.act?.actname ?? act?.actname ?? "-";
   }
 
+  togglePaymentCollapse(paymentId: number): void {
+    if (this.collapsedPayments.has(paymentId)) {
+      this.collapsedPayments.delete(paymentId);
+    } else {
+      this.collapsedPayments.add(paymentId);
+    }
+  }
+
+  isPaymentCollapsed(paymentId: number): boolean {
+    return !this.collapsedPayments.has(paymentId);
+  }
+
+  get sortedPayments(): any[] {
+    return [...this.allPayments].sort((a, b) => {
+      const dateA = new Date(a.payment_datetime || 0).getTime();
+      const dateB = new Date(b.payment_datetime || 0).getTime();
+      return dateB - dateA;
+    });
+  }
+
+  getPaymentStatusLabel(status: string | null): string {
+    if (!status) return 'Unknown';
+    const s = status.toLowerCase();
+    if (/(success|paid|complete|ok)/i.test(s)) return 'Success';
+    if (/failed/i.test(s)) return 'Failed';
+    if (/pending|initiated/i.test(s)) return 'Pending';
+    if (/offline_submitted|submitted/i.test(s)) return 'Submitted';
+    return status;
+  }
+
+  getPaymentStatusClass(status: string | null): string {
+    const label = this.getPaymentStatusLabel(status).toLowerCase();
+    if (label.includes('success')) return 'text-success';
+    if (label.includes('fail')) return 'text-danger';
+    if (label.includes('pending')) return 'text-warning';
+    return 'text-muted';
+  }
+
   selectIaDocument(document: any): void {
     this.selectedIaDocument = document;
     if (this.selectedIaDocumentBlobUrl) {
@@ -782,6 +834,46 @@ export class ScrutinyDetails {
         this.selectedIaDocumentUrl =
           this.sanitizer.bypassSecurityTrustResourceUrl(iaStreamUrl);
       },
+    });
+  }
+
+  payNow(): void {
+    if (!this.filingId || !this.paymentObjectionAmount) {
+      this.toastr.error("Unable to initiate payment. Please try again.");
+      return;
+    }
+
+    this.router.navigate(["/advocate/dashboard/efiling/payment-confirmation"], {
+      queryParams: { id: this.filingId },
+    });
+  }
+
+  resubmitForScrutiny(): void {
+    if (!this.filingId) return;
+    const filingId = this.filingId;
+
+    Swal.fire({
+      title: "Resubmit for Scrutiny?",
+      text: "Your case will be resubmitted after resolving the payment objection. It will be forwarded for scrutiny.",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Resubmit",
+      cancelButtonText: "Cancel",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.efilingService.resubmit_after_payment_objection(filingId).subscribe({
+          next: (response) => {
+            this.toastr.success("Your case has been resubmitted for scrutiny.");
+            sessionStorage.removeItem("paymentResubmission_" + filingId);
+            this.loadDetails(filingId);
+          },
+          error: (error) => {
+            this.toastr.error(
+              error?.error?.message || "Failed to resubmit for scrutiny."
+            );
+          },
+        });
+      }
     });
   }
 }

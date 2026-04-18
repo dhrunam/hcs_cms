@@ -1,11 +1,11 @@
 import { CommonModule } from "@angular/common";
-import { Component, Input } from "@angular/core";
-import { FormGroup, ReactiveFormsModule } from "@angular/forms";
+import { Component, Input, Output, EventEmitter } from "@angular/core";
+import { FormGroup, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { CaseTypeService } from "../../../../../../services/master/case-type.services";
 
 @Component({
   selector: "app-initial-inputs",
-  imports: [ReactiveFormsModule, CommonModule],
+  imports: [ReactiveFormsModule, CommonModule, FormsModule],
   templateUrl: "./initial-inputs.html",
   styleUrl: "./initial-inputs.css",
 })
@@ -14,6 +14,8 @@ export class InitialInputs {
 
   @Input() form!: FormGroup;
   @Input() isDraft = false;
+  @Input() isGovernmentBody = false;
+  @Output() isGovernmentBodyChange = new EventEmitter<boolean>();
   case_types: any[] = [];
 
   ngOnInit() {

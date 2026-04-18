@@ -1,0 +1,351 @@
+<div class="payment-confirmation-page">
+  <div class="container py-4">
+    <!-- Loading State -->
+    <div *ngIf="isLoading" class="text-center py-5">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p class="mt-3 text-muted">Loading payment details...</p>
+    </div>
+
+    <!-- Content -->
+    <div *ngIf="!isLoading" class="row justify-content-center">
+      <div class="col-md-8 col-lg-6">
+        
+        <!-- Success Card -->
+        <div *ngIf="paymentOutcome === 'success'" class="card border-success shadow-sm mb-4">
+          <div class="card-header bg-success text-white py-3">
+            <h5 class="mb-0">
+              <i class="fa-solid fa-check-circle me-2"></i>
+              Payment Successful
+            </h5>
+          </div>
+          <div class="card-body">
+            
+            <!-- Objection Resolved Alert -->
+            <div *ngIf="isObjectionResolved" class="alert alert-success py-2 mb-4">
+              <i class="fa-solid fa-check-circle me-2"></i>
+              <strong>Payment Objection Resolved!</strong>
+              <p class="mb-0 small mt-1">
+                Your payment of ₹{{ objectionResolvedByPayment?.amount }} has resolved the objection.
+                Transaction ID: {{ objectionResolvedByPayment?.txn_id || '-' }}
+              </p>
+            </div>
+
+            <!-- Payment Details -->
+            <div *ngIf="paymentDetails" class="payment-details mb-4">
+              <h6 class="text-muted mb-3">Payment Details</h6>
+              <div class="row g-3">
+                <div class="col-6">
+                  <div class="text-muted small">Transaction ID</div>
+                  <div class="fw-semibold">{{ paymentDetails.txnId || '-' }}</div>
+                </div>
+                <div class="col-6">
+                  <div class="text-muted small">Reference Number</div>
+                  <div class="fw-semibold">{{ paymentDetails.referenceNo || '-' }}</div>
+                </div>
+                <div class="col-6">
+                  <div class="text-muted small">Amount Paid</div>
+                  <div class="fw-semibold text-success">₹{{ paymentDetails.amount || paymentDetails.courtFees || '-' }}/-</div>
+                </div>
+                <div class="col-6">
+                  <div class="text-muted small">Payment Mode</div>
+                  <div class="fw-semibold text-capitalize">{{ paymentDetails.paymentMode || 'Online' }}</div>
+                </div>
+                <div class="col-6">
+                  <div class="text-muted small">Date & Time</div>
+                  <div class="fw-semibold">{{ formatDateTime(paymentDetails.paidAt) }}</div>
+                </div>
+                <div class="col-6" *ngIf="paymentDetails.bankReceipt">
+                  <div class="text-muted small">Bank Receipt</div>
+                  <div>
+                    <a [href]="paymentDetails.bankReceipt" target="_blank" class="btn btn-sm btn-outline-primary">
+                      <i class="fa-solid fa-file-pdf me-1"></i>View
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Filing Info -->
+            <div *ngIf="filing" class="filing-info mb-4">
+              <h6 class="text-muted mb-3">Filing Information</h6>
+              <div class="row g-3">
+                <div class="col-12">
+                  <div class="text-muted small">E-Filing Number</div>
+                  <div class="fw-semibold filing-number">{{ filing.e_filing_number || '-' }}</div>
+                </div>
+                <div class="col-6">
+                  <div class="text-muted small">Case Type</div>
+                  <div class="fw-semibold">{{ filing.case_type?.type_name || filing.case_type?.full_form || '-' }}</div>
+                </div>
+                <div class="col-6">
+                  <div class="text-muted small">Filing Status</div>
+                  <div class="fw-semibold">{{ filing.status || '-' }}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="d-grid gap-2 mt-4">
+              <button
+                *ngIf="isObjectionResolved"
+                type="button"
+                class="btn btn-success btn-lg"
+                [disabled]="isResolving"
+                (click)="resubmitForScrutiny()"
+              >
+                <span *ngIf="isResolving" class="spinner-border spinner-border-sm me-2" role="status"></span>
+                {{ isResolving ? 'Resubmitting...' : 'Resubmit for Scrutiny' }}
+              </button>
+              
+              <button
+                type="button"
+                class="btn btn-outline-primary"
+                (click)="goToPendingScrutiny()"
+              >
+                Go to Pending Scrutiny
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Failed Card -->
+        <div *ngIf="paymentOutcome === 'failed' && !showPaymentForm" class="card border-danger shadow-sm mb-4">
+          <div class="card-header bg-danger text-white py-3">
+            <h5 class="mb-0">
+              <i class="fa-solid fa-times-circle me-2"></i>
+              Payment Failed
+            </h5>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-danger py-2 mb-4">
+              <i class="fa-solid fa-exclamation-circle me-2"></i>
+              Your payment could not be processed. Please try again.
+            </div>
+
+<div *ngIf="hasPaymentObjection && paymentObjectionAmount" class="alert alert-warning py-2 mb-4">
+              <strong>Payment Objection Active:</strong>
+              Please pay the correct court fee amount of ₹{{ paymentObjectionAmount }}/- as specified by the scrutiny officer.
+            </div>
+
+            <div class="d-grid gap-2 mt-4">
+              <button
+                type="button"
+                class="btn btn-outline-secondary"
+                (click)="goToPendingScrutiny()"
+              >
+                Go to Pending Scrutiny
+              </button>
+            </div>
+
+            
+
+          </div>
+        </div>
+
+        <!-- Neutral/No Payment State -->
+        <div *ngIf="(!paymentOutcome || paymentOutcome === null) && !showPaymentForm" class="card border-secondary shadow-sm mb-4">
+          <div class="card-header bg-secondary text-white py-3">
+            <h5 class="mb-0">
+              <i class="fa-solid fa-info-circle me-2"></i>
+              Payment Status Unknown
+            </h5>
+          </div>
+          <div class="card-body">
+            <p class="text-muted">Unable to determine payment status.</p>
+            
+            <div *ngIf="filing" class="filing-info mb-4">
+              <h6 class="text-muted mb-3">Filing Information</h6>
+              <div class="row g-3">
+                <div class="col-12">
+                  <div class="text-muted small">E-Filing Number</div>
+                  <div class="fw-semibold filing-number">{{ filing.e_filing_number || '-' }}</div>
+                </div>
+                <div class="col-6">
+                  <div class="text-muted small">Case Type</div>
+                  <div class="fw-semibold">{{ filing.case_type?.type_name || '-' }}</div>
+                </div>
+                <div class="col-6">
+                  <div class="text-muted small">Filing Status</div>
+                  <div class="fw-semibold">{{ filing.status || '-' }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-grid gap-2 mt-4">
+              <a
+                [routerLink]="['/advocate/dashboard/efiling/draft-filings/edit']"
+                [queryParams]="{ id: filingId }"
+                class="btn btn-primary"
+              >
+                <i class="fa-solid fa-edit me-2"></i>
+                Go to Draft Filing
+              </a>
+              
+              <button
+                type="button"
+                class="btn btn-outline-secondary"
+                (click)="goToPendingScrutiny()"
+              >
+                Go to Pending Scrutiny
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Payment Objection Active - Make Payment Section -->
+        <div *ngIf="showPaymentForm" class="card border-warning shadow-sm mb-4">
+          <div class="card-header bg-warning text-dark py-3">
+            <h5 class="mb-0">
+              <i class="fa-solid fa-exclamation-triangle me-2"></i>
+              Payment Objection Active
+            </h5>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-warning py-2 mb-4">
+              <strong>Attention Required</strong>
+              <p class="mb-0 mt-1">
+                The scrutiny officer has raised a payment objection. Please pay the correct court fee amount of 
+                <strong class="fs-5">₹{{ paymentObjectionAmount }}/-</strong> to resolve this objection.
+              </p>
+            </div>
+
+            <!-- Filing Info -->
+            <div *ngIf="filing" class="filing-info mb-4">
+              <div class="row g-3">
+                <div class="col-12">
+                  <div class="text-muted small">E-Filing Number</div>
+                  <div class="fw-semibold filing-number">{{ filing.e_filing_number || '-' }}</div>
+                </div>
+                <div class="col-6">
+                  <div class="text-muted small">Case Type</div>
+                  <div class="fw-semibold">{{ filing.case_type?.type_name || '-' }}</div>
+                </div>
+                <div class="col-6">
+                  <div class="text-muted small">Filing Status</div>
+                  <div class="fw-semibold">{{ filing.status || '-' }}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Payment Mode Selection -->
+            <div class="mb-4">
+              <label class="form-label fw-semibold">Select Payment Mode</label>
+              <div class="d-flex gap-3">
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="radio"
+                    name="paymentMode"
+                    id="paymentModeOnline"
+                    [checked]="paymentMode === 'online'"
+                    (change)="onPaymentModeChange('online')"
+                  />
+                  <label class="form-check-label" for="paymentModeOnline">
+                    <i class="fa-solid fa-credit-card me-1"></i> Online Payment
+                  </label>
+                </div>
+                <div class="form-check">
+                  <input
+                    class="form-check-input"
+                    type="radio"
+                    name="paymentMode"
+                    id="paymentModeOffline"
+                    [checked]="paymentMode === 'offline'"
+                    (change)="onPaymentModeChange('offline')"
+                  />
+                  <label class="form-check-label" for="paymentModeOffline">
+                    <i class="fa-solid fa-building-columns me-1"></i> Offline (Bank Receipt)
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Online Payment -->
+            <div *ngIf="paymentMode === 'online'" class="card border bg-light mb-3">
+              <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                  <span class="text-muted">Amount payable</span>
+                  <span class="fs-5 fw-semibold text-success">₹{{ paymentObjectionAmount }}/-</span>
+                </div>
+                <button
+                  type="button"
+                  class="btn btn-primary w-100"
+                  [disabled]="isPayingOnline || !paymentObjectionAmount"
+                  (click)="proceedToPayOnline()"
+                >
+                  <span *ngIf="isPayingOnline" class="spinner-border spinner-border-sm me-2" role="status"></span>
+                  <i class="fa-solid fa-arrow-up-right-from-square me-2"></i>
+                  {{ isPayingOnline ? 'Redirecting...' : 'Pay via Payment Gateway' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Offline Payment -->
+            <div *ngIf="paymentMode === 'offline'" class="card border bg-light mb-3">
+              <div class="card-body py-3">
+                <h6 class="text-muted mb-3">Submit Bank Receipt</h6>
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <label class="form-label mb-1 small">Bank Receipt No.</label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      [(ngModel)]="offlineTransactionId"
+                      [ngModelOptions]="{ standalone: true }"
+                      placeholder="Enter Bank Receipt No."
+                    />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label mb-1 small">Date of Payment</label>
+                    <input
+                      type="date"
+                      class="form-control"
+                      [(ngModel)]="offlinePaymentDate"
+                      [ngModelOptions]="{ standalone: true }"
+                    />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label mb-1 small">Upload Bank Receipt (PDF)</label>
+                    <input
+                      type="file"
+                      class="form-control"
+                      accept="application/pdf"
+                      (change)="onOfflineReceiptChange($event)"
+                    />
+                    <div class="small text-muted mt-1" *ngIf="offlineBankReceiptName">
+                      <i class="fa-solid fa-file-pdf me-1"></i>{{ offlineBankReceiptName }}
+                    </div>
+                  </div>
+                </div>
+                <div class="mt-3">
+                  <button
+                    type="button"
+                    class="btn btn-primary"
+                    [disabled]="!canSubmitOffline"
+                    (click)="submitOfflinePayment()"
+                  >
+                    <span *ngIf="isSubmittingOfflinePayment" class="spinner-border spinner-border-sm me-2" role="status"></span>
+                    <i class="fa-solid fa-upload me-2"></i>
+                    {{ isSubmittingOfflinePayment ? 'Submitting...' : 'Submit Offline Payment' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-between mt-4">
+              <button
+                type="button"
+                class="btn btn-outline-secondary"
+                (click)="goToPendingScrutiny()"
+              >
+                <i class="fa-solid fa-arrow-left me-2"></i>
+                Go to Pending Scrutiny
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>

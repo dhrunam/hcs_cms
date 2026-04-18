@@ -168,6 +168,50 @@ class PaymentLatestTransactionView(APIView):
         )
 
 
+class PaymentAllTransactionsView(APIView):
+    """
+    Return all payment transactions for an application, ordered by most recent first.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        application = request.query_params.get("application")
+        if not application:
+            return Response({"detail": "application is required."}, status=400)
+        
+        transactions = (
+            PaymentTransaction.objects.filter(application=str(application))
+            .order_by("-updated_at", "-id")
+        )
+        
+        results = []
+        for tx in transactions:
+            results.append({
+                "id": tx.id,
+                "application": tx.application,
+                "payment_mode": tx.payment_mode,
+                "txn_id": tx.txn_id,
+                "reference_no": tx.reference_no,
+                "amount": tx.amount,
+                "court_fees": tx.court_fees,
+                "payment_date": (
+                    tx.payment_date.isoformat() if getattr(tx, "payment_date", None) else None
+                ),
+                "bank_receipt": (
+                    request.build_absolute_uri(tx.bank_receipt.url)
+                    if getattr(tx, "bank_receipt", None)
+                    else None
+                ),
+                "status": tx.status,
+                "message": tx.message,
+                "payment_datetime": tx.updated_at.isoformat() if tx.updated_at else None,
+                "paid_at": tx.updated_at.isoformat() if tx.updated_at else None,
+                "created_at": tx.created_at.isoformat() if tx.created_at else None,
+            })
+        
+        return Response({"results": results, "count": len(results)})
+
+
 class PaymentOfflineSubmissionView(APIView):
     permission_classes = [AllowAny]
 
@@ -341,37 +385,81 @@ class PaymentResponseCallbackView(APIView):
             )
         elif payment_type == "intimation":
             base_redirect_url = pg_params.get("redirect_to_front_end_for_intimation_fee_paymet_status_page", "")
-        else:
-            base_redirect_url = pg_params.get("redirect_to_front_end_for_application_fee_paymet_status_page", "")
-            if source == "draft":
+        elif source == "objection":
+            base_redirect_url = pg_params.get(
+                "redirect_to_front_end_for_payment_confirmation",
+                pg_params.get("redirect_to_front_end_for_application_fee_paymet_status_page_draft", ""),
+            )
+        elif source == "draft":
+            has_pending_objection = self._has_pending_payment_objection(tx.application)
+            if has_pending_objection:
+                base_redirect_url = pg_params.get(
+                    "redirect_to_front_end_for_payment_confirmation",
+                    pg_params.get("redirect_to_front_end_for_application_fee_paymet_status_page_draft", base_redirect_url),
+                )
+            else:
                 base_redirect_url = pg_params.get(
                     "redirect_to_front_end_for_application_fee_paymet_status_page_draft",
-                    base_redirect_url,
+                    pg_params.get("redirect_to_front_end_for_application_fee_paymet_status_page", ""),
                 )
+        else:
+            base_redirect_url = pg_params.get("redirect_to_front_end_for_application_fee_paymet_status_page", "")
 
         query_data = {
-            "application": tx.application or "",
             "id": tx.application or "",
-            "status": status,
-            "payment_status": status,
-            "reference_no": tx.reference_no or "",
-            "txn_id": tx.txn_id or "",
-            "amount": tx.amount or "",
-            "payment_datetime": (
-                tx.updated_at.isoformat() if getattr(tx, "updated_at", None) else ""
-            ),
-            "paid_at": (
-                tx.updated_at.isoformat() if getattr(tx, "updated_at", None) else ""
-            ),
         }
-        if message:
-            query_data["message"] = message
+        if status == "success":
+            query_data["status"] = "success"
+        elif status == "failed":
+            query_data["status"] = "failed"
 
         separator = "&" if "?" in base_redirect_url else "?"
         redirect_url = f"{base_redirect_url}{separator}{urlencode(query_data)}"
         tx.redirect_url = redirect_url
         tx.save(update_fields=["redirect_url", "updated_at"])
         return redirect_url
+
+    def _has_pending_payment_objection(self, application_id):
+        """Check if the e-filing has a pending payment objection raised by scrutiny officer."""
+        from apps.efiling.models import PaymentObjection
+        from apps.payment.models import PaymentTransaction
+        from django.utils import timezone
+
+        if not application_id:
+            return False
+
+        try:
+            e_filing_id = int(application_id)
+        except (ValueError, TypeError):
+            return False
+
+        pending_objection = PaymentObjection.objects.filter(
+            e_filing_id=e_filing_id,
+            status=PaymentObjection.Status.PENDING
+        ).order_by('-raised_at').first()
+
+        if not pending_objection:
+            return False
+
+        raised_at = pending_objection.raised_at
+        if raised_at.tzinfo is None:
+            raised_at = timezone.make_aware(raised_at, timezone.utc)
+
+        successful_payments = PaymentTransaction.objects.filter(
+            application=str(e_filing_id)
+        ).filter(
+            status__iregex=r'^(success|paid|complete|ok)$'
+        ).filter(
+            created_at__gt=raised_at
+        )
+
+        required_amount = float(pending_objection.court_fee_amount)
+        for payment in successful_payments:
+            payment_amount = float(payment.amount or 0)
+            if payment_amount >= required_amount:
+                return False
+
+        return True
 
     def _restructure_data_from_encdata(self, encdata):
         pgway_parameter = {}

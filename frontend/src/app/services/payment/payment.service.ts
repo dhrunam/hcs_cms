@@ -25,6 +25,28 @@ export interface PaymentLatestResponse {
   paid_at?: string;
 }
 
+export interface PaymentTransaction {
+  id?: number;
+  application?: string;
+  payment_mode?: string;
+  txn_id?: string;
+  reference_no?: string;
+  amount?: string;
+  court_fees?: string;
+  payment_date?: string;
+  bank_receipt?: string | null;
+  status?: string;
+  message?: string;
+  payment_datetime?: string;
+  paid_at?: string;
+  created_at?: string;
+}
+
+export interface PaymentAllResponse {
+  results: PaymentTransaction[];
+  count: number;
+}
+
 @Injectable({ providedIn: "root" })
 export class PaymentService {
   constructor(private http: HttpClient) {}
@@ -34,7 +56,7 @@ export class PaymentService {
     application: number | string;
     e_filing_number: string;
     payment_type?: string;
-    source?: "new_filing" | "draft" | "ia_filing";
+    source?: "new_filing" | "draft" | "ia_filing" | "objection";
   }): Observable<PaymentInitiateResponse> {
     return this.http.post<PaymentInitiateResponse>(
       `${app_url}/api/payment/initiate/`,
@@ -45,6 +67,12 @@ export class PaymentService {
   latest(application: string | number): Observable<PaymentLatestResponse> {
     return this.http.get<PaymentLatestResponse>(
       `${app_url}/api/payment/latest/?application=${application}`,
+    );
+  }
+
+  getAll(application: string | number): Observable<PaymentAllResponse> {
+    return this.http.get<PaymentAllResponse>(
+      `${app_url}/api/payment/all/?application=${application}`,
     );
   }
 

@@ -182,6 +182,27 @@ export class EfilingService {
     );
   }
 
+  raise_payment_objection(id: number, courtFeeAmount: number): Observable<any> {
+    return this.http.post<any>(
+      `${app_url}/api/v1/efiling/payment-objections/`,
+      { e_filing: id, court_fee_amount: courtFeeAmount },
+    );
+  }
+
+  reset_payment_objection(id: number): Observable<any> {
+    return this.http.post<any>(
+      `${app_url}/api/v1/efiling/payment-objections/reset/`,
+      { e_filing: id },
+    );
+  }
+
+  resubmit_after_payment_objection(id: number): Observable<any> {
+    return this.http.post<any>(
+      `${app_url}/api/v1/efiling/payment-objections/resubmit/`,
+      { e_filing: id },
+    );
+  }
+
   get_litigant_list_by_filing_id(id: number): Observable<any> {
     console.log(
       `${app_url}/api/v1/efiling/efiling-litigants/?efiling_id=${id}`,

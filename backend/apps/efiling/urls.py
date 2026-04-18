@@ -69,6 +69,7 @@ from apps.efiling.views.case_access_request_views import (
     CaseAccessRequestReapplyView,
     CaseAccessCaseSearchView,
 )
+from apps.efiling.views.payment_objection_views import PaymentObjectionViewSet
 
 
 app_name = "efiling"
@@ -239,6 +240,16 @@ urlpatterns = [
         "case-access-requests/search-cases/",
         CaseAccessCaseSearchView.as_view(),
         name="case-access-request-case-search",
+    ),
+    path(
+        "payment-objections/",
+        PaymentObjectionViewSet.as_view({'get': 'list', 'post': 'create'}),
+        name="payment-objection-list-create",
+    ),
+    path(
+        "payment-objections/resubmit/",
+        PaymentObjectionViewSet.as_view({'post': 'resubmit'}),
+        name="payment-objection-resubmit",
     ),
 ]
 

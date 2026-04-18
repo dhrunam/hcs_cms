@@ -21,7 +21,7 @@
 
       <div class="accordion-collapse collapse" [class.show]="step === 1">
         <div class="accordion-body">
-          <app-initial-inputs [form]="initialInputsForm"></app-initial-inputs>
+          <app-initial-inputs [form]="initialInputsForm" [isGovernmentBody]="isGovernmentBody" (isGovernmentBodyChange)="isGovernmentBody = $event"></app-initial-inputs>
 
           <!-- <div class="alert alert-warning px-2 p-0 py-1 mt-4">
             <small>
@@ -511,10 +511,26 @@
                 [filingData]="filingData"
                 [paymentDetails]="paymentDetailsForPreview"
                 [paymentFeeRupees]="paymentFeeRupees"
+                [isGovernmentBody]="isGovernmentBody"
               ></app-e-file>
             </div>
 
-            <div class="alert alert- text-start mt-4">
+            <div class="alert alert-success py-2 small mb-3 mt-4" *ngIf="objectionResolvedByPayment">
+              <i class="fa-solid fa-check-circle me-1"></i>
+              <strong>Payment Received!</strong> Your payment of 
+              <strong>₹{{ objectionResolvedByPayment.amount }}/-</strong> 
+              (Txn ID: {{ objectionResolvedByPayment.txn_id }}) matches the required court fee.
+              <button
+                type="button"
+                class="btn btn-success btn-sm ms-3"
+                (click)="submit()"
+              >
+                <i class="fa-solid fa-paper-plane me-1"></i>
+                Resubmit for Scrutiny
+              </button>
+            </div>
+
+            <div class="alert alert- text-start mt-4" *ngIf="!isResubmission && !objectionResolvedByPayment">
               <form [formGroup]="setDeclarationForm">
                 <div class="form-check">
                   <input
@@ -536,7 +552,7 @@
               </form>
             </div>
 
-            <div class="d-flex justify-content-between mt-4">
+            <div class="d-flex justify-content-between mt-4" *ngIf="!objectionResolvedByPayment">
               <button class="btn btn-light border" (click)="prev()">
                 Back
               </button>
@@ -544,10 +560,10 @@
               <button
                 class="btn btn-success"
                 (click)="submit()"
-                [disabled]="setDeclarationForm.invalid"
+                [disabled]="!isResubmission && setDeclarationForm.invalid"
               >
                 <i class="fa-solid fa-paper-plane me-2"></i>
-                Submit Filing
+                {{ isResubmission ? 'Resubmit for Scrutiny' : 'Submit Filing' }}
               </button>
             </div>
           </div>
