@@ -14,6 +14,11 @@ class EfilingDocumentsSerializer(serializers.ModelSerializer):
     can_replace = serializers.SerializerMethodField()
     scrutiny_status = serializers.SerializerMethodField()
     is_new_for_scrutiny = serializers.SerializerMethodField()
+    pending_until_document_filing_submit = serializers.BooleanField(
+        write_only=True,
+        required=False,
+        default=False,
+    )
 
     class Meta:
         model = EfilingDocuments
@@ -35,8 +40,10 @@ class EfilingDocumentsSerializer(serializers.ModelSerializer):
             "created_by",
             "updated_by",
             "filed_by",
+            "document_filing_submitted_at",
+            "pending_until_document_filing_submit",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at", "document_filing_submitted_at"]
 
     def get_document_index(self, obj):
         return (
@@ -77,3 +84,11 @@ class EfilingDocumentsSerializer(serializers.ModelSerializer):
                 "filed_by must be one of: PETITIONER, RESPONDENT, APPELLANT."
             )
         return normalized
+
+    def create(self, validated_data):
+        pending = validated_data.pop("pending_until_document_filing_submit", False)
+        if isinstance(pending, str):
+            pending = str(pending).strip().lower() in ("true", "1", "yes", "on")
+        if pending:
+            validated_data["is_active"] = False
+        return super().create(validated_data)

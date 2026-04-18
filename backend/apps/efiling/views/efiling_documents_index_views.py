@@ -61,15 +61,17 @@ class EfilingDocumentsIndexListCreateView(ListCreateAPIView):
     def perform_create(self, serializer):
         with transaction.atomic():
             now = timezone.now()
-            filing = serializer.validated_data.get("document").e_filing if serializer.validated_data.get("document") else None
+            parent_doc = serializer.validated_data.get("document")
+            filing = parent_doc.e_filing if parent_doc else None
             is_draft_filing = bool(filing and filing.is_draft)
             scrutiny_status = (
                 EfilingDocumentsIndex.ScrutinyStatus.DRAFT
                 if is_draft_filing
                 else EfilingDocumentsIndex.ScrutinyStatus.UNDER_SCRUTINY
             )
+            index_active = getattr(parent_doc, "is_active", True) if parent_doc else True
             instance = serializer.save(
-                is_active=True,
+                is_active=index_active,
                 scrutiny_status=scrutiny_status,
                 draft_scrutiny_status=None,
                 draft_comments=None,
@@ -97,6 +99,7 @@ class EfilingDocumentsIndexListCreateView(ListCreateAPIView):
                 and instance.is_new_for_scrutiny
                 and instance.document
                 and instance.document.e_filing
+                and instance.is_active
             ):
                 filing = instance.document.e_filing
                 create_notification(

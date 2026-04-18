@@ -8,12 +8,39 @@ from urllib.parse import urlencode
 from django.core.files.storage import default_storage
 
 from django.conf import settings
+from django.db.models import Q
 from django.http import HttpResponseRedirect
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.models import IA
 from apps.payment.models import PaymentTransaction
+
+
+def _payment_transaction_dict(tx: PaymentTransaction, request) -> dict:
+    return {
+        "id": tx.id,
+        "application": tx.application,
+        "payment_type": tx.payment_type,
+        "payment_mode": tx.payment_mode,
+        "txn_id": tx.txn_id,
+        "reference_no": tx.reference_no,
+        "amount": tx.amount,
+        "court_fees": tx.court_fees,
+        "payment_date": (
+            tx.payment_date.isoformat() if getattr(tx, "payment_date", None) else None
+        ),
+        "bank_receipt": (
+            request.build_absolute_uri(tx.bank_receipt.url)
+            if getattr(tx, "bank_receipt", None)
+            else None
+        ),
+        "status": tx.status,
+        "message": tx.message,
+        "payment_datetime": tx.updated_at.isoformat() if tx.updated_at else None,
+        "paid_at": tx.updated_at.isoformat() if tx.updated_at else None,
+    }
 
 
 def _merge_payment_callback_payload(existing, gateway_payload: dict) -> dict:
@@ -61,6 +88,23 @@ class PaymentInitiateView(APIView):
         reference_no = generate_payment_reference_no()
         encdata = self._create_encdata(reference_no, amount, payee_name, payment_type)
 
+        raw_doc_id = request.data.get("efiling_document_id")
+        efiling_document_id = None
+        if raw_doc_id not in (None, ""):
+            try:
+                efiling_document_id = int(raw_doc_id)
+            except (TypeError, ValueError):
+                efiling_document_id = None
+
+        callback_payload = {
+            "application": str(application),
+            "e_filing_number": str(e_filing_number or ""),
+            "source": source,
+            "encdata": encdata,
+        }
+        if efiling_document_id is not None:
+            callback_payload["efiling_document_id"] = efiling_document_id
+
         PaymentTransaction.objects.create(
             payment_type=payment_type,
             payment_mode="online",
@@ -71,6 +115,7 @@ class PaymentInitiateView(APIView):
             court_fees=str(amount),
             message="Initiated",
             callback_method="INIT",
+<<<<<<< HEAD
             callback_payload={
                 "application": str(application),
                 "e_filing_number": str(e_filing_number or ""),
@@ -78,6 +123,9 @@ class PaymentInitiateView(APIView):
                 "encdata": encdata,
             },
             created_by=request.user if request.user.is_authenticated else None,
+=======
+            callback_payload=callback_payload,
+>>>>>>> jwt-auth
         )
 
         fields = {"encdata": encdata}
@@ -169,6 +217,43 @@ class PaymentLatestTransactionView(APIView):
         )
 
 
+class PaymentTransactionsListView(APIView):
+    """
+    All payment rows for a filing: same `application` as Efiling pk, plus IA court fees
+    stored as `IA-FEE-{ia_id}` for IAs under that filing.
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        application = request.query_params.get("application")
+        if not application:
+            return Response({"detail": "application is required."}, status=400)
+
+        try:
+            efiling_id = int(str(application).strip())
+        except (TypeError, ValueError):
+            efiling_id = None
+
+        if efiling_id is not None:
+            ia_refs = [
+                f"IA-FEE-{pk}"
+                for pk in IA.objects.filter(e_filing_id=efiling_id).values_list("id", flat=True)
+            ]
+            qs = PaymentTransaction.objects.filter(
+                Q(application=str(efiling_id)) | Q(application__in=ia_refs)
+            )
+        else:
+            qs = PaymentTransaction.objects.filter(application=str(application))
+
+        qs = qs.order_by("-updated_at", "-id")
+        return Response(
+            {
+                "results": [_payment_transaction_dict(tx, request) for tx in qs],
+            }
+        )
+
+
 class PaymentOfflineSubmissionView(APIView):
     permission_classes = [AllowAny]
 
@@ -222,6 +307,20 @@ class PaymentOfflineSubmissionView(APIView):
         paid_status = payment_status.get("success", "success")
         reference_no = generate_payment_reference_no()
 
+        source_offline = str(request.data.get("source") or "").strip()
+        raw_ef_doc = request.data.get("efiling_document_id")
+        offline_callback: dict = {
+            "application": application,
+            "e_filing_number": e_filing_number,
+        }
+        if source_offline:
+            offline_callback["source"] = source_offline
+        if raw_ef_doc not in (None, ""):
+            try:
+                offline_callback["efiling_document_id"] = int(raw_ef_doc)
+            except (TypeError, ValueError):
+                pass
+
         tx = PaymentTransaction.objects.create(
             payment_type=payment_type,
             payment_mode="offline",
@@ -233,9 +332,9 @@ class PaymentOfflineSubmissionView(APIView):
             payment_date=parsed_payment_date,
             status=paid_status,
             message="Offline court fee payment recorded.",
-            callback_method="OFFLINE",
-            callback_payload={"application": application, "e_filing_number": e_filing_number},
+            callback_method="OFFLINE",            
             created_by=request.user if request.user.is_authenticated else None,
+            callback_payload=offline_callback,
         )
         tx.bank_receipt.name = saved_path
         tx.save(update_fields=["bank_receipt", "updated_at"])
@@ -339,6 +438,11 @@ class PaymentResponseCallbackView(APIView):
         if is_ia_fee:
             base_redirect_url = pg_params.get(
                 "redirect_to_front_end_for_ia_court_fee",
+                pg_params.get("redirect_to_front_end_for_application_fee_paymet_status_page", ""),
+            )
+        elif source == "document_filing":
+            base_redirect_url = pg_params.get(
+                "redirect_to_front_end_for_document_filing",
                 pg_params.get("redirect_to_front_end_for_application_fee_paymet_status_page", ""),
             )
         elif payment_type == "intimation":
