@@ -6,6 +6,59 @@
   padding-left: 8px;
 }
 
+.document-filing-workflow {
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
+}
+
+.step-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #1e3a5f, #2563eb);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.declaration-panel {
+  background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+  border-color: #c7d2fe !important;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.declaration-panel:focus-within {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  border-color: #818cf8 !important;
+}
+
+.declaration-check {
+  user-select: none;
+}
+
+.payment-detail-panel {
+  border-style: dashed !important;
+}
+
+.document-filing-pay-card {
+  border-left: 4px solid #0d6efd !important;
+}
+
+.document-filing-complete-card {
+  border-left: 4px solid #212529 !important;
+}
+
+.document-filing-complete-card .document-filing-workflow {
+  box-shadow: none;
+}
+
+.complete-filing-section + .complete-filing-section {
+  margin-top: 0.25rem;
+}
+
 /* Searchable select - same as IA filing */
 .searchable-select {
   position: relative;

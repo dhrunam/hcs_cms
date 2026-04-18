@@ -69,7 +69,7 @@
   </div>
 
   <div class="mb-3 mt-2" *ngIf="!structuredIndexUpload && useTextIndexName">
-    <!-- Always present so #textAnnexureInput resolves for Add Annexures; button hidden in multiManualIndexRows mode -->
+    <!-- #textAnnexureInput: used by Add Annexures below and by the in-table Annexure(s) row when multiManualIndexRows -->
     <input
       #textAnnexureInput
       type="file"
@@ -178,6 +178,30 @@
                   Remove
                 </button>
               </div>
+            </td>
+          </tr>
+          <tr
+            *ngIf="enableAnnexureSequence && multiManualIndexRows"
+            class="structured-annexure-slot-row"
+          >
+            <td class="index-col fw-semibold">Annexure(s)</td>
+            <td>
+              <span class="small text-muted" *ngIf="getAnnexureEntries().length === 0"
+                >No annexures added yet</span
+              >
+              <span class="small" *ngIf="getAnnexureEntries().length > 0"
+                >{{ getAnnexureEntries().length }} file(s)</span
+              >
+            </td>
+            <td>
+              <button
+                type="button"
+                class="btn btn-outline-secondary btn-sm"
+                [disabled]="isUploading"
+                (click)="textAnnexureInput.click()"
+              >
+                Add Annexures
+              </button>
             </td>
           </tr>
           <tr
@@ -317,7 +341,7 @@
         </tbody>
       </table>
     </div>
-    <div class="mt-2" *ngIf="enableAnnexureSequence">
+    <div class="mt-2" *ngIf="enableAnnexureSequence && !multiManualIndexRows">
       <button
         type="button"
         class="btn btn-outline-secondary btn-sm"

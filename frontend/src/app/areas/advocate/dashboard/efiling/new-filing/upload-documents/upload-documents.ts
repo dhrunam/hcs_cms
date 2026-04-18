@@ -818,11 +818,9 @@ export class UploadDocuments implements OnInit, OnChanges {
     );
 
     if (!allMandatoryUploaded) return false;
-    if (!this.enableAnnexureSequence) return true;
-
-    return Array.from(uploaded).some((name) =>
-      /annexure\s+[arp]\s*\d+/i.test(String(name).replace(/\s+/g, " ").trim()),
-    );
+    // Annexures are optional: completing mandatory indexes is enough to treat
+    // structured upload as satisfied for hiding / progression.
+    return true;
   }
 
   shouldShowStructuredUploadTable(): boolean {
@@ -1037,11 +1035,8 @@ export class UploadDocuments implements OnInit, OnChanges {
   canUpload(): boolean {
     if (this.isStructuredMode()) {
       const hasAllMandatory = this.structuredRows.every((row) => !!row.file);
-      const hasAnnexure = !this.enableAnnexureSequence
-        ? true
-        : this.annexureRows.length > 0;
       const allAnnexuresFilled = this.annexureRows.every((row) => !!row.file);
-      return !this.isUploading && hasAllMandatory && hasAnnexure && allAnnexuresFilled;
+      return !this.isUploading && hasAllMandatory && allAnnexuresFilled;
     }
     if (this.useTextIndexName) {
       const hasParentName =

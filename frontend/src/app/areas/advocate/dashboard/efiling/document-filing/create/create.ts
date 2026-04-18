@@ -14,6 +14,7 @@ import { forkJoin } from "rxjs";
 import { ToastrService } from "ngx-toastr";
 import Swal from "sweetalert2";
 
+import { jsPDF } from "jspdf";
 import { app_url } from "../../../../../../environment";
 import { EfilingService } from "../../../../../../services/advocate/efiling/efiling.services";
 import { PaymentService } from "../../../../../../services/payment/payment.service";
@@ -68,6 +69,8 @@ interface DocumentUploadPaymentToken {
   amount?: string;
   paymentMode: "online" | "offline";
   paidAt: number;
+  /** Offline bank receipt date (YYYY-MM-DD) for PDF receipt. */
+  paymentDate?: string;
 }
 
 /** Upload finished; user must pay fee then call Submit filing. */
@@ -139,6 +142,9 @@ export class Create implements OnInit {
    * (or user deletes that document / changes case).
    */
   pendingDocumentFilingSubmit: PendingDocumentFilingSubmit | null = null;
+
+  /** Required before Submit filing after court fee is paid. */
+  declarationAccepted = false;
 
   constructor(
     private fb: FormBuilder,
@@ -320,6 +326,23 @@ export class Create implements OnInit {
     return map[this.litigantType] ?? "P";
   }
 
+  /** For `app-upload-documents`: resolve index_id and annexure names against case-type indexes. */
+  get selectedCaseTypeIdForUpload(): number | null {
+    const raw = this.selectedFiling?.case_type?.id;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+
+  get documentTypeIndexMastersForUpload(): Array<{ id: number; name: string }> {
+    const rows = this.documentTypeOptions ?? [];
+    return rows
+      .map((x: any) => ({
+        id: Number(x?.id),
+        name: String(x?.name ?? "").trim(),
+      }))
+      .filter((x) => Number.isFinite(x.id) && x.id > 0 && x.name.length > 0);
+  }
+
   selectFiling(item: { filing: any }): void {
     console.log("Selected item for filing is", item);
     console.log(item.filing.case_type.id);
@@ -328,6 +351,7 @@ export class Create implements OnInit {
       this.clearUploadPaymentTokenForFiling(this.selectedEfilingId);
     }
     this.pendingDocumentFilingSubmit = null;
+    this.declarationAccepted = false;
 
     this.get_document_index_for_existing_filing(item.filing.case_type.id);
     this.selectedFiling = item.filing;
@@ -426,6 +450,31 @@ export class Create implements OnInit {
     return `${this.selectedFiling.e_filing_number} | ${this.selectedFiling.case_type?.type_name || "N/A"} | ${this.getLitigantLabel(item)}`;
   }
 
+  /**
+   * After payment gateway return, `uploadedDocList` was cleared during restore while the
+   * pending document still lives on the server — merge it back from `existingDocList`.
+   */
+  private syncUploadedDocListForPendingSubmit(): void {
+    const p = this.pendingDocumentFilingSubmit;
+    if (!p?.efilingDocumentId) return;
+    const row = this.existingDocList.find(
+      (d) => Number(d?.id) === Number(p.efilingDocumentId),
+    );
+    if (!row) return;
+    const ix = this.uploadedDocList.findIndex(
+      (d) => Number(d?.id) === Number(row.id),
+    );
+    if (ix >= 0) {
+      this.uploadedDocList = [
+        ...this.uploadedDocList.slice(0, ix),
+        row,
+        ...this.uploadedDocList.slice(ix + 1),
+      ];
+    } else {
+      this.uploadedDocList = [row];
+    }
+  }
+
   private loadSelectedCaseDetailsAndDocs(): void {
     if (!this.selectedEfilingId) return;
 
@@ -466,6 +515,8 @@ export class Create implements OnInit {
           };
         });
 
+        this.syncUploadedDocListForPendingSubmit();
+
         this.isLoadingCase = false;
       },
       error: () => {
@@ -488,6 +539,7 @@ export class Create implements OnInit {
           this.uploadedDocList.splice(index, 1);
           if (this.pendingDocumentFilingSubmit?.efilingDocumentId === id) {
             this.pendingDocumentFilingSubmit = null;
+            this.declarationAccepted = false;
             if (this.selectedEfilingId) {
               this.clearUploadPaymentTokenForFiling(this.selectedEfilingId);
             }
@@ -725,7 +777,7 @@ export class Create implements OnInit {
             paidAt: Date.now(),
           });
           this.toastr.success(
-            "Payment received. Your selections are restored. Click Submit filing to complete.",
+            "Payment received. Review document and payment details below, accept the declaration, then click Submit filing (OTP 0000).",
             "",
             { timeOut: 10000, closeButton: true },
           );
@@ -823,6 +875,7 @@ export class Create implements OnInit {
       } else {
         this.pendingDocumentFilingSubmit = null;
       }
+      this.declarationAccepted = false;
       this.loadSelectedCaseDetailsAndDocs();
     });
   }
@@ -844,6 +897,7 @@ export class Create implements OnInit {
     this.documentTypeSearchQuery = "";
     this.uploadFilingDocForm.reset();
     this.pendingDocumentFilingSubmit = null;
+    this.declarationAccepted = false;
     this.loadIasForFiling();
     this.loadSelectedCaseDetailsAndDocs();
   }
@@ -859,13 +913,230 @@ export class Create implements OnInit {
     );
   }
 
-  /** Submit filing is allowed only after upload + successful payment. */
+  /** Submit filing is allowed only after upload + successful payment + declaration. */
   canClickSubmitFiling(): boolean {
     return (
       !!this.pendingDocumentFilingSubmit &&
       this.hasPaymentForPendingSubmit() &&
+      this.declarationAccepted &&
       !this.isSubmitDocumentFilingInProgress
     );
+  }
+
+  canDownloadDocumentFilingReceipt(): boolean {
+    return this.hasPaymentForPendingSubmit();
+  }
+
+  /**
+   * Parsed payment token for UI when fee is recorded for the pending document.
+   */
+  getPendingUploadPaymentTokenForDisplay(): DocumentUploadPaymentToken | null {
+    if (!this.selectedEfilingId || !this.hasPaymentForPendingSubmit()) {
+      return null;
+    }
+    try {
+      const raw = sessionStorage.getItem(
+        this.uploadPaymentStorageKey(this.selectedEfilingId),
+      );
+      if (!raw) return null;
+      return JSON.parse(raw) as DocumentUploadPaymentToken;
+    } catch {
+      return null;
+    }
+  }
+
+  pendingPaymentAmountDisplay(): string {
+    const t = this.getPendingUploadPaymentTokenForDisplay();
+    const a = t?.amount;
+    return a != null && String(a).trim() !== "" ? String(a) : "—";
+  }
+
+  pendingPaymentTxnDisplay(): string {
+    const t = this.getPendingUploadPaymentTokenForDisplay();
+    const v = String(t?.txnId ?? "").trim();
+    return v || "—";
+  }
+
+  pendingPaymentReferenceDisplay(): string {
+    const t = this.getPendingUploadPaymentTokenForDisplay();
+    const v = String(t?.referenceNo ?? "").trim();
+    return v || "—";
+  }
+
+  pendingPaymentModeDisplay(): string {
+    const t = this.getPendingUploadPaymentTokenForDisplay();
+    if (!t) return "—";
+    return t.paymentMode === "offline" ? "Offline" : "Online";
+  }
+
+  pendingPaymentDateTimeDisplay(): string {
+    const t = this.getPendingUploadPaymentTokenForDisplay();
+    if (!t) return "—";
+    return this.formatDocumentFilingReceiptDateTime(t);
+  }
+
+  /** For `| date` pipe in review (online payment timestamp on token). */
+  pendingPaymentPaidAtDate(): Date | null {
+    const t = this.getPendingUploadPaymentTokenForDisplay();
+    if (!t || t.paymentMode === "offline") return null;
+    if (t.paidAt == null) return null;
+    const dt = new Date(t.paidAt);
+    return Number.isNaN(dt.getTime()) ? null : dt;
+  }
+
+  pendingPaymentOfflineDateValue(): string | null {
+    const t = this.getPendingUploadPaymentTokenForDisplay();
+    if (t?.paymentMode !== "offline" || !t.paymentDate) return null;
+    return String(t.paymentDate);
+  }
+
+  isPendingDocumentFilingPaymentOffline(): boolean {
+    return (
+      this.getPendingUploadPaymentTokenForDisplay()?.paymentMode === "offline"
+    );
+  }
+
+  /** Uploaded row for the current pending submit (for recap in complete-filing card). */
+  getPendingUploadedDocRow(): any | null {
+    const p = this.pendingDocumentFilingSubmit;
+    if (!p) return null;
+    const fromUpload = this.uploadedDocList.find(
+      (d) => Number(d?.id) === Number(p.efilingDocumentId),
+    );
+    if (fromUpload) return fromUpload;
+    return (
+      this.existingDocList.find(
+        (d) => Number(d?.id) === Number(p.efilingDocumentId),
+      ) ?? null
+    );
+  }
+
+  /** Rows shown in Review & submit (pending doc may only exist on server after payment return). */
+  get documentsForReviewRows(): any[] {
+    if (!this.hasPaymentForPendingSubmit()) {
+      return this.uploadedDocList;
+    }
+    const row = this.getPendingUploadedDocRow();
+    if (row) {
+      return [row];
+    }
+    return this.uploadedDocList;
+  }
+
+  /** Absolute URL for document index file (API often returns relative paths). */
+  documentPartHref(part: { file_url?: string; file_part_path?: string } | null): string {
+    return this.toAbsoluteUrl(String(part?.file_url || part?.file_part_path || ""));
+  }
+
+  documentFinalHref(doc: { final_document?: string } | null): string {
+    return this.toAbsoluteUrl(String(doc?.final_document || ""));
+  }
+
+  /** Caption for IA scope of the pending document (main filing vs IA number). */
+  pendingDocumentIaCaption(): string {
+    const p = this.pendingDocumentFilingSubmit;
+    if (!p) return "";
+    if (p.iaId == null) {
+      return "Main filing (not under a specific IA)";
+    }
+    const ia =
+      this.selectedIa?.id != null &&
+      Number(this.selectedIa.id) === Number(p.iaId)
+        ? this.selectedIa
+        : this.iaList.find((x) => Number(x?.id) === Number(p.iaId));
+    if (ia) {
+      const num = String(ia.ia_number ?? "").trim() || "-";
+      return `IA ${num}`;
+    }
+    return `IA #${p.iaId}`;
+  }
+
+  downloadDocumentFilingPaymentReceiptPdf(): void {
+    if (!this.canDownloadDocumentFilingReceipt() || !this.selectedEfilingId) {
+      return;
+    }
+    let t: DocumentUploadPaymentToken;
+    try {
+      const raw = sessionStorage.getItem(
+        this.uploadPaymentStorageKey(this.selectedEfilingId),
+      );
+      if (!raw) return;
+      t = JSON.parse(raw) as DocumentUploadPaymentToken;
+    } catch {
+      return;
+    }
+    const p = this.pendingDocumentFilingSubmit;
+    if (!p) return;
+
+    const bench = "High Court Of Sikkim";
+    const eFilingNo = this.selectedEfilingNumber || "-";
+    const amountStr = t.amount || "-";
+    const txnId = String(t.txnId || "").trim() || "-";
+    const referenceNo = String(t.referenceNo || "").trim() || "-";
+    const modeLabel = t.paymentMode === "offline" ? "Offline" : "Online";
+    const dateTimeLabel = this.formatDocumentFilingReceiptDateTime(t);
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    let y = 18;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("Court fee payment receipt", margin, y);
+    y += 9;
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(bench, margin, y);
+    y += 11;
+
+    const rows: [string, string][] = [
+      ["E-filing number", eFilingNo],
+      ["Document", p.documentType],
+      ["Transaction ID", txnId],
+      ["Reference number", referenceNo],
+      ["Amount paid (INR)", `Rs. ${amountStr}/-`],
+      ["Payment mode", modeLabel],
+      ["Payment date / time", dateTimeLabel],
+      ["Payment status", "Successful"],
+    ];
+
+    const labelX = margin;
+    const valueX = margin + 52;
+    const valueMaxW = pageWidth - valueX - margin;
+
+    for (const [label, value] of rows) {
+      doc.setFont("helvetica", "bold");
+      doc.text(`${label}:`, labelX, y);
+      doc.setFont("helvetica", "normal");
+      const lines = doc.splitTextToSize(String(value), valueMaxW);
+      doc.text(lines, valueX, y);
+      y += Math.max(6, lines.length * 5.5) + 2;
+    }
+
+    y += 6;
+    doc.setFontSize(9);
+    doc.setTextColor(90);
+    const footer = `Generated on ${new Date().toLocaleString()}. Record of court fee payment for document filing.`;
+    doc.text(doc.splitTextToSize(footer, pageWidth - margin * 2), margin, y);
+    doc.setTextColor(0);
+
+    const safeEf = (this.selectedEfilingNumber || `filing-${this.selectedEfilingId}`)
+      .replace(/[^\w.-]+/g, "_")
+      .slice(0, 40);
+    const safeTxn = (t.txnId || "receipt")
+      .replace(/[^\w.-]+/g, "_")
+      .slice(0, 48);
+    doc.save(`document-filing-receipt-${safeEf}-${safeTxn}.pdf`);
+  }
+
+  private formatDocumentFilingReceiptDateTime(
+    t: DocumentUploadPaymentToken,
+  ): string {
+    if (t.paymentMode === "offline" && t.paymentDate) {
+      return `${t.paymentDate} (offline)`;
+    }
+    return new Date(t.paidAt).toLocaleString();
   }
 
   /** Pay court fee for the document already uploaded (pending submit). */
@@ -918,6 +1189,16 @@ export class Create implements OnInit {
       this.toastr.warning("Pay the court fee first.");
       return;
     }
+    if (!this.declarationAccepted) {
+      this.toastr.warning("Accept the declaration to submit filing.");
+      return;
+    }
+    const otpOk = await this.promptOtpAndProceed(
+      "Submit filing",
+      "Enter OTP to confirm submission. Use 0000 for verification.",
+    );
+    if (!otpOk) return;
+
     this.isSubmitDocumentFilingInProgress = true;
     try {
       await firstValueFrom(
@@ -927,8 +1208,11 @@ export class Create implements OnInit {
       );
       this.consumeUploadPaymentTokenAfterSuccessfulSubmit();
       this.pendingDocumentFilingSubmit = null;
+      this.declarationAccepted = false;
       this.toastr.success("Document filing submitted.");
-      this.loadSelectedCaseDetailsAndDocs();
+      await this.router.navigate([
+        "/advocate/dashboard/efiling/pending-scrutiny",
+      ]);
     } catch (err) {
       console.error(err);
       const msg = getValidationErrorMessage(err);
@@ -1121,11 +1405,12 @@ export class Create implements OnInit {
         amount: String(v.amount),
         paymentMode: "offline",
         paidAt: Date.now(),
+        paymentDate: v.paymentDate,
       });
       this.toastr.success(
-        "Court fee recorded. Click Submit filing to finish.",
+        "Court fee recorded. Accept the declaration below, then click Submit filing.",
         "",
-        { timeOut: 5000, closeButton: true },
+        { timeOut: 6000, closeButton: true },
       );
       return true;
     } catch (e) {
@@ -1199,15 +1484,6 @@ export class Create implements OnInit {
         return;
       }
 
-      const targetLabel = this.selectedIa
-        ? `the selected IA (${this.selectedIa.ia_number || ""})`
-        : "the selected e-filing";
-      const proceed = await this.promptOtpAndProceed(
-        "File Documents?",
-        `Upload these documents to ${targetLabel}. Filing as ${this.litigantTypeLabel()}.`,
-      );
-      if (!proceed) return;
-
       this.isUploadingDocuments = true;
       this.uploadFileProgresses = uploadItems.map(() => 0);
 
@@ -1227,6 +1503,7 @@ export class Create implements OnInit {
       }
 
       documentPayload.append("filed_by", this.litigantType);
+      documentPayload.append("pending_until_document_filing_submit", "true");
 
       const documentRes = await firstValueFrom(
         this.eFilingService.upload_case_documnets(documentPayload),
@@ -1300,10 +1577,11 @@ export class Create implements OnInit {
         documentType,
         iaId: iaIdForPending,
       };
+      this.declarationAccepted = false;
       this.toastr.success(
-        "Documents uploaded. Pay the court fee, then click Submit filing.",
+        "Documents uploaded. Use Pay court fees below when you are ready.",
         "",
-        { timeOut: 8000, closeButton: true },
+        { timeOut: 7000, closeButton: true },
       );
     } catch (error) {
       console.error("Document upload failed", error);

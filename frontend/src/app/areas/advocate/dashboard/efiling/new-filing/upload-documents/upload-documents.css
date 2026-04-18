@@ -175,3 +175,9 @@ select {
   padding-left: 1rem;
   padding-right: 1rem;
 }
+
+.structured-annexure-slot-row td {
+  background: #f8fafc;
+  border-top: 1px dashed #cbd5e1;
+  vertical-align: middle;
+}

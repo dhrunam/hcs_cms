@@ -238,11 +238,12 @@
 
     <div class="alert alert-light border small mb-4">
       <i class="fa-solid fa-info-circle me-2"></i>
-      <strong>Upload, then pay, then submit filing.</strong> Choose document type,
-      attach PDFs, and complete OTP upload. Then pay the court fee for that
-      document; after online payment you return here with selections restored
-      (re-attach PDFs if the browser cleared them). Finally click
-      <strong>Submit filing</strong>. Each new document needs its own fee and
+      <strong>Upload, pay, declare, then submit.</strong> Choose document type
+      and attach PDFs (no OTP on upload). After upload, click
+      <strong>Pay court fees</strong> when you are ready. After payment, review
+      the document and payment summary, accept the declaration, then use
+      <strong>Submit filing</strong>; you will confirm with OTP (use
+      <strong>0000</strong>). Each new document needs its own fee and
       submission.
     </div>
 
@@ -264,7 +265,8 @@
         ></button>
       </div>
       <div class="card-body">
-        <!-- Uploaded in this session (with delete) -->
+        <!-- Uploaded in this session (with delete) — same list pattern as new filing pleading step -->
+        <h5 class="section-title text-start mb-3" *ngIf="uploadedDocList.length > 0">Uploaded documents</h5>
         <div *ngIf="uploadedDocList.length > 0" class="mb-4">
           <div class="card shadow-sm border-0">
             <div class="list-group list-group-flush">
@@ -413,78 +415,14 @@
                 </div>
               </div>
               <div class="col-12" *ngIf="selectedDocumentType">
-                <div
-                  class="border rounded p-3 bg-white mb-3"
-                  *ngIf="pendingDocumentFilingSubmit"
-                >
-                  <div
-                    class="d-flex flex-wrap align-items-start justify-content-between gap-3"
-                  >
-                    <div class="flex-grow-1">
-                      <div class="fw-semibold small mb-1">
-                        Court fee (uploaded document)
-                      </div>
-                      <p
-                        class="text-muted small mb-0"
-                        *ngIf="!hasPaymentForPendingSubmit()"
-                      >
-                        Pay the fee for the document you just uploaded. After
-                        online payment you return here—then click Submit filing.
-                      </p>
-                      <p
-                        class="text-success small mb-0"
-                        *ngIf="hasPaymentForPendingSubmit()"
-                      >
-                        <i class="fa-solid fa-circle-check me-1"></i>
-                        Fee paid. Click Submit filing to finish.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      class="btn btn-primary btn-sm text-nowrap"
-                      [disabled]="
-                        isCourtFeePaymentInProgress ||
-                        hasPaymentForPendingSubmit()
-                      "
-                      (click)="payCourtFeeForCurrentDocument()"
-                    >
-                      <span
-                        *ngIf="isCourtFeePaymentInProgress"
-                        class="spinner-border spinner-border-sm me-1"
-                        role="status"
-                        aria-hidden="true"
-                      ></span>
-                      Pay court fee
-                    </button>
-                  </div>
-                  <div
-                    class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3 pt-3 border-top"
-                  >
-                    <span class="text-muted small"
-                      >Finalize this document with the court after payment.</span
-                    >
-                    <button
-                      type="button"
-                      class="btn btn-dark btn-sm"
-                      [disabled]="!canClickSubmitFiling()"
-                      (click)="submitDocumentFilingAfterPayment()"
-                    >
-                      <span
-                        *ngIf="isSubmitDocumentFilingInProgress"
-                        class="spinner-border spinner-border-sm me-1"
-                        role="status"
-                        aria-hidden="true"
-                      ></span>
-                      Submit filing
-                    </button>
-                  </div>
-                </div>
                 <app-upload-documents
                   [form]="uploadFilingDocForm"
                   [isUploading]="isUploadingDocuments"
                   [fileProgresses]="uploadFileProgresses"
                   [uploadCompletedToken]="uploadCompletedToken"
                   [defaultDocumentType]="selectedDocumentType"
+                  [caseTypeId]="selectedCaseTypeIdForUpload"
+                  [documentIndexMasterList]="documentTypeIndexMastersForUpload"
                   [useTextIndexName]="true"
                   [useParentIndexGroup]="true"
                   [multiManualIndexRows]="true"
@@ -504,6 +442,269 @@
         </ng-template> -->
       </div>
     </div>
+
+    <!-- Post-upload: court fee (pay when ready) or complete filing after payment -->
+    <ng-container *ngIf="pendingDocumentFilingSubmit">
+      <div
+        class="card document-filing-pay-card border-0 shadow-sm mb-4"
+        *ngIf="!hasPaymentForPendingSubmit()"
+      >
+        <div class="card-header bg-primary text-white fw-semibold">
+          <i class="fa-solid fa-indian-rupee-sign me-2"></i>
+          Court fee required
+        </div>
+        <div class="card-body">
+          <p class="text-muted small mb-3 mb-md-4">
+            Your document is saved. Click <strong>Pay court fees</strong> when
+            you are ready to enter the payment flow. If you start online payment
+            and leave this page, return here when payment completes.
+          </p>
+          <div class="row g-3 small mb-4">
+            <div class="col-sm-6 col-md-3">
+              <div class="text-muted">E-filing number</div>
+              <div class="fw-semibold">
+                {{ selectedEfilingNumber || '—' }}
+              </div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+              <div class="text-muted">Document type</div>
+              <div class="fw-semibold">
+                {{ pendingDocumentFilingSubmit.documentType || '—' }}
+              </div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+              <div class="text-muted">Scope</div>
+              <div class="fw-semibold">{{ pendingDocumentIaCaption() }}</div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+              <div class="text-muted">Document record ID</div>
+              <div class="fw-semibold font-monospace">
+                {{ pendingDocumentFilingSubmit.efilingDocumentId }}
+              </div>
+            </div>
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <button
+              type="button"
+              class="btn btn-primary"
+              [disabled]="isCourtFeePaymentInProgress"
+              (click)="payCourtFeeForCurrentDocument()"
+            >
+              <span
+                *ngIf="isCourtFeePaymentInProgress"
+                class="spinner-border spinner-border-sm me-1"
+                role="status"
+                aria-hidden="true"
+              ></span>
+              Pay court fees
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="card document-filing-complete-card border-0 shadow-sm mb-4"
+        *ngIf="hasPaymentForPendingSubmit()"
+      >
+        <div class="card-header bg-dark text-white fw-semibold">
+          <i class="fa-solid fa-file-signature me-2"></i>
+          Review &amp; submit
+        </div>
+        <div class="card-body document-filing-workflow text-start">
+          <div class="text-center mb-4">
+            <p class="text-muted small mb-0">
+              Review your uploaded documents and court fee payment (same layout as new filing), then
+              accept the declaration and submit.
+            </p>
+          </div>
+
+          <!-- Documents Details — matches new-filing e-file preview -->
+          <div class="card p-0 shadow-sm mb-4 border-0">
+            <div
+              class="card-header bg-dark text-white fw-semibold d-flex justify-content-between align-items-center flex-wrap gap-2"
+            >
+              <span>Documents Details</span>
+              <button
+                type="button"
+                class="btn btn-sm btn-light d-flex align-items-center gap-1"
+                [disabled]="!canDownloadMerged() || isMergingPdf"
+                (click)="downloadMergedPdf()"
+              >
+                <span
+                  *ngIf="isMergingPdf"
+                  class="spinner-border spinner-border-sm"
+                  role="status"
+                  aria-hidden="true"
+                ></span>
+                <i class="fa-solid fa-file-pdf" *ngIf="!isMergingPdf"></i>
+                {{ isMergingPdf ? 'Merging...' : 'Download Merged PDF' }}
+              </button>
+            </div>
+            <div class="card-body p-0" *ngIf="documentsForReviewRows.length > 0">
+              <div class="list-group list-group-flush">
+                <div
+                  *ngFor="let doc of documentsForReviewRows; let i = index; trackBy: trackByDocId"
+                  class="list-group-item"
+                  style="border-bottom: 1px solid #f1f5f9"
+                >
+                  <div class="d-flex align-items-center gap-3 mb-2">
+                    <div
+                      class="d-flex align-items-center justify-content-center"
+                      style="width: 36px; height: 36px; background-color: #fef2f2; border-radius: 8px"
+                    >
+                      <i class="fa-solid fa-file-pdf text-danger"></i>
+                    </div>
+                    <div class="text-start">
+                      <div class="fw-semibold" style="color: #0f172a">
+                        {{ i + 1 }}. {{ doc.document_type }}
+                      </div>
+                      <div
+                        class="text-muted small"
+                        *ngIf="getPendingUploadedDocRow()?.id === doc.id"
+                      >
+                        Pending submission · {{ pendingDocumentIaCaption() }}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="ps-5" *ngIf="doc.document_indexes?.length > 0">
+                    <div
+                      *ngFor="let filePart of doc.document_indexes; let j = index"
+                      class="d-flex justify-content-between align-items-center py-1"
+                    >
+                      <div class="small text-muted">
+                        {{ j + 1 }}. {{ filePart.document_part_name || 'Document Part' }}
+                      </div>
+                      <a
+                        *ngIf="documentPartHref(filePart)"
+                        [href]="documentPartHref(filePart)"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="btn btn-sm btn-light border d-flex align-items-center gap-1"
+                      >
+                        <i class="fa fa-eye text-primary"></i>
+                        <span class="small">View</span>
+                      </a>
+                      <span *ngIf="!documentPartHref(filePart)" class="small text-muted">—</span>
+                    </div>
+                  </div>
+                  <div class="ps-5" *ngIf="!doc.document_indexes?.length && documentFinalHref(doc)">
+                    <a
+                      [href]="documentFinalHref(doc)"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="btn btn-sm btn-light border d-flex align-items-center gap-1"
+                    >
+                      <i class="fa fa-eye text-primary"></i>
+                      <span class="small">View</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Court Fee Payment — matches new-filing e-file -->
+          <div class="card shadow-sm mb-4 border-0">
+            <div
+              class="card-header bg-dark text-white fw-semibold d-flex justify-content-between align-items-center flex-wrap gap-2"
+            >
+              <span>Court Fee Payment</span>
+              <button
+                type="button"
+                class="btn btn-sm btn-light d-flex align-items-center gap-1"
+                (click)="downloadDocumentFilingPaymentReceiptPdf()"
+                [disabled]="!canDownloadDocumentFilingReceipt()"
+              >
+                <i class="fa-solid fa-file-pdf"></i>
+                Download receipt (PDF)
+              </button>
+            </div>
+            <div class="card-body">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <div class="text-muted small">Transaction ID</div>
+                  <div class="fw-semibold">{{ pendingPaymentTxnDisplay() }}</div>
+                </div>
+                <div class="col-md-6">
+                  <div class="text-muted small">
+                    {{
+                      isPendingDocumentFilingPaymentOffline()
+                        ? 'Date of payment'
+                        : 'Payment date/time'
+                    }}
+                  </div>
+                  <div class="fw-semibold" *ngIf="isPendingDocumentFilingPaymentOffline()">
+                    {{
+                      pendingPaymentOfflineDateValue()
+                        ? (pendingPaymentOfflineDateValue() | date : 'mediumDate')
+                        : '—'
+                    }}
+                  </div>
+                  <div class="fw-semibold" *ngIf="!isPendingDocumentFilingPaymentOffline()">
+                    {{
+                      pendingPaymentPaidAtDate()
+                        ? (pendingPaymentPaidAtDate() | date : 'medium')
+                        : '—'
+                    }}
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="text-muted small">Reference no.</div>
+                  <div class="fw-semibold">{{ pendingPaymentReferenceDisplay() }}</div>
+                </div>
+                <div class="col-md-6">
+                  <div class="text-muted small">Amount</div>
+                  <div class="fw-semibold">Rs. {{ pendingPaymentAmountDisplay() }}/-</div>
+                </div>
+                <div class="col-md-6">
+                  <div class="text-muted small">Payment method</div>
+                  <div class="fw-semibold text-capitalize">{{ pendingPaymentModeDisplay() }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="declaration-panel complete-filing-section border rounded p-3 mb-4">
+            <div class="section-title mb-2">Declaration</div>
+            <p class="small text-muted mb-3">
+              I confirm that the uploaded PDFs are true copies, within size limits, and filed in
+              accordance with court rules. I understand that false or misleading filings may attract
+              consequences under law.
+            </p>
+            <label class="declaration-check d-flex align-items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                class="form-check-input mt-1"
+                [(ngModel)]="declarationAccepted"
+                [ngModelOptions]="{ standalone: true }"
+              />
+              <span class="small">I have read and agree to the above declaration.</span>
+            </label>
+          </div>
+
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pt-2 border-top">
+            <span class="text-muted small">
+              <i class="fa-solid fa-key me-1"></i>
+              OTP will be asked when you submit (use <strong>0000</strong>).
+            </span>
+            <button
+              type="button"
+              class="btn btn-dark"
+              [disabled]="!canClickSubmitFiling()"
+              (click)="submitDocumentFilingAfterPayment()"
+            >
+              <span
+                *ngIf="isSubmitDocumentFilingInProgress"
+                class="spinner-border spinner-border-sm me-1"
+                role="status"
+                aria-hidden="true"
+              ></span>
+              Submit filing
+            </button>
+          </div>
+        </div>
+      </div>
+    </ng-container>
   </ng-container>
 
   <div *ngIf="isLoadingCase" class="card border-0 shadow-sm">
