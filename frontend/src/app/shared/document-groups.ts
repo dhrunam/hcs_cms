@@ -10,6 +10,7 @@ export type DocumentDisplaySection =
   | { kind: "ordersGroup"; id: string; label: string; items: any[] }
   | { kind: "vakalatGroup"; id: string; label: string; items: any[] };
 
+/** Case-file "Orders" tabs (scrutiny, listing, etc.): only rows backed by this document type — final signed publish, not drafts. */
 const PUBLISHED_COURT_ORDER_DOC_TYPE = "COURT_ORDER_SIGNED_FINAL";
 
 function asNumber(value: any): number | null {
@@ -28,6 +29,7 @@ function isVakalatnamaDoc(doc: any): boolean {
   return type.includes("vakalat") || part.includes("vakalat");
 }
 
+/** True only for final signed published court orders; each publish appends another such row — nothing else belongs in Orders. */
 export function isPublishedCourtOrderDoc(doc: any): boolean {
   return String(doc?.document_type ?? "").toUpperCase() === PUBLISHED_COURT_ORDER_DOC_TYPE;
 }

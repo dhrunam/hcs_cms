@@ -715,6 +715,11 @@
         <div class="card border-0 shadow-sm">
           <div class="card-body">
             <div class="section-title mb-3">Court Orders</div>
+            <p class="small text-muted mb-3">
+              <strong>Orders</strong> lists only <strong>final signed published</strong> court orders (the case-file record written when steno uses
+              <strong>Upload Final &amp; Publish</strong> after judge approval). Each publish adds another order here. Steno draft PDFs and all other
+              filings stay under <strong>Documents</strong>, not Orders.
+            </p>
             <div *ngIf="courtOrderDocuments.length === 0" class="text-muted small">
               No court orders available.
             </div>

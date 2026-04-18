@@ -7,7 +7,16 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
-from apps.core.models import BenchT, Efiling, JudgeT, OrderDetailsA, ReaderJudgeAssignment, EfilingDocumentsIndex, PurposeT
+from apps.core.models import (
+    BenchT,
+    Efiling,
+    EfilingDocuments,
+    EfilingDocumentsIndex,
+    JudgeT,
+    OrderDetailsA,
+    PurposeT,
+    ReaderJudgeAssignment,
+)
 from apps.judge.models import CourtroomJudgeDecision
 from apps.judge.models import JudgeStenoMapping
 from apps.listing.models import CauseList, CauseListEntry
@@ -1207,6 +1216,13 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
         self.assertTrue(up.data.get("draft_preview_url"))
         row = OrderDetailsA.objects.filter(hashkey=f"STENO_WF_{workflow.id}_DRAFT").first()
         self.assertIsNotNone(row)
+        self.assertFalse(
+            EfilingDocuments.objects.filter(
+                e_filing=self.filing,
+                document_type="COURT_ORDER_SIGNED_FINAL",
+            ).exists(),
+            "Draft steno upload must not create case-file COURT_ORDER_SIGNED_FINAL (that happens only on signed publish).",
+        )
 
         q = steno_client.get("/api/v1/reader/steno/queue/")
         self.assertEqual(q.status_code, 200)
@@ -1413,6 +1429,19 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
         self.assertIn("For directions", idx.document_part_name or "")
         self.assertEqual(idx.published_order_at, workflow.published_at)
         self.assertEqual(idx.file_part_path.name.endswith(".pdf"), True)
+
+        list_resp = reader_client.get(
+            f"/api/v1/efiling/efiling-documents-index/?efiling_id={self.filing.id}&is_ia=false",
+        )
+        self.assertEqual(list_resp.status_code, 200, getattr(list_resp, "data", None))
+        rows = list_resp.data.get("results") if isinstance(list_resp.data, dict) else list_resp.data
+        self.assertIsInstance(rows, list)
+        doc_types = [r.get("document_type") for r in rows if isinstance(r, dict)]
+        self.assertIn(
+            "COURT_ORDER_SIGNED_FINAL",
+            doc_types,
+            "Scrutiny Orders tab source API must expose published steno order document_type.",
+        )
 
     def test_share_approved_draft_requires_primary_steno(self):
         workflow = StenoOrderWorkflow.objects.create(

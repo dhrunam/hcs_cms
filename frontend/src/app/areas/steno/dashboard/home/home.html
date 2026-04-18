@@ -3,6 +3,10 @@
     <div>
       <h3 class="mb-1">Steno Queue</h3>
       <div class="text-muted small">Upload draft, revise quickly, and send cleanly for judge review.</div>
+      <div class="alert alert-info border-info py-2 px-3 small mb-0 mt-2" style="max-width: 52rem">
+        <strong>Case file / Orders tab:</strong> only <strong>final signed publish</strong> adds an order there (each publish appends another entry).
+        Draft PDFs never appear in Orders; they stay in the steno/judge queue until you publish the signed PDF after approval.
+      </div>
     </div>
     <div class="d-flex align-items-end gap-2">
       <div class="bg-white py-1 px-3 rounded-2">
@@ -94,6 +98,9 @@
         <div class="row g-2 align-items-end mb-2" *ngIf="isSingleBenchFlow(item) || item.is_primary_steno">
           <div class="col-md-6">
             <label class="form-label small">Upload draft PDF (for judge approval)</label>
+            <div class="small text-muted mb-1">
+              Draft stays in the steno/judge queue only until you publish the signed order to the case file.
+            </div>
             <input
               class="form-control form-control-sm"
               type="file"
@@ -175,6 +182,9 @@
             </div>
             <div class="step-item">
               <div class="step-name">Step 3: Upload Final Signed PDF & Publish</div>
+              <div class="small text-muted mb-2">
+                This step writes the order into the e-filing case file (scrutiny <strong>Orders</strong> tab and related views).
+              </div>
               <div class="d-flex gap-2 flex-wrap mt-2">
                 <input
                   class="form-control form-control-sm"
@@ -197,7 +207,8 @@
             <div class="step-item">
               <div class="step-name">Upload final signed PDF and publish</div>
               <div class="small text-muted mb-2">
-                After the judge approves the draft, upload the fully signed order PDF here to publish it to the case file.
+                After the judge approves the draft, upload the fully signed order PDF here. This publishes the file to the
+                case record so it appears under scrutiny <strong>Orders</strong> (type: final signed court order).
               </div>
               <div class="d-flex gap-2 flex-wrap mt-2">
                 <input
