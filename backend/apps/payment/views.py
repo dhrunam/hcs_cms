@@ -114,7 +114,8 @@ class PaymentInitiateView(APIView):
             amount=str(amount),
             court_fees=str(amount),
             message="Initiated",
-            callback_method="INIT",
+            callback_method="INIT",            
+            created_by=request.user if request.user.is_authenticated else None,
             callback_payload=callback_payload,
         )
 
@@ -322,7 +323,8 @@ class PaymentOfflineSubmissionView(APIView):
             payment_date=parsed_payment_date,
             status=paid_status,
             message="Offline court fee payment recorded.",
-            callback_method="OFFLINE",
+            callback_method="OFFLINE",            
+            created_by=request.user if request.user.is_authenticated else None,
             callback_payload=offline_callback,
         )
         tx.bank_receipt.name = saved_path
