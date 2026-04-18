@@ -398,36 +398,59 @@ export class ReaderCaseSummaryPage {
     ) {
       return;
     }
-    this.isSaving = true;
-    this.readerService
-      .assignDate({
-        efiling_ids: [this.filingId],
-        listing_date: this.targetListingDate,
-        forwarded_for_date: this.approvalForwardedForDate,
-        listing_remark: this.listingRemark,
-      })
-      .subscribe({
-        next: () => {
-          this.isSaving = false;
-          this.approvalListingDate = this.targetListingDate;
-          Swal.fire({
-            title: "Forwarded for Listing",
-            text: `Case has been assigned listing date ${this.targetListingDate} and forwarded to Listing Officer.`,
-            icon: "success",
-            timer: 2000,
-            showConfirmButton: false,
-          });
-        },
-        error: (err) => {
-          console.warn("forwardForListing failed", err);
-          this.isSaving = false;
-          Swal.fire({
-            title: "Error",
-            text: "Failed to assign date.",
-            icon: "error",
-          });
-        },
+    const proceed = () => {
+      this.isSaving = true;
+      this.readerService
+        .assignDate({
+          efiling_ids: [this.filingId as number],
+          listing_date: this.targetListingDate,
+          forwarded_for_date: this.approvalForwardedForDate as string,
+          listing_remark: this.listingRemark,
+        })
+        .subscribe({
+          next: () => {
+            this.isSaving = false;
+            const wasUpdated = Boolean(this.approvalListingDate);
+            this.approvalListingDate = this.targetListingDate;
+            Swal.fire({
+              title: wasUpdated ? "Listing Date Updated" : "Forwarded for Listing",
+              text: wasUpdated
+                ? `Listing date updated to ${this.targetListingDate}.`
+                : `Case has been assigned listing date ${this.targetListingDate} and forwarded to Listing Officer.`,
+              icon: "success",
+              timer: 2000,
+              showConfirmButton: false,
+            });
+          },
+          error: (err) => {
+            console.warn("forwardForListing failed", err);
+            this.isSaving = false;
+            Swal.fire({
+              title: "Error",
+              text: "Failed to assign date.",
+              icon: "error",
+            });
+          },
+        });
+    };
+
+    if (this.approvalListingDate) {
+      Swal.fire({
+        title: "Change listing date?",
+        text: "A listing date is already set. Do you want to continue?",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Yes, update",
+        cancelButtonText: "Cancel",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          proceed();
+        }
       });
+      return;
+    }
+
+    proceed();
   }
 
   sendBackToScrutiny(): void {

@@ -197,13 +197,13 @@
               <div class="row align-items-end g-3">
                 <div class="col-md-5">
                   <label class="form-label small fw-bold">
-                    {{ canAssignListingDate ? 'Select Listing Date' : 'Listing Date' }}
+                    {{ canAssignListingDate ? (approvalListingDate ? 'Update Listing Date' : 'Select Listing Date') : 'Listing Date' }}
                   </label>
                   <input
                     type="date"
                     class="form-control shadow-sm border-0 bg-light"
                     [(ngModel)]="targetListingDate"
-                    [disabled]="!canAssignListingDate || !!approvalListingDate"
+                    [disabled]="!canAssignListingDate"
                   />
                   <div
                     class="mt-2 fw-bold text-primary small"
@@ -219,17 +219,17 @@
                     rows="2"
                     [(ngModel)]="listingRemark"
                     placeholder="Additional notes for Listing Officer..."
-                    [disabled]="!canAssignListingDate || !!approvalListingDate"
+                    [disabled]="!canAssignListingDate"
                   ></textarea>
                 </div>
                 <div class="col-md-12 mt-3">
                   <button
                     class="btn btn-success w-100 shadow-sm py-2 fw-bold text-uppercase"
                     (click)="forwardForListing()"
-                    [disabled]="isSaving || !canAssignListingDate || !!approvalListingDate"
+                    [disabled]="isSaving || !canAssignListingDate"
                   >
                     <i class="fa-solid fa-paper-plane me-2"></i>
-                    {{ approvalListingDate ? 'Forwarded to Listing' : (canAssignListingDate ? 'Forward for Cause List' : 'Awaiting Higher Bench Reader') }}
+                    {{ approvalListingDate ? 'Update Listing Date' : (canAssignListingDate ? 'Forward for Cause List' : 'Awaiting Higher Bench Reader') }}
                   </button>
                 </div>
               </div>
