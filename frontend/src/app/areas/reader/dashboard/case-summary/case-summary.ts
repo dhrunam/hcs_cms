@@ -498,9 +498,45 @@ export class ReaderCaseSummaryPage {
     return `${day}${suffix(day)} ${month} ${year}`;
   }
 
+  /** Forwarded to courtroom and listing not yet sent (or show confirmation after listed). */
+  get showReaderListingSection(): boolean {
+    if (this.approvalListingDate) {
+      return true;
+    }
+    if (
+      this.approvalStatus !== "PENDING" &&
+      this.approvalStatus !== "APPROVED"
+    ) {
+      return false;
+    }
+    return !!this.approvalForwardedForDate;
+  }
+
+  get listingSectionHeading(): string {
+    if (this.approvalListingDate) {
+      return "Forwarded to Listing";
+    }
+    if (this.approvalStatus === "APPROVED") {
+      return "Judge approved — ready for listing";
+    }
+    return "Ready for listing";
+  }
+
+  get listingSectionLead(): string {
+    if (this.approvalListingDate) {
+      return "";
+    }
+    if (this.approvalStatus === "APPROVED") {
+      return "All required judges have acknowledged. Assign a listing date when ready.";
+    }
+    return "You may forward this case for cause listing without waiting for judge acknowledgement. Hon’ble judges can still review the forwarded summary and documents in courtroom.";
+  }
+
   get showListingAuthorityNotice(): boolean {
     return (
-      (this.approvalStatus === "APPROVED" || !!this.approvalListingDate) &&
+      (this.approvalStatus === "APPROVED" ||
+        this.approvalStatus === "PENDING" ||
+        !!this.approvalListingDate) &&
       !this.canAssignListingDate &&
       !this.approvalListingDate
     );

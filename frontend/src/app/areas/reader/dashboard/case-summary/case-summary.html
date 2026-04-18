@@ -209,12 +209,16 @@
 
           <div
             class="mt-4 pt-3 border-top"
-            *ngIf="approvalStatus === 'APPROVED' || approvalListingDate"
+            *ngIf="showReaderListingSection"
           >
-            <h6 class="fw-bold mb-3 text-success">
+            <h6
+              class="fw-bold mb-2"
+              [ngClass]="approvalListingDate ? 'text-primary' : (approvalStatus === 'APPROVED' ? 'text-success' : 'text-primary')"
+            >
               <i class="fa-solid fa-calendar-check me-2"></i>
-              Judge Approved - Ready for Listing
+              {{ listingSectionHeading }}
             </h6>
+            <p class="small text-muted mb-3" *ngIf="listingSectionLead as lead">{{ lead }}</p>
 
             <div class="row align-items-end g-3">
               <div class="col-md-5">

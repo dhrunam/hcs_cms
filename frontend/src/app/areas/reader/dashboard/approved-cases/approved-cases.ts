@@ -12,8 +12,30 @@ import Swal from 'sweetalert2';
   template: `
     <div class="card shadow-sm border-0">
       <div class="card-header bg-white py-3 border-bottom-0">
-        <h5 class="mb-0 fw-bold text-primary">Approved Cases from Judges</h5>
-        <p class="text-muted mb-0 small">Select a bench to see cases approved by judges that are ready for final listing.</p>
+        <h5 class="mb-0 fw-bold text-primary">Cases ready for listing</h5>
+        <p class="text-muted mb-0 small">
+          Judge-approved cases, or forwarded cases you may assign for cause list without waiting for full judge acknowledgement.
+        </p>
+        <div class="btn-group btn-group-sm mt-3" role="group">
+          <button
+            type="button"
+            class="btn"
+            [class.btn-primary]="listScope === 'approved_only'"
+            [class.btn-outline-primary]="listScope !== 'approved_only'"
+            (click)="setListScope('approved_only')"
+          >
+            Judge approved only
+          </button>
+          <button
+            type="button"
+            class="btn"
+            [class.btn-primary]="listScope === 'with_pending'"
+            [class.btn-outline-primary]="listScope !== 'with_pending'"
+            (click)="setListScope('with_pending')"
+          >
+            Include forwarded (pending judge)
+          </button>
+        </div>
       </div>
       <div class="card-body">
         <div class="row g-3 mb-4 p-3 bg-light rounded shadow-sm mx-0">
@@ -59,7 +81,11 @@ import Swal from 'sweetalert2';
                   <td>{{ c.e_filing_number || '-' }}</td>
                   <td>{{ c.petitioner_name || '-' }}</td>
                   <td>
-                    <span class="badge bg-success rounded-pill px-3">Approved</span>
+                    <span *ngIf="listScope === 'approved_only'" class="badge bg-success rounded-pill px-3">Approved</span>
+                    <span *ngIf="listScope === 'with_pending'" class="badge rounded-pill px-3"
+                      [ngClass]="c.reader_forward_status === 'PENDING' ? 'bg-warning text-dark' : 'bg-success'">
+                      {{ c.reader_forward_status === 'PENDING' ? 'Forwarded' : 'Approved' }}
+                    </span>
                   </td>
                   <td class="text-end pe-3">
                     <button class="btn btn-outline-primary btn-sm rounded-pill px-3" (click)="openCase(c.id)">
@@ -74,7 +100,7 @@ import Swal from 'sweetalert2';
 
         <div *ngIf="!isLoading && cases.length === 0 && searched" class="text-center py-5 border rounded bg-white mt-3 shadow-sm">
            <i class="fa-solid fa-folder-open text-muted fs-1 mb-3"></i>
-           <p class="text-muted mb-0">No approved cases found for this bench and date.</p>
+           <p class="text-muted mb-0">No cases found for this bench, date, and filter.</p>
         </div>
       </div>
     </div>
@@ -89,7 +115,8 @@ import Swal from 'sweetalert2';
 export class ReaderApprovedCasesPage implements OnInit {
   benchKey = '';
   forwardedForDate = new Date().toISOString().slice(0, 10);
-  
+  listScope: 'approved_only' | 'with_pending' = 'approved_only';
+
   isLoading = false;
   searched = false;
   cases: any[] = [];
@@ -109,6 +136,13 @@ export class ReaderApprovedCasesPage implements OnInit {
     });
   }
 
+  setListScope(scope: 'approved_only' | 'with_pending'): void {
+    this.listScope = scope;
+    if (this.searched) {
+      this.search();
+    }
+  }
+
   search(): void {
     if (!this.benchKey) {
       Swal.fire({ title: 'Bench Required', text: 'No bench is available for this reader.', icon: 'warning' });
@@ -116,7 +150,11 @@ export class ReaderApprovedCasesPage implements OnInit {
     }
     this.isLoading = true;
     this.searched = false;
-    this.readerService.getApprovedCases({ bench_key: this.benchKey, forwarded_for_date: this.forwardedForDate }).subscribe({
+    this.readerService.getApprovedCases({
+      bench_key: this.benchKey,
+      forwarded_for_date: this.forwardedForDate,
+      include_forwarded_pending: this.listScope === 'with_pending',
+    }).subscribe({
       next: (resp) => {
         this.cases = resp.results;
         this.isLoading = false;

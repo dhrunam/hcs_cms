@@ -1225,14 +1225,39 @@ class CourtroomForwardView(APIView):
         return Response({"updated": updated}, status=drf_status.HTTP_200_OK)
 
 
+def _efiling_has_listing_assigned_for_forward(
+    *,
+    efiling_id: int,
+    forwarded_for_date: date_type,
+    bench_key: str,
+) -> bool:
+    """True if reader assign-date (or judge row) already set a concrete listing date for this forward."""
+    if CourtroomJudgeDecision.objects.filter(
+        efiling_id=efiling_id,
+        forwarded_for_date=forwarded_for_date,
+        listing_date__isnull=False,
+    ).exists():
+        return True
+    return BenchWorkflowState.objects.filter(
+        efiling_id=efiling_id,
+        forwarded_for_date=forwarded_for_date,
+        bench_key=bench_key,
+    ).exclude(listing_date__isnull=True).exists()
+
+
 class ReaderApprovedCasesView(APIView):
     """
     Reader: list cases that have been approved by ALL required judges, but have NOT yet been assigned a listing_date.
+
+    With ``include_forwarded_pending=true``, also include forwarded cases that are not fully judge-approved yet,
+    as long as no listing date has been assigned (same notion as assign-date + BenchWorkflowState).
     """
 
     def get(self, request, *args, **kwargs):
         bench_key = request.query_params.get("bench_key")
         forwarded_for_date = request.query_params.get("forwarded_for_date")
+        include_pending_raw = request.query_params.get("include_forwarded_pending", "")
+        include_forwarded_pending = str(include_pending_raw).lower() in {"1", "true", "yes"}
 
         if not bench_key or not forwarded_for_date:
             raise ValidationError({"bench_key": "Required.", "forwarded_for_date": "Required."})
@@ -1263,23 +1288,50 @@ class ReaderApprovedCasesView(APIView):
             forwarded_for_date=fwd_date,
             listing_date=None,
         )
-        approved_efiling_ids = []
+        approved_efiling_ids: list[int] = []
         for eid in fully_approved:
-            has_date = CourtroomJudgeDecision.objects.filter(
-                efiling_id=eid, forwarded_for_date=fwd_date, listing_date__isnull=False
-            ).exists()
-            if not has_date:
-                approved_efiling_ids.append(eid)
+            if not _efiling_has_listing_assigned_for_forward(
+                efiling_id=int(eid),
+                forwarded_for_date=fwd_date,
+                bench_key=bench_key,
+            ):
+                approved_efiling_ids.append(int(eid))
 
-        efilings = Efiling.objects.filter(id__in=approved_efiling_ids)
-        data = [{
-            "id": ef.id,
-            "e_filing_number": ef.e_filing_number,
-            "case_number": ef.case_number,
-            "petitioner_name": ef.petitioner_name,
-            "bench": ef.bench,
-            "forwarded_for_date": fwd_date.isoformat(),
-        } for ef in efilings]
+        combined: dict[int, str] = {}
+        for eid in approved_efiling_ids:
+            combined[eid] = "APPROVED"
+
+        if include_forwarded_pending:
+            for eid in forwarded_efiling_ids_list:
+                eid_int = int(eid)
+                if _efiling_has_listing_assigned_for_forward(
+                    efiling_id=eid_int,
+                    forwarded_for_date=fwd_date,
+                    bench_key=bench_key,
+                ):
+                    continue
+                if eid_int in fully_approved:
+                    continue
+                combined[eid_int] = "PENDING"
+
+        efilings = Efiling.objects.filter(id__in=list(combined.keys()))
+        by_id = {ef.id: ef for ef in efilings}
+        data = []
+        for eid, status in sorted(combined.items(), key=lambda x: x[0]):
+            ef = by_id.get(eid)
+            if not ef:
+                continue
+            row = {
+                "id": ef.id,
+                "e_filing_number": ef.e_filing_number,
+                "case_number": ef.case_number,
+                "petitioner_name": ef.petitioner_name,
+                "bench": ef.bench,
+                "forwarded_for_date": fwd_date.isoformat(),
+            }
+            if include_forwarded_pending:
+                row["reader_forward_status"] = status
+            data.append(row)
 
         return Response({"results": data}, status=drf_status.HTTP_200_OK)
 
@@ -1342,6 +1394,13 @@ class ReaderAssignDateView(APIView):
             updated_by=user,
             updated_at=timezone.now(),
         )
+        if int(updated or 0) == 0:
+            logger.info(
+                "reader assign-date: no CourtroomJudgeDecision rows updated for "
+                "efiling_ids=%s forwarded_for_date=%s (listing still applied to BenchWorkflowState)",
+                efiling_ids,
+                fwd_date,
+            )
         try:
             apply_reader_assign_date(
                 efiling_ids=[int(x) for x in efiling_ids],

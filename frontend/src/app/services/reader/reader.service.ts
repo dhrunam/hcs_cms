@@ -220,9 +220,16 @@ export class ReaderService {
     return this.http.post<{ updated: number }>(url, payload);
   }
 
-  getApprovedCases(params: { bench_key: string; forwarded_for_date: string }): Observable<{ results: any[] }> {
+  getApprovedCases(params: {
+    bench_key: string;
+    forwarded_for_date: string;
+    include_forwarded_pending?: boolean;
+  }): Observable<{ results: any[] }> {
     const readerGroup = this.readerGroupForQuery();
     let url = `${app_url}/api/v1/reader/approved-cases/?bench_key=${encodeURIComponent(params.bench_key)}&forwarded_for_date=${encodeURIComponent(params.forwarded_for_date)}`;
+    if (params.include_forwarded_pending) {
+      url += `&include_forwarded_pending=1`;
+    }
     if (readerGroup) {
       url += `&reader_group=${encodeURIComponent(readerGroup)}`;
     }

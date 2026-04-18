@@ -1778,3 +1778,120 @@ class ReaderDivisionBenchAuthorityTest(TestCase):
         if isinstance(detail, list):
             detail = detail[0]
         self.assertIn("Not authorized", str(detail))
+
+
+class ReaderAssignDateWithoutJudgeDecisionsTest(TestCase):
+    """assign-date updates BenchWorkflowState even when no CourtroomJudgeDecision rows exist yet."""
+
+    def setUp(self):
+        self.fwd_date = timezone.localdate()
+        self.listing_date = self.fwd_date + timedelta(days=10)
+
+        self.reader = User.objects.create_user(
+            email="njd.reader@example.com",
+            username="njd_reader",
+            password="password123",
+            first_name="NJ",
+            last_name="Reader",
+        )
+        grp_r, _ = Group.objects.get_or_create(name="READER")
+        self.reader.groups.add(grp_r)
+        grp_j, _ = Group.objects.get_or_create(name="JUDGE")
+        self.judge_user = User.objects.create_user(
+            email="njd.judge@example.com",
+            username="njd_judge",
+            password="password123",
+            first_name="NJ",
+            last_name="Judge",
+        )
+        self.judge_user.groups.add(grp_j)
+        self.judge = JudgeT.objects.create(
+            user=self.judge_user,
+            judge_code="NJD-J",
+            judge_name="No Decision Judge",
+            display="NDJ",
+            date_of_joining=self.fwd_date,
+        )
+        ReaderJudgeAssignment.objects.create(
+            judge=self.judge,
+            reader_user=self.reader,
+            effective_from=self.fwd_date,
+        )
+        BenchT.objects.create(
+            bench_code="NJD1",
+            bench_name="No Judge Decision Bench",
+            bench_type_code="S",
+            judge_code=self.judge.judge_code,
+            judge=self.judge,
+            from_date=self.fwd_date,
+        )
+        self.filing = Efiling.objects.create(
+            is_draft=False,
+            status="ACCEPTED",
+            bench="NJD1",
+            case_number="NJD/1/2026",
+            e_filing_number="NJD20260000001",
+            petitioner_name="P",
+            petitioner_contact="9876543210",
+            accepted_at=timezone.now(),
+        )
+        CourtroomForward.objects.create(
+            efiling=self.filing,
+            forwarded_for_date=self.fwd_date,
+            bench_key="NJD1",
+            bench_role_group="BENCH_S0",
+            listing_summary="Summary only",
+            forwarded_by=self.reader,
+        )
+        upsert_state_on_forward(
+            efiling_id=self.filing.id,
+            forwarded_for_date=self.fwd_date,
+            bench_key="NJD1",
+            forwarded_by=self.reader,
+        )
+
+    def _auth_client(self, user: User) -> APIClient:
+        client = APIClient()
+        client.force_authenticate(user=user)
+        return client
+
+    def test_assign_date_sets_bench_workflow_without_judge_decision_rows(self):
+        self.assertEqual(CourtroomJudgeDecision.objects.filter(efiling=self.filing).count(), 0)
+        client = self._auth_client(self.reader)
+        resp = client.post(
+            "/api/v1/reader/assign-date/?reader_group=READER",
+            {
+                "efiling_ids": [self.filing.id],
+                "listing_date": self.listing_date.isoformat(),
+                "forwarded_for_date": self.fwd_date.isoformat(),
+                "listing_remark": "Listed without judge row",
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(resp.data.get("updated"), 0)
+        st = BenchWorkflowState.objects.get(
+            efiling_id=self.filing.id,
+            forwarded_for_date=self.fwd_date,
+            bench_key="NJD1",
+        )
+        self.assertEqual(st.listing_date, self.listing_date)
+
+    def test_approved_cases_include_forwarded_pending(self):
+        client = self._auth_client(self.reader)
+        base = (
+            "/api/v1/reader/approved-cases/"
+            "?bench_key=NJD1"
+            f"&forwarded_for_date={self.fwd_date.isoformat()}"
+            "&reader_group=READER"
+        )
+        r1 = client.get(base)
+        self.assertEqual(r1.status_code, 200)
+        self.assertEqual(r1.data.get("results") or [], [])
+
+        r2 = client.get(base + "&include_forwarded_pending=1")
+        self.assertEqual(r2.status_code, 200)
+        results = r2.data.get("results") or []
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["id"], self.filing.id)
+        self.assertEqual(results[0].get("reader_forward_status"), "PENDING")
