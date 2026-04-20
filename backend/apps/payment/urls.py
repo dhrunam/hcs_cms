@@ -16,6 +16,7 @@ urlpatterns = [
     path("initiate/", PaymentInitiateView.as_view(), name="payment-initiate"),
     path("offline/", PaymentOfflineSubmissionView.as_view(), name="payment-offline"),
     path("latest/", PaymentLatestTransactionView.as_view(), name="payment-latest"),
+    #raja
     path(
         "transactions/",
         PaymentTransactionsListView.as_view(),
