@@ -49,4 +49,11 @@ export const EfilingRoutes: Routes = [
         (c) => c.CaseAccessRequests,
       ),
   },
+  {
+    path: "payment-confirmation",
+    loadComponent: () =>
+      import("./payment-confirmation/payment-confirmation").then(
+        (c) => c.PaymentConfirmation,
+      ),
+  },
 ];

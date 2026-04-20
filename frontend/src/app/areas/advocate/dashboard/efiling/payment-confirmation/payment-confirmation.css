@@ -1,0 +1,9 @@
+.payment-confirmation-page {
+  min-height: 100vh;
+  background-color: #f8f9fa;
+}
+
+.filing-number {
+  font-family: monospace;
+  letter-spacing: 0.5px;
+}

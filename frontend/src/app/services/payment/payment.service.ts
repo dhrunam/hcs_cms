@@ -62,6 +62,12 @@ export class PaymentService {
     );
   }
 
+  getAll(application: string | number): Observable<PaymentTransactionsListResponse> {
+    return this.http.get<PaymentTransactionsListResponse>(
+      `${app_url}/api/payment/transactions/?application=${application}`,
+    );
+  }
+
   submitOffline(payload: {
     application: string | number;
     txn_id: string;

@@ -493,4 +493,25 @@ export class EfilingService {
       `${app_url}/api/v1/efiling/document-index/?case_type=${case_type_id}&for_new_filing=false`,
     );
   }
+
+  raise_payment_objection(id: number, courtFeeAmount: number): Observable<any> {
+    return this.http.post<any>(
+      `${app_url}/api/v1/efiling/payment-objections/`,
+      { e_filing: id, court_fee_amount: courtFeeAmount },
+    );
+  }
+
+  reset_payment_objection(id: number): Observable<any> {
+    return this.http.post<any>(
+      `${app_url}/api/v1/efiling/payment-objections/reset/`,
+      { e_filing: id },
+    );
+  }
+
+  resubmit_after_payment_objection(id: number): Observable<any> {
+    return this.http.post<any>(
+      `${app_url}/api/v1/efiling/payment-objections/resubmit/`,
+      { e_filing: id },
+    );
+  }
 }
