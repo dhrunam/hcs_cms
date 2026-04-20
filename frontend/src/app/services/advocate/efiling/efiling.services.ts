@@ -514,4 +514,10 @@ export class EfilingService {
       { e_filing: id },
     );
   }
+
+  get_payment_objections(e_filing_id: number): Observable<any> {
+    return this.http.get<any>(
+      `${app_url}/api/v1/efiling/payment-objections/for-filing/?e_filing=${e_filing_id}`,
+    );
+  }
 }

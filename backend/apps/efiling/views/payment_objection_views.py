@@ -40,6 +40,35 @@ class PaymentObjectionViewSet(viewsets.ModelViewSet):
     serializer_class = PaymentObjectionSerializer
     http_method_names = ['post', 'get', 'head', 'options']
 
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        e_filing_id = self.request.query_params.get('e_filing')
+        if e_filing_id:
+            queryset = queryset.filter(e_filing_id=e_filing_id)
+        return queryset.order_by('-raised_at')
+
+    @action(detail=False, methods=['get'])
+    def for_filing(self, request):
+        """
+        Get all payment objections for a specific e-filing (including resolved).
+        Query params: e_filing (required)
+        """
+        e_filing_id = request.query_params.get('e_filing')
+        if not e_filing_id:
+            return Response({"detail": "e_filing id is required."}, status=400)
+        
+        try:
+            efiling = Efiling.objects.get(pk=e_filing_id)
+        except Efiling.DoesNotExist:
+            return Response({"detail": "E-filing not found."}, status=404)
+        
+        objections = PaymentObjection.objects.filter(
+            e_filing=efiling
+        ).order_by('-raised_at')
+        
+        serializer = self.get_serializer(objections, many=True)
+        return Response(serializer.data, status=200)
+
     def perform_create(self, serializer):
         """Save the payment objection and update e-filing status."""
         objection = serializer.save()
@@ -47,9 +76,7 @@ class PaymentObjectionViewSet(viewsets.ModelViewSet):
         # Update e-filing status to reflect payment objection rejection
         if objection.e_filing:
             objection.e_filing.status = 'REJECTED_PAYMENT_OBJECTION'
-            objection.e_filing.has_payment_objection = True
-            objection.e_filing.payment_objection_amount = objection.court_fee_amount
-            objection.e_filing.save(update_fields=['status', 'has_payment_objection', 'payment_objection_amount', 'updated_at'])
+            objection.e_filing.save(update_fields=['status', 'updated_at'])
 
     def create(self, request, *args, **kwargs):
         """Create a new payment objection."""
@@ -97,10 +124,7 @@ class PaymentObjectionViewSet(viewsets.ModelViewSet):
         pending_objection.delete()
 
         e_filing.status = 'UNDER_SCRUTINY'
-        e_filing.has_payment_objection = False
-        e_filing.payment_objection_amount = None
-        e_filing.objection_resolved_by_payment = None
-        e_filing.save(update_fields=['status', 'has_payment_objection', 'payment_objection_amount', 'objection_resolved_by_payment', 'updated_at'])
+        e_filing.save(update_fields=['status', 'updated_at'])
 
         return Response({
             'message': 'Payment objection reset successfully',
@@ -154,8 +178,7 @@ class PaymentObjectionViewSet(viewsets.ModelViewSet):
 
         # Update e-filing status to resubmitted (under scrutiny)
         e_filing.status = 'UNDER_SCRUTINY'
-        e_filing.has_payment_objection = False
-        e_filing.save(update_fields=['status', 'has_payment_objection', 'updated_at'])
+        e_filing.save(update_fields=['status', 'updated_at'])
 
         # Create notification for scrutiny officer
         EfilingNotification.objects.create(

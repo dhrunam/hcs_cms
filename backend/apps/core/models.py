@@ -278,9 +278,6 @@ class Efiling(BaseModel):
     is_draft = models.BooleanField(default=True)
     status = models.CharField(max_length=50, blank=True, null=True) # e.g., DRAFT, SUBMITTED, ACCEPTED, REJECTED, etc.
     accepted_at = models.DateTimeField(blank=True, null=True)
-    has_payment_objection = models.BooleanField(default=False)
-    payment_objection_amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-    objection_resolved_by_payment = models.JSONField(blank=True, null=True)
 
     class Meta:
         

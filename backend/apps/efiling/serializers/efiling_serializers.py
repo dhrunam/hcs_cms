@@ -43,9 +43,6 @@ class EfilingSerializer(serializers.ModelSerializer):
             'latest_chat_message_id',
             'latest_chat_message_at',
             'latest_chat_is_from_current_user',
-            'has_payment_objection',
-            'payment_objection_amount',
-            'objection_resolved_by_payment',
         ]
         read_only_fields = [
             'id',
@@ -59,9 +56,6 @@ class EfilingSerializer(serializers.ModelSerializer):
             'latest_chat_message_id',
             'latest_chat_message_at',
             'latest_chat_is_from_current_user',
-            'has_payment_objection',
-            'payment_objection_amount',
-            'objection_resolved_by_payment',
         ]
 
     def get_petitioner_vs_respondent(self, obj):

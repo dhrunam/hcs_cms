@@ -136,6 +136,7 @@ export class Edit {
           [Validators.required, Validators.pattern(/^[0-9]{10}$/)],
         ],
         e_filing_number: [this.eFilingNumber],
+        is_government_counsel: [false],
       }),
 
       // caseDetails: this.fb.group({
@@ -263,6 +264,10 @@ export class Edit {
     return label === "WP(C)" || (label.includes("WP") && label.includes("(C)"));
   }
 
+  get isGovernmentCounsel(): boolean {
+    return !!this.initialInputsForm?.get("is_government_counsel")?.value;
+  }
+
   /** Parsed positive court fee from {@link manualCourtFeeAmount}; 0 if missing or invalid. */
   get paymentFeeRupees(): number {
     const raw = String(this.manualCourtFeeAmount ?? "")
@@ -330,7 +335,7 @@ export class Edit {
 
   /** Court fee step applies for all draft case types; amount is entered manually. */
   get requiresCourtFeePayment(): boolean {
-    return true;
+    return !this.isGovernmentCounsel;
   }
 
   get isPaymentSuccessful(): boolean {
@@ -1068,7 +1073,7 @@ export class Edit {
         );
         return;
       }
-      this.step = 5;
+      this.step = this.isGovernmentCounsel ? 6 : 5;
       this.setCaseDetailsReviewState(this.step === 6);
       // window.scrollTo({
       //   top: 0,
@@ -1097,7 +1102,7 @@ export class Edit {
 
   prev() {
     if (this.step === 6) {
-      this.step = 5;
+      this.step = this.isGovernmentCounsel ? 4 : 5;
     } else if (this.step === 5) {
       this.step = 4;
     } else if (this.step === 4) {
@@ -1148,6 +1153,7 @@ export class Edit {
           e_filing_number: this.eFilingNumber,
         });
         this.initialInputsForm.disable();
+        this.initialInputsForm.get("is_government_counsel")?.enable();
         this.step = 2;
         this.toastr.success(
           "Saved successfully. E Filing number: " + this.eFilingNumber,
@@ -1646,12 +1652,14 @@ export class Edit {
           petitioner_name: record.petitioner_name || "",
           petitioner_contact: record.petitioner_contact || "",
           e_filing_number: this.eFilingNumber || record.e_filing_number,
+          is_government_counsel: !!record.is_government_counsel,
         });
         if (!this.eFilingNumber && record.e_filing_number) {
           this.eFilingNumber = record.e_filing_number;
         }
         this.step1Saved = true;
         this.initialInputsForm.disable({ emitEvent: false });
+        this.initialInputsForm.get("is_government_counsel")?.enable({ emitEvent: false });
         this.loadNewFilingDocumentIndexes(this.selectedCaseTypeId);
       },
     });

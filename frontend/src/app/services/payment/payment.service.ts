@@ -31,6 +31,22 @@ export interface PaymentTransactionsListResponse {
   results: PaymentLatestResponse[];
 }
 
+export interface PaymentObjectionStatusResponse {
+  has_objection: boolean;
+  objection_amount: string | null;
+  objection_remarks: string | null;
+  objection_raised_at: string | null;
+  can_resubmit: boolean;
+  payment_resolves_objection: boolean;
+  resolving_payment: {
+    payment_id: number;
+    txn_id: string;
+    amount: number;
+    payment_datetime: string | null;
+    status: string;
+  } | null;
+}
+
 @Injectable({ providedIn: "root" })
 export class PaymentService {
   constructor(private http: HttpClient) {}
@@ -40,7 +56,7 @@ export class PaymentService {
     application: number | string;
     e_filing_number: string;
     payment_type?: string;
-    source?: "new_filing" | "draft" | "ia_filing" | "document_filing";
+    source?: "new_filing" | "draft" | "ia_filing" | "document_filing" | "objection";
     /** Existing-case document filing: fee tied to this EfilingDocuments row after upload. */
     efiling_document_id?: number;
   }): Observable<PaymentInitiateResponse> {
@@ -65,6 +81,12 @@ export class PaymentService {
   getAll(application: string | number): Observable<PaymentTransactionsListResponse> {
     return this.http.get<PaymentTransactionsListResponse>(
       `${app_url}/api/payment/transactions/?application=${application}`,
+    );
+  }
+
+  getObjectionStatus(application: string | number): Observable<PaymentObjectionStatusResponse> {
+    return this.http.get<PaymentObjectionStatusResponse>(
+      `${app_url}/api/payment/objection-status/?application=${application}`,
     );
   }
 

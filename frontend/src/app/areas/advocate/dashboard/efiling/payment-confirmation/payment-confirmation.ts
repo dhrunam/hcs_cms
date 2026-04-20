@@ -2,11 +2,11 @@ import { CommonModule } from "@angular/common";
 import { Component, OnInit } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
-import { firstValueFrom } from "rxjs";
+import { firstValueFrom, catchError, of } from "rxjs";
 import Swal from "sweetalert2";
 import { ToastrService } from "ngx-toastr";
-import { EfilingService } from "../../../../../../services/advocate/efiling/efiling.services";
-import { PaymentService } from "../../../../../../services/payment/payment.service";
+import { EfilingService } from "../../../../../services/advocate/efiling/efiling.services";
+import { PaymentService, PaymentObjectionStatusResponse } from "../../../../../services/payment/payment.service";
 
 @Component({
   selector: "app-payment-confirmation",
@@ -47,9 +47,11 @@ export class PaymentConfirmation implements OnInit {
       this.filingId = Number(params["id"] || params["application"] || 0) || null;
       this.paymentOutcome = null;
       this.paymentDetails = null;
+      this.hasPaymentObjection = false;
+      this.objectionResolvedByPayment = null;
       this.resetPaymentForm();
 
-      const statusRaw = params["status"] ?? params["payment_status"] ?? params["txn_status"];
+      const statusRaw = params["status"] ?? params["payment_status"];
       if (statusRaw !== undefined && statusRaw !== null && statusRaw !== "") {
         const st = String(statusRaw).trim().toLowerCase();
         if (/(success|paid|complete|ok)/i.test(st)) {
@@ -82,9 +84,23 @@ export class PaymentConfirmation implements OnInit {
         this.efilingService.get_filing_by_id(this.filingId)
       );
       this.filing = filing;
-      this.objectionResolvedByPayment = filing?.objection_resolved_by_payment ?? null;
-      this.hasPaymentObjection = filing?.has_payment_objection === true;
-      this.paymentObjectionAmount = filing?.payment_objection_amount ?? null;
+
+      if (this.paymentOutcome === 'success') {
+        const objectionStatusRaw: PaymentObjectionStatusResponse = await firstValueFrom(
+          this.paymentService.getObjectionStatus(this.filingId).pipe(catchError(() => of({} as PaymentObjectionStatusResponse)))
+        );
+        this.objectionResolvedByPayment = objectionStatusRaw?.resolving_payment ?? null;
+        await this.loadPaymentDetailsFromBackend();
+        return;
+      }
+
+      const objectionStatusRaw: PaymentObjectionStatusResponse = await firstValueFrom(
+        this.paymentService.getObjectionStatus(this.filingId).pipe(catchError(() => of({} as PaymentObjectionStatusResponse)))
+      );
+
+      this.hasPaymentObjection = objectionStatusRaw?.has_objection ?? false;
+      this.paymentObjectionAmount = objectionStatusRaw?.objection_amount ? parseFloat(objectionStatusRaw.objection_amount) : null;
+      this.objectionResolvedByPayment = objectionStatusRaw?.resolving_payment ?? null;
 
       if (!this.hasPaymentObjection) {
         await this.loadPaymentDetailsFromBackend();
@@ -128,11 +144,14 @@ export class PaymentConfirmation implements OnInit {
   }
 
   get isObjectionResolved(): boolean {
-    return this.objectionResolvedByPayment !== null && this.hasPaymentObjection === false;
+    return this.objectionResolvedByPayment !== null;
   }
 
   get showPaymentForm(): boolean {
-    return this.hasPaymentObjection && !this.isObjectionResolved && this.paymentOutcome !== 'failed';
+    return this.hasPaymentObjection && 
+           !this.isObjectionResolved && 
+           this.paymentOutcome !== 'failed' && 
+           this.paymentOutcome !== 'success';
   }
 
   get canSubmitOffline(): boolean {
@@ -220,7 +239,7 @@ export class PaymentConfirmation implements OnInit {
 
     this.isSubmittingOfflinePayment = true;
     try {
-      await firstValueFrom(
+      const response = await firstValueFrom(
         this.paymentService.submitOffline({
           application: this.filingId,
           txn_id: this.offlineTransactionId.trim(),
@@ -229,11 +248,28 @@ export class PaymentConfirmation implements OnInit {
           payment_type: "Court Fees",
           e_filing_number: this.filing?.e_filing_number || "",
           bank_receipt: this.offlineBankReceipt!,
+          source: "objection",
         })
       );
 
       this.toastr.success("Offline payment submitted successfully!");
-      await this.loadFilingDetails();
+      this.paymentOutcome = "success";
+      this.paymentDetails = {
+        txnId: response?.txn_id || this.offlineTransactionId.trim(),
+        referenceNo: response?.reference_no || undefined,
+        amount: String(this.paymentObjectionAmount),
+        courtFees: String(this.paymentObjectionAmount),
+        paymentMode: "offline",
+        bankReceipt: response?.bank_receipt || undefined,
+        paymentDate: this.offlinePaymentDate,
+      };
+      this.objectionResolvedByPayment = {
+        payment_id: response?.id || 0,
+        txn_id: response?.txn_id || this.offlineTransactionId.trim(),
+        amount: Number(this.paymentObjectionAmount),
+        payment_datetime: new Date().toISOString(),
+        status: "success",
+      };
       this.resetPaymentForm();
     } catch (error: any) {
       console.error("Failed to submit offline payment", error);

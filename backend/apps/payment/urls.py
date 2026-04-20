@@ -7,6 +7,7 @@ from apps.payment.views import (
     PaymentLatestTransactionView,
     PaymentResponseCallbackView,
     PaymentTransactionsListView,
+    PaymentObjectionStatusView,
 )
 
 app_name = "payment"
@@ -22,5 +23,6 @@ urlpatterns = [
         name="payment-transactions-list",
     ),
     path("response", PaymentResponseCallbackView.as_view(), name="payment-response"),
+    path("objection-status/", PaymentObjectionStatusView.as_view(), name="payment-objection-status"),
 ]
 

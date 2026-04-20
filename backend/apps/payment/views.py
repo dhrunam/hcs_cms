@@ -14,7 +14,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.models import IA
+from apps.core.models import IA, Efiling
 from apps.payment.models import PaymentTransaction
 
 
@@ -411,6 +411,7 @@ class PaymentResponseCallbackView(APIView):
             tx.callback_method = callback_method
             tx.callback_payload = _merge_payment_callback_payload(tx.callback_payload, payload)
             tx.save()
+
             return HttpResponseRedirect(self._build_redirect_url(tx, "success" if is_success else "failed", tx.message))
 
         # Unknown reference: fallback to new filing redirect
@@ -434,6 +435,11 @@ class PaymentResponseCallbackView(APIView):
         elif source == "document_filing":
             base_redirect_url = pg_params.get(
                 "redirect_to_front_end_for_document_filing",
+                pg_params.get("redirect_to_front_end_for_application_fee_paymet_status_page", ""),
+            )
+        elif source == "objection":
+            base_redirect_url = pg_params.get(
+                "redirect_to_front_end_for_objection_payment",
                 pg_params.get("redirect_to_front_end_for_application_fee_paymet_status_page", ""),
             )
         elif payment_type == "intimation":
@@ -496,4 +502,69 @@ class PaymentResponseCallbackView(APIView):
         hash_object = hashlib.sha256()
         hash_object.update(checksum_string.encode("utf-8"))
         return hash_object.hexdigest() == data["checkSum"]
+
+
+class PaymentObjectionStatusView(APIView):
+    """
+    Check payment objection status and whether payment has been made to resolve it.
+    This is called from the advocate's pending scrutiny page to determine if
+    the objection can be resubmitted.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        application = request.query_params.get("application")
+        if not application:
+            return Response({"detail": "application is required."}, status=400)
+
+        try:
+            efiling_id = int(str(application).strip())
+        except (TypeError, ValueError):
+            return Response({"detail": "Invalid application id."}, status=400)
+
+        try:
+            efiling = Efiling.objects.get(pk=efiling_id)
+        except Efiling.DoesNotExist:
+            return Response({"detail": "E-filing not found."}, status=404)
+
+        # Get the latest pending payment objection
+        pending_objection = efiling.payment_objections.filter(
+            status='PENDING'
+        ).order_by('-raised_at').first()
+
+        # Get the latest successful payment made AFTER the objection was raised
+        # that has source="objection" and amount >= objection amount
+        latest_resolving_payment = None
+        if pending_objection:
+            latest_resolving_payment = PaymentTransaction.objects.filter(
+                application=str(efiling_id),
+                callback_payload__source='objection',
+                status='success',
+                updated_at__gt=pending_objection.raised_at
+            ).order_by('-updated_at').first()
+
+        response_data = {
+            "has_objection": pending_objection is not None,
+            "objection_amount": str(pending_objection.court_fee_amount) if pending_objection else None,
+            "objection_remarks": pending_objection.remarks if pending_objection else None,
+            "objection_raised_at": pending_objection.raised_at.isoformat() if pending_objection else None,
+            "can_resubmit": False,
+            "payment_resolves_objection": False,
+            "resolving_payment": None,
+        }
+
+        if pending_objection:
+            # Any successful payment made after the objection time resolves it
+            if latest_resolving_payment:
+                response_data["payment_resolves_objection"] = True
+                response_data["can_resubmit"] = True
+                response_data["resolving_payment"] = {
+                    "payment_id": latest_resolving_payment.id,
+                    "txn_id": latest_resolving_payment.txn_id or "",
+                    "amount": float(latest_resolving_payment.amount) if latest_resolving_payment.amount else 0,
+                    "payment_datetime": latest_resolving_payment.updated_at.isoformat() if latest_resolving_payment.updated_at else None,
+                    "status": latest_resolving_payment.status,
+                }
+
+        return Response(response_data, status=200)
 

@@ -266,5 +266,10 @@ urlpatterns = [
         PaymentObjectionViewSet.as_view({'post': 'resubmit'}),
         name="payment-objection-resubmit",
     ),
+    path(
+        "payment-objections/for-filing/",
+        PaymentObjectionViewSet.as_view({'get': 'for_filing'}),
+        name="payment-objection-for-filing",
+    ),
 ]
 

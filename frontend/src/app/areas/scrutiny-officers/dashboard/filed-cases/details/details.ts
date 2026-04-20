@@ -19,6 +19,7 @@ import {
 import { catchError, of } from "rxjs";
 import {
   PaymentLatestResponse,
+  PaymentObjectionStatusResponse,
   PaymentService,
 } from "../../../../../services/payment/payment.service";
 import { downloadOnlineCourtFeeReceiptPdf } from "../../../../../utils/payment-receipt-pdf";
@@ -117,6 +118,9 @@ export class FiledCaseDetails {
   hasPaymentObjection = false;
   paymentObjectionAmount: number | null = null;
   objectionResolvedByPayment: any | null = null;
+  objectionStatus: PaymentObjectionStatusResponse | null = null;
+  allObjections: any[] = [];
+  objectionsSectionCollapsed = true;
   allPayments: any[] = [];
   collapsedPayments = new Set<number>();
 
@@ -176,6 +180,8 @@ export class FiledCaseDetails {
         .list(id)
         .pipe(catchError(() => of({ results: [] }))),
       allPayments: this.paymentService.getAll(id).pipe(catchError(() => of({ results: [] }))),
+      objectionStatus: this.paymentService.getObjectionStatus(id).pipe(catchError(() => of(null))),
+      allObjections: this.efilingService.get_payment_objections(id).pipe(catchError(() => of([]))),
     }).subscribe({
       next: ({
         filing,
@@ -186,6 +192,9 @@ export class FiledCaseDetails {
         iaDocuments,
         ias,
         payment,
+        allPayments,
+        objectionStatus,
+        allObjections,
       }) => {
         this.filing = filing;
         this.litigants = litigants?.results ?? [];
@@ -204,9 +213,11 @@ export class FiledCaseDetails {
         this.iaList = Array.isArray(ias) ? ias : (ias?.results ?? []);
         this.refreshPaymentTransactions(payment);
         this.allPayments = allPayments?.results ?? [];
-        this.hasPaymentObjection = filing?.has_payment_objection === true;
-        this.paymentObjectionAmount = filing?.payment_objection_amount ?? null;
-        this.objectionResolvedByPayment = filing?.objection_resolved_by_payment ?? null;
+        this.allObjections = allObjections ?? [];
+        this.objectionStatus = objectionStatus;
+        this.hasPaymentObjection = objectionStatus?.has_objection ?? false;
+        this.paymentObjectionAmount = objectionStatus?.objection_amount ? parseFloat(objectionStatus.objection_amount) : null;
+        this.objectionResolvedByPayment = objectionStatus?.resolving_payment ?? null;
         const firstIaWithDocs = this.iaWithDocuments.find(
           (i) => i.documents.length > 0,
         );
@@ -1288,6 +1299,10 @@ export class FiledCaseDetails {
     }
   }
 
+  toggleObjectionsSection(): void {
+    this.objectionsSectionCollapsed = !this.objectionsSectionCollapsed;
+  }
+
   isPaymentCollapsed(paymentId: number): boolean {
     return !this.collapsedPayments.has(paymentId);
   }
@@ -1301,7 +1316,7 @@ export class FiledCaseDetails {
   }
 
   get isPaymentObjectionResolved(): boolean {
-    return this.objectionResolvedByPayment !== null;
+    return this.objectionStatus?.payment_resolves_objection ?? false;
   }
 
   getPaymentStatusLabel(status: string | null): string {
@@ -1389,9 +1404,6 @@ export class FiledCaseDetails {
       this.efilingService.reset_payment_objection(this.filingId!).subscribe({
         next: (response) => {
           this.toastr.success("Payment objection has been reset.");
-          this.hasPaymentObjection = false;
-          this.paymentObjectionAmount = null;
-          this.objectionResolvedByPayment = null;
           this.raisePaymentObjection = false;
           if (this.filingId) {
             this.loadWorkspace(this.filingId);

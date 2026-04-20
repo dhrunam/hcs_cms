@@ -248,100 +248,11 @@
               <i class="fa-regular fa-credit-card me-2 opacity-50"></i>
               No payment records.
             </div>
-            <div class="payment-history-card" *ngIf="paymentTransactions.length > 0">
-              <div class="table-responsive payment-history-table">
-                <table class="table table-hover align-middle mb-0 payment-history-table-inner">
-                  <thead>
-                    <tr>
-                      <th scope="col" class="payment-col-num">#</th>
-                      <th scope="col">Date / time</th>
-                      <th scope="col">Mode</th>
-                      <th scope="col">Type</th>
-                      <th scope="col">Amount</th>
-                      <th scope="col">Status</th>
-                      <th scope="col">Txn ID</th>
-                      <th scope="col">Reference</th>
-                      <th scope="col" class="payment-col-action">Receipt</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr
-                      *ngFor="
-                        let row of paymentTransactions;
-                        let i = index;
-                        trackBy: trackByPaymentRowId
-                      "
-                    >
-                      <td class="payment-col-num text-secondary fw-semibold">
-                        {{ i + 1 }}
-                      </td>
-                      <td class="payment-col-datetime">
-                        <ng-container *ngIf="row.paymentMode !== 'offline'">
-                          {{
-                            row.paidAt
-                              ? (row.paidAt | date : 'dd MMM yyyy, hh:mm a')
-                              : '—'
-                          }}
-                        </ng-container>
-                        <ng-container *ngIf="row.paymentMode === 'offline'">
-                          {{
-                            row.paymentDate
-                              ? (row.paymentDate | date : 'dd MMM yyyy')
-                              : '—'
-                          }}
-                        </ng-container>
-                      </td>
-                      <td>
-                        <span
-                          class="badge rounded-pill payment-mode-badge"
-                          [ngClass]="
-                            row.paymentMode === 'online'
-                              ? 'text-bg-primary'
-                              : 'text-bg-secondary'
-                          "
-                          >{{ row.paymentMode }}</span
-                        >
-                      </td>
-                      <td class="text-secondary small">{{
-                        row.paymentType || '—'
-                      }}</td>
-                      <td class="payment-amount">
-                        {{ row.amount !== '-' ? ('₹' + row.amount) : '—' }}
-                      </td>
-                      <td>
-                        <span
-                          class="badge rounded-pill payment-status-badge"
-                          [ngClass]="paymentStatusBadgeClass(row)"
-                          >{{ row.status }}</span
-                        >
-                      </td>
-                      <td class="payment-mono small">{{ row.txnId }}</td>
-                      <td class="payment-mono small">{{ row.referenceNo }}</td>
-                      <td class="payment-col-action">
-                        <button
-                          type="button"
-                          class="btn btn-sm btn-download-receipt"
-                          *ngIf="paymentRowCanDownloadReceipt(row)"
-                          (click)="downloadPaymentReceipt(row)"
-                        >
-                          <i class="fa-solid fa-file-pdf me-1"></i>
-                          Receipt
-                        </button>
-                        <span
-                          *ngIf="!paymentRowCanDownloadReceipt(row)"
-                          class="text-muted small"
-                          >—</span
-                        >
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
+
           </div>
 
           <!-- Payment Objection Section -->
-          <div class="payment-objection-section mt-3 p-3 border rounded bg-light" *ngIf="hasPaymentObjection">
+          <div class="payment-objection-section mt-3 p-3 border rounded bg-light" *ngIf="objectionStatus && objectionStatus.has_objection">
             <div class="d-flex align-items-center justify-content-between mb-2">
               <div class="form-check">
                 <label class="form-check-label fw-semibold text-danger">
@@ -349,24 +260,31 @@
                   Payment Objection
                 </label>
               </div>
-              <span class="badge bg-danger">
-                <i class="fa-solid fa-clock me-1"></i>Action Required
+              <span class="badge" [ngClass]="objectionStatus.payment_resolves_objection ? 'bg-success' : 'bg-danger'">
+                <i class="fa-solid me-1" [ngClass]="objectionStatus.payment_resolves_objection ? 'fa-check' : 'fa-clock'"></i>
+                {{ objectionStatus.payment_resolves_objection ? 'Resolved' : 'Action Required' }}
               </span>
             </div>
 
-            <div class="alert alert-danger py-2 mb-3">
+            <div class="alert py-2 mb-3" [ngClass]="objectionStatus.payment_resolves_objection ? 'alert-success' : 'alert-danger'">
               <div class="d-flex align-items-start">
-                <i class="fa-solid fa-exclamation-circle me-2 mt-1"></i>
+                <i class="fa-solid me-2 mt-1" [ngClass]="objectionStatus.payment_resolves_objection ? 'fa-check-circle' : 'fa-exclamation-circle'"></i>
                 <div>
-                  <strong>Payment Objection Raised</strong>
-                  <div class="mt-1">The scrutiny officer has raised an objection regarding the court fee payment.</div>
-                  <div class="mt-1">Required court fee amount: <strong>₹{{ paymentObjectionAmount }}/-</strong></div>
+                  <strong>{{ objectionStatus.payment_resolves_objection ? 'Payment Objection Resolved' : 'Payment Objection Raised' }}</strong>
+                  <div class="mt-1">
+                    <ng-container *ngIf="objectionStatus.payment_resolves_objection && $any(objectionStatus).resolving_payment as rp">
+                      Payment of ₹{{ rp.amount }}/- (Txn: {{ rp.txn_id }}).
+                    </ng-container>
+                    <ng-container *ngIf="!objectionStatus.payment_resolves_objection || !objectionStatus.resolving_payment">
+                      The scrutiny officer has raised an objection regarding the court fee payment. Required court fee amount: ₹{{ objectionStatus.objection_amount }}/-
+                    </ng-container>
+                  </div>
                 </div>
               </div>
             </div>
 
             <div class="row g-3 align-items-end">
-              <div class="col-md-4">
+              <div class="col-md-4" *ngIf="!canResubmitForScrutiny">
                 <button
                   type="button"
                   class="btn btn-primary w-100"
@@ -374,6 +292,18 @@
                 >
                   <i class="fa-solid fa-credit-card me-1"></i>
                   Pay Now
+                </button>
+              </div>
+              <div class="col-md-4" *ngIf="canResubmitForScrutiny">
+                <button
+                  type="button"
+                  class="btn btn-success w-100"
+                  (click)="resubmitForScrutiny()"
+                  [disabled]="isResubmitting"
+                >
+                  <span *ngIf="isResubmitting" class="spinner-border spinner-border-sm me-1"></span>
+                  <i *ngIf="!isResubmitting" class="fa-solid fa-paper-plane me-1"></i>
+                  {{ isResubmitting ? 'Submitting...' : 'Submit to Scrutiny' }}
                 </button>
               </div>
             </div>
@@ -1050,7 +980,6 @@
                         </div>
                       </div>
                     </div>
-                  </div>
                   <div
                     *ngIf="item.groupedDocs.length === 0"
                     class="ia-no-docs text-muted small p-4"

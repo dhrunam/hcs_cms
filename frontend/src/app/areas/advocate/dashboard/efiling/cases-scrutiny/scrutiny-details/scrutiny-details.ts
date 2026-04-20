@@ -8,6 +8,7 @@ import Swal from "sweetalert2";
 import { EfilingService } from "../../../../../../services/advocate/efiling/efiling.services";
 import {
   PaymentLatestResponse,
+  PaymentObjectionStatusResponse,
   PaymentService,
 } from "../../../../../../services/payment/payment.service";
 import { downloadOnlineCourtFeeReceiptPdf } from "../../../../../../utils/payment-receipt-pdf";
@@ -65,6 +66,7 @@ export class ScrutinyDetails {
   documentHistory: any[] = [];
   isLoading = false;
   isReplacing = false;
+  isResubmitting = false;
   previewErrorMessage = "";
   notesPopupOpen = false;
   canShowReplaceBtn: boolean = false;
@@ -89,6 +91,8 @@ export class ScrutinyDetails {
   allPayments: any[] = [];
   resolvedObjections: any[] = [];
   objectionResolvedByPayment: any | null = null;
+  canResubmitForScrutiny = false;
+  objectionStatus: PaymentObjectionStatusResponse | null = null;
   collapsedPayments = new Set<number>();
 
   constructor(
@@ -143,6 +147,7 @@ export class ScrutinyDetails {
         .list(id)
         .pipe(catchError(() => of({ results: [] }))),
       allPayments: this.paymentService.getAll(id).pipe(catchError(() => of({ results: [] }))),
+      objectionStatus: this.paymentService.getObjectionStatus(id).pipe(catchError(() => of(null))),
     }).subscribe({
       next: ({
         filing,
@@ -153,6 +158,8 @@ export class ScrutinyDetails {
         acts,
         ias,
         payment,
+        allPayments,
+        objectionStatus,
       }) => {
         this.filing = filing;
         const orderedMainDocs = orderDocumentsForDisplay(documents?.results ?? [], "");
@@ -171,9 +178,11 @@ export class ScrutinyDetails {
         this.iaList = Array.isArray(ias) ? ias : (ias?.results ?? []);
         this.refreshPaymentTransactions(payment);
         this.allPayments = allPayments?.results ?? [];
-        this.hasPaymentObjection = filing?.has_payment_objection === true;
-        this.paymentObjectionAmount = filing?.payment_objection_amount ?? null;
-        this.objectionResolvedByPayment = filing?.objection_resolved_by_payment ?? null;
+        this.objectionStatus = objectionStatus;
+        this.hasPaymentObjection = objectionStatus?.has_objection ?? false;
+        this.paymentObjectionAmount = objectionStatus?.objection_amount ? parseFloat(objectionStatus.objection_amount) : null;
+        this.canResubmitForScrutiny = objectionStatus?.can_resubmit ?? false;
+        this.objectionResolvedByPayment = objectionStatus?.resolving_payment ?? null;
         const firstWithDocs = this.iaWithDocuments.find(
           (i) => i.documents.length > 0,
         );
@@ -880,16 +889,19 @@ export class ScrutinyDetails {
       cancelButtonText: "Cancel",
     }).then((result) => {
       if (result.isConfirmed) {
+        this.isResubmitting = true;
         this.efilingService.resubmit_after_payment_objection(filingId).subscribe({
           next: (response) => {
             this.toastr.success("Your case has been resubmitted for scrutiny.");
             sessionStorage.removeItem("paymentResubmission_" + filingId);
+            this.isResubmitting = false;
             this.loadDetails(filingId);
           },
           error: (error) => {
             this.toastr.error(
               error?.error?.message || "Failed to resubmit for scrutiny."
             );
+            this.isResubmitting = false;
           },
         });
       }
