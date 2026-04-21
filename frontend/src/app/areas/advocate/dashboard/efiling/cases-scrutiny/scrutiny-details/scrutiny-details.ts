@@ -83,6 +83,7 @@ export class ScrutinyDetails {
   selectedIaDocumentUrl: SafeResourceUrl | null = null;
   selectedIaDocumentBlobUrl: string | null = null;
   paymentTransactions: EfilingPaymentTableRow[] = [];
+  // ↑ Payment details list rendered in HTML at lines 238–341 (inside .filing-summary-section with class "Payment Details")
   readonly paymentStatusBadgeClass = paymentStatusBadgeClass;
 
   hasPaymentObjection = false;
